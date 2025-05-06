@@ -145,20 +145,25 @@ func (eds *Rsmt2D) RangeNamespaceData(
 	odsSize := len(rawShares[0]) / 2
 	incompleteProofSize := 0
 
-	if from.Col != 0 {
-		incompleteProofSize += 1
+	startProof := shwap.NeedsStartProof(from, to, odsSize)
+	endProof := shwap.NeedsEndProof(from, to, odsSize)
+
+	if startProof {
+		incompleteProofSize++
 	}
-	if to.Col != odsSize-1 {
-		incompleteProofSize += 1
+	if endProof {
+		incompleteProofSize++
 	}
 
 	incompleteRowRootProofs := make([]*merkle.Proof, incompleteProofSize)
 
-	if from.Col != 0 {
-		incompleteRowRootProofs[0] = rowRootProofs[from.Row]
+	proofIdx := 0
+	if startProof {
+		incompleteRowRootProofs[proofIdx] = rowRootProofs[from.Row]
+		proofIdx++
 	}
-	if to.Col != odsSize-1 && from.Row != to.Row {
-		incompleteRowRootProofs[incompleteProofSize-1] = rowRootProofs[to.Row]
+	if endProof {
+		incompleteRowRootProofs[proofIdx] = rowRootProofs[to.Row]
 	}
 
 	return shwap.RangedNamespaceDataFromShares(rawShares, ns, incompleteRowRootProofs, from, to)

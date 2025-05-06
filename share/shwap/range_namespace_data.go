@@ -40,11 +40,13 @@ func RangedNamespaceDataFromShares(
 
 	odsSize := len(shares[0]) / 2
 	incompleteProofSize := 0
-	if from.Col != 0 {
-		incompleteProofSize += 1
+	startProof := NeedsStartProof(from, to, odsSize)
+	endProof := NeedsEndProof(from, to, odsSize)
+	if startProof {
+		incompleteProofSize++
 	}
-	if to.Col != odsSize-1 && from.Row != to.Row {
-		incompleteProofSize += 1
+	if endProof {
+		incompleteProofSize++
 	}
 	rngData := RangeNamespaceData{
 		Start:  from.Row,
@@ -78,15 +80,19 @@ func RangedNamespaceDataFromShares(
 		row++
 	}
 	// incomplete from.Col needs a proof for the first row to be computed
-	if from.Col != 0 {
-		sharesProofs, err := generateSharesProofs(from.Row, from.Col, odsSize, odsSize, namespace, shares[0])
+	if startProof {
+		endCol := odsSize
+		if from.Row == to.Row {
+			endCol = to.Col + 1
+		}
+		sharesProofs, err := generateSharesProofs(from.Row, from.Col, endCol, odsSize, namespace, shares[0])
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
 		rngData.Proof[0] = &Proof{shareProof: sharesProofs, rowRootProof: incompleteRowRootProofs[0]}
 	}
 	// incomplete to.Col needs a proof for the last row to be computed
-	if to.Col != odsSize-1 && from.Row != to.Row {
+	if endProof {
 		sharesProofs, err := generateSharesProofs(to.Row, 0, to.Col+1, odsSize, namespace, shares[len(shares)-1])
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
@@ -120,12 +126,14 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	dataHash []byte,
 	rowRootProofs []*merkle.Proof,
 ) error {
+	startProof := NeedsStartProof(from, to, odsSize)
+	endProof := NeedsEndProof(from, to, odsSize)
 	proofs := make([]*Proof, len(shares))
 	// copy the incomplete row proofs
-	if from.Col != 0 {
+	if startProof {
 		proofs[0] = rngdata.Proof[0]
 	}
-	if to.Col != odsSize-1 && from.Row != to.Row {
+	if endProof {
 		proofs[len(shares)-1] = rngdata.Proof[len(rngdata.Proof)-1]
 	}
 	// compute the proofs for the complete rows

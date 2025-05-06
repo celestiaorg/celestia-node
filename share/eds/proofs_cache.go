@@ -264,10 +264,10 @@ func (c *proofsCache) RangeNamespaceData(
 	odsSize := c.Size(ctx) / 2
 
 	incompleteProofSize := 0
-	if from.Col != 0 {
+	if shwap.NeedsStartProof(from, to, odsSize) {
 		incompleteProofSize += 1
 	}
-	if to.Col != odsSize-1 {
+	if shwap.NeedsEndProof(from, to, odsSize) {
 		incompleteProofSize += 1
 	}
 	rngdata := shwap.RangeNamespaceData{

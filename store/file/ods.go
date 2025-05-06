@@ -350,20 +350,22 @@ func (o *ODS) RangeNamespaceData(
 
 	odsSize := len(shares[0]) / 2
 	incompleteProofSize := 0
+	startProof := shwap.NeedsStartProof(from, to, odsSize)
+	endProof := shwap.NeedsEndProof(from, to, odsSize)
 
-	if from.Col != 0 {
+	if startProof {
 		incompleteProofSize += 1
 	}
-	if to.Col != odsSize-1 {
+	if endProof {
 		incompleteProofSize += 1
 	}
 
 	incompleteRowRootProofs := make([]*merkle.Proof, incompleteProofSize)
 
-	if from.Col != 0 {
+	if startProof {
 		incompleteRowRootProofs[0] = rowRootProofs[from.Row]
 	}
-	if to.Col != odsSize-1 && from.Row != to.Row {
+	if endProof {
 		incompleteRowRootProofs[incompleteProofSize-1] = rowRootProofs[to.Row]
 	}
 
