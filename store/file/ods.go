@@ -9,6 +9,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/tendermint/tendermint/crypto/merkle"
+
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -320,6 +322,57 @@ func (o *ODS) Reader() (io.Reader, error) {
 	total := int64(o.hdr.shareSize) * int64(o.size()*o.size()/4)
 	reader := io.NewSectionReader(o.fl, int64(offset), total)
 	return reader, nil
+}
+
+func (o *ODS) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	shares := make([][]libshare.Share, to.Row-from.Row+1)
+
+	for row, idx := from.Row, 0; row <= to.Row; row++ {
+		half, err := o.readAxisHalf(rsmt2d.Row, row)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
+		}
+
+		sh, err := half.Extended()
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("extending the data: %w", err)
+		}
+		shares[idx] = sh
+		idx++
+	}
+
+	root, err := o.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
+
+	odsSize := len(shares[0]) / 2
+	incompleteProofSize := 0
+
+	if from.Col != 0 {
+		incompleteProofSize += 1
+	}
+	if to.Col != odsSize-1 {
+		incompleteProofSize += 1
+	}
+
+	incompleteRowRootProofs := make([]*merkle.Proof, incompleteProofSize)
+
+	if from.Col != 0 {
+		incompleteRowRootProofs[0] = rowRootProofs[from.Row]
+	}
+	if to.Col != odsSize-1 && from.Row != to.Row {
+		incompleteRowRootProofs[incompleteProofSize-1] = rowRootProofs[to.Row]
+	}
+
+	return shwap.RangedNamespaceDataFromShares(shares, ns, incompleteRowRootProofs, from, to)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

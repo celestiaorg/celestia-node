@@ -2,6 +2,8 @@ module github.com/celestiaorg/celestia-node
 
 go 1.23.6
 
+replace github.com/celestiaorg/nmt => github.com/gupadhyaya/nmt v0.0.0-20250505135526-d056572e2383
+
 require (
 	cosmossdk.io/math v1.5.0
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
