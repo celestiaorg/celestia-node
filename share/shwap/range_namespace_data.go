@@ -146,8 +146,11 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			continue
 		}
 
-		rowShares := shares[i]
-		proof, err := generateSharesProofs(row, 0, odsSize, odsSize, namespace, rowShares)
+		extendedRowShares, err := share.ExtendShares(shares[i])
+		if err != nil {
+			return fmt.Errorf("failed to extend row shares: %w", err)
+		}
+		proof, err := generateSharesProofs(row, 0, odsSize, odsSize, namespace, extendedRowShares)
 		if err != nil {
 			return fmt.Errorf("failed to generate proof for row %d: %w", row, err)
 		}
