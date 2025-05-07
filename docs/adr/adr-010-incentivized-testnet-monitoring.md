@@ -230,7 +230,7 @@ This is not supported by [open-telemetry/opentelemetry-go#3055](https://github.c
 
 ### How to mitigate DDOS attacks against Prometheus?
 
-It's possible to create an API key with the `MetricsPublisher` role on cloud hosted Prometheus. These API keys can be distributed to participants if they are expected to remote write to Prometheus.
+It’s possible to create an API key with the `MetricsPublisher` role on cloud hosted Prometheus. These API keys can be distributed to participants if they are expected to remote write to Prometheus.
 
 ### How to send data over HTTPS
 
