@@ -283,7 +283,7 @@ In the case where a node operator wants to send data from celestia-node to an OT
 
 #### What are the resource requirements of OTEL collector?
 
-Official resource requirements are not stated in the OTEL Collector docs. However, [performance benchmarks](https://github.com/open-telemetry/opentelemetry-collector/blob/main/docs/performance.md#results-without-tail-based-sampling) indicate that OTEL Collector is able to handle up to 10K traces ([units unclear](https://github.com/open-telemetry/opentelemetry-collector/issues/5780)) on 1 CPU and 2GB RAM. Given [light node](https://docs.celestia.org/nodes/light-node#hardware-requirements) runs on 1 CPU and 2GB RAM, it seems feasible to run an OTEL Collector agent on the most resource constrained target hardware.
+Official resource requirements are not stated in the OTEL Collector docs. However, [performance benchmarks](https://github.com/open-telemetry/opentelemetry-collector/blob/main/docs/performance.md#results-without-tail-based-sampling) indicate that OTEL Collector is able to handle up to 10K traces ([units unclear](https://github.com/open-telemetry/opentelemetry-collector/issues/5780)) on 1 CPU and 2GB RAM. Given [light node](https://docs.celestia.org/how-to-guides/light-node#hardware-requirements) runs on 1 CPU and 2GB RAM, it seems feasible to run an OTEL Collector agent on the most resource constrained target hardware.
 
 ## Status
 
