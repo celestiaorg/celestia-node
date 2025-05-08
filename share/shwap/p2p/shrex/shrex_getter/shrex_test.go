@@ -25,9 +25,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -46,7 +45,6 @@ func TestShrexGetter(t *testing.T) {
 	require.NoError(t, err)
 
 	ndClient, _ := newNDClientServer(ctx, t, edsStore, srvHost, clHost)
-	edsClient, _ := newEDSClientServer(ctx, t, edsStore, srvHost, clHost)
 
 	// create shrex Getter
 	sub := new(headertest.Subscriber)
@@ -56,7 +54,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
+	getter := NewGetter(ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
 	require.NoError(t, getter.Start(ctx))
 
 	height := atomic.Uint64{}
@@ -314,40 +312,19 @@ func testManager(
 
 func newNDClientServer(
 	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
-) (*shrexnd.Client, *shrexnd.Server) {
-	params := shrexnd.DefaultParameters()
+) (*shrex.Client, *shrex.Server) {
+	params := shrex.DefaultParameters()
 
 	// create server and register handler
-	server, err := shrexnd.NewServer(params, srvHost, edsStore)
+	server, err := shrex.NewServer(params, srvHost, edsStore, shrex.SupportedProtocols()...)
 	require.NoError(t, err)
-	require.NoError(t, server.Start(ctx))
 
 	t.Cleanup(func() {
 		_ = server.Stop(ctx)
 	})
 
 	// create client and connect it to server
-	client, err := shrexnd.NewClient(params, clHost)
-	require.NoError(t, err)
-	return client, server
-}
-
-func newEDSClientServer(
-	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
-) (*shrexeds.Client, *shrexeds.Server) {
-	params := shrexeds.DefaultParameters()
-
-	// create server and register handler
-	server, err := shrexeds.NewServer(params, srvHost, edsStore)
-	require.NoError(t, err)
-	require.NoError(t, server.Start(ctx))
-
-	t.Cleanup(func() {
-		_ = server.Stop(ctx)
-	})
-
-	// create client and connect it to server
-	client, err := shrexeds.NewClient(params, clHost)
+	client, err := shrex.NewClient(params, clHost)
 	require.NoError(t, err)
 	return client, server
 }

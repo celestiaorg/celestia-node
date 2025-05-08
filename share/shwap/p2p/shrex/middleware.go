@@ -3,11 +3,8 @@ package shrex
 import (
 	"sync/atomic"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/network"
 )
-
-var log = logging.Logger("shrex/middleware")
 
 type Middleware struct {
 	// concurrencyLimit is the maximum number of requests that can be processed at once.

@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-// protocolString is the protocol string for the shrex protocol.
-const ProtocolString = "/shrex/v0.1.0/"
+var log = logging.Logger("shrex")
 
-// Parameters is the set of parameters that must be configured for the shrex/eds protocol.
+// protocolString is the protocol string for the shrex protocol.
+const protocolString = "/shrex/v0.1.0/"
+
+// Parameters is the set of parameters that must be configured for the shrex protocol.
 type Parameters struct {
 	// ServerReadTimeout sets the timeout for reading messages from the stream.
 	ServerReadTimeout time.Duration
@@ -67,6 +70,6 @@ func (p *Parameters) NetworkID() string {
 }
 
 // ProtocolID creates a protocol ID string according to common format
-func ProtocolID(networkID, protocolString string) protocol.ID {
-	return protocol.ID(fmt.Sprintf("/%s%s", networkID, protocolString))
+func ProtocolID(networkID, protocolName string) protocol.ID {
+	return protocol.ID(fmt.Sprintf("/%s%s%s", networkID, protocolString, protocolName))
 }
