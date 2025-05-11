@@ -200,7 +200,29 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 	account := ca.client.AccountByAddress(author)
 	if account == nil {
-		return nil, fmt.Errorf("account for signer %s not found", author)
+		// Check if account has balance but is not cached in the tx client
+		balance, err := ca.BalanceForAddress(ctx, Address{author})
+		if err != nil {
+			return nil, fmt.Errorf("failed to check balance for account %s: %w", author, err)
+		}
+
+		if !balance.Amount.IsZero() {
+			// Account has balance but isn't cached in tx client, force refresh by recreating client
+			log.Debugw("account has balance but not found in tx client cache, refreshing client", "address", author.String())
+			ca.client = nil
+			client, err = ca.getTxClient(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			// Try to get account again
+			account = ca.client.AccountByAddress(author)
+			if account == nil {
+				return nil, fmt.Errorf("account for signer %s still not found after refresh", author)
+			}
+		} else {
+			return nil, fmt.Errorf("account for signer %s not found or has zero balance", author)
+		}
 	}
 
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
