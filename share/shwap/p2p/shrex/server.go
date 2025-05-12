@@ -39,7 +39,7 @@ type Server struct {
 // NewServer creates new Server
 func NewServer(params *Parameters, host host.Host, store *store.Store, supportedProtocols ...string) (*Server, error) {
 	if err := params.Validate(); err != nil {
-		return nil, fmt.Errorf("shrex-server: Server creation failed: %w", err)
+		return nil, fmt.Errorf("shrex/server: Server creation failed: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -61,12 +61,12 @@ func NewServer(params *Parameters, host host.Host, store *store.Store, supported
 	for _, protocolName := range supportedProtocols {
 		id, ok := initID[protocolName]
 		if !ok {
-			return nil, fmt.Errorf("shrex-server: %w: %s", ErrUnsupportedProtocol,
+			return nil, fmt.Errorf("shrex/server: %w: %s", ErrUnsupportedProtocol,
 				ProtocolID(params.NetworkID(), protocolName),
 			)
 		}
 		handler := srv.streamHandler(srv.ctx, id)
-		withRateLimit := srv.middleware.RateLimitHandler(handler)
+		withRateLimit := srv.middleware.rateLimitHandler(ctx, handler, id().Name())
 		withRecovery := RecoveryMiddleware(withRateLimit)
 		srv.SetHandler(ProtocolID(srv.params.NetworkID(), protocolName), withRecovery)
 	}
@@ -78,7 +78,7 @@ func (srv *Server) SetHandler(p protocol.ID, h network.StreamHandler) {
 }
 
 // Stop stops the Server
-func (srv *Server) Stop(context.Context) error {
+func (srv *Server) Stop(_ context.Context) error {
 	srv.cancel()
 	for _, id := range srv.supportedProtocols {
 		srv.host.RemoveStreamHandler(ProtocolID(srv.params.NetworkID(), id))
@@ -92,7 +92,7 @@ func (srv *Server) streamHandler(ctx context.Context, id newID) network.StreamHa
 			s.Reset() //nolint:errcheck
 		}
 		if err := s.Close(); err != nil {
-			log.Debugw("shrex-server: closing stream", "err", err)
+			log.Debugw("server: closing stream", "err", err)
 		}
 	}
 }
@@ -102,8 +102,6 @@ func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream netwo
 	logger := log.With("source", "Server", "name", "peer", requestID.Name(), stream.Conn().RemotePeer().String())
 	logger.Debug("handling data request")
 
-	srv.obServeRateLimitedRequests()
-
 	// registering handlers are done only after the verification that
 	// protocol supports it. There is no need to additionally verify here whether we support it
 	// or not.
@@ -111,14 +109,14 @@ func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream netwo
 	err := srv.readRequest(logger, requestID, stream)
 	if err != nil {
 		logger.Warnw("read request", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
+		srv.metrics.observeRequests(ctx, 1, requestID.Name(), StatusBadRequest)
 		return false
 	}
 
 	err = requestID.Validate()
 	if err != nil {
 		logger.Warnw("validate request", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
+		srv.metrics.observeRequests(ctx, 1, requestID.Name(), StatusBadRequest)
 		return false
 	}
 
@@ -127,10 +125,10 @@ func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream netwo
 	defer cancel()
 
 	r, status, err := srv.getData(ctx, requestID)
-	sendErr := srv.respondStatus(ctx, logger, stream, status)
+	sendErr := srv.respondStatus(ctx, logger, requestID, stream, status)
 	if sendErr != nil {
 		logger.Errorw("sending response status", "err", sendErr)
-		srv.metrics.ObserveRequests(ctx, 1, StatusSendRespErr)
+		srv.metrics.observeRequests(ctx, 1, requestID.Name(), StatusSendRespErr)
 	}
 
 	if err != nil {
@@ -145,7 +143,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, id newID, stream netwo
 	_, err = io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
-		srv.metrics.ObserveRequests(ctx, 1, StatusSendRespErr)
+		srv.metrics.observeRequests(ctx, 1, requestID.Name(), StatusSendRespErr)
 		return false
 	}
 	return true
@@ -178,6 +176,7 @@ func (srv *Server) getData(
 	ctx context.Context,
 	id id,
 ) (io.Reader, shrexpb.Status, error) {
+	handleTime := time.Now()
 	file, err := srv.store.GetByHeight(ctx, id.Target())
 	switch {
 	case err == nil:
@@ -193,23 +192,18 @@ func (srv *Server) getData(
 	if err != nil {
 		return nil, shrexpb.Status_INVALID, fmt.Errorf("getting data: %w", err)
 	}
+	srv.metrics.observeDuration(ctx, id.Name(), time.Since(handleTime))
 	return w, shrexpb.Status_OK, nil
-}
-
-func (srv *Server) obServeRateLimitedRequests() {
-	numRateLimited := srv.middleware.DrainCounter()
-	if numRateLimited > 0 {
-		srv.metrics.ObserveRequests(context.Background(), numRateLimited, StatusRateLimited)
-	}
 }
 
 func (srv *Server) respondStatus(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
+	id id,
 	stream network.Stream,
 	status shrexpb.Status,
 ) error {
-	srv.observeStatus(ctx, status)
+	srv.observeStatus(ctx, id.Name(), status)
 
 	err := stream.SetWriteDeadline(time.Now().Add(srv.params.ServerWriteTimeout))
 	if err != nil {
@@ -224,21 +218,21 @@ func (srv *Server) respondStatus(
 	return nil
 }
 
-func (srv *Server) observeStatus(ctx context.Context, status shrexpb.Status) {
+func (srv *Server) observeStatus(ctx context.Context, requestName string, status shrexpb.Status) {
 	switch {
 	case status == shrexpb.Status_OK:
-		srv.metrics.ObserveRequests(ctx, 1, StatusSuccess)
+		srv.metrics.observeRequests(ctx, 1, requestName, StatusSuccess)
 	case status == shrexpb.Status_NOT_FOUND:
-		srv.metrics.ObserveRequests(ctx, 1, StatusNotFound)
+		srv.metrics.observeRequests(ctx, 1, requestName, StatusNotFound)
 	case status == shrexpb.Status_INVALID:
-		srv.metrics.ObserveRequests(ctx, 1, StatusInternalErr)
+		srv.metrics.observeRequests(ctx, 1, requestName, StatusInternalErr)
 	}
 }
 
 func (srv *Server) WithMetrics() error {
 	metrics, err := InitServerMetrics()
 	if err != nil {
-		return fmt.Errorf("shrex/nd: init Metrics: %w", err)
+		return fmt.Errorf("shrex/server: init Metrics: %w", err)
 	}
 	srv.metrics = metrics
 	return nil

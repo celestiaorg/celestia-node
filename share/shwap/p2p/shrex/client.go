@@ -27,10 +27,10 @@ type Client struct {
 	metrics *Metrics
 }
 
-// NewClient creates a new shrEx/nd client
+// NewClient creates a new shrEx client
 func NewClient(params *Parameters, host host.Host) (*Client, error) {
 	if err := params.Validate(); err != nil {
-		return nil, fmt.Errorf("shrex-client: creation failed: %w", err)
+		return nil, fmt.Errorf("shrex/client: creation failed: %w", err)
 	}
 	return &Client{
 		host:   host,
@@ -44,12 +44,14 @@ func (c *Client) Get(
 	container container,
 	peer peer.ID,
 ) error {
+	requestTime := time.Now()
 	err := c.doRequest(ctx, id, container, peer)
 	if err == nil {
+		c.metrics.observeDuration(ctx, id.Name(), time.Since(requestTime))
 		return nil
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		c.metrics.ObserveRequests(ctx, 1, StatusTimeout)
+		c.metrics.observeRequests(ctx, 1, id.Name(), StatusTimeout)
 		return err
 	}
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
@@ -57,12 +59,12 @@ func (c *Client) Get(
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-			c.metrics.ObserveRequests(ctx, 1, StatusTimeout)
+			c.metrics.observeRequests(ctx, 1, id.Name(), StatusTimeout)
 			return context.DeadlineExceeded
 		}
 	}
 	if !errors.Is(err, ErrNotFound) && errors.Is(err, ErrRateLimited) {
-		log.Warnw("shrex-client: peer returned err", "err", err)
+		log.Warnw("client: peer returned err", "err", err)
 	}
 	return err
 }
@@ -86,44 +88,44 @@ func (c *Client) doRequest(
 
 	_, err = id.WriteTo(stream)
 	if err != nil {
-		c.metrics.ObserveRequests(ctx, 1, StatusSendReqErr)
-		return fmt.Errorf("shrex-client: writing request: %w", err)
+		c.metrics.observeRequests(ctx, 1, id.Name(), StatusSendReqErr)
+		return fmt.Errorf("shrex/client: writing request: %w", err)
 	}
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Warnw("shrex-client: closing write side of the stream", "err", err)
+		log.Warnw("client: closing write side of the stream", "err", err)
 	}
 
-	status, err := c.readStatus(ctx, stream)
+	status, err := c.readStatus(ctx, id.Name(), stream)
 	if err != nil {
 		// metrics updated inside read status
-		return fmt.Errorf("shrex-client: reading status response: %w", err)
+		return fmt.Errorf("shrex/client: reading status response: %w", err)
 	}
 
-	err = c.convertStatusToErr(ctx, status)
+	err = c.convertStatusToErr(ctx, id.Name(), status)
 	if err != nil {
 		return err
 	}
 
 	_, err = container.ReadFrom(stream)
 	if err != nil {
-		c.metrics.ObserveRequests(ctx, 1, StatusReadRespErr)
+		c.metrics.observeRequests(ctx, 1, id.Name(), StatusReadRespErr)
 		return err
 	}
 	return nil
 }
 
-func (c *Client) readStatus(ctx context.Context, stream network.Stream) (shrexpb.Status, error) {
+func (c *Client) readStatus(ctx context.Context, requestName string, stream network.Stream) (shrexpb.Status, error) {
 	var resp shrexpb.Response
 	_, err := serde.Read(stream, &resp)
 	if err != nil {
 		// server is overloaded and closed the stream
 		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, StatusRateLimited)
+			c.metrics.observeRequests(ctx, 1, requestName, StatusRateLimited)
 			return shrexpb.Status_INTERNAL, ErrRateLimited
 		}
-		c.metrics.ObserveRequests(ctx, 1, StatusReadRespErr)
+		c.metrics.observeRequests(ctx, 1, requestName, StatusReadRespErr)
 		return shrexpb.Status_INTERNAL, err
 	}
 	return resp.Status, nil
@@ -137,14 +139,14 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		if err == nil {
 			return
 		}
-		log.Debugw("shrex-client: set stream deadline", "err", err)
+		log.Debugw("client: set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
 	if c.params.ServerWriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.ServerWriteTimeout))
 		if err != nil {
-			log.Debugw("shrex-client: set read deadline", "err", err)
+			log.Debugw("client: set read deadline", "err", err)
 		}
 	}
 
@@ -152,27 +154,27 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ServerReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ServerReadTimeout))
 		if err != nil {
-			log.Debugw("shrex-client: set write deadline", "err", err)
+			log.Debugw("client: set write deadline", "err", err)
 		}
 	}
 }
 
-func (c *Client) convertStatusToErr(ctx context.Context, status shrexpb.Status) error {
+func (c *Client) convertStatusToErr(ctx context.Context, requestName string, status shrexpb.Status) error {
 	switch status {
 	case shrexpb.Status_OK:
-		c.metrics.ObserveRequests(ctx, 1, StatusSuccess)
+		c.metrics.observeRequests(ctx, 1, requestName, StatusSuccess)
 		return nil
 	case shrexpb.Status_NOT_FOUND:
-		c.metrics.ObserveRequests(ctx, 1, StatusNotFound)
+		c.metrics.observeRequests(ctx, 1, requestName, StatusNotFound)
 		return ErrNotFound
 	case shrexpb.Status_INTERNAL:
-		c.metrics.ObserveRequests(ctx, 1, StatusInternalErr)
+		c.metrics.observeRequests(ctx, 1, requestName, StatusInternalErr)
 		return ErrInternalServer
 	case shrexpb.Status_INVALID:
-		c.metrics.ObserveRequests(ctx, 1, StatusBadRequest)
+		c.metrics.observeRequests(ctx, 1, requestName, StatusBadRequest)
 		return ErrInvalidRequest
 	default:
-		c.metrics.ObserveRequests(ctx, 1, StatusReadRespErr)
+		c.metrics.observeRequests(ctx, 1, requestName, StatusReadRespErr)
 		return ErrInvalidResponse
 	}
 }
@@ -180,7 +182,7 @@ func (c *Client) convertStatusToErr(ctx context.Context, status shrexpb.Status) 
 func (c *Client) WithMetrics() error {
 	metrics, err := InitClientMetrics()
 	if err != nil {
-		return fmt.Errorf("shrex/nd: init Metrics: %w", err)
+		return fmt.Errorf("shrex/client: init Metrics: %w", err)
 	}
 	c.metrics = metrics
 	return nil
