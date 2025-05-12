@@ -77,8 +77,8 @@ func (sg *Getter) WithMetrics() error {
 	}
 
 	ndAttemptHistogram, err := meter.Int64Histogram(
-		"getters_shrex_nd_attempts_per_request",
-		metric.WithDescription("Number of attempts per shrex/nd request"),
+		"getters_shrex_attempts_per_request",
+		metric.WithDescription("Number of attempts per shrex request"),
 	)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (sg *Getter) WithMetrics() error {
 	return nil
 }
 
-// Getter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
+// Getter is a share.Getter that uses the shrex protocol to retrieve shares.
 type Getter struct {
 	ndClient *shrex.Client
 

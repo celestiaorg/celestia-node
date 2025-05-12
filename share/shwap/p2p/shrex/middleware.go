@@ -1,9 +1,12 @@
 package shrex
 
 import (
+	"context"
 	"sync/atomic"
 
 	"github.com/libp2p/go-libp2p/core/network"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type Middleware struct {
@@ -11,8 +14,8 @@ type Middleware struct {
 	concurrencyLimit int64
 	// parallelRequests is the number of requests currently being processed.
 	parallelRequests atomic.Int64
-	// numRateLimited is the number of requests that were rate limited.
-	numRateLimited atomic.Int64
+
+	rateLimiterCounter metric.Int64Counter
 }
 
 func NewMiddleware(concurrencyLimit int) *Middleware {
@@ -21,18 +24,19 @@ func NewMiddleware(concurrencyLimit int) *Middleware {
 	}
 }
 
-// DrainCounter returns the current value of the rate limit counter and resets it to 0.
-func (m *Middleware) DrainCounter() int64 {
-	return m.numRateLimited.Swap(0)
-}
-
-func (m *Middleware) RateLimitHandler(handler network.StreamHandler) network.StreamHandler {
+func (m *Middleware) rateLimitHandler(
+	ctx context.Context,
+	handler network.StreamHandler,
+	requestName string,
+) network.StreamHandler {
 	return func(stream network.Stream) {
 		current := m.parallelRequests.Add(1)
 		defer m.parallelRequests.Add(-1)
 
 		if current > m.concurrencyLimit {
-			m.numRateLimited.Add(1)
+			m.rateLimiterCounter.Add(ctx, 1,
+				metric.WithAttributes(attribute.String("request.name", requestName)),
+			)
 			log.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {

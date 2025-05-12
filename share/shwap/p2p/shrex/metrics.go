@@ -2,6 +2,7 @@ package shrex
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -28,18 +29,27 @@ const (
 
 type Metrics struct {
 	totalRequestCounter metric.Int64Counter
+	requestDuration     metric.Float64Histogram
 }
 
-// ObserveRequests increments the total number of requests sent with the given status as an
+// observeRequests increments the total number of requests sent with the given status as an
 // attribute.
-func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status status) {
+func (m *Metrics) observeRequests(ctx context.Context, count int64, requestName string, status status) {
 	if m == nil {
 		return
 	}
 	ctx = utils.ResetContextOnError(ctx)
 	m.totalRequestCounter.Add(ctx, count,
 		metric.WithAttributes(
+			attribute.String("request.name", requestName),
 			attribute.String("status", string(status)),
+		))
+}
+
+func (m *Metrics) observeDuration(ctx context.Context, requestName string, d time.Duration) {
+	m.requestDuration.Record(ctx, d.Seconds(),
+		metric.WithAttributes(
+			attribute.String("request.name", requestName),
 		))
 }
 
@@ -52,8 +62,16 @@ func InitClientMetrics() (*Metrics, error) {
 		return nil, err
 	}
 
+	requestDuration, err := meter.Float64Histogram(
+		"shrex_client_request_duration",
+		metric.WithDescription("Time taken to complete a shrex client request"),
+	)
+	if err != nil {
+		return nil, err
+	}
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
+		requestDuration:     requestDuration,
 	}, nil
 }
 
@@ -66,7 +84,15 @@ func InitServerMetrics() (*Metrics, error) {
 		return nil, err
 	}
 
+	requestDuration, err := meter.Float64Histogram(
+		"shrex_server_request_duration",
+		metric.WithDescription("Time taken to handle a shrex client request"),
+	)
+	if err != nil {
+		return nil, err
+	}
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
+		requestDuration:     requestDuration,
 	}, nil
 }
