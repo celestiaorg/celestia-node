@@ -92,23 +92,28 @@ balance, err := celestiaClient.State.Balance(ctx)
 ## Configuration
 
 ### ReadConfig
+
 - `BridgeDAAddr`: Address of the Bridge node
 - `DAAuthToken`: Authentication token for the Bridge node
 - `EnableDATLS`: Enable TLS for Bridge node connection
 
 ### SubmitConfig
+
 - `DefaultKeyName`: Default key to use for transactions
 - `Network`: Network name (e.g., "mocha-4", "private")
 - `CoreGRPCConfig`: Configuration for Core node connection
 
 ### CoreGRPCConfig
+
 - `Addr`: Address of the Core gRPC server
 - `TLSEnabled`: Whether to use TLS for the connection
 - `AuthToken`: Authentication token for Core gRPC
 
 ## Security
+
 - When using authentication tokens, TLS is strongly recommended
 - The client will warn if auth tokens are used without TLS
 
 ## Example
+
 See [example.go](https://github.com/celestiaorg/celestia-node/blob/light-lib/api/client/example/example.go) for a complete example of creating a client, submitting a blob, and retrieving it.
