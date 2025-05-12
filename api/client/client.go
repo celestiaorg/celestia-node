@@ -21,33 +21,11 @@ import (
 
 var log = logging.Logger("celestia-client")
 
-// TODO:
-// Major limitations:
-// We still carry deps for cosmos-sdk and celestia-app replaces.
-// - can be solved by moving client to a separate package and decoupling all rpcs.
-// Client needs to be reinitialized on every key change due to txClient being stateful and
-// maintaining copy of keys.	- can be reworked by wrapping keyring and updating txClient internal
-// state on key change. Complicated Core accessor requires KeyName to be set and exist in the
-// keyring. Which is not necessary imo. - require refactor of core_accessor/txClient
-// Can't make submit only client, because submition is coupled with reads in blob service
-// - need to split blob API into read and submit
-
-// TODO: blobSubmit can't accept nil SubmitOptions, only pointer to empty struct!
-
-// - decide whether to keep keyring inside the client. Potentially could allow to swap/ regen keys
-// on the fly. - figure out if we use first key from the keyring or require user to specify it.
-
 // Config holds configuration for the Client.
 type Config struct {
 	// TODO: Do we need backwards compatibility tracking? APIVersion will check version of the API and
 	// fail if it doesn't match
 	// APIVersion        string
-
-	// TODO: do we need metrics inside the client? probably not
-	// EnableMetrics     bool
-
-	// TODO: expose retries config? default is 5 atm for submit blob
-	// MaxRetries        int
 
 	// TODO: do we need logging inside the client?
 	// EnableLogging     bool
@@ -58,9 +36,9 @@ type Config struct {
 }
 
 type SubmitConfig struct {
-	DefaultKeyName      string
-	Network             p2p.Network
-	ConsensusGRPCConfig GRPCConfig
+	DefaultKeyName string
+	Network        p2p.Network
+	CoreGRPCConfig CoreGRPCConfig
 }
 
 func (cfg Config) Validate() error {
@@ -74,7 +52,7 @@ func (cfg SubmitConfig) Validate() error {
 	if cfg.DefaultKeyName == "" {
 		return errors.New("default key name should not be empty")
 	}
-	return cfg.ConsensusGRPCConfig.Validate()
+	return cfg.CoreGRPCConfig.Validate()
 }
 
 // Client is a simplified Celestia client to submit blobs and interact with DA RPC.
@@ -106,7 +84,7 @@ func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
 		return nil, errors.New("keyring is nil")
 	}
 
-	cl, err := grpcClient(cfg.SubmitConfig.ConsensusGRPCConfig)
+	cl, err := grpcClient(cfg.SubmitConfig.CoreGRPCConfig)
 	if err != nil {
 		return nil, err
 	}

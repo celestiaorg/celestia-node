@@ -15,8 +15,9 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-// GRPCConfig combines all configuration fields for managing the relationship with a Core node.
-type GRPCConfig struct {
+// CoreGRPCConfig is the configuration for the core gRPC client.
+type CoreGRPCConfig struct {
+	// Addr is the address of the core gRPC server.
 	Addr string
 	// TLSEnabled specifies whether the connection is secure or not.
 	TLSEnabled bool
@@ -27,12 +28,12 @@ type GRPCConfig struct {
 }
 
 // Validate performs basic validation of the config.
-func (cfg *GRPCConfig) Validate() error {
+func (cfg *CoreGRPCConfig) Validate() error {
 	_, err := utils.SanitizeAddr(cfg.Addr)
 	return err
 }
 
-func grpcClient(cfg GRPCConfig) (*grpc.ClientConn, error) {
+func grpcClient(cfg CoreGRPCConfig) (*grpc.ClientConn, error) {
 	const defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(

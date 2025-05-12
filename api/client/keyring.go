@@ -21,17 +21,9 @@ type KeyringConfig struct {
 	BackendName string
 }
 
-func DefaultKeyringConfig() KeyringConfig {
-	return KeyringConfig{
-		KeyName:     "my_celes_key",
-		BackendName: keyring.BackendTest,
-	}
-}
-
-// NewDefaultRing is a helper function for easy keyring initialization. It initializes a keyring
-// with the given config and path. The returned keyring is ready to use and can be used to sign
-// transactions.
-func NewDefaultRing(cfg KeyringConfig, path string) (keyring.Keyring, error) {
+// KeyringWithNewKey is a helper function for easy keyring initialization. It initializes a keyring
+// with the given config and path. It creates a new key if no key is found in the keyring store.
+func KeyringWithNewKey(cfg KeyringConfig, path string) (keyring.Keyring, error) {
 	if cfg.KeyName == "" {
 		return nil, errors.New("no key name provided")
 	}
