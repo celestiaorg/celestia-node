@@ -46,85 +46,85 @@ func (api *blobSubmitClient) Submit(ctx context.Context,
 	return api.submitter.Submit(ctx, blobs, options)
 }
 
-// readOnlyStateAPI returns an error on all state client methods if consensus connection is not
+// disabledStateAPI returns an error on all state client methods if consensus connection is not
 // configured
-type readOnlyStateAPI struct{}
+type disabledStateAPI struct{}
 
-func (r *readOnlyStateAPI) AccountAddress(context.Context) (state.Address, error) {
+func (r *disabledStateAPI) AccountAddress(context.Context) (state.Address, error) {
 	return state.Address{}, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) Balance(context.Context) (*state.Balance, error) {
+func (r *disabledStateAPI) Balance(context.Context) (*state.Balance, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) BalanceForAddress(context.Context,
+func (r *disabledStateAPI) BalanceForAddress(context.Context,
 	state.Address,
 ) (*state.Balance, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) Transfer(context.Context,
+func (r *disabledStateAPI) Transfer(context.Context,
 	state.AccAddress, state.Int, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) SubmitPayForBlob(context.Context,
+func (r *disabledStateAPI) SubmitPayForBlob(context.Context,
 	[]*libshare.Blob, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) CancelUnbondingDelegation(context.Context,
+func (r *disabledStateAPI) CancelUnbondingDelegation(context.Context,
 	state.ValAddress, state.Int, state.Int, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) BeginRedelegate(context.Context,
+func (r *disabledStateAPI) BeginRedelegate(context.Context,
 	state.ValAddress, state.ValAddress, state.Int, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) Undelegate(context.Context,
+func (r *disabledStateAPI) Undelegate(context.Context,
 	state.ValAddress, state.Int, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) Delegate(context.Context,
+func (r *disabledStateAPI) Delegate(context.Context,
 	state.ValAddress, state.Int, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) QueryDelegation(context.Context,
+func (r *disabledStateAPI) QueryDelegation(context.Context,
 	state.ValAddress,
 ) (*types.QueryDelegationResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) QueryUnbonding(context.Context,
+func (r *disabledStateAPI) QueryUnbonding(context.Context,
 	state.ValAddress,
 ) (*types.QueryUnbondingDelegationResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) QueryRedelegations(context.Context,
+func (r *disabledStateAPI) QueryRedelegations(context.Context,
 	state.ValAddress, state.ValAddress,
 ) (*types.QueryRedelegationsResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) GrantFee(context.Context,
+func (r *disabledStateAPI) GrantFee(context.Context,
 	state.AccAddress, state.Int, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode
 }
 
-func (r *readOnlyStateAPI) RevokeGrantFee(context.Context,
+func (r *disabledStateAPI) RevokeGrantFee(context.Context,
 	state.AccAddress, *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return nil, ErrReadOnlyMode

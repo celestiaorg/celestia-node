@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cristalhq/jwt/v5"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -156,7 +157,7 @@ func TestSubmission(t *testing.T) {
 		SubmitConfig: SubmitConfig{
 			DefaultKeyName: accounts[0].Name,
 			Network:        "private",
-			ConsensusGRPCConfig: GRPCConfig{
+			CoreGRPCConfig: CoreGRPCConfig{
 				Addr: cctx.GRPCClient.Target(),
 			},
 		},
@@ -340,8 +341,11 @@ func bridgeNode(t *testing.T, ctx context.Context, cctx testnode.Context) (*node
 	addAuth, adminToken := addAuth(t)
 
 	// generate new keyring for BN to prevent it from signing with client keys
-	keysCfg := DefaultKeyringConfig()
-	kr, err := NewDefaultRing(keysCfg, tempDir)
+	keysCfg := KeyringConfig{
+		KeyName:     "my_celes_key",
+		BackendName: keyring.BackendTest,
+	}
+	kr, err := KeyringWithNewKey(keysCfg, tempDir)
 	require.NoError(t, err)
 
 	bn, err := nodebuilder.New(node.Bridge, p2p.Private, store,

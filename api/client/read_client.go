@@ -16,11 +16,14 @@ import (
 	shareapi "github.com/celestiaorg/celestia-node/nodebuilder/share"
 )
 
-// Bridge node rpc connection config
+// Bridge node json-rpc connection config
 type ReadConfig struct {
+	// BridgeDAAddr is the address of the bridge node
 	BridgeDAAddr string
-	DAAuthToken  string
-	EnableDATLS  bool
+	// DAAuthToken is used to authenticate with bridge node
+	DAAuthToken string
+	// EnableDATLS enables TLS for bridge node
+	EnableDATLS bool
 }
 
 func (cfg ReadConfig) Validate() error {
@@ -85,7 +88,7 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*Client, error) {
 		Blobstream:  &blobstreamAPI,
 		Header:      &headerAPI,
 		Blob:        &readOnlyBlobAPI{&blobAPI},
-		State:       &readOnlyStateAPI{},
+		State:       &disabledStateAPI{},
 		chainCloser: chainCloser,
 	}, nil
 }
