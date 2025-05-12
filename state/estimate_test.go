@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestEstimatorService(t *testing.T) {
@@ -74,7 +74,7 @@ func TestEstimatorService(t *testing.T) {
 		mes.gasUsageToReturn = 10000
 
 		// dummy tx, doesn't matter what's in it
-		coins := sdktypes.NewCoins(sdktypes.NewCoin(app.BondDenom, math.NewInt(100)))
+		coins := sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, math.NewInt(100)))
 		msg := banktypes.NewMsgSend(ca.defaultSignerAddress, ca.defaultSignerAddress, coins)
 
 		testcases := []struct {
