@@ -8,7 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-var log = logging.Logger("shrex")
+var log = logging.Logger("shrex/")
 
 // protocolString is the protocol string for the shrex protocol.
 const protocolString = "/shrex/v0.1.0/"
