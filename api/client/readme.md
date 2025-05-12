@@ -13,8 +13,8 @@ This client package provides a simplified interface for interacting with Celesti
 - **State Management**: Check balances, execute transactions
 - **Keyring Integration**: Manage keys for transaction signing
 - **Flexible Client Modes**:
-    - Read-only mode (Bridge node connection only)
-    - Full client mode (Bridge + Core node connections)
+  - Read-only mode (Bridge node connection only)
+  - Full client mode (Bridge + Core node connections)
 
 ## Installation
 
