@@ -263,17 +263,11 @@ func (c *proofsCache) RangeNamespaceData(
 ) (shwap.RangeNamespaceData, error) {
 	odsSize := c.Size(ctx) / 2
 
-	incompleteProofSize := 0
-	if shwap.NeedsStartProof(from, to, odsSize) {
-		incompleteProofSize += 1
-	}
-	if shwap.NeedsEndProof(from, to, odsSize) {
-		incompleteProofSize += 1
-	}
+	numRows := to.Row - from.Row + 1
 	rngdata := shwap.RangeNamespaceData{
 		Start:  from.Row,
-		Shares: make([][]libshare.Share, 0, to.Row-from.Row+1),
-		Proof:  make([]*shwap.Proof, 0, incompleteProofSize),
+		Shares: make([][]libshare.Share, 0, numRows),
+		Proof:  make([]*shwap.Proof, 0, numRows),
 	}
 
 	// iterate over each row in the range [from.Row; to.Row].

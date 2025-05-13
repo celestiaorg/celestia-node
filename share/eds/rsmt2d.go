@@ -142,31 +142,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
 	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 
-	odsSize := len(rawShares[0]) / 2
-	incompleteProofSize := 0
-
-	startProof := shwap.NeedsStartProof(from, to, odsSize)
-	endProof := shwap.NeedsEndProof(from, to, odsSize)
-
-	if startProof {
-		incompleteProofSize++
-	}
-	if endProof {
-		incompleteProofSize++
-	}
-
-	incompleteRowRootProofs := make([]*merkle.Proof, incompleteProofSize)
-
-	proofIdx := 0
-	if startProof {
-		incompleteRowRootProofs[proofIdx] = rowRootProofs[from.Row]
-		proofIdx++
-	}
-	if endProof {
-		incompleteRowRootProofs[proofIdx] = rowRootProofs[to.Row]
-	}
-
-	return shwap.RangedNamespaceDataFromShares(rawShares, ns, incompleteRowRootProofs, from, to)
+	return shwap.RangedNamespaceDataFromShares(rawShares, ns, rowRootProofs, from, to)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each

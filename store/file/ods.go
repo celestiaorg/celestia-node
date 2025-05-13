@@ -348,28 +348,7 @@ func (o *ODS) RangeNamespaceData(
 	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
 	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 
-	odsSize := len(shares[0]) / 2
-	incompleteProofSize := 0
-	startProof := shwap.NeedsStartProof(from, to, odsSize)
-	endProof := shwap.NeedsEndProof(from, to, odsSize)
-
-	if startProof {
-		incompleteProofSize += 1
-	}
-	if endProof {
-		incompleteProofSize += 1
-	}
-
-	incompleteRowRootProofs := make([]*merkle.Proof, incompleteProofSize)
-
-	if startProof {
-		incompleteRowRootProofs[0] = rowRootProofs[from.Row]
-	}
-	if endProof {
-		incompleteRowRootProofs[incompleteProofSize-1] = rowRootProofs[to.Row]
-	}
-
-	return shwap.RangedNamespaceDataFromShares(shares, ns, incompleteRowRootProofs, from, to)
+	return shwap.RangedNamespaceDataFromShares(shares, ns, rowRootProofs, from, to)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

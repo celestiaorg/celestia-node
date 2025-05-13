@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
@@ -140,9 +139,7 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
 		if !rndb.ID.ProofsOnly {
-			roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-			_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
-			if err := rangeNsData.Verify(rndid.DataNamespace, rndid.From, rndid.To, len(root.ColumnRoots), root.Hash(), rowRootProofs); err != nil {
+			if err := rangeNsData.Verify(rndid.DataNamespace, rndid.From, rndid.To, root.Hash()); err != nil {
 				return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
 			}
 		}

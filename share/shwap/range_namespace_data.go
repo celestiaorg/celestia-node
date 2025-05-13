@@ -31,29 +31,25 @@ type RangeNamespaceData struct {
 func RangedNamespaceDataFromShares(
 	shares [][]libshare.Share,
 	namespace libshare.Namespace,
-	incompleteRowRootProofs []*merkle.Proof,
+	rowRootProofs []*merkle.Proof,
 	from, to SampleCoords,
 ) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
 		return RangeNamespaceData{}, fmt.Errorf("empty share list")
 	}
 
+	numRows := len(shares)
 	odsSize := len(shares[0]) / 2
-	incompleteProofSize := 0
-	startProof := NeedsStartProof(from, to, odsSize)
-	endProof := NeedsEndProof(from, to, odsSize)
-	if startProof {
-		incompleteProofSize++
-	}
-	if endProof {
-		incompleteProofSize++
-	}
+
+	startProof := (from.Col != 0 || (from.Row == to.Row && to.Col != odsSize-1))
+	endProof := (to.Col != odsSize-1 && from.Row != to.Row)
+
 	rngData := RangeNamespaceData{
 		Start:  from.Row,
-		Shares: make([][]libshare.Share, len(shares)),
-		Proof:  make([]*Proof, incompleteProofSize),
+		Shares: make([][]libshare.Share, numRows),
+		Proof:  make([]*Proof, numRows),
 	}
-	for i, row, col := 0, from.Row, from.Col; i < len(shares); i++ {
+	for i, row, col := 0, from.Row, from.Col; i < numRows; i++ {
 		rowShares := shares[i]
 		// end index will be explicitly set only for the last row in range.
 		// in other cases, it will be equal to the odsSize.
@@ -74,6 +70,10 @@ func RangedNamespaceDataFromShares(
 		}
 
 		rngData.Shares[i] = rowShares[col:exclusiveEnd]
+		rngData.Proof[i] = &Proof{
+			rowRootProof: rowRootProofs[i],
+			shareProof:   nil,
+		}
 
 		// reset from.Col as we are moving to the next row.
 		col = 0
@@ -89,15 +89,15 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
-		rngData.Proof[0] = &Proof{shareProof: sharesProofs, rowRootProof: incompleteRowRootProofs[0]}
+		rngData.Proof[0] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[0]}
 	}
 	// incomplete to.Col needs a proof for the last row to be computed
 	if endProof {
-		sharesProofs, err := generateSharesProofs(to.Row, 0, to.Col+1, odsSize, namespace, shares[len(shares)-1])
+		sharesProofs, err := generateSharesProofs(to.Row, 0, to.Col+1, odsSize, namespace, shares[numRows-1])
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
-		rngData.Proof[incompleteProofSize-1] = &Proof{shareProof: sharesProofs, rowRootProof: incompleteRowRootProofs[incompleteProofSize-1]}
+		rngData.Proof[numRows-1] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[numRows-1]}
 	}
 	return rngData, nil
 }
@@ -107,11 +107,9 @@ func (rngdata *RangeNamespaceData) Verify(
 	namespace libshare.Namespace,
 	from SampleCoords,
 	to SampleCoords,
-	odsSize int,
 	dataHash []byte,
-	rowRootProofs []*merkle.Proof,
 ) error {
-	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, odsSize, dataHash, rowRootProofs)
+	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, dataHash)
 }
 
 // VerifyShares verifies the passed shares are included in the data root.
@@ -122,30 +120,18 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	namespace libshare.Namespace,
 	from SampleCoords,
 	to SampleCoords,
-	odsSize int,
 	dataHash []byte,
-	rowRootProofs []*merkle.Proof,
 ) error {
-	startProof := NeedsStartProof(from, to, odsSize)
-	endProof := NeedsEndProof(from, to, odsSize)
-	proofs := make([]*Proof, len(shares))
-	// copy the incomplete row proofs
-	if startProof {
-		proofs[0] = rngdata.Proof[0]
-	}
-	if endProof {
-		proofs[len(shares)-1] = rngdata.Proof[len(rngdata.Proof)-1]
-	}
+	proofs := rngdata.Proof
+	fmt.Println(from, to)
 	// compute the proofs for the complete rows
 	for i, row := 0, from.Row; i < len(shares); i++ {
 		// skip the incomplete rows
-		if i == 0 && from.Col != 0 {
-			continue
-		}
-		if i == len(shares)-1 && to.Col != odsSize-1 {
+		if proofs[i].shareProof != nil {
 			continue
 		}
 
+		odsSize := len(shares[i]) / 2
 		extendedRowShares, err := share.ExtendShares(shares[i])
 		if err != nil {
 			return fmt.Errorf("failed to extend row shares: %w", err)
@@ -154,7 +140,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 		if err != nil {
 			return fmt.Errorf("failed to generate proof for row %d: %w", row, err)
 		}
-		proofs[i] = &Proof{shareProof: proof, rowRootProof: rowRootProofs[row]}
+		proofs[i].shareProof = proof
 		row++
 	}
 	if len(shares) != len(proofs) {

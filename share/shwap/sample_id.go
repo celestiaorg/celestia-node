@@ -145,18 +145,6 @@ func (sid SampleID) Validate() error {
 	return sid.RowID.Validate()
 }
 
-// NeedsStartProof determines whether an inclusion proof is required for the first (start) row
-// in a namespaced share range within an Extended Data Square.
-func NeedsStartProof(from, to SampleCoords, odsSize int) bool {
-	return from.Col != 0 || (from.Row == to.Row && to.Col != odsSize-1)
-}
-
-// NeedsEndProof determines whether an inclusion proof is required for the last (end) row
-// in a namespaced share range within an Extended Data Square.
-func NeedsEndProof(from, to SampleCoords, odsSize int) bool {
-	return to.Col != odsSize-1 && from.Row != to.Row
-}
-
 // appendTo helps in constructing the binary representation by appending the encoded ShareIndex to
 // the serialized RowID.
 func (sid SampleID) appendTo(data []byte) []byte {

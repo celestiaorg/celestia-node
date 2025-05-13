@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -301,8 +300,6 @@ func testRangeNamespaceData(
 	eds, _ := edstest.RandEDSWithNamespace(t, namespace, sharesAmount, odsSize)
 	acc := createAccessor(t, eds)
 	dah, err := da.NewDataAvailabilityHeader(eds)
-	roots := append(dah.RowRoots, dah.ColumnRoots...) //nolint: gocritic
-	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 	require.NoError(t, err)
 
 	// request all possible ranges
@@ -326,9 +323,7 @@ func testRangeNamespaceData(
 						namespace,
 						shwap.SampleCoords{Row: startRow, Col: startCol},
 						shwap.SampleCoords{Row: endRow, Col: endCol},
-						odsSize,
 						dah.Hash(),
-						rowRootProofs,
 					)
 					require.NoError(t, err)
 				}
