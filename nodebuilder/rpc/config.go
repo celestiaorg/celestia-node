@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,10 +9,18 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+type CORSConfig struct {
+	Enabled        bool
+	AllowedOrigins []string
+	AllowedHeaders []string
+	AllowedMethods []string
+}
+
 type Config struct {
 	Address  string
 	Port     string
 	SkipAuth bool
+	CORS     CORSConfig
 }
 
 func DefaultConfig() Config {
@@ -20,6 +29,16 @@ func DefaultConfig() Config {
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
 		Port:     defaultPort,
 		SkipAuth: false,
+		CORS:     DefaultCORSConfig(),
+	}
+}
+
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
+		Enabled:        false,
+		AllowedOrigins: []string{},
+		AllowedHeaders: []string{},
+		AllowedMethods: []string{},
 	}
 }
 
@@ -43,6 +62,22 @@ func (cfg *Config) Validate() error {
 	_, err = strconv.Atoi(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
+	}
+
+	if cfg.CORS.Enabled {
+		if err := validateSecureCORS(cfg.CORS); err != nil {
+			return fmt.Errorf("service/rpc: invalid CORS config: %w", err)
+		}
+	}
+	return nil
+}
+
+// Add validation to reject wildcards
+func validateSecureCORS(config CORSConfig) error {
+	if utils.ContainsWildcard(config.AllowedOrigins) ||
+		utils.ContainsWildcard(config.AllowedMethods) ||
+		utils.ContainsWildcard(config.AllowedHeaders) {
+		return errors.New("wildcards not allowed in secure mode")
 	}
 	return nil
 }
