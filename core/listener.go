@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/types"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -207,7 +208,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	}
 
 	// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
-	err = cl.headerBroadcaster.Broadcast(ctx, eh)
+	err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Errorw("listener: broadcasting next header",
 			"height", b.Header.Height,
