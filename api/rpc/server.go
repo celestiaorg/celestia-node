@@ -15,9 +15,17 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
+	"github.com/rs/cors"
 )
 
 var log = logging.Logger("rpc")
+
+type CORSConfig struct {
+	enabled        bool
+	allowedOrigins []string
+	allowedMethods []string
+	allowedHeaders []string
+}
 
 type Server struct {
 	srv          *http.Server
@@ -25,30 +33,49 @@ type Server struct {
 	listener     net.Listener
 	authDisabled bool
 
-	started atomic.Bool
+	started    atomic.Bool
+	corsConfig CORSConfig
 
 	signer   jwt.Signer
 	verifier jwt.Verifier
 }
 
-func NewServer(address, port string, authDisabled bool, signer jwt.Signer, verifier jwt.Verifier) *Server {
+func NewServer(address, port string, authDisabled, corsEnabled bool, corsAllowedHeaders, corsAllowedOrigins, corsAllowedMethods []string, signer jwt.Signer, verifier jwt.Verifier) *Server {
 	rpc := jsonrpc.NewServer()
 	srv := &Server{
-		rpc: rpc,
-		srv: &http.Server{
-			Addr: address + ":" + port,
-			// the amount of time allowed to read request headers. set to the default 2 seconds
-			ReadHeaderTimeout: 2 * time.Second,
-		},
+		rpc:          rpc,
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
+		corsConfig: CORSConfig{
+			enabled:        corsEnabled,
+			allowedOrigins: corsAllowedOrigins,
+			allowedMethods: corsAllowedMethods,
+			allowedHeaders: corsAllowedHeaders,
+		},
 	}
-	srv.srv.Handler = &auth.Handler{
-		Verify: srv.verifyAuth,
-		Next:   rpc.ServeHTTP,
+
+	srv.srv = &http.Server{
+		Addr:    net.JoinHostPort(address, port),
+		Handler: srv.NewHandlerStack(rpc),
+		// the amount of time allowed to read request headers. set to the default 2 seconds
+		ReadHeaderTimeout: 2 * time.Second,
 	}
+
 	return srv
+}
+
+// NewHTTPHandlerStack returns wrapped rpc related handlers
+func (s *Server) NewHandlerStack(core http.Handler) http.Handler {
+	handler := core
+
+	if !s.authDisabled {
+		handler = s.authHandler(handler)
+	}
+
+	handler = s.corsHandler(handler)
+
+	return handler
 }
 
 // verifyAuth is the RPC server's auth middleware. This middleware is only
@@ -59,6 +86,46 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 		return perms.AllPerms, nil
 	}
 	return authtoken.ExtractSignedPermissions(s.verifier, token)
+}
+
+// authHandler wraps the handler with authentication.
+func (s *Server) authHandler(next http.Handler) http.Handler {
+	if s.authDisabled {
+		return next
+	}
+
+	return &auth.Handler{
+		Verify: s.verifyAuth,
+		Next:   next.ServeHTTP,
+	}
+}
+
+// corsHandler applies CORS configuration to the handler.
+func (s *Server) corsHandler(next http.Handler) http.Handler {
+	if !s.corsConfig.enabled && !s.authDisabled {
+		return next
+	}
+
+	var origins, methods, headers []string
+
+	// for auth disable , allow all origins, methods and headers
+	if s.authDisabled {
+		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
+		origins = []string{"*"}
+		methods = []string{"*"}
+		headers = []string{"*"}
+	} else {
+		origins = s.corsConfig.allowedOrigins
+		methods = s.corsConfig.allowedMethods
+		headers = s.corsConfig.allowedHeaders
+	}
+
+	c := cors.New(cors.Options{
+		AllowedOrigins: origins,
+		AllowedMethods: methods,
+		AllowedHeaders: headers,
+	})
+	return c.Handler(next)
 }
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be
