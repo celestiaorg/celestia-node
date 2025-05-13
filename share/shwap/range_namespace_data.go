@@ -123,7 +123,6 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	dataHash []byte,
 ) error {
 	proofs := rngdata.Proof
-	fmt.Println(from, to)
 	// compute the proofs for the complete rows
 	for i, row := 0, from.Row; i < len(shares); i++ {
 		// skip the incomplete rows
@@ -131,11 +130,11 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			continue
 		}
 
-		odsSize := len(shares[i]) / 2
 		extendedRowShares, err := share.ExtendShares(shares[i])
 		if err != nil {
 			return fmt.Errorf("failed to extend row shares: %w", err)
 		}
+		odsSize := len(extendedRowShares) / 2
 		proof, err := generateSharesProofs(row, 0, odsSize, odsSize, namespace, extendedRowShares)
 		if err != nil {
 			return fmt.Errorf("failed to generate proof for row %d: %w", row, err)

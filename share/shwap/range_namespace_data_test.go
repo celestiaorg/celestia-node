@@ -44,7 +44,7 @@ func TestRangeNamespaceData(t *testing.T) {
 	require.NoError(t, err)
 	col := nsData.Proof.Start()
 
-	for i := 1; i < odsSize; i++ {
+	for i := 1; i <= odsSize; i++ {
 		t.Run(fmt.Sprintf("range of %d shares", i), func(t *testing.T) {
 			toRow, toCol := nsRowStart, col+i-1
 			for toCol >= odsSize {
