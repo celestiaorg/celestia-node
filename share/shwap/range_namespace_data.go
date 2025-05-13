@@ -72,7 +72,7 @@ func RangedNamespaceDataFromShares(
 		rngData.Shares[i] = rowShares[col:exclusiveEnd]
 		rngData.Proof[i] = &Proof{
 			rowRootProof: rowRootProofs[i],
-			shareProof:   nil,
+			shareProof:   &nmt.Proof{},
 		}
 
 		// reset from.Col as we are moving to the next row.
@@ -127,7 +127,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	// compute the proofs for the complete rows
 	for i, row := 0, from.Row; i < len(shares); i++ {
 		// skip the incomplete rows
-		if proofs[i].shareProof != nil {
+		if !proofs[i].shareProof.IsEmptyProof() {
 			continue
 		}
 

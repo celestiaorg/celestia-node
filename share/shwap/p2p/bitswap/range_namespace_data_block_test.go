@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
@@ -20,8 +19,6 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 
 	namespace := libshare.RandomNamespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 8)
-	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 	exchange := newExchangeOverEDS(ctx, t, eds)
 	blk, err := NewEmptyRangeNamespaceDataBlock(1, namespace,
 		shwap.SampleCoords{Row: 0, Col: 0},
@@ -38,9 +35,7 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 		namespace,
 		shwap.SampleCoords{Row: 0, Col: 0},
 		shwap.SampleCoords{Row: 2, Col: 2},
-		len(root.ColumnRoots),
 		root.Hash(),
-		rowRootProofs,
 	)
 	require.NoError(t, err)
 }
