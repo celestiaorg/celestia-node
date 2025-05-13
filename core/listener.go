@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/types"
-	"github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
