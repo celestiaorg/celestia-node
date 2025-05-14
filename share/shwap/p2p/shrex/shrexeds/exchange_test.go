@@ -120,7 +120,7 @@ func TestExchange_RequestEDS(t *testing.T) {
 
 		// take server concurrency slots with blocked requests
 		emptyRoot := share.EmptyEDSRoots()
-		for i := 0; i < rateLimit; i++ {
+		for i := range rateLimit {
 			go func(i int) {
 				client.RequestEDS(ctx, emptyRoot, 1, server.host.ID()) //nolint:errcheck
 			}(i)

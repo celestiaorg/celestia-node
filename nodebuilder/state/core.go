@@ -17,6 +17,7 @@ import (
 // coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
 func coreAccessor(
+	cfg Config,
 	keyring keyring.Keyring,
 	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
@@ -29,7 +30,16 @@ func coreAccessor(
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String())
+	var opts []state.Option
+	if cfg.EstimatorAddress != "" {
+		opts = append(opts, state.WithEstimatorService(cfg.EstimatorAddress))
+
+		if cfg.EnableEstimatorTLS {
+			opts = append(opts, state.WithEstimatorServiceTLS())
+		}
+	}
+
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), opts...)
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,

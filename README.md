@@ -19,7 +19,8 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 - [Celestia Node](#celestia-node)
   - [Table of Contents](#table-of-contents)
   - [Minimum requirements](#minimum-requirements)
-  - [System Requirements](#system-requirements)
+  - [System requirements](#system-requirements)
+  - [Supported architectures](#supported-architectures)
   - [Installation](#installation)
   - [API docs](#api-docs)
   - [Node types](#node-types)
@@ -35,13 +36,20 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 | ----------- | -------------- |
 | Go version  | 1.23 or higher |
 
-## System Requirements
+## System requirements
 
-See the official docs page for system requirements per node type:
+See the [official docs page](https://docs.celestia.org/how-to-guides/nodes-overview#data-availability-nodes) for system requirements for each node type.
 
-- [Bridge](https://docs.celestia.org/nodes/bridge-node#hardware-requirements)
-- [Light](https://docs.celestia.org/nodes/light-node#hardware-requirements)
-- [Full](https://docs.celestia.org/nodes/full-storage-node#hardware-requirements)
+## Supported architectures
+
+Celestia-app officially supports the following architectures:
+
+- `linux/amd64`
+- `linux/arm64`
+- `darwin/amd64` (macOS Intel)
+- `darwin/arm64` (macOS Apple Silicon)
+
+Only these four architectures are officially tested and supported.
 
 ## Installation
 
@@ -78,7 +86,7 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
-Please refer to [this guide](https://docs.celestia.org/nodes/celestia-node/) for more information on running a node.
+Please refer to [this guide](https://docs.celestia.org/how-to-guides/celestia-node/) for more information on running a node.
 
 ### Quick Start with Light Node on arabica
 

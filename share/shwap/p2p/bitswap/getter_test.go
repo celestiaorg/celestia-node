@@ -94,7 +94,7 @@ func TestPoolConcurrency(t *testing.T) {
 	lock := sync.Mutex{}
 
 	// Start multiple goroutines to get sessions
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

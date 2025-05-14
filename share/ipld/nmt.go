@@ -108,7 +108,7 @@ func (n nmtNode) Links() []*ipld.Link {
 	}
 }
 
-func (n nmtNode) Resolve([]string) (interface{}, []string, error) {
+func (n nmtNode) Resolve([]string) (any, []string, error) {
 	panic("method not implemented")
 }
 

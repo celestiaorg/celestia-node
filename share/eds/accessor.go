@@ -17,7 +17,7 @@ var EmptyAccessor = &Rsmt2D{ExtendedDataSquare: share.EmptyEDS()}
 // Accessor is an interface for accessing extended data square data.
 type Accessor interface {
 	// Size returns square size of the Accessor.
-	Size(ctx context.Context) int
+	Size(ctx context.Context) (int, error)
 	// DataHash returns data hash of the Accessor.
 	DataHash(ctx context.Context) (share.DataHash, error)
 	// AxisRoots returns share.AxisRoots (DataAvailabilityHeader) of the Accessor.

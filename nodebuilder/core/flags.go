@@ -10,7 +10,6 @@ import (
 var (
 	coreIPFlag         = "core.ip"
 	corePortFlag       = "core.port"
-	coreGRPCFlag       = "core.grpc.port"
 	coreTLS            = "core.tls"
 	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
@@ -31,12 +30,6 @@ func Flags() *flag.FlagSet {
 		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
 	)
-	flags.String(
-		coreGRPCFlag,
-		"",
-		"Set a custom gRPC port for the core node connection.WARNING: --core.grpc.port is deprecated. "+
-			"Please use --core.port instead",
-	)
 	flags.Bool(
 		coreTLS,
 		false,
@@ -47,7 +40,7 @@ func Flags() *flag.FlagSet {
 		"",
 		"specifies the file path to the JSON file containing the X-Token for gRPC authentication. "+
 			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
-			"NOTE: the path is parsed only if coreTLS enabled."+
+			"NOTE: the path is parsed only if core.tls enabled. "+
 			"If left empty, the client will not include the X-Token in its requests.",
 	)
 	return flags
@@ -58,10 +51,6 @@ func ParseFlags(
 	cmd *cobra.Command,
 	cfg *Config,
 ) error {
-	if cmd.Flag(coreGRPCFlag).Changed {
-		return fmt.Errorf("the flag is deprecated. Please use --core.port instead")
-	}
-
 	coreIP := cmd.Flag(coreIPFlag).Value.String()
 	if coreIP == "" {
 		if cmd.Flag(corePortFlag).Changed {
@@ -88,5 +77,6 @@ func ParseFlags(
 		}
 	}
 	cfg.IP = coreIP
+
 	return cfg.Validate()
 }

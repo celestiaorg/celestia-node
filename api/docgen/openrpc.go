@@ -81,7 +81,7 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) (Comments, Comme
 
 		module := reflect.TypeOf(client.Modules[moduleName]).Elem()
 		var meth reflect.StructField
-		for i := 0; i < module.NumField(); i++ {
+		for i := range module.NumField() {
 			meth = module.Field(i)
 			perms := meth.Tag.Get("perm")
 			permComments[meth.Name] = perms
@@ -214,7 +214,7 @@ func OpenRPCSchemaTypeMapper(ty reflect.Type) *jsonschema.Type {
 		ty = ty.Elem()
 	}
 
-	if ty == reflect.TypeOf((*interface{})(nil)).Elem() {
+	if ty == reflect.TypeOf((*any)(nil)).Elem() {
 		return &jsonschema.Type{Type: "object", AdditionalProperties: []byte("true")}
 	}
 

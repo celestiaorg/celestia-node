@@ -129,7 +129,7 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, mock.data, data)
 
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			accessor, err = cache.Get(height)
 			require.NoError(t, err)
 			reader, err := accessor.Reader()
@@ -303,7 +303,7 @@ type mockAccessor struct {
 	isClosed bool
 }
 
-func (m *mockAccessor) Size(context.Context) int {
+func (m *mockAccessor) Size(context.Context) (int, error) {
 	panic("implement me")
 }
 

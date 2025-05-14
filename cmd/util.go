@@ -23,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func PrintOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
+func PrintOutput(data any, err error, formatData func(any) any) error {
 	switch {
 	case err != nil:
 		data = err.Error()
@@ -32,7 +32,7 @@ func PrintOutput(data interface{}, err error, formatData func(interface{}) inter
 	}
 
 	resp := struct {
-		Result interface{} `json:"result"`
+		Result any `json:"result"`
 	}{
 		Result: data,
 	}

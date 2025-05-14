@@ -4,24 +4,25 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/privval"
+	"github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/privval"
-	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
-	"golang.org/x/exp/maps"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -154,7 +155,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	// IPv6 will be starting with 100:0
 	token := make([]byte, 12)
 	_, _ = rand.Read(token)
-	ip := append(net.IP{}, blackholeIP6...)
+	ip := slices.Clone(blackholeIP6)
 	copy(ip[net.IPv6len-len(token):], token)
 
 	// reference to GenPeer func in libp2p/p2p/net/mock/mock_net.go

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/go-fraud"
@@ -57,7 +57,7 @@ func TestFraudProofHandling(t *testing.T) {
 	)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], blockSize, blocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], blockSize, blocks)
 	set, val := sw.Validators(t)
 	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 
