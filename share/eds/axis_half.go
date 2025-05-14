@@ -7,8 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var codec = share.DefaultRSMT2DCodec()
-
 // AxisHalf represents a half of data for a row or column in the EDS.
 type AxisHalf struct {
 	Shares []libshare.Share
