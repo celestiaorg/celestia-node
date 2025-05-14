@@ -101,7 +101,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider() celestiatypes.Provider {
 			ChainID: testChainID,
 			Images: []celestiadockertypes.DockerImage{
 				{
-					Repository: nodeImage,
+					Repository: getNodeImage(),
 					Version:    getNodeTag(),
 					UIDGID:     "10001:10001",
 				},
@@ -138,4 +138,13 @@ func getNodeTag() string {
 		return tag
 	}
 	return defaultNodeTag
+}
+
+// getNodeTag returns the image to use for Celestia Nodes.
+// It can be overridden by setting the CELESTIA_NODE_IMAGE environment.
+func getNodeImage() string {
+	if tag := os.Getenv("CELESTIA_NODE_IMAGE"); tag != "" {
+		return tag
+	}
+	return nodeImage
 }
