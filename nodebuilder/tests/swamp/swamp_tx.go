@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
@@ -36,7 +37,7 @@ func FillBlocks(
 			}
 
 			// ensure each tx is included before moving on to avoid account sequence mismatch errors in tests.
-			err = waitForTxResponse(cctx, txResp.TxHash, time.Second*1)
+			err = waitForTxResponse(cctx, txResp, time.Second*10)
 			if err != nil {
 				break
 			}
@@ -52,7 +53,7 @@ func FillBlocks(
 }
 
 // waitForTxResponse polls for a tx hash, returns an error if the query is not successful within the given timeout.
-func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Duration) error {
+func waitForTxResponse(cctx testnode.Context, tx *sdk.TxResponse, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(cctx.GoContext(), timeout)
 	defer cancel()
 
@@ -64,10 +65,11 @@ func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Durati
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			_, err := authtx.QueryTx(cctx.Context, txHash)
+			resp, err := authtx.QueryTx(cctx.Context, tx.TxHash)
 			if err != nil {
 				continue
 			}
+			tx.Height = resp.Height
 			return nil
 		}
 	}
