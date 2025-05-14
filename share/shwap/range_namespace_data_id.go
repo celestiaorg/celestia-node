@@ -158,13 +158,16 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 // MarshalBinary encodes RangeNamespaceDataID into binary form.
 func (rngid RangeNamespaceDataID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, RangeNamespaceDataIDSize)
-	return rngid.appendTo(data), nil
+	return rngid.appendTo(data)
 }
 
 // appendTo helps in constructing the binary representation  of RangeNamespaceDataID
 // by appending all encoded fields.
-func (rngid RangeNamespaceDataID) appendTo(data []byte) []byte {
-	data = rngid.EdsID.appendTo(data)
+func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
+	data, err := rngid.EdsID.AppendBinary(data)
+	if err != nil {
+		return nil, fmt.Errorf("appending EdsID: %w", err)
+	}
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Row))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Col))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Row))
@@ -175,5 +178,5 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) []byte {
 	} else {
 		data = binary.BigEndian.AppendUint16(data, 0)
 	}
-	return data
+	return data, nil
 }

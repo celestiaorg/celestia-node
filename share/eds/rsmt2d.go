@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/cometbft/cometbft/crypto/merkle"
 
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 var _ AccessorStreamer = (*Rsmt2D)(nil)

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/cometbft/cometbft/crypto/merkle"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"

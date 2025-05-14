@@ -282,7 +282,11 @@ func (c *proofsCache) RangeNamespaceData(
 	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
-	odsSize := c.Size(ctx) / 2
+	size, err := c.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
 
 	numRows := to.Row - from.Row + 1
 	rngdata := shwap.RangeNamespaceData{

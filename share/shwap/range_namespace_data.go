@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/cometbft/cometbft/crypto/merkle"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 

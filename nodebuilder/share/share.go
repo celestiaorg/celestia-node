@@ -3,8 +3,6 @@ package share
 import (
 	"context"
 
-	"github.com/cometbft/cometbft/types"
-
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 

@@ -9,7 +9,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/cometbft/cometbft/crypto/merkle"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"

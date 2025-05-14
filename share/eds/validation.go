@@ -88,7 +88,11 @@ func (f validation) RangeNamespaceData(
 			"range validation: from row %d is > then to row %d", from.Row, to.Row,
 		)
 	}
-	odsSharesAmount := f.Size(ctx)/2 - 1
+	size, err := f.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSharesAmount := size/2 - 1
 	if from.Row > odsSharesAmount || from.Col > odsSharesAmount {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: invalid start coordinates of the range:{%d;%d}. ODS shares amount %d",
