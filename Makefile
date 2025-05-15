@@ -160,7 +160,7 @@ test-integration-race:
 	@go test -race -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration-race
 
-## test-e2e: Run end to end tests via docker.
+## test-e2e: Run an end to end test via docker.
 test-e2e:
 	@if [ -z "$(test)" ]; then \
 		echo "ERROR: 'test' variable is required. Usage: make test-e2e test=TestE2EMsgPayForBlob"; \
@@ -168,7 +168,7 @@ test-e2e:
 	fi
 	@echo "--> Running: TestCelestiaTestSuite/$(test)"
 	cd e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
-
+.PHONY: test-e2e
 
 ## benchmark: Run all benchmarks.
 benchmark:
