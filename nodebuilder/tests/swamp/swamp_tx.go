@@ -37,11 +37,11 @@ func FillBlocks(
 			}
 
 			// ensure each tx is included before moving on to avoid account sequence mismatch errors in tests.
-			err = waitForTxResponse(cctx, txResp, time.Second*10)
+			resp, err := waitForTxResponse(cctx, txResp.TxHash, time.Second*10)
 			if err != nil {
 				break
 			}
-			heightCh <- uint64(txResp.Height)
+			heightCh <- uint64(resp.Height)
 		}
 
 		select {
@@ -53,7 +53,7 @@ func FillBlocks(
 }
 
 // waitForTxResponse polls for a tx hash, returns an error if the query is not successful within the given timeout.
-func waitForTxResponse(cctx testnode.Context, tx *sdk.TxResponse, timeout time.Duration) error {
+func waitForTxResponse(cctx testnode.Context, txHash string, timeout time.Duration) (*sdk.TxResponse, error) {
 	ctx, cancel := context.WithTimeout(cctx.GoContext(), timeout)
 	defer cancel()
 
@@ -63,14 +63,12 @@ func waitForTxResponse(cctx testnode.Context, tx *sdk.TxResponse, timeout time.D
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		case <-ticker.C:
-			resp, err := authtx.QueryTx(cctx.Context, tx.TxHash)
-			if err != nil {
-				continue
+			resp, err := authtx.QueryTx(cctx.Context, txHash)
+			if err == nil {
+				return resp, nil
 			}
-			tx.Height = resp.Height
-			return nil
 		}
 	}
 }
