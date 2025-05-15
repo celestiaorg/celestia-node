@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v4 v4.0.0-rc4
 	github.com/celestiaorg/go-square/v2 v2.2.0
-	github.com/celestiaorg/tastora v0.0.0-20250514135638-2cc466013cac
+	github.com/celestiaorg/tastora 795e795a49c7f510913a8d510115134ab01a0bf5
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.10.0
