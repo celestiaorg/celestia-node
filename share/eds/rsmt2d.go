@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -114,6 +116,33 @@ func (eds *Rsmt2D) RowNamespaceData(
 		return shwap.RowNamespaceData{}, fmt.Errorf("while converting shares from bytes: %w", err)
 	}
 	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
+}
+
+// RangeNamespaceData builds a namespace range from the given coordinates and the length of the
+// range.
+func (eds *Rsmt2D) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	rawShares := make([][]libshare.Share, 0, to.Row-from.Row+1)
+	for row := from.Row; row <= to.Row; row++ {
+		rawShare := eds.Row(uint(row))
+		sh, err := libshare.FromBytes(rawShare)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		rawShares = append(rawShares, sh)
+	}
+	root, err := eds.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
+
+	return shwap.RangedNamespaceDataFromShares(rawShares, ns, rowRootProofs, from, to)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
