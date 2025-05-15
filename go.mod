@@ -12,7 +12,7 @@ require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v4 v4.0.0-rc1
+	github.com/celestiaorg/celestia-app/v4 v4.0.0-arabica
 	github.com/celestiaorg/go-fraud v0.2.1
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0
@@ -76,7 +76,7 @@ require (
 	go.uber.org/fx v1.23.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.36.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.14.0
 	golang.org/x/text v0.23.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
@@ -130,7 +130,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.14 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.14 // indirect
 	github.com/aws/smithy-go v1.22.2 // indirect
-	github.com/bcp-innovations/hyperlane-cosmos v1.0.0-rc0 // indirect
+	github.com/bcp-innovations/hyperlane-cosmos v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
@@ -390,7 +390,7 @@ require (
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.0-sdk-v0.50.12
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
