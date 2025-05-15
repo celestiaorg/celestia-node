@@ -180,6 +180,4 @@ jobs:
           # use the locally built image
           CELESTIA_NODE_IMAGE: celestia-node
           CELESTIA_NODE_TAG: ${{ steps.tag.outputs.value }}
-        run: |
-          cd e2e
-          make e2e-test test=${{ matrix.test }}
+        run: make test-e2e test=${{ matrix.test }}
