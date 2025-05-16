@@ -2,17 +2,19 @@ package e2e
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
-	"github.com/celestiaorg/tastora/framework/testutil/toml"
-	celestiatypes "github.com/celestiaorg/tastora/framework/types"
+	"os"
+	"testing"
+
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
-	"os"
-	"testing"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/testutil/toml"
+	celestiatypes "github.com/celestiaorg/tastora/framework/types"
 )
 
 const (
