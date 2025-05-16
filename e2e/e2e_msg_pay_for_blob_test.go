@@ -2,20 +2,21 @@ package e2e
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
 	"encoding/base64"
+	"testing"
+	"time"
+
+	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
-	"github.com/celestiaorg/tastora/framework/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
-	"testing"
-	"time"
+	"github.com/celestiaorg/tastora/framework/types"
 )
 
 // TestE2EMsgPayForBlob ensures end-to-end functionality of broadcasting and verifying a MsgPayForBlob transaction.
