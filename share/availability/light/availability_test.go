@@ -239,7 +239,7 @@ func TestParallelAvailability(t *testing.T) {
 	var wg sync.WaitGroup
 	const iters = 100
 	wg.Add(iters)
-	for i := 0; i < iters; i++ {
+	for range iters {
 		go func() {
 			defer wg.Done()
 			err := avail.SharesAvailable(ctx, eh)

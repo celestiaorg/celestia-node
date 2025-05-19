@@ -47,8 +47,8 @@ type stubEdsAccessorCloser struct {
 	closed bool
 }
 
-func (s *stubEdsAccessorCloser) Size(context.Context) int {
-	return 0
+func (s *stubEdsAccessorCloser) Size(context.Context) (int, error) {
+	return 0, nil
 }
 
 func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {

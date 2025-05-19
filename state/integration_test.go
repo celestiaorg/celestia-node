@@ -6,19 +6,20 @@ import (
 	"os"
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -52,7 +53,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, nil, "", "")
+	accessor, err := NewCoreAccessor(s.cctx.Keyring, accountName, localHeader{s.cctx.Client}, nil, "")
 	require.NoError(s.T(), err)
 	ctx, cancel := context.WithCancel(context.Background())
 	accessor.ctx = ctx
@@ -84,7 +85,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 }
 
 type localHeader struct {
-	client rpcclient.Client
+	client client.CometRPC
 }
 
 func (l localHeader) Head(
@@ -112,7 +113,7 @@ func (s *IntegrationTestSuite) TestGetBalance() {
 		bal, err := s.accessor.BalanceForAddress(context.Background(), Address{sdkAddress})
 		require.NoError(err)
 		require.Equal(bal.Denom, appconsts.BondDenom)
-		require.True(bal.Amount.GT(sdk.NewInt(1))) // verify that each account has some balance
+		require.True(bal.Amount.GT(sdkmath.NewInt(1))) // verify that each account has some balance
 	}
 }
 

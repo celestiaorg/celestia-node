@@ -91,7 +91,7 @@ func init() {
 	)
 
 	add(errors.New("error"))
-	add(state.Balance{Amount: sdk.NewInt(42), Denom: "utia"})
+	add(state.Balance{Amount: math.NewInt(42), Denom: "utia"})
 	add(share.EmptyEDS())
 	add(rsmt2d.Row)
 	add(network.Connected)
@@ -216,7 +216,7 @@ func exampleValue(t, parent reflect.Type) (any, error) {
 		return v, nil
 	case reflect.Array:
 		out := reflect.New(t).Elem()
-		for i := 0; i < t.Len(); i++ {
+		for i := range t.Len() {
 			val, err := exampleValue(t.Elem(), t)
 			if err != nil {
 				return nil, err
@@ -241,7 +241,7 @@ func exampleValue(t, parent reflect.Type) (any, error) {
 
 func exampleStruct(t, parent reflect.Type) (any, error) {
 	ns := reflect.New(t)
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		f := t.Field(i)
 		if f.Type == parent {
 			continue
