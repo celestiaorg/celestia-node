@@ -118,7 +118,7 @@ func (rndb *RowNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalF
 		}
 
 		if !rndb.ID.Equals(rndid) {
-			return fmt.Errorf("requested %+v doesnt match given %+v", rndb.ID, rndid)
+			return fmt.Errorf("requested %+v doesn't, does not match given %+v", rndb.ID, rndid)
 		}
 
 		var rnd shwappb.RowNamespaceData
