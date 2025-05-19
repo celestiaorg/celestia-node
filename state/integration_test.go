@@ -141,8 +141,8 @@ func (s *IntegrationTestSuite) TestGenerateJSONBlock() {
 	require.NoError(err)
 
 	file, err := os.OpenFile("sample-block.json", os.O_CREATE|os.O_RDWR, os.ModePerm)
-	defer file.Close() //nolint: staticcheck
 	require.NoError(err)
+	defer file.Close()
 
 	err = json.NewEncoder(file).Encode(pBlock)
 	require.NoError(err)
