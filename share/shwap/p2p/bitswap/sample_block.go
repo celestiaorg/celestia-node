@@ -117,7 +117,7 @@ func (sb *SampleBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 		}
 
 		if !sb.ID.Equals(sid) {
-			return fmt.Errorf("requested %+v doesnt match given %+v", sb.ID, sid)
+			return fmt.Errorf("requested %+v doesn't, does not match given %+v", sb.ID, sid)
 		}
 
 		var sample shwappb.Sample
