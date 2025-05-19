@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node/e2e
 
-go 1.24.0
+go 1.23.6
 
 require (
 	cosmossdk.io/math v1.5.3
