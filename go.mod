@@ -3,14 +3,14 @@ module github.com/celestiaorg/celestia-node
 go 1.24.0
 
 require (
-	cosmossdk.io/log v1.5.1
+	cosmossdk.io/log v1.6.0
 	cosmossdk.io/math v1.5.3
 	cosmossdk.io/store v1.1.2
 	cosmossdk.io/x/feegrant v0.1.1
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v4 v4.0.0-arabica
+	github.com/celestiaorg/celestia-app/v4 v4.0.0-mocha
 	github.com/celestiaorg/go-fraud v0.2.3
 	github.com/celestiaorg/go-header v0.6.6
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
@@ -76,7 +76,7 @@ require (
 	golang.org/x/crypto v0.37.0
 	golang.org/x/sync v0.14.0
 	golang.org/x/text v0.24.0
-	google.golang.org/grpc v1.72.0
+	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.6
 )
 
