@@ -114,7 +114,7 @@ func (rb *RowBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 		}
 
 		if !rb.ID.Equals(rid) {
-			return fmt.Errorf("requested %+v doesnt match given %+v", rb.ID, rid)
+			return fmt.Errorf("requested %+v doesn't, does not match given %+v", rb.ID, rid)
 		}
 
 		var row shwappb.Row
