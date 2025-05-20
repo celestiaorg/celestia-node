@@ -95,7 +95,7 @@ func RangedNamespaceDataFromShares(
 
 		rngData.Shares[i] = rowShares[col:exclusiveEnd]
 		rngData.Proof[i] = &Proof{
-			rowRootProof: rowRootProofs[i],
+			rowRootProof: rowRootProofs[row],
 			shareProof:   &nmt.Proof{},
 		}
 
@@ -113,7 +113,7 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
-		rngData.Proof[0] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[0]}
+		rngData.Proof[0] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[from.Row]}
 	}
 	// incomplete to.Col needs a proof for the last row to be computed
 	if endProof {
@@ -121,7 +121,7 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
-		rngData.Proof[numRows-1] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[numRows-1]}
+		rngData.Proof[numRows-1] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[to.Row]}
 	}
 	return rngData, nil
 }
@@ -200,7 +200,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 
 		err := proofs[i].VerifyInclusion(rowShares, namespace, dataHash)
 		if err != nil {
-			return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rngdata.Start+i, err)
+			return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rngdata.Start+i, fmt.Errorf("from %d to %d, err %w", from, to, err))
 		}
 	}
 	return nil
