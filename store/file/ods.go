@@ -9,8 +9,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/cometbft/cometbft/crypto/merkle"
-
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -345,15 +343,12 @@ func (o *ODS) RangeNamespaceData(
 		idx++
 	}
 
-	root, err := o.AxisRoots(ctx)
+	roots, err := o.AxisRoots(ctx)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
 	}
 
-	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
-
-	return shwap.RangedNamespaceDataFromShares(shares, ns, rowRootProofs, from, to)
+	return shwap.RangedNamespaceDataFromShares(shares, ns, roots, from, to)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

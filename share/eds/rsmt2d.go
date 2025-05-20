@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cometbft/cometbft/crypto/merkle"
-
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -134,15 +132,12 @@ func (eds *Rsmt2D) RangeNamespaceData(
 		}
 		rawShares = append(rawShares, sh)
 	}
-	root, err := eds.AxisRoots(ctx)
+	roots, err := eds.AxisRoots(ctx)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
 	}
 
-	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
-
-	return shwap.RangedNamespaceDataFromShares(rawShares, ns, rowRootProofs, from, to)
+	return shwap.RangedNamespaceDataFromShares(rawShares, ns, roots, from, to)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each

@@ -22,27 +22,51 @@ type RangeNamespaceData struct {
 	Proof  []*Proof           `json:"proof"`
 }
 
-// RangedNamespaceDataFromShares builds a range of namespaced data for the given coordinates:
-// shares is a list of shares (grouped by the rows) relative to the data square and
-// needed to build the range;
-// namespace is the target namespace for the built range;
-// from is the coordinates of the first share of the range within the EDS.
-// to is the coordinates of the last inclusive share of the range within the EDS.
+// RangedNamespaceDataFromShares constructs a RangeNamespaceData structure from a selection
+// of namespaced shares within an Extended Data Square (EDS).
+//
+// Parameters:
+//   - shares: A 2D slice of shares grouped by rows (each inner slice represents a row).
+//     These shares should cover the range between the 'from' and 'to' coordinates, inclusive.
+//   - namespace: The target namespace ID to filter and extract data for.
+//   - axisRoots: The AxisRoots (row and column roots) associated with the EDS.
+//   - from: The starting coordinate (row, column) of the range within the EDS.
+//   - to: The ending coordinate (row, column) of the range (inclusive).
+//
+// Returns:
+//   - A RangeNamespaceData containing the shares in the given namespace and Merkle proofs
+//     needed to verify them.
+//   - An error if the range is invalid or extraction fails.
 func RangedNamespaceDataFromShares(
 	shares [][]libshare.Share,
 	namespace libshare.Namespace,
-	rowRootProofs []*merkle.Proof,
+	axisRoots *share.AxisRoots,
 	from, to SampleCoords,
 ) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
 		return RangeNamespaceData{}, fmt.Errorf("empty share list")
 	}
 
+	roots := append(axisRoots.RowRoots, axisRoots.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
+
 	numRows := len(shares)
 	odsSize := len(shares[0]) / 2
 
-	startProof := (from.Col != 0 || (from.Row == to.Row && to.Col != odsSize-1))
-	endProof := (to.Col != odsSize-1 && from.Row != to.Row)
+	isMultiRow := from.Row != to.Row
+	startsMidRow := from.Col != 0
+	endsMidRow := to.Col != odsSize-1
+	isSingleRow := from.Row == to.Row
+
+	// We need a start proof if:
+	// - The range doesn't start at the beginning of the row
+	// - OR it's a single-row range that ends before the row ends
+	startProof := startsMidRow || (isSingleRow && endsMidRow)
+
+	// We need an end proof if:
+	// - The range ends before the row ends
+	// - AND spans multiple rows
+	endProof := endsMidRow && isMultiRow
 
 	rngData := RangeNamespaceData{
 		Start:  from.Row,
@@ -134,12 +158,13 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 		if err != nil {
 			return fmt.Errorf("failed to extend row shares: %w", err)
 		}
-		odsSize := len(extendedRowShares) / 2
-		proof, err := generateSharesProofs(row, 0, odsSize, odsSize, namespace, extendedRowShares)
+
+		rowNamespaceData, err := RowNamespaceDataFromShares(extendedRowShares, namespace, row)
 		if err != nil {
-			return fmt.Errorf("failed to generate proof for row %d: %w", row, err)
+			return fmt.Errorf("failed to get row namespace data: %w", err)
 		}
-		proofs[i].shareProof = proof
+
+		proofs[i].shareProof = rowNamespaceData.Proof
 		row++
 	}
 	if len(shares) != len(proofs) {
