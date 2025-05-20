@@ -184,7 +184,6 @@ func (p *Proof) MarshalJSON() ([]byte, error) {
 	temp := struct {
 		ShareProof   *nmt.Proof    `json:"share_proof"`
 		RowRootProof *merkle.Proof `json:"row_root_proof"`
-		Roots        []byte        `json:"root"`
 	}{
 		ShareProof:   p.shareProof,
 		RowRootProof: p.rowRootProof,
@@ -196,7 +195,6 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	temp := struct {
 		ShareProof   *nmt.Proof    `json:"share_proof"`
 		RowRootProof *merkle.Proof `json:"row_root_proof"`
-		Root         []byte        `json:"root"`
 	}{}
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
