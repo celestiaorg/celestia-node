@@ -2,7 +2,7 @@ module github.com/celestiaorg/celestia-node
 
 go 1.23.6
 
-replace github.com/celestiaorg/nmt => github.com/gupadhyaya/nmt v0.0.0-20250505135526-d056572e2383
+replace github.com/celestiaorg/nmt => github.com/gupadhyaya/nmt v0.0.0-20250520032418-514395d4b2a8
 
 require (
 	cosmossdk.io/log v1.5.1

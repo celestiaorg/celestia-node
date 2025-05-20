@@ -56,20 +56,9 @@ func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Name
 		return fmt.Errorf("failed to compute leaf hashes: %w", err)
 	}
 
-	// Validate the proof structure
-	if err := p.shareProof.ValidateProofStructure(nth, nid, hashes); err != nil {
-		return fmt.Errorf("invalid proof structure: %w", err)
-	}
-
-	// Compute the root from proof and leaf hashes
-	root, err := p.shareProof.ComputeRoot(nth, hashes)
+	root, err := p.shareProof.ComputeRootWithBasicValidation(nth, nid, hashes, false)
 	if err != nil {
-		return fmt.Errorf("failed to compute root from proof: %w", err)
-	}
-
-	// Validate the computed root's format
-	if err := nth.ValidateNodeFormat(root); err != nil {
-		return fmt.Errorf("invalid node format for root: %w", err)
+		return fmt.Errorf("failed to compute proof root: %w", err)
 	}
 
 	// Check if namespace is outside the range
@@ -121,32 +110,9 @@ func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Name
 		}
 	}
 
-	// Validate proof structure
-	if err := p.shareProof.ValidateProofStructure(nth, nid, hashes); err != nil {
-		return fmt.Errorf("invalid proof structure: %w", err)
-	}
-
-	// For inclusion proofs, validate single namespace consistency
-	if !p.IsOfAbsence() {
-		if err := p.shareProof.ValidateNamespace(nth, nid, hashes); err != nil {
-			return fmt.Errorf("invalid namespace consistency: %w", err)
-		}
-	}
-
-	// Validate completeness (no missed leaves outside proof range)
-	if err := p.shareProof.ValidateCompleteness(nth, nid); err != nil {
-		return fmt.Errorf("proof completeness failed: %w", err)
-	}
-
-	// Reconstruct the root from the proof
-	root, err := p.shareProof.ComputeRoot(nth, hashes)
+	root, err := p.shareProof.ComputeRootWithBasicValidation(nth, nid, hashes, true)
 	if err != nil {
 		return fmt.Errorf("failed to compute proof root: %w", err)
-	}
-
-	// Ensure the reconstructed root is valid
-	if err := nth.ValidateNodeFormat(root); err != nil {
-		return fmt.Errorf("invalid node format for root: %w", err)
 	}
 
 	// Validate namespace is within the root range

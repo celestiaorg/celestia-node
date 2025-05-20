@@ -886,8 +886,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 h1:asbCHRVmodnJTuQ3qamDwqVOIjw
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0/go.mod h1:ggCgvZ2r7uOoQjOyu2Y1NhHmEPPzzuhWgcza5M1Ji1I=
 github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c h1:6rhixN/i8ZofjG1Y75iExal34USq5p+wiN1tpie8IrU=
 github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c/go.mod h1:NMPJylDgVpX0MLRlPy15sqSwOFv/U1GZ2m21JhFfek0=
-github.com/gupadhyaya/nmt v0.0.0-20250505135526-d056572e2383 h1:CPyDvG6dJxyk7442LXAqE+mdry6Vec1UcJQ1CYLfKSQ=
-github.com/gupadhyaya/nmt v0.0.0-20250505135526-d056572e2383/go.mod h1:kYfIjRq5rmA2mJnv41GLWkxn5KyLNPlma3v5Q68rHdI=
+github.com/gupadhyaya/nmt v0.0.0-20250520032418-514395d4b2a8 h1:S6UkVqo9c2NpTt/eXdMSQj2iuCrC6Fc0fmtXISPLGRY=
+github.com/gupadhyaya/nmt v0.0.0-20250520032418-514395d4b2a8/go.mod h1:kYfIjRq5rmA2mJnv41GLWkxn5KyLNPlma3v5Q68rHdI=
 github.com/gxed/hashland/keccakpg v0.0.1/go.mod h1:kRzw3HkwxFU1mpmPP8v1WyQzwdGfmKFJ6tItnhQ67kU=
 github.com/gxed/hashland/murmur3 v0.0.1/go.mod h1:KjXop02n4/ckmZSnY2+HKcLud/tcmvhST0bie/0lS48=
 github.com/hashicorp/consul/api v1.3.0/go.mod h1:MmDNSzIMUjNpY/mQ398R4bk2FnqQLoPndWW5VkKPlCE=
