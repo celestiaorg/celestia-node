@@ -200,7 +200,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 
 		err := proofs[i].VerifyInclusion(rowShares, namespace, dataHash)
 		if err != nil {
-			return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rngdata.Start+i, fmt.Errorf("from %d to %d, err %w", from, to, err))
+			return fmt.Errorf("%w for row: %d, %w", ErrFailedVerification, rngdata.Start+i, err)
 		}
 	}
 	return nil
