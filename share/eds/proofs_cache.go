@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -295,6 +296,13 @@ func (c *proofsCache) RangeNamespaceData(
 		Proof:  make([]*shwap.Proof, 0, numRows),
 	}
 
+	root, err := c.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting axis roots: %w", err)
+	}
+	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
+
 	// iterate over each row in the range [from.Row; to.Row].
 	// All complete rows(from.Col = 0 && to.Col = odsSize-1) is
 	// requested using `RowNamespaceData` that uses cache.
@@ -313,6 +321,7 @@ func (c *proofsCache) RangeNamespaceData(
 				return shwap.RangeNamespaceData{}, err
 			}
 			rngdata.Shares = append(rngdata.Shares, rowData.Shares)
+			rngdata.Proof = append(rngdata.Proof, shwap.NewProof(rowData.Proof, rowRootProofs[row]))
 			continue
 		}
 
