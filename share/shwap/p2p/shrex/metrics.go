@@ -57,9 +57,6 @@ func (m *Metrics) observeRequests(
 		))
 }
 
-func (m *Metrics) observeDuration(ctx context.Context, requestName string, d time.Duration) {
-}
-
 func InitClientMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
 		"shrex_client_total_requests",

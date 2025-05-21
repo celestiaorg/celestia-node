@@ -42,6 +42,7 @@ type ServerParams struct {
 func DefaultClientParameters() *ClientParams {
 	return &ClientParams{Parameters: defaultParameters()}
 }
+
 func DefaultServerParameters() *ServerParams {
 	return &ServerParams{
 		Parameters:           defaultParameters(),
