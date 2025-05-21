@@ -79,11 +79,11 @@ func TestArchivalBlobSync(t *testing.T) {
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
 		fx.Decorate(func(
-			ndClient *shrex.Client,
+			client *shrex.Client,
 			managers map[string]*peers.Manager,
 		) *shrex_getter.Getter {
 			return shrex_getter.NewGetter(
-				ndClient,
+				client,
 				managers["full"],
 				managers["archival"],
 				testAvailWindow,

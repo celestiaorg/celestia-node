@@ -3,6 +3,7 @@ package shrex
 import (
 	"context"
 	"io"
+	"maps"
 
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -29,7 +30,7 @@ func newInitID() map[string]newID {
 func SupportedProtocols() []string {
 	initID := newInitID()
 	protocolNames := make([]string, 0, len(initID))
-	for name := range initID {
+	for name := range maps.Keys(initID) {
 		protocolNames = append(protocolNames, name)
 	}
 	return protocolNames
@@ -41,8 +42,8 @@ type id interface {
 	io.ReaderFrom
 
 	Name() string
-	// Target reports the target height of the shwap container.
-	Target() uint64
+	// Height reports the target height of the shwap container.
+	Height() uint64
 	// Validate performs a basic validation of the request.
 	Validate() error
 
