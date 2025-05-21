@@ -215,14 +215,14 @@ func replaceShrexServer(cfg *nodebuilder.Config, handler network.StreamHandler) 
 			store *store.Store,
 			network p2p.Network,
 		) (*shrex.Server, error) {
-			cfg.Share.Shrex.WithNetworkID(network.String())
-			return shrex.NewServer(cfg.Share.Shrex, host, store, shrex.SupportedProtocols()...)
+			cfg.Share.ShrexServer.WithNetworkID(network.String())
+			return shrex.NewServer(cfg.Share.ShrexServer, host, store, shrex.SupportedProtocols()...)
 		},
 		fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
 			for _, protocolName := range shrex.SupportedProtocols() {
 				// replace handler for server
 				server.SetHandler(
-					shrex.ProtocolID(cfg.Share.Shrex.NetworkID(), protocolName),
+					shrex.ProtocolID(cfg.Share.ShrexServer.NetworkID(), protocolName),
 					handler,
 				)
 			}
