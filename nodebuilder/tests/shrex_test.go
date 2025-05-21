@@ -125,7 +125,7 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	for i := 0; i < amountOfFulls; i++ {
 		cfg := nodebuilder.DefaultConfig(node.Full)
 		setTimeInterval(cfg, testTimeout)
-		full := sw.NewNodeWithConfig(node.Full, cfg, replaceNDServer(cfg, ndHandler), replaceShareGetter())
+		full := sw.NewNodeWithConfig(node.Full, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
@@ -212,7 +212,7 @@ func stopFullNodes(ctx context.Context, sw *swamp.Swamp, fulls ...*nodebuilder.N
 	}
 }
 
-func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.Option {
+func replaceShrexServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.Option {
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,

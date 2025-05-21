@@ -93,7 +93,7 @@ func (sg *Getter) WithMetrics() error {
 
 // Getter is a share.Getter that uses the shrex protocol to retrieve shares.
 type Getter struct {
-	ndClient *shrex.Client
+	client *shrex.Client
 
 	fullPeerManager     *peers.Manager
 	archivalPeerManager *peers.Manager
@@ -110,13 +110,13 @@ type Getter struct {
 }
 
 func NewGetter(
-	ndClient *shrex.Client,
+	client *shrex.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
 	availWindow time.Duration,
 ) *Getter {
 	s := &Getter{
-		ndClient:            ndClient,
+		client:              client,
 		fullPeerManager:     fullPeerManager,
 		archivalPeerManager: archivalManager,
 		minRequestTimeout:   defaultMinRequestTimeout,
@@ -191,7 +191,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		getErr = sg.ndClient.Get(reqCtx, &request, response, peer)
+		getErr = sg.client.Get(reqCtx, &request, response, peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -286,7 +286,7 @@ func (sg *Getter) GetNamespaceData(
 
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		getErr = sg.ndClient.Get(reqCtx, &request, &response, peer)
+		getErr = sg.client.Get(reqCtx, &request, &response, peer)
 		cancel()
 		switch {
 		case getErr == nil:
