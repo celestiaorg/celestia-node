@@ -13,13 +13,13 @@ const EdsIDSize = 8
 // EdsID represents a unique identifier for a row, using the height of the block
 // to identify the data square in the chain.
 type EdsID struct {
-	Height uint64 // Height specifies the block height.
+	height uint64 // Height specifies the block height.
 }
 
 // NewEdsID creates a new EdsID using the given height.
 func NewEdsID(height uint64) (EdsID, error) {
 	eid := EdsID{
-		Height: height,
+		height: height,
 	}
 	return eid, eid.Validate()
 }
@@ -31,7 +31,7 @@ func EdsIDFromBinary(data []byte) (EdsID, error) {
 		return EdsID{}, fmt.Errorf("invalid EdsID data length: %d != %d", len(data), EdsIDSize)
 	}
 	eid := EdsID{
-		Height: binary.BigEndian.Uint64(data),
+		height: binary.BigEndian.Uint64(data),
 	}
 	if err := eid.Validate(); err != nil {
 		return EdsID{}, fmt.Errorf("validating EdsID: %w", err)
@@ -46,7 +46,7 @@ func (eid EdsID) Name() string {
 
 // Equals checks equality of EdsIDs.
 func (eid *EdsID) Equals(other EdsID) bool {
-	return eid.Height == other.Height
+	return eid.height == other.height
 }
 
 // ReadFrom reads the binary form of EdsID from the provided reader.
@@ -91,14 +91,14 @@ func (eid EdsID) WriteTo(w io.Writer) (int64, error) {
 // Validate checks the integrity of an EdsID's fields against the provided Root.
 // It ensures that the EdsID is not constructed with a zero Height and that the root is not nil.
 func (eid EdsID) Validate() error {
-	if eid.Height == 0 {
+	if eid.height == 0 {
 		return fmt.Errorf("%w: Height == 0", ErrInvalidID)
 	}
 	return nil
 }
 
-func (eid EdsID) Target() uint64 {
-	return eid.Height
+func (eid EdsID) Height() uint64 {
+	return eid.height
 }
 
 func (eid EdsID) ContainerDataReader(_ context.Context, acc Accessor) (io.Reader, error) {
@@ -108,5 +108,5 @@ func (eid EdsID) ContainerDataReader(_ context.Context, acc Accessor) (io.Reader
 // AppendBinary helps in the binary encoding of EdsID by appending the binary form of Height to the
 // given byte slice.
 func (eid EdsID) AppendBinary(data []byte) ([]byte, error) {
-	return binary.BigEndian.AppendUint64(data, eid.Height), nil
+	return binary.BigEndian.AppendUint64(data, eid.height), nil
 }

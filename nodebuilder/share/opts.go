@@ -31,12 +31,12 @@ func WithDiscoveryMetrics(discs []*discovery.Discovery) error {
 	return err
 }
 
-func WithShrexClientMetrics(ndClient *shrex.Client) error {
-	return ndClient.WithMetrics()
+func WithShrexClientMetrics(client *shrex.Client) error {
+	return client.WithMetrics()
 }
 
-func WithShrexServerMetrics(ndServer *shrex.Server) error {
-	return ndServer.WithMetrics()
+func WithShrexServerMetrics(server *shrex.Server) error {
+	return server.WithMetrics()
 }
 
 func WithShrexGetterMetrics(sg *shrex_getter.Getter) error {
