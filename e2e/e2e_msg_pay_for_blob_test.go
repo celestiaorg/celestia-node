@@ -51,14 +51,13 @@ func (s *CelestiaTestSuite) TestE2EMsgPayForBlob() {
 	// wait for some blocks to ensure the bridge node can sync up.
 	s.Require().NoError(wait.ForBlocks(ctx, 10, celestia))
 
-	chainNode := celestia.GetNodes()[0]
-	genesisHash := s.getGenesisHash(ctx, chainNode)
+	genesisHash := s.getGenesisHash(ctx, celestia)
 	s.Require().NotEmpty(genesisHash, "genesis hash is empty")
 
 	bridgeNode, err := provider.GetDANode(ctx, types.BridgeNode)
 	s.Require().NoError(err, "failed to get bridge node")
 
-	hostname, err := chainNode.GetInternalHostName(ctx)
+	hostname, err := celestia.GetNodes()[0].GetInternalHostName(ctx)
 	s.Require().NoError(err, "failed to get internal hostname")
 
 	err = bridgeNode.Start(ctx,

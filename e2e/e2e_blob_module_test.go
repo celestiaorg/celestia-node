@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,12 +13,9 @@ import (
 	"testing"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
 	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
-	"github.com/celestiaorg/tastora/framework/types"
 )
 
 func (s *CelestiaTestSuite) TestE2EBlobModule() {
@@ -29,81 +25,17 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 	}
 
 	ctx := context.TODO()
-	provider := s.CreateDockerProvider()
 
-	celestia, err := provider.GetChain(ctx)
-	s.Require().NoError(err)
-
-	err = celestia.Start(ctx)
-	s.Require().NoError(err)
-
-	// cleanup resources when the test is done
-	t.Cleanup(func() {
-		if err := celestia.Stop(ctx); err != nil {
-			t.Logf("Error stopping chain: %v", err)
-		}
-	})
-
-	// verify the chain is producing blocks
-	height, err := celestia.Height(ctx)
-	s.Require().NoError(err)
-	s.Require().Greater(height, int64(0))
+	celestia := s.CreateAndStartCelestiaChain(ctx)
 
 	// wait for some blocks to ensure the bridge node can sync up.
 	s.Require().NoError(wait.ForBlocks(ctx, 10, celestia))
 
-	dockerChain, ok := celestia.(*docker.Chain)
-	s.Require().True(ok, "celestia is not a docker chain")
+	wallet := s.CreateTestWallet(ctx, celestia, 100_000_000_000)
 
-	wallet, err := docker.CreateAndFundTestWallet(s.T(), ctx, "test", sdkmath.NewInt(100000000000), dockerChain)
-	s.Require().NoError(err, "failed to create test wallet")
-	s.Require().NotNil(wallet, "wallet is nil")
+	bridgeNode := s.CreateAndStartBridgeNode(ctx, celestia)
 
-	chainNode := celestia.GetNodes()[0]
-	genesisHash := s.getGenesisHash(ctx, chainNode)
-	s.Require().NotEmpty(genesisHash, "genesis hash is empty")
-
-	bridgeNode, err := provider.GetDANode(ctx, types.BridgeNode)
-	s.Require().NoError(err, "failed to get bridge node")
-
-	hostname, err := chainNode.GetInternalHostName(ctx)
-	s.Require().NoError(err, "failed to get internal hostname")
-
-	err = bridgeNode.Start(ctx,
-		types.WithCoreIP(hostname),
-		types.WithGenesisBlockHash(genesisHash),
-	)
-
-	s.Require().NoError(err, "failed to start bridge node")
-	// cleanup resources when the test is done
-	t.Cleanup(func() {
-		if err := bridgeNode.Stop(ctx); err != nil {
-			t.Logf("Error stopping bridge node: %v", err)
-		}
-	})
-
-	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
-	s.Require().NoError(err, "failed to get bridge node p2p info")
-
-	p2pAddr, err := p2pInfo.GetP2PAddress()
-	s.Require().NoError(err, "failed to get bridge node p2p address")
-
-	fullNode, err := provider.GetDANode(ctx, types.FullNode)
-	s.Require().NoError(err, "failed to get fullnode node")
-
-	err = fullNode.Start(ctx,
-		types.WithCoreIP(hostname),
-		types.WithGenesisBlockHash(genesisHash),
-		types.WithP2PAddress(p2pAddr),
-	)
-
-	s.Require().NoError(err, "failed to start bridge node")
-	// cleanup resources when the test is done
-	t.Cleanup(func() {
-		if err := fullNode.Stop(ctx); err != nil {
-			t.Logf("Error stopping bridge node: %v", err)
-		}
-	})
+	fullNode := s.CreateAndStartFullNode(ctx, bridgeNode, celestia)
 
 	celestiaHeight, err := celestia.Height(ctx)
 	s.Require().NoError(err, "failed to get celestia height")
@@ -127,29 +59,7 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 	err = wait.ForDANodeToReachHeight(ctx, fullNode, uint64(celestiaHeight), time.Second*30)
 	s.Require().NoError(err, "failed to wait for full node to reach height")
 
-	p2pInfo, err = fullNode.GetP2PInfo(ctx)
-	s.Require().NoError(err, "failed to get bridge node p2p info")
-
-	p2pAddr, err = p2pInfo.GetP2PAddress()
-	s.Require().NoError(err, "failed to get bridge node p2p address")
-
-	t.Logf("Full node P2P Addr: %s", p2pAddr)
-
-	lightNode, err := provider.GetDANode(ctx, types.LightNode)
-	s.Require().NoError(err, "failed to get light node")
-
-	err = lightNode.Start(ctx,
-		types.WithP2PAddress(p2pAddr),
-		types.WithCoreIP(hostname),
-		types.WithGenesisBlockHash(genesisHash),
-	)
-	s.Require().NoError(err, "failed to start light node")
-	// cleanup resources when the test is done
-	t.Cleanup(func() {
-		if err := lightNode.Stop(ctx); err != nil {
-			t.Logf("Error stopping light node: %v", err)
-		}
-	})
+	lightNode := s.CreateAndStartLightNode(ctx, fullNode, celestia)
 
 	s.Require().NoError(wait.ForBlocks(ctx, 10, celestia), "failed to wait for blocks")
 
@@ -159,26 +69,13 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 	err = wait.ForDANodeToReachHeight(ctx, lightNode, uint64(celestiaHeight), time.Second*30)
 	s.Require().NoError(err, "failed to wait for light node to reach height")
 
-	rpcAddr := fullNode.GetHostRPCAddress()
-	s.Require().NotEmpty(rpcAddr, "rpc address is empty")
+	client := s.getNodeRPCClient(ctx, fullNode)
 
-	client, err := rpcclient.NewClient(ctx, "http://"+rpcAddr, "")
-	s.Require().NoError(err)
 	addr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
-	fromAddr, err := sdkacc.AddressFromBech32(wallet.GetFormattedAddress(), "celestia")
-	s.Require().NoError(err, "failed to get from address")
-
-	t.Logf("sending funds from %s to %s", fromAddr.String(), addr.String())
-
-	bankSend := banktypes.NewMsgSend(fromAddr, addr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(10000000000))))
-	resp, err = celestia.BroadcastMessages(ctx, wallet, bankSend)
-	s.Require().NoError(err)
-	s.Require().Equal(resp.Code, uint32(0), "resp: %v", resp)
-
-	err = wait.ForBlocks(ctx, 2, celestia)
-	s.Require().NoError(err)
+	// fund the wallet generated by the full node.
+	s.FundWallet(ctx, celestia, wallet, addr.Bytes(), 100_000_000_00)
 
 	grpcAddr := celestia.GetGRPCAddress()
 	bal, err := QueryBalance(ctx, grpcAddr, addr.String())

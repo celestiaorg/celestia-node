@@ -2,19 +2,24 @@ package e2e
 
 import (
 	"context"
+	sdkmath "cosmossdk.io/math"
+	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
+	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"go.uber.org/zap/zaptest"
 	"os"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v4/app"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/testutil/toml"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zaptest"
-
-	"github.com/celestiaorg/celestia-app/v4/app"
-	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker"
-	"github.com/celestiaorg/tastora/framework/testutil/toml"
-	celestiatypes "github.com/celestiaorg/tastora/framework/types"
 )
 
 const (
@@ -31,15 +36,17 @@ func TestCelestiaTestSuite(t *testing.T) {
 
 type CelestiaTestSuite struct {
 	suite.Suite
-	logger  *zap.Logger
-	client  *client.Client
-	network string
+	logger   *zap.Logger
+	client   *client.Client
+	network  string
+	provider tastoratypes.Provider
 }
 
-func (s *CelestiaTestSuite) SetupSuite() {
+func (s *CelestiaTestSuite) SetupTest() {
 	s.logger = zaptest.NewLogger(s.T())
-	s.logger.Info("Setting up Celestia test suite")
-	s.client, s.network = celestiadockertypes.DockerSetup(s.T())
+	s.logger.Info("Setting up test", zap.String("test", s.T().Name()))
+	s.client, s.network = tastoradockertypes.DockerSetup(s.T())
+	s.provider = s.CreateDockerProvider()
 }
 
 // appOverrides modifies the "app.toml" configuration for the application, setting the transaction indexer to "kv".
@@ -62,17 +69,17 @@ func configOverrides() toml.Toml {
 	return overrides
 }
 
-func (s *CelestiaTestSuite) CreateDockerProvider() celestiatypes.Provider {
+func (s *CelestiaTestSuite) CreateDockerProvider() tastoratypes.Provider {
 	numValidators := 1
 	numFullNodes := 0
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
-	cfg := celestiadockertypes.Config{
+	cfg := tastoradockertypes.Config{
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		ChainConfig: &celestiadockertypes.ChainConfig{
+		ChainConfig: &tastoradockertypes.ChainConfig{
 			ConfigFileOverrides: map[string]any{
 				"config/app.toml":    appOverrides(),
 				"config/config.toml": configOverrides(),
@@ -83,7 +90,7 @@ func (s *CelestiaTestSuite) CreateDockerProvider() celestiatypes.Provider {
 			NumValidators: &numValidators,
 			NumFullNodes:  &numFullNodes,
 			ChainID:       testChainID,
-			Images: []celestiadockertypes.DockerImage{
+			Images: []tastoradockertypes.DockerImage{
 				{
 					Repository: celestiaAppImage,
 					Version:    getCelestiaTag(),
@@ -99,9 +106,9 @@ func (s *CelestiaTestSuite) CreateDockerProvider() celestiatypes.Provider {
 			EncodingConfig:      &enc,
 			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9098"},
 		},
-		DANodeConfig: &celestiadockertypes.DANodeConfig{
+		DANodeConfig: &tastoradockertypes.DANodeConfig{
 			ChainID: testChainID,
-			Images: []celestiadockertypes.DockerImage{
+			Images: []tastoradockertypes.DockerImage{
 				{
 					Repository: getNodeImage(),
 					Version:    getNodeTag(),
@@ -109,11 +116,111 @@ func (s *CelestiaTestSuite) CreateDockerProvider() celestiatypes.Provider {
 				},
 			}},
 	}
-	return celestiadockertypes.NewProvider(cfg, s.T())
+	return tastoradockertypes.NewProvider(cfg, s.T())
+}
+
+// CreateTestWallet creates a new test wallet on the given chain, funding it with the specified amount.
+func (s *CelestiaTestSuite) CreateTestWallet(ctx context.Context, celestia tastoratypes.Chain, amount int64) tastoratypes.Wallet {
+	dockerChain, ok := celestia.(*tastoradockertypes.Chain)
+	s.Require().True(ok, "celestia is not a docker chain")
+
+	wallet, err := tastoradockertypes.CreateAndFundTestWallet(s.T(), ctx, "test", sdkmath.NewInt(amount), dockerChain)
+	s.Require().NoError(err, "failed to create test wallet")
+	s.Require().NotNil(wallet, "wallet is nil")
+	return wallet
+}
+
+// CreateAndStartCelestiaChain initializes and starts a a Celestia chain, ensuring it successfully begins producing blocks.
+func (s *CelestiaTestSuite) CreateAndStartCelestiaChain(ctx context.Context) tastoratypes.Chain {
+	celestia, err := s.provider.GetChain(ctx)
+	s.Require().NoError(err, "failed to get chain")
+	err = celestia.Start(ctx)
+	s.Require().NoError(err)
+
+	// verify the chain is producing blocks
+	height, err := celestia.Height(ctx)
+	s.Require().NoError(err)
+	s.Require().Greater(height, int64(0))
+	return celestia
+}
+
+// CreateAndStartBridgeNode initializes and starts a bridge node, setting it up with the required genesis hash and core IP.
+func (s *CelestiaTestSuite) CreateAndStartBridgeNode(ctx context.Context, chain tastoratypes.Chain) tastoratypes.DANode {
+	genesisHash := s.getGenesisHash(ctx, chain)
+	s.Require().NotEmpty(genesisHash, "genesis hash is empty")
+
+	bridgeNode, err := s.provider.GetDANode(ctx, tastoratypes.BridgeNode)
+	s.Require().NoError(err, "failed to get bridge node")
+
+	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	s.Require().NoError(err, "failed to get internal hostname")
+
+	err = bridgeNode.Start(ctx,
+		tastoratypes.WithCoreIP(hostname),
+		tastoratypes.WithGenesisBlockHash(genesisHash),
+	)
+	s.Require().NoError(err, "failed to start bridge node")
+	return bridgeNode
+}
+
+// CreateAndStartFullNode initializes and starts a full node, connecting it to a bridge node and ensuring proper configuration.
+func (s *CelestiaTestSuite) CreateAndStartFullNode(ctx context.Context, bridgeNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
+	genesisHash := s.getGenesisHash(ctx, chain)
+
+	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	s.Require().NoError(err, "failed to get internal hostname")
+
+	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
+	s.Require().NoError(err, "failed to get bridge node p2p info")
+
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	s.Require().NoError(err, "failed to get bridge node p2p address")
+
+	fullNode, err := s.provider.GetDANode(ctx, tastoratypes.FullNode)
+	s.Require().NoError(err, "failed to get fullnode node")
+
+	err = fullNode.Start(ctx,
+		tastoratypes.WithCoreIP(hostname),
+		tastoratypes.WithGenesisBlockHash(genesisHash),
+		tastoratypes.WithP2PAddress(p2pAddr),
+	)
+
+	s.Require().NoError(err, "failed to start full node")
+
+	return fullNode
+}
+
+// CreateAndStartLightNode initializes and starts a light node, configuring it with the provided full node and chain details.
+func (s *CelestiaTestSuite) CreateAndStartLightNode(ctx context.Context, fullNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
+	genesisHash := s.getGenesisHash(ctx, chain)
+
+	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	s.Require().NoError(err, "failed to get internal hostname")
+
+	p2pInfo, err := fullNode.GetP2PInfo(ctx)
+	s.Require().NoError(err, "failed to get bridge node p2p info")
+
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	s.Require().NoError(err, "failed to get bridge node p2p address")
+
+	s.T().Logf("Full node P2P Addr: %s", p2pAddr)
+
+	lightNode, err := s.provider.GetDANode(ctx, tastoratypes.LightNode)
+	s.Require().NoError(err, "failed to get light node")
+
+	err = lightNode.Start(ctx,
+		tastoratypes.WithP2PAddress(p2pAddr),
+		tastoratypes.WithCoreIP(hostname), // TODO: remove this, not required
+		tastoratypes.WithGenesisBlockHash(genesisHash),
+	)
+	s.Require().NoError(err, "failed to start light node")
+
+	return lightNode
 }
 
 // getGenesisHash returns the genesis hash of the given chain node.
-func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, node celestiatypes.ChainNode) string {
+func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, chain tastoratypes.Chain) string {
+	node := chain.GetNodes()[0]
 	c, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get node client")
 
@@ -121,7 +228,34 @@ func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, node celestiatyp
 	block, err := c.Block(ctx, &first)
 	s.Require().NoError(err, "failed to get block")
 
-	return block.Block.Header.Hash().String()
+	genesisHash := block.Block.Header.Hash().String()
+	s.Require().NotEmpty(genesisHash, "genesis hash is empty")
+	return genesisHash
+}
+
+// getNodeRPCClient retrieves an RPC client for the provided DA node using its host RPC address.
+func (s *CelestiaTestSuite) getNodeRPCClient(ctx context.Context, daNode tastoratypes.DANode) *rpcclient.Client {
+	rpcAddr := daNode.GetHostRPCAddress()
+	s.Require().NotEmpty(rpcAddr, "rpc address is empty")
+
+	rpcClient, err := rpcclient.NewClient(ctx, "http://"+rpcAddr, "")
+	s.Require().NoError(err)
+	return rpcClient
+}
+
+// FundWallet sends funds from the given wallet to the given address.
+// The amount is specified in utia.
+func (s *CelestiaTestSuite) FundWallet(ctx context.Context, chain tastoratypes.Chain, fromWallet tastoratypes.Wallet, toAddr sdk.AccAddress, amount int64) {
+	fromAddr, err := sdkacc.AddressFromBech32(fromWallet.GetFormattedAddress(), "celestia")
+	s.Require().NoError(err, "failed to get from address")
+
+	s.T().Logf("sending funds from %s to %s", fromAddr.String(), toAddr.String())
+
+	bankSend := banktypes.NewMsgSend(fromAddr, toAddr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount))))
+	resp, err := chain.BroadcastMessages(ctx, fromWallet, bankSend)
+	s.Require().NoError(err)
+	s.Require().Equal(resp.Code, uint32(0), "resp: %v", resp)
+	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 }
 
 // getCelestiaTag returns the tag to use for Celestia images.
