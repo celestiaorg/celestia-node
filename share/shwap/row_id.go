@@ -23,7 +23,7 @@ type RowID struct {
 func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 	rid := RowID{
 		EdsID: EdsID{
-			Height: height,
+			height: height,
 		},
 		RowIndex: rowIdx,
 	}

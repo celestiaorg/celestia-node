@@ -22,7 +22,8 @@ type Config struct {
 
 	UseShareExchange bool
 	// Shrex sets client and server configuration parameters of the shrex protocol
-	Shrex *shrex.Parameters
+	ShrexClient *shrex.ClientParams
+	ShrexServer *shrex.ServerParams
 	// PeerManagerParams sets peer-manager configuration parameters
 	PeerManagerParams *peers.Parameters
 
@@ -35,7 +36,8 @@ func DefaultConfig(tp node.Type) Config {
 		EDSStoreParams:      store.DefaultParameters(),
 		BlockStoreCacheSize: defaultBlockstoreCacheSize,
 		Discovery:           discovery.DefaultParameters(),
-		Shrex:               shrex.DefaultParameters(),
+		ShrexClient:         shrex.DefaultClientParameters(),
+		ShrexServer:         shrex.DefaultServerParameters(),
 		UseShareExchange:    true,
 		PeerManagerParams:   peers.DefaultParameters(),
 	}
@@ -59,8 +61,12 @@ func (cfg *Config) Validate(tp node.Type) error {
 		return fmt.Errorf("discovery: %w", err)
 	}
 
-	if err := cfg.Shrex.Validate(); err != nil {
-		return fmt.Errorf("shrex: %w", err)
+	if err := cfg.ShrexClient.Validate(); err != nil {
+		return fmt.Errorf("shrex-client: %w", err)
+	}
+
+	if err := cfg.ShrexServer.Validate(); err != nil {
+		return fmt.Errorf("shrex-server: %w", err)
 	}
 
 	if err := cfg.PeerManagerParams.Validate(); err != nil {

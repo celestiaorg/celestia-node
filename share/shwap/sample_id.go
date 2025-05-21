@@ -51,7 +51,7 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
-				Height: height,
+				height: height,
 			},
 			RowIndex: idx.Row,
 		},
