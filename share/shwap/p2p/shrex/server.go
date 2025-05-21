@@ -45,6 +45,11 @@ func NewServer(params *ServerParams, host host.Host, store *store.Store, enabled
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)
 	}
 
+	middleware, err := NewMiddleware(params.ConcurrencyLimit)
+	if err != nil {
+		return nil, fmt.Errorf("shrex/server: could not initialize middleware: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
 		ctx:              ctx,
@@ -53,7 +58,7 @@ func NewServer(params *ServerParams, host host.Host, store *store.Store, enabled
 		host:             host,
 		params:           params,
 		enabledProtocols: SupportedProtocols(),
-		middleware:       NewMiddleware(params.ConcurrencyLimit),
+		middleware:       middleware,
 	}
 	if enabledProtocols != nil {
 		// overwrite the default protocols if they were provided by the user

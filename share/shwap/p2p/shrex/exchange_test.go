@@ -94,7 +94,8 @@ func TestExchange_RequestND(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
-		middleware := NewMiddleware(rateLimit)
+		middleware, err := NewMiddleware(rateLimit)
+		require.NoError(t, err)
 		protocols := SupportedProtocols()
 		for _, protocol := range protocols {
 			server.host.SetStreamHandler(
