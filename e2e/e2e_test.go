@@ -9,6 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"go.uber.org/zap/zaptest"
+	"google.golang.org/grpc"
 	"os"
 	"testing"
 
@@ -36,10 +37,14 @@ func TestCelestiaTestSuite(t *testing.T) {
 
 type CelestiaTestSuite struct {
 	suite.Suite
-	logger   *zap.Logger
-	client   *client.Client
-	network  string
-	provider tastoratypes.Provider
+	logger     *zap.Logger
+	client     *client.Client
+	network    string
+	provider   tastoratypes.Provider
+	bridgeNode tastoratypes.DANode
+	fullNode   tastoratypes.DANode
+	lightNode  tastoratypes.DANode
+	celestia   tastoratypes.Chain
 }
 
 func (s *CelestiaTestSuite) SetupTest() {
@@ -47,6 +52,12 @@ func (s *CelestiaTestSuite) SetupTest() {
 	s.logger.Info("Setting up test", zap.String("test", s.T().Name()))
 	s.client, s.network = tastoradockertypes.DockerSetup(s.T())
 	s.provider = s.CreateDockerProvider()
+
+	ctx := context.Background()
+	s.celestia = s.CreateAndStartCelestiaChain(ctx)
+	s.bridgeNode = s.CreateAndStartBridgeNode(ctx, s.celestia)
+	s.fullNode = s.CreateAndStartFullNode(ctx, s.bridgeNode, s.celestia)
+	s.lightNode = s.CreateAndStartLightNode(ctx, s.fullNode, s.celestia)
 }
 
 // appOverrides modifies the "app.toml" configuration for the application, setting the transaction indexer to "kv".
@@ -233,8 +244,8 @@ func (s *CelestiaTestSuite) getGenesisHash(ctx context.Context, chain tastoratyp
 	return genesisHash
 }
 
-// getNodeRPCClient retrieves an RPC client for the provided DA node using its host RPC address.
-func (s *CelestiaTestSuite) getNodeRPCClient(ctx context.Context, daNode tastoratypes.DANode) *rpcclient.Client {
+// GetNodeRPCClient retrieves an RPC client for the provided DA node using its host RPC address.
+func (s *CelestiaTestSuite) GetNodeRPCClient(ctx context.Context, daNode tastoratypes.DANode) *rpcclient.Client {
 	rpcAddr := daNode.GetHostRPCAddress()
 	s.Require().NotEmpty(rpcAddr, "rpc address is empty")
 
@@ -258,6 +269,26 @@ func (s *CelestiaTestSuite) FundWallet(ctx context.Context, chain tastoratypes.C
 
 	// wait for blocks to ensure the funds are available.
 	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
+
+	grpcAddr := s.celestia.GetGRPCAddress()
+	bal := s.QueryBalance(ctx, grpcAddr, toAddr.String())
+	// ensure the balance has at least as much as what was just sent.
+	s.Require().GreaterOrEqualf(bal.Amount.Int64(), amount, "balance is not greater than or equal to %d", amount)
+}
+
+// queryBalance fetches the balance of a given address and denom from a Cosmos SDK chain via gRPC.
+func (s *CelestiaTestSuite) QueryBalance(ctx context.Context, grpcAddr string, addr string) sdk.Coin {
+	grpcConn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	s.Require().NoError(err, "failed to connect to gRPC")
+	bankClient := banktypes.NewQueryClient(grpcConn)
+	req := &banktypes.QueryBalanceRequest{
+		Address: addr,
+		Denom:   "utia",
+	}
+
+	res, err := bankClient.Balance(ctx, req)
+	s.Require().NoError(err, "failed to query balance")
+	return *res.Balance
 }
 
 // getCelestiaTag returns the tag to use for Celestia images.
