@@ -3,10 +3,14 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"fmt"
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
-	"github.com/stretchr/testify/require"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"google.golang.org/grpc"
+	"log"
 	"testing"
 	"time"
 
@@ -47,6 +51,13 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 
 	// wait for some blocks to ensure the bridge node can sync up.
 	s.Require().NoError(wait.ForBlocks(ctx, 10, celestia))
+
+	dockerChain, ok := celestia.(*docker.Chain)
+	s.Require().True(ok, "celestia is not a docker chain")
+
+	wallet, err := docker.CreateAndFundTestWallet(s.T(), ctx, "test", sdkmath.NewInt(100000000000), dockerChain)
+	s.Require().NoError(err, "failed to create test wallet")
+	s.Require().NotNil(wallet, "wallet is nil")
 
 	chainNode := celestia.GetNodes()[0]
 	genesisHash := s.getGenesisHash(ctx, chainNode)
@@ -96,13 +107,6 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 
 	celestiaHeight, err := celestia.Height(ctx)
 	s.Require().NoError(err, "failed to get celestia height")
-
-	dockerChain, ok := celestia.(*docker.Chain)
-	s.Require().True(ok, "celestia is not a docker chain")
-
-	wallet, err := docker.CreateAndFundTestWallet(s.T(), ctx, "test", sdkmath.NewInt(100000), dockerChain)
-	s.Require().NoError(err, "failed to create test wallet")
-	s.Require().NotNil(wallet, "wallet is nil")
 
 	ns := libshare.RandomBlobNamespace()
 	signer := wallet.GetFormattedAddress()
@@ -160,15 +164,31 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 
 	client, err := rpcclient.NewClient(ctx, "http://"+rpcAddr, "")
 	s.Require().NoError(err)
-	s.Require().NotNil(client)
-
-	address, err := client.State.AccountAddress(ctx)
+	addr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
+
+	fromAddr, err := sdkacc.AddressFromBech32(wallet.GetFormattedAddress(), "celestia")
+	s.Require().NoError(err, "failed to get from address")
+
+	t.Logf("sending funds from %s to %s", fromAddr.String(), addr.String())
+
+	bankSend := banktypes.NewMsgSend(fromAddr, addr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(10000000000))))
+	resp, err = celestia.BroadcastMessages(ctx, wallet, bankSend)
+	s.Require().NoError(err)
+	s.Require().Equal(resp.Code, uint32(0), "resp: %v", resp)
+
+	err = wait.ForBlocks(ctx, 2, celestia)
+	s.Require().NoError(err)
+
+	grpcAddr := celestia.GetGRPCAddress()
+	bal, err := QueryBalance(ctx, grpcAddr, addr.String())
+	s.Require().NoError(err)
+	s.Require().Greater(bal.Amount.Int64(), int64(0), "balance is not greater than 0")
 
 	v1Blob, err := libshare.NewV1Blob(
 		libshare.MustNewV0Namespace(bytes.Repeat([]byte{5}, libshare.NamespaceVersionZeroIDSize)),
 		[]byte("test data"),
-		address.Bytes(),
+		addr.Bytes(),
 	)
 	s.Require().NoError(err)
 
@@ -179,13 +199,36 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 	s.Require().NoError(err)
 
 	blobs, err := nodeblob.ToNodeBlobs(append(libBlobs0, libBlobs1...)...)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	v1, err := nodeblob.ToNodeBlobs(v1Blob)
 	s.Require().NoError(err)
 	blobs = append(blobs, v1[0])
 
-	_, err = client.Blob.Submit(ctx, blobs, state.NewTxConfig())
+	_, err = client.Blob.Submit(ctx, blobs, state.NewTxConfig(
+		state.WithGas(200_000),
+		state.WithGasPrice(5000),
+	))
 	s.Require().NoError(err)
+}
 
+// QueryBalance fetches the balance of a given address and denom from a Cosmos SDK chain via gRPC.
+func QueryBalance(ctx context.Context, grpcAddr string, addr string) (sdk.Coin, error) {
+	grpcConn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to connect to gRPC: %v", err)
+	}
+	bankClient := banktypes.NewQueryClient(grpcConn)
+
+	req := &banktypes.QueryBalanceRequest{
+		Address: addr,
+		Denom:   "utia",
+	}
+
+	res, err := bankClient.Balance(ctx, req)
+	if err != nil {
+		return sdk.Coin{}, fmt.Errorf("failed to query balance: %w", err)
+	}
+
+	return *res.Balance, nil
 }

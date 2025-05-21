@@ -20,8 +20,8 @@ import (
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
 	defaultCelestiaTag = "v4.0.0-rc6"
-	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
-	defaultNodeTag     = "v0.23.0-rc0"
+	nodeImage          = "celestia-node"
+	defaultNodeTag     = "foo"
 	testChainID        = "test"
 )
 

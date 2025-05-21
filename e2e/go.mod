@@ -6,7 +6,7 @@ toolchain go1.24.3
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v4 v4.0.0-rc6
+	github.com/celestiaorg/celestia-app/v4 v4.0.1-mocha.0.20250521112605-9034d466a320
 	github.com/celestiaorg/celestia-node v0.22.2
 	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/tastora v0.0.0-20250515081551-795e795a49c7
@@ -14,6 +14,7 @@ require (
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
+	google.golang.org/grpc v1.72.1
 )
 
 require (
@@ -31,7 +32,7 @@ require (
 	cosmossdk.io/core v0.11.1 // indirect
 	cosmossdk.io/depinject v1.1.0 // indirect
 	cosmossdk.io/errors v1.0.2 // indirect
-	cosmossdk.io/log v1.5.1 // indirect
+	cosmossdk.io/log v1.6.0 // indirect
 	cosmossdk.io/store v1.1.2 // indirect
 	cosmossdk.io/x/circuit v0.1.1 // indirect
 	cosmossdk.io/x/evidence v0.1.1 // indirect
@@ -372,7 +373,6 @@ require (
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
-	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -385,6 +385,7 @@ require (
 
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
+	//github.com/celestiaorg/celestia-app/v4 => ../../celestia-app
 	github.com/celestiaorg/celestia-node => ../../celestia-node
 	github.com/celestiaorg/tastora => ../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
