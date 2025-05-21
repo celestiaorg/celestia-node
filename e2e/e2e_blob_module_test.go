@@ -6,16 +6,13 @@ import (
 	"fmt"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
+	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
 	"log"
 	"testing"
-	"time"
-
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
-	"github.com/celestiaorg/tastora/framework/testutil/wait"
 )
 
 func (s *CelestiaTestSuite) TestE2EBlobModule() {
@@ -37,39 +34,10 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 
 	fullNode := s.CreateAndStartFullNode(ctx, bridgeNode, celestia)
 
-	celestiaHeight, err := celestia.Height(ctx)
-	s.Require().NoError(err, "failed to get celestia height")
-
-	ns := libshare.RandomBlobNamespace()
-	signer := wallet.GetFormattedAddress()
-
-	signerAddr, err := sdkacc.AddressFromBech32(signer, "celestia")
-	s.Require().NoError(err, "failed to get signer address")
-
-	msg, blob := randMsgPayForBlobsWithNamespaceAndSigner(signer, signerAddr, ns, 100)
-
-	resp, err := celestia.BroadcastBlobMessage(ctx, wallet, msg, blob)
-	s.Require().NoError(err, "failed to broadcast blob message")
-	s.Require().NotNil(resp, "broadcast blob message response is nil")
-	s.Require().Equal(uint32(0), resp.Code, "expected successful tx broadcast, got error: %s", resp.RawLog)
-
-	err = wait.ForDANodeToReachHeight(ctx, bridgeNode, uint64(celestiaHeight), time.Second*30)
-	s.Require().NoError(err, "failed to wait for bridge node to reach height")
-
-	err = wait.ForDANodeToReachHeight(ctx, fullNode, uint64(celestiaHeight), time.Second*30)
-	s.Require().NoError(err, "failed to wait for full node to reach height")
-
 	lightNode := s.CreateAndStartLightNode(ctx, fullNode, celestia)
 
-	s.Require().NoError(wait.ForBlocks(ctx, 10, celestia), "failed to wait for blocks")
-
-	celestiaHeight, err = celestia.Height(ctx)
-	s.Require().NoError(err, "failed to get celestia height")
-
-	err = wait.ForDANodeToReachHeight(ctx, lightNode, uint64(celestiaHeight), time.Second*30)
-	s.Require().NoError(err, "failed to wait for light node to reach height")
-
 	client := s.getNodeRPCClient(ctx, fullNode)
+	lightClient := s.getNodeRPCClient(ctx, lightNode)
 
 	addr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
@@ -102,11 +70,150 @@ func (s *CelestiaTestSuite) TestE2EBlobModule() {
 	s.Require().NoError(err)
 	blobs = append(blobs, v1[0])
 
-	_, err = client.Blob.Submit(ctx, blobs, state.NewTxConfig(
+	txConfig := state.NewTxConfig(
 		state.WithGas(200_000),
 		state.WithGasPrice(5000),
-	))
+	)
+	
+	height, err := client.Blob.Submit(ctx, blobs, txConfig)
 	s.Require().NoError(err)
+
+	_, err = client.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err)
+	_, err = lightClient.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err)
+
+	test := []struct {
+		name string
+		doFn func(t *testing.T)
+	}{
+		{
+			name: "GetV0",
+			doFn: func(t *testing.T) {
+				blob1, err := client.Blob.Get(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
+				s.Require().NoError(err)
+				s.Require().Equal(blobs[0].Commitment, blob1.Commitment)
+				s.Require().Equal(blobs[0].Data(), blob1.Data())
+				s.Require().Nil(blob1.Signer())
+			},
+		},
+		{
+			name: "GetAllV0",
+			doFn: func(t *testing.T) {
+				newBlobs, err := client.Blob.GetAll(ctx, height, []libshare.Namespace{blobs[0].Namespace()})
+				s.Require().NoError(err)
+				s.Require().Len(newBlobs, len(libBlobs0))
+				s.Require().Equal(blobs[0].Commitment, newBlobs[0].Commitment)
+				s.Require().Equal(blobs[1].Commitment, newBlobs[1].Commitment)
+				s.Require().Nil(newBlobs[0].Signer())
+				s.Require().Nil(newBlobs[1].Signer())
+			},
+		},
+		{
+			name: "Get BlobV1",
+			doFn: func(t *testing.T) {
+				blobV1, err := client.Blob.Get(ctx, height, v1[0].Namespace(), v1[0].Commitment)
+				s.Require().NoError(err)
+				s.Require().Equal(libshare.ShareVersionOne, blobV1.ShareVersion())
+				s.Require().Equal(v1[0].Commitment, blobV1.Commitment)
+				s.Require().NotNil(blobV1.Signer())
+				s.Require().Equal(blobV1.Signer(), v1[0].Signer())
+			},
+		},
+		{
+			name: "Included",
+			doFn: func(t *testing.T) {
+				proof, err := client.Blob.GetProof(ctx, height, blobs[0].Namespace(), blobs[0].Commitment)
+				s.Require().NoError(err)
+
+				included, err := lightClient.Blob.Included(
+					ctx,
+					height,
+					blobs[0].Namespace(),
+					proof,
+					blobs[0].Commitment,
+				)
+				s.Require().NoError(err)
+				s.Require().True(included)
+			},
+		},
+		{
+			name: "Not Found",
+			doFn: func(t *testing.T) {
+				libBlob, err := libshare.GenerateV0Blobs([]int{4}, false)
+				s.Require().NoError(err)
+				newBlob, err := nodeblob.ToNodeBlobs(libBlob[0])
+				s.Require().NoError(err)
+
+				b, err := client.Blob.Get(ctx, height, newBlob[0].Namespace(), newBlob[0].Commitment)
+				s.Require().Nil(b)
+				s.Require().Error(err)
+				s.Require().ErrorContains(err, nodeblob.ErrBlobNotFound.Error())
+
+				blobs, err := client.Blob.GetAll(ctx, height, []libshare.Namespace{newBlob[0].Namespace()})
+				s.Require().NoError(err)
+				s.Require().Empty(blobs)
+			},
+		},
+		{
+			name: "Submit equal blobs",
+			doFn: func(t *testing.T) {
+				libBlob, err := libshare.GenerateV0Blobs([]int{8, 4}, true)
+				s.Require().NoError(err)
+				b, err := nodeblob.ToNodeBlobs(libBlob[0])
+				s.Require().NoError(err)
+
+				height, err := client.Blob.Submit(ctx, []*nodeblob.Blob{b[0], b[0]}, txConfig)
+				s.Require().NoError(err)
+
+				_, err = client.Header.WaitForHeight(ctx, height)
+				s.Require().NoError(err)
+
+				b0, err := client.Blob.Get(ctx, height, b[0].Namespace(), b[0].Commitment)
+				s.Require().NoError(err)
+				s.Require().Equal(b[0].Commitment, b0.Commitment)
+
+				proof, err := client.Blob.GetProof(ctx, height, b[0].Namespace(), b[0].Commitment)
+				s.Require().NoError(err)
+
+				included, err := client.Blob.Included(ctx, height, b[0].Namespace(), proof, b[0].Commitment)
+				s.Require().NoError(err)
+				s.Require().True(included)
+			},
+		},
+		{
+			// This test allows to check that the blob won't be
+			// deduplicated if it will be sent multiple times in
+			// different pfbs.
+			name: "Submit the same blob in different pfb",
+			doFn: func(t *testing.T) {
+				h, err := client.Blob.Submit(ctx, []*nodeblob.Blob{blobs[0]}, txConfig)
+				s.Require().NoError(err)
+
+				_, err = client.Header.WaitForHeight(ctx, h)
+				s.Require().NoError(err)
+
+				b0, err := client.Blob.Get(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
+				s.Require().NoError(err)
+				s.Require().Equal(blobs[0].Commitment, b0.Commitment)
+
+				proof, err := client.Blob.GetProof(ctx, h, blobs[0].Namespace(), blobs[0].Commitment)
+				s.Require().NoError(err)
+
+				included, err := client.Blob.Included(ctx, h, blobs[0].Namespace(), proof, blobs[0].Commitment)
+				s.Require().NoError(err)
+				s.Require().True(included)
+			},
+		},
+	}
+
+	for _, tt := range test {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			tt.doFn(t)
+		})
+	}
+
 }
 
 // QueryBalance fetches the balance of a given address and denom from a Cosmos SDK chain via gRPC.

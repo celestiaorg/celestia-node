@@ -255,6 +255,8 @@ func (s *CelestiaTestSuite) FundWallet(ctx context.Context, chain tastoratypes.C
 	resp, err := chain.BroadcastMessages(ctx, fromWallet, bankSend)
 	s.Require().NoError(err)
 	s.Require().Equal(resp.Code, uint32(0), "resp: %v", resp)
+
+	// wait for blocks to ensure the funds are available.
 	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 }
 
