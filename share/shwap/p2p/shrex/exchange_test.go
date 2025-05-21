@@ -71,9 +71,9 @@ func TestExchange_RequestND(t *testing.T) {
 		net, err := mocknet.FullMeshConnected(2)
 		require.NoError(t, err)
 
-		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
+		client, err := NewClient(DefaultClientParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil, SupportedProtocols()...)
+		server, err := NewServer(DefaultServerParameters(), net.Hosts()[1], nil, SupportedProtocols()...)
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -146,9 +146,9 @@ func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 	require.NoError(t, err)
 	hosts := createMocknet(t, 2)
 
-	client, err := NewClient(DefaultParameters(), hosts[0])
+	client, err := NewClient(DefaultClientParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(DefaultParameters(), hosts[1], s, SupportedProtocols()...)
+	server, err := NewServer(DefaultServerParameters(), hosts[1], s, SupportedProtocols()...)
 	require.NoError(t, err)
 
 	return s, client, server

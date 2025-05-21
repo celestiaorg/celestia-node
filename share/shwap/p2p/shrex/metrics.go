@@ -16,15 +16,16 @@ var meter = otel.Meter("shrex")
 type status string
 
 const (
-	StatusBadRequest  status = "bad_request"
-	StatusSendRespErr status = "send_resp_err"
-	StatusSendReqErr  status = "send_req_err"
-	StatusReadRespErr status = "read_resp_err"
-	StatusInternalErr status = "internal_err"
-	StatusNotFound    status = "not_found"
-	StatusTimeout     status = "timeout"
-	StatusSuccess     status = "success"
-	StatusRateLimited status = "rate_limited"
+	statusBadRequest  status = "bad_request"
+	statusSendRespErr status = "send_resp_err"
+	statusSendReqErr  status = "send_req_err"
+	statusReadRespErr status = "read_resp_err"
+	statusReadReqErr  status = "read_req_err"
+	statusInternalErr status = "internal_err"
+	statusNotFound    status = "not_found"
+	statusTimeout     status = "timeout"
+	statusSuccess     status = "success"
+	statusRateLimited status = "rate_limited"
 )
 
 type Metrics struct {
@@ -34,7 +35,13 @@ type Metrics struct {
 
 // observeRequests increments the total number of requests sent with the given status as an
 // attribute.
-func (m *Metrics) observeRequests(ctx context.Context, count int64, requestName string, status status) {
+func (m *Metrics) observeRequests(
+	ctx context.Context,
+	count int64,
+	requestName string,
+	status status,
+	duration time.Duration,
+) {
 	if m == nil {
 		return
 	}
@@ -44,13 +51,13 @@ func (m *Metrics) observeRequests(ctx context.Context, count int64, requestName 
 			attribute.String("request.name", requestName),
 			attribute.String("status", string(status)),
 		))
-}
-
-func (m *Metrics) observeDuration(ctx context.Context, requestName string, d time.Duration) {
-	m.requestDuration.Record(ctx, d.Seconds(),
+	m.requestDuration.Record(ctx, duration.Seconds(),
 		metric.WithAttributes(
 			attribute.String("request.name", requestName),
 		))
+}
+
+func (m *Metrics) observeDuration(ctx context.Context, requestName string, d time.Duration) {
 }
 
 func InitClientMetrics() (*Metrics, error) {

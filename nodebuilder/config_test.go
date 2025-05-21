@@ -92,9 +92,12 @@ var outdatedConfig = `
   AdvertiseInterval = "30s"
   UseShareExchange = true
   UseBitswap = true
-  [Share.Shrex]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "2m35s"
+  [Share.ShrexClient]
+    ReadTimeout = "5s"
+    WriteTimeout = "1m0s"
+  [Share.ShrexServer]   
+    ReadTimeout = "5s"
+    WriteTimeout = "1m0s"
     HandleRequestTimeout = "1m0s"
     ConcurrencyLimit = 10
 

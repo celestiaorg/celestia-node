@@ -44,7 +44,7 @@ func TestShrexGetter(t *testing.T) {
 	edsStore, err := newStore(t)
 	require.NoError(t, err)
 
-	ndClient, _ := newNDClientServer(ctx, t, edsStore, srvHost, clHost)
+	client, _ := newShrexClientServer(ctx, t, edsStore, srvHost, clHost)
 
 	// create shrex Getter
 	sub := new(headertest.Subscriber)
@@ -54,7 +54,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewGetter(ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
+	getter := NewGetter(client, fullPeerManager, archivalPeerManager, availability.RequestWindow)
 	require.NoError(t, getter.Start(ctx))
 
 	height := atomic.Uint64{}
@@ -310,21 +310,20 @@ func testManager(
 	return manager, err
 }
 
-func newNDClientServer(
+func newShrexClientServer(
 	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
 ) (*shrex.Client, *shrex.Server) {
-	params := shrex.DefaultParameters()
-
 	// create server and register handler
-	server, err := shrex.NewServer(params, srvHost, edsStore, shrex.SupportedProtocols()...)
+	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore, shrex.SupportedProtocols()...)
 	require.NoError(t, err)
-
+	require.NoError(t, server.WithMetrics())
 	t.Cleanup(func() {
 		_ = server.Stop(ctx)
 	})
 
 	// create client and connect it to server
-	client, err := shrex.NewClient(params, clHost)
+	client, err := shrex.NewClient(shrex.DefaultClientParameters(), clHost)
 	require.NoError(t, err)
+	require.NoError(t, client.WithMetrics())
 	return client, server
 }
