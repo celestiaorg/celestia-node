@@ -65,7 +65,7 @@ func NewServer(params *ServerParams, host host.Host, store *store.Store, enabled
 		srv.enabledProtocols = enabledProtocols
 	}
 
-	initID := newInitID()
+	initID := newRequestID()
 	for _, protocolName := range enabledProtocols {
 		id, ok := initID[protocolName]
 		if !ok {
