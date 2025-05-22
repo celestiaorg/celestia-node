@@ -136,10 +136,10 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.S
 	return shwap.SampleFromShares(shares, rsmt2d.Row, idx)
 }
 
-func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	size, err := odsq4.Size(ctx)
 	if err != nil {
-		return eds.AxisHalf{}, fmt.Errorf("getting size: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("getting size: %w", err)
 	}
 
 	if axisIdx >= size/2 {

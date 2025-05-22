@@ -30,7 +30,7 @@ func NewRowNamespaceDataID(
 	did := RowNamespaceDataID{
 		RowID: RowID{
 			EdsID: EdsID{
-				Height: height,
+				height: height,
 			},
 			RowIndex: rowIdx,
 		},
