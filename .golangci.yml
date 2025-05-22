@@ -65,6 +65,7 @@ formatters:
     - gofmt
     - gofumpt
     - goimports
+    - golines
   settings:
     gofumpt:
       extra-rules: true
