@@ -8,36 +8,36 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-type newID func() id
+type newRequest func() request
 
-func newInitID() map[string]newID {
-	nsDataInitID := func() id {
+func newRequestID() map[string]newRequest {
+	nsDataInitID := func() request {
 		return &shwap.NamespaceDataID{}
 	}
 
-	edsInitID := func() id {
+	edsInitID := func() request {
 		return &shwap.EdsID{}
 	}
 
-	initID := make(map[string]newID)
-	initID[nsDataInitID().Name()] = nsDataInitID
-	initID[edsInitID().Name()] = edsInitID
-	return initID
+	request := make(map[string]newRequest)
+	request[nsDataInitID().Name()] = nsDataInitID
+	request[edsInitID().Name()] = edsInitID
+	return request
 }
 
 // SupportedProtocols returns  a slice of protocol names that
 // the client and server support by default.
 func SupportedProtocols() []string {
-	initID := newInitID()
-	protocolNames := make([]string, 0, len(initID))
-	for name := range maps.Keys(initID) {
+	req := newRequestID()
+	protocolNames := make([]string, 0, len(req))
+	for name := range maps.Keys(req) {
 		protocolNames = append(protocolNames, name)
 	}
 	return protocolNames
 }
 
-// id represents compatible generalised interface type for shwap requests.
-type id interface {
+// request represents compatible generalised interface type for shwap requests.
+type request interface {
 	io.WriterTo
 	io.ReaderFrom
 
@@ -51,7 +51,7 @@ type id interface {
 	ContainerDataReader(ctx context.Context, acc shwap.Accessor) (io.Reader, error)
 }
 
-// represents compatible generalised interface type for shwap responses
-type container interface {
+// response compatible generalised interface type for shwap responses
+type response interface {
 	io.ReaderFrom
 }
