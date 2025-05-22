@@ -49,34 +49,34 @@ func (c *Client) WithMetrics() error {
 
 func (c *Client) Get(
 	ctx context.Context,
-	id id,
-	container container,
+	req request,
+	resp response,
 	peer peer.ID,
 ) error {
 	requestTime := time.Now()
-	status, err := c.doRequest(ctx, id, container, peer)
+	status, err := c.doRequest(ctx, req, resp, peer)
 	if err != nil {
 		log.Warnw("shrex/client: requesting data from peer failed",
-			"request", id.Name(),
+			"request", req.Name(),
 			"peer", peer,
 			"error", err,
 		)
 	}
-	c.metrics.observeRequests(ctx, 1, id.Name(), status, time.Since(requestTime))
+	c.metrics.observeRequests(ctx, 1, req.Name(), status, time.Since(requestTime))
 	return err
 }
 
 // doRequest performs a request to the given peer
 // and expecting a response along with a payload that will be written into `container`.
 func (c *Client) doRequest(ctx context.Context,
-	id id,
-	container container,
+	req request,
+	resp response,
 	peer peer.ID,
 ) (status, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ReadTimeout)
 	defer cancel()
 
-	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), id.Name()))
+	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
 		err = c.convertToTimeoutError(ctx, err)
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -89,7 +89,7 @@ func (c *Client) doRequest(ctx context.Context,
 
 	c.setStreamDeadlines(ctx, stream)
 
-	_, err = id.WriteTo(stream)
+	_, err = req.WriteTo(stream)
 	if err != nil {
 		return statusSendReqErr, fmt.Errorf("writing request: %w", err)
 	}
@@ -99,8 +99,8 @@ func (c *Client) doRequest(ctx context.Context,
 		log.Warnw("shrex/client: closing write side of the stream", "err", err)
 	}
 
-	var resp shrexpb.Response
-	_, err = serde.Read(stream, &resp)
+	var statusResp shrexpb.Response
+	_, err = serde.Read(stream, &statusResp)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return statusRateLimited, fmt.Errorf("reading a response: %w", ErrRateLimited)
@@ -108,7 +108,7 @@ func (c *Client) doRequest(ctx context.Context,
 		return statusReadRespErr, fmt.Errorf("unexpected error during reading from stream: %w", err)
 	}
 
-	switch resp.Status {
+	switch statusResp.Status {
 	case shrexpb.Status_OK:
 	case shrexpb.Status_NOT_FOUND:
 		return statusNotFound, ErrNotFound
@@ -118,7 +118,7 @@ func (c *Client) doRequest(ctx context.Context,
 		return statusReadRespErr, ErrInvalidResponse
 	}
 
-	_, err = container.ReadFrom(stream)
+	_, err = resp.ReadFrom(stream)
 	if err == nil {
 		return statusSuccess, nil
 	}

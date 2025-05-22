@@ -103,7 +103,7 @@ func (srv *Server) WithMetrics() error {
 	return nil
 }
 
-func (srv *Server) streamHandler(ctx context.Context, id newID) network.StreamHandler {
+func (srv *Server) streamHandler(ctx context.Context, id newRequest) network.StreamHandler {
 	return func(s network.Stream) {
 		requestID := id()
 		handleTime := time.Now()
@@ -121,7 +121,7 @@ func (srv *Server) streamHandler(ctx context.Context, id newID) network.StreamHa
 	}
 }
 
-func (srv *Server) handleDataRequest(ctx context.Context, requestID id, stream network.Stream) status {
+func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) status {
 	logger := log.With(
 		"source", "server",
 		"name", requestID.Name(),
