@@ -6,7 +6,7 @@ import (
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
