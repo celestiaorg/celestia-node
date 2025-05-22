@@ -72,6 +72,13 @@ formatters:
     goimports:
       local-prefixes:
         - github.com/celestiaorg/celestia-node
+    golines:
+      # Target maximum line length.
+      # Default: 100
+      max-len: 200
+      # Shorten single-line comments.
+      # Default: false
+      shorten-comments: true
   exclusions:
     generated: lax
     paths:
