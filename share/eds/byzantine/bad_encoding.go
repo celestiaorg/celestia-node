@@ -188,7 +188,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}
-		shares[index] = shr.Share.ToBytes()
+		shares[index] = shr.ToBytes()
 	}
 
 	codec := share.DefaultRSMT2DCodec()

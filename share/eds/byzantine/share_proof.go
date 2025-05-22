@@ -43,12 +43,12 @@ func (s *ShareWithProof) Validate(roots *share.AxisRoots, axisType rsmt2d.Axis, 
 	isParity := shrIdx >= edsSize/2 || axisIdx >= edsSize/2
 	namespace := libshare.ParitySharesNamespace
 	if !isParity {
-		namespace = s.Share.Namespace()
+		namespace = s.Namespace()
 	}
 	return s.Proof.VerifyInclusion(
 		share.NewSHA256Hasher(),
 		namespace.Bytes(),
-		[][]byte{s.Share.ToBytes()},
+		[][]byte{s.ToBytes()},
 		rootHash,
 	)
 }
@@ -58,7 +58,7 @@ func (s *ShareWithProof) ShareWithProofToProto() *pb.Share {
 		return &pb.Share{}
 	}
 	return &pb.Share{
-		Data: s.Share.ToBytes(),
+		Data: s.ToBytes(),
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(s.Proof.Start()),
 			End:                   int64(s.Proof.End()),

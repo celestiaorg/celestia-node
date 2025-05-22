@@ -54,5 +54,5 @@ func (a *Address) UnmarshalJSON(data []byte) error {
 
 func (a Address) MarshalJSON() ([]byte, error) {
 	// The address is marshaled into a simple string value
-	return []byte("\"" + a.Address.String() + "\""), nil
+	return []byte("\"" + a.String() + "\""), nil
 }

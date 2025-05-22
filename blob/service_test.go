@@ -149,7 +149,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.NoError(t, err)
 					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 					require.NoError(t, err)
-					require.True(t, bytes.Equal(smpls[0].Share.ToBytes(), resultShares[shareOffset].ToBytes()),
+					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
 					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
