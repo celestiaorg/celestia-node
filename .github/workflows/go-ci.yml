@@ -157,7 +157,8 @@ jobs:
     strategy:
       matrix:
         test:
-          - TestE2EMsgPayForBlob  # Expand as new E2E tests are added
+          - TestE2EMsgPayForBlob
+          - TestE2EBlobModule
 
     steps:
       - name: Checkout code
