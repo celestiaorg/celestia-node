@@ -139,6 +139,9 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 		if err != nil {
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
+		if len(rangeNsData.Proof) == 0 {
+			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: proof is empty", rndb.ID)
+		}
 		if !rndb.ID.ProofsOnly {
 			if err := rangeNsData.Verify(rndid.DataNamespace, rndid.From, rndid.To, root.Hash()); err != nil {
 				return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
