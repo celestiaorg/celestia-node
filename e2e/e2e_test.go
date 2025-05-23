@@ -6,6 +6,7 @@ import (
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	"github.com/celestiaorg/tastora/framework/testutil/wallet"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"go.uber.org/zap/zaptest"
@@ -132,13 +133,11 @@ func (s *CelestiaTestSuite) CreateDockerProvider() tastoratypes.Provider {
 
 // CreateTestWallet creates a new test wallet on the given chain, funding it with the specified amount.
 func (s *CelestiaTestSuite) CreateTestWallet(ctx context.Context, celestia tastoratypes.Chain, amount int64) tastoratypes.Wallet {
-	dockerChain, ok := celestia.(*tastoradockertypes.Chain)
-	s.Require().True(ok, "celestia is not a docker chain")
-
-	wallet, err := tastoradockertypes.CreateAndFundTestWallet(s.T(), ctx, "test", sdkmath.NewInt(amount), dockerChain)
+	sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount)))
+	testWallet, err := wallet.CreateAndFund(ctx, "test", sendAmount, celestia)
 	s.Require().NoError(err, "failed to create test wallet")
-	s.Require().NotNil(wallet, "wallet is nil")
-	return wallet
+	s.Require().NotNil(testWallet, "wallet is nil")
+	return testWallet
 }
 
 // CreateAndStartCelestiaChain initializes and starts a a Celestia chain, ensuring it successfully begins producing blocks.
@@ -158,7 +157,6 @@ func (s *CelestiaTestSuite) CreateAndStartCelestiaChain(ctx context.Context) tas
 // CreateAndStartBridgeNode initializes and starts a bridge node, setting it up with the required genesis hash and core IP.
 func (s *CelestiaTestSuite) CreateAndStartBridgeNode(ctx context.Context, chain tastoratypes.Chain) tastoratypes.DANode {
 	genesisHash := s.getGenesisHash(ctx, chain)
-	s.Require().NotEmpty(genesisHash, "genesis hash is empty")
 
 	bridgeNode, err := s.provider.GetDANode(ctx, tastoratypes.BridgeNode)
 	s.Require().NoError(err, "failed to get bridge node")
@@ -257,7 +255,7 @@ func (s *CelestiaTestSuite) GetNodeRPCClient(ctx context.Context, daNode tastora
 // FundWallet sends funds from the given wallet to the given address.
 // The amount is specified in utia.
 func (s *CelestiaTestSuite) FundWallet(ctx context.Context, chain tastoratypes.Chain, fromWallet tastoratypes.Wallet, toAddr sdk.AccAddress, amount int64) {
-	fromAddr, err := sdkacc.AddressFromBech32(fromWallet.GetFormattedAddress(), "celestia")
+	fromAddr, err := sdkacc.AddressFromWallet(fromWallet)
 	s.Require().NoError(err, "failed to get from address")
 
 	s.T().Logf("sending funds from %s to %s", fromAddr.String(), toAddr.String())

@@ -36,7 +36,7 @@ func (s *CelestiaTestSuite) TestE2EMsgPayForBlob() {
 	ns := libshare.RandomBlobNamespace()
 	signer := wallet.GetFormattedAddress()
 
-	signerAddr, err := sdkacc.AddressFromBech32(signer, "celestia")
+	signerAddr, err := sdkacc.AddressFromWallet(wallet)
 	s.Require().NoError(err, "failed to get signer address")
 
 	msg, blob := randMsgPayForBlobsWithNamespaceAndSigner(signer, signerAddr, ns, 100)

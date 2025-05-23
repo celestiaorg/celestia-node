@@ -9,7 +9,7 @@ require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.1-mocha.0.20250521112605-9034d466a320
 	github.com/celestiaorg/celestia-node v0.22.2
 	github.com/celestiaorg/go-square/v2 v2.2.0
-	github.com/celestiaorg/tastora v0.0.2-0.20250522134105-fdbadaac2b0b
+	github.com/celestiaorg/tastora v0.0.2-0.20250523102750-0634584d001f
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.10.0
