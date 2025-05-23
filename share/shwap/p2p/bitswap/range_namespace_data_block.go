@@ -117,6 +117,7 @@ func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Acces
 func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 	return func(cntrData, idData []byte) error {
 		if empty := rndb.Container.IsEmpty(); !empty {
+			log.Warn("unmarshalling RangeNamespaceDataBlock: container is not empty")
 			return nil
 		}
 

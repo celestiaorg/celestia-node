@@ -106,14 +106,14 @@ func RangedNamespaceDataFromShares(
 	// incomplete from.Col needs a proof for the first row to be computed
 	if startProof {
 		endCol := odsSize
-		if from.Row == to.Row {
+		if isSingleRow {
 			endCol = to.Col + 1
 		}
 		sharesProofs, err := generateSharesProofs(from.Row, from.Col, endCol, odsSize, namespace, shares[0])
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
-		rngData.Proof[0] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[from.Row]}
+		rngData.Proof[0].shareProof = sharesProofs
 	}
 	// incomplete to.Col needs a proof for the last row to be computed
 	if endProof {
@@ -121,7 +121,7 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
-		rngData.Proof[numRows-1] = &Proof{shareProof: sharesProofs, rowRootProof: rowRootProofs[to.Row]}
+		rngData.Proof[numRows-1].shareProof = sharesProofs
 	}
 	return rngData, nil
 }
@@ -146,9 +146,19 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	to SampleCoords,
 	dataHash []byte,
 ) error {
+	if from.Row != rngdata.Start {
+		return fmt.Errorf("mismatched row: wanted: %d, got: %d", rngdata.Start, from.Row)
+	}
 	proofs := rngdata.Proof
+	if len(shares) != len(proofs) {
+		return fmt.Errorf("shares and proofs length mismatch")
+	}
 	// compute the proofs for the complete rows
 	for i, row := 0, from.Row; i < len(shares); i++ {
+		// if any of the row root proofs were not set, we cannot proceed
+		if proofs[i].rowRootProof == nil {
+			return fmt.Errorf("row root proof is empty for row: %d", rngdata.Start+i)
+		}
 		// skip the incomplete rows
 		if !proofs[i].shareProof.IsEmptyProof() {
 			continue
@@ -175,10 +185,6 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	}
 	if rngdata.IsEmpty() {
 		return errors.New("empty data")
-	}
-
-	if from.Row != rngdata.Start {
-		return fmt.Errorf("mismatched row: wanted: %d, got: %d", rngdata.Start, from.Row)
 	}
 	if from.Col != proofs[0].Start() {
 		return fmt.Errorf("mismatched col: wanted: %d, got: %d", proofs[0].Start(), from.Col)

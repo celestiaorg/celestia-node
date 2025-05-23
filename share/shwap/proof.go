@@ -41,6 +41,9 @@ func (p *Proof) RowRootProof() *merkle.Proof {
 
 // VerifyInclusion verifies the inclusion of the shares to the data root.
 func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
+	if p.IsEmptyProof() {
+		return fmt.Errorf("proof is empty")
+	}
 	nid := namespace.Bytes()
 	nth := nmt.NewNmtHasher(
 		share.NewSHA256Hasher(),
@@ -80,6 +83,9 @@ func (p *Proof) VerifyInclusion(shares []libshare.Share, namespace libshare.Name
 
 // VerifyNamespace verifies that the provided shares belong to the namespace and match the given data root.
 func (p *Proof) VerifyNamespace(shares []libshare.Share, namespace libshare.Namespace, dataRoot []byte) error {
+	if p.IsEmptyProof() {
+		return fmt.Errorf("proof is empty")
+	}
 	nth := nmt.NewNmtHasher(
 		share.NewSHA256Hasher(),
 		nmt_ns.ID(namespace.Bytes()).Size(),
