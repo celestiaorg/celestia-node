@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/modname"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -30,16 +31,16 @@ func registerEndpoints(
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
 ) {
-	serv.RegisterService("fraud", fraudMod, &fraud.API{})
-	serv.RegisterService("das", daserMod, &das.API{})
-	serv.RegisterService("header", headerMod, &header.API{})
-	serv.RegisterService("state", stateMod, &state.API{})
-	serv.RegisterService("share", shareMod, &share.API{})
-	serv.RegisterService("p2p", p2pMod, &p2p.API{})
-	serv.RegisterService("node", nodeMod, &node.API{})
-	serv.RegisterService("blob", blobMod, &blob.API{})
-	serv.RegisterService("da", daMod, &da.API{})
-	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
+	serv.RegisterService(modname.Fraud, fraudMod, &fraud.API{})
+	serv.RegisterService(modname.DAS, daserMod, &das.API{})
+	serv.RegisterService(modname.Header, headerMod, &header.API{})
+	serv.RegisterService(modname.State, stateMod, &state.API{})
+	serv.RegisterService(modname.Share, shareMod, &share.API{})
+	serv.RegisterService(modname.P2P, p2pMod, &p2p.API{})
+	serv.RegisterService(modname.Node, nodeMod, &node.API{})
+	serv.RegisterService(modname.Blob, blobMod, &blob.API{})
+	serv.RegisterService(modname.DA, daMod, &da.API{})
+	serv.RegisterService(modname.Blobstream, blobstreamMod, &blobstream.API{})
 }
 
 func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
