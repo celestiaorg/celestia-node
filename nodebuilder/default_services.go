@@ -5,6 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/modname"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -14,12 +15,12 @@ import (
 // PackageToAPI maps a package to its API struct. Currently only used for
 // method discovery for openrpc spec generation
 var PackageToAPI = map[string]any{
-	"fraud":  &fraud.API{},
-	"state":  &state.API{},
-	"share":  &share.API{},
-	"header": &header.API{},
-	"das":    &das.API{},
-	"p2p":    &p2p.API{},
-	"blob":   &blob.API{},
-	"node":   &node.API{},
+	modname.Fraud:  &fraud.API{},
+	modname.State:  &state.API{},
+	modname.Share:  &share.API{},
+	modname.Header: &header.API{},
+	modname.DAS:    &das.API{},
+	modname.P2P:    &p2p.API{},
+	modname.Blob:   &blob.API{},
+	modname.Node:   &node.API{},
 }
