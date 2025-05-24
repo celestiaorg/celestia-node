@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/modname"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
@@ -88,17 +89,16 @@ func newClient(ctx context.Context, addr string, authHeader http.Header) (*Clien
 }
 
 func moduleMap(client *Client) map[string]any {
-	// TODO: this duplication of strings many times across the codebase can be avoided with issue #1176
 	return map[string]any{
-		"share":      &client.Share.Internal,
-		"state":      &client.State.Internal,
-		"header":     &client.Header.Internal,
-		"fraud":      &client.Fraud.Internal,
-		"das":        &client.DAS.Internal,
-		"p2p":        &client.P2P.Internal,
-		"node":       &client.Node.Internal,
-		"blob":       &client.Blob.Internal,
-		"da":         &client.DA.Internal,
-		"blobstream": &client.Blobstream.Internal,
+		modname.Share:      &client.Share.Internal,
+		modname.State:      &client.State.Internal,
+		modname.Header:     &client.Header.Internal,
+		modname.Fraud:      &client.Fraud.Internal,
+		modname.DAS:        &client.DAS.Internal,
+		modname.P2P:        &client.P2P.Internal,
+		modname.Node:       &client.Node.Internal,
+		modname.Blob:       &client.Blob.Internal,
+		modname.DA:         &client.DA.Internal,
+		modname.Blobstream: &client.Blobstream.Internal,
 	}
 }
