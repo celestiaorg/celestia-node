@@ -18,28 +18,30 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
-	daspkg "github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
-	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
-	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
+	daspkg "github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
-	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/modname"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	nodeMock "github.com/celestiaorg/celestia-node/nodebuilder/node/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	p2pMock "github.com/celestiaorg/celestia-node/nodebuilder/p2p/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
-	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/share/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	statemod "github.com/celestiaorg/celestia-node/nodebuilder/state"
-	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
+	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/blob"
+	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/blobstream"
+	daMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/da"
+	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/das"
+	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/fraud"
+	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/header"
+	nodeMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/node"
+	p2pMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/p2p"
+	shareMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/share"
+	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/tests/mocks/state"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -357,15 +359,15 @@ func setupNodeWithAuthedRPC(t *testing.T,
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
 	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterService("fraud", mockAPI.Fraud, &fraud.API{})
-		srv.RegisterService("das", mockAPI.Das, &das.API{})
-		srv.RegisterService("header", mockAPI.Header, &header.API{})
-		srv.RegisterService("state", mockAPI.State, &statemod.API{})
-		srv.RegisterService("share", mockAPI.Share, &share.API{})
-		srv.RegisterService("p2p", mockAPI.P2P, &p2p.API{})
-		srv.RegisterService("node", mockAPI.Node, &node.API{})
-		srv.RegisterService("blob", mockAPI.Blob, &blob.API{})
-		srv.RegisterService("da", mockAPI.DA, &da.API{})
+		srv.RegisterService(modname.Fraud, mockAPI.Fraud, &fraud.API{})
+		srv.RegisterService(modname.DAS, mockAPI.Das, &das.API{})
+		srv.RegisterService(modname.Header, mockAPI.Header, &header.API{})
+		srv.RegisterService(modname.State, mockAPI.State, &statemod.API{})
+		srv.RegisterService(modname.Share, mockAPI.Share, &share.API{})
+		srv.RegisterService(modname.P2P, mockAPI.P2P, &p2p.API{})
+		srv.RegisterService(modname.Node, mockAPI.Node, &node.API{})
+		srv.RegisterService(modname.Blob, mockAPI.Blob, &blob.API{})
+		srv.RegisterService(modname.DA, mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
