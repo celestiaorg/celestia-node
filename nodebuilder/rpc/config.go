@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -64,20 +63,5 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
 	}
 
-	if cfg.CORS.Enabled {
-		if err := validateSecureCORS(cfg.CORS); err != nil {
-			return fmt.Errorf("service/rpc: invalid CORS config: %w", err)
-		}
-	}
-	return nil
-}
-
-// Add validation to reject wildcards
-func validateSecureCORS(config CORSConfig) error {
-	if utils.ContainsWildcard(config.AllowedOrigins) ||
-		utils.ContainsWildcard(config.AllowedMethods) ||
-		utils.ContainsWildcard(config.AllowedHeaders) {
-		return errors.New("wildcards not allowed in secure mode")
-	}
 	return nil
 }

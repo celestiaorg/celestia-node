@@ -93,11 +93,11 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 
 	if origins, err := cmd.Flags().GetStringSlice(corsAllowedOriginsFlag); err != nil {
 		return err
-	} else if cfg.CORS.Enabled {
-		cfg.CORS.AllowedOrigins = origins
-		if len(origins) > 0 {
-			corsSettingsProvided = true
+	} else if len(origins) > 0 {
+		if cfg.CORS.Enabled {
+			cfg.CORS.AllowedOrigins = origins
 		}
+		corsSettingsProvided = true
 	}
 
 	if methods, err := cmd.Flags().GetStringSlice(corsAllowedMethodsFlag); err != nil {

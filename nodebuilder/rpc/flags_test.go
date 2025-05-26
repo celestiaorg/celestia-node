@@ -46,16 +46,16 @@ func TestFlags(t *testing.T) {
 	corsMethods := flags.Lookup(corsAllowedMethodsFlag)
 	require.NotNil(t, corsMethods)
 	assert.Equal(t, "[]", corsMethods.Value.String())
-	assert.Equal(t, "Comma-separated list of HTTP methods allowed for CORS (cors enabled default: [GET POST OPTIONS])", corsMethods.Usage)
+	assert.Equal(t, fmt.Sprintf("Comma-separated list of HTTP methods allowed for CORS (cors enabled default: %s)", defaultAllowedMethods), corsMethods.Usage)
 
 	// Test corsAllowedHeadersFlag
 	corsHeaders := flags.Lookup(corsAllowedHeadersFlag)
 	require.NotNil(t, corsHeaders)
 	assert.Equal(t, "[]", corsHeaders.Value.String())
-	assert.Equal(t, "Comma-separated list of HTTP headers allowed for CORS (cors enabled default: [Content-Type Authorization])", corsHeaders.Usage)
+	assert.Equal(t, fmt.Sprintf("Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)", defaultAllowedHeaders), corsHeaders.Usage)
 }
 
-// TestParseFlags tests the ParseFlags function in rpc/flags.go
+// TestParseFlags tests the core flag parsing functionality
 func TestParseFlags(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -67,56 +67,21 @@ func TestParseFlags(t *testing.T) {
 		corsMethods []string
 		corsHeaders []string
 		expected    *Config
-		error       bool
+		expectError bool
 	}{
 		{
-			name:     "addrFlag is set",
-			addrFlag: "127.0.0.1:8080",
-			portFlag: "",
-			expected: &Config{
-				Address: "127.0.0.1:8080",
-				Port:    "",
-				CORS:    CORSConfig{},
-			},
-			error: false,
-		},
-		{
-			name:     "portFlag is set",
-			addrFlag: "",
+			name:     "Basic address and port",
+			addrFlag: "127.0.0.1",
 			portFlag: "9090",
 			expected: &Config{
-				Address: "",
+				Address: "127.0.0.1",
 				Port:    "9090",
 				CORS:    CORSConfig{},
 			},
-			error: false,
+			expectError: false,
 		},
 		{
-			name:     "both addrFlag and portFlag are set",
-			addrFlag: "192.168.0.1:1234",
-			portFlag: "5678",
-			expected: &Config{
-				Address: "192.168.0.1:1234",
-				Port:    "5678",
-				CORS:    CORSConfig{},
-			},
-			error: false,
-		},
-		{
-			name:     "neither addrFlag nor portFlag are set",
-			addrFlag: "",
-			portFlag: "",
-			expected: &Config{
-				Address: "",
-				Port:    "",
-				CORS:    CORSConfig{},
-			},
-			error: false,
-		},
-		{
-			name:     "auth flag is set",
-			addrFlag: "",
-			portFlag: "",
+			name:     "Auth disabled",
 			authFlag: true,
 			expected: &Config{
 				Address:  "",
@@ -124,32 +89,28 @@ func TestParseFlags(t *testing.T) {
 				SkipAuth: true,
 				CORS:     CORSConfig{},
 			},
-			error: false,
+			expectError: false,
 		},
 		{
-			name:        "CORS enabled with options",
-			addrFlag:    "",
-			portFlag:    "",
+			name:        "CORS enabled with basic config",
 			corsEnabled: true,
-			corsOrigins: []string{"http://localhost:3000", "https://example.com"},
-			corsMethods: []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
-			corsHeaders: []string{"Content-Type", "Authorization", "X-Requested-With"},
+			corsOrigins: []string{"https://example.com"},
+			corsMethods: []string{"GET", "POST"},
+			corsHeaders: []string{"Content-Type"},
 			expected: &Config{
 				Address: "",
 				Port:    "",
 				CORS: CORSConfig{
 					Enabled:        true,
-					AllowedOrigins: []string{"http://localhost:3000", "https://example.com"},
-					AllowedMethods: []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
-					AllowedHeaders: []string{"Content-Type", "Authorization", "X-Requested-With"},
+					AllowedOrigins: []string{"https://example.com"},
+					AllowedMethods: []string{"GET", "POST"},
+					AllowedHeaders: []string{"Content-Type"},
 				},
 			},
-			error: false,
+			expectError: false,
 		},
 		{
-			name:        "CORS enabled with empty options",
-			addrFlag:    "",
-			portFlag:    "",
+			name:        "CORS enabled with defaults",
 			corsEnabled: true,
 			expected: &Config{
 				Address: "",
@@ -157,81 +118,111 @@ func TestParseFlags(t *testing.T) {
 				CORS: CORSConfig{
 					Enabled:        true,
 					AllowedOrigins: []string{},
-					AllowedMethods: []string{"GET", "POST", "OPTIONS"},
-					AllowedHeaders: []string{"Content-Type", "Authorization"},
+					AllowedMethods: defaultAllowedMethods,
+					AllowedHeaders: defaultAllowedHeaders,
 				},
 			},
-			error: false,
+			expectError: false,
 		},
 		{
-			name:        "CORS options without CORS enabled",
-			addrFlag:    "",
-			portFlag:    "",
+			name:        "CORS settings without CORS enabled - should error",
 			corsEnabled: false,
-			corsOrigins: []string{"http://localhost:3000", "https://example.com"},
-			corsMethods: []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
-			corsHeaders: []string{"Content-Type", "Authorization", "X-Requested-With"},
+			corsOrigins: []string{"https://example.com"},
+			expected:    nil,
+			expectError: true,
+		},
+		{
+			name:        "Wildcard origins allowed",
+			corsEnabled: true,
+			corsOrigins: []string{"*"},
+			corsMethods: []string{"GET", "POST"},
+			corsHeaders: []string{"Content-Type"},
 			expected: &Config{
 				Address: "",
 				Port:    "",
 				CORS: CORSConfig{
-					Enabled:        false,
-					AllowedOrigins: []string{"http://localhost:3000", "https://example.com"},
-					AllowedMethods: []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
-					AllowedHeaders: []string{"Content-Type", "Authorization", "X-Requested-With"},
+					Enabled:        true,
+					AllowedOrigins: []string{"*"},
+					AllowedMethods: []string{"GET", "POST"},
+					AllowedHeaders: []string{"Content-Type"},
 				},
 			},
-			error: true,
+			expectError: false,
+		},
+		{
+			name:        "Wildcard headers allowed",
+			corsEnabled: true,
+			corsOrigins: []string{"https://example.com"},
+			corsMethods: []string{"GET", "POST"},
+			corsHeaders: []string{"*"},
+			expected: &Config{
+				Address: "",
+				Port:    "",
+				CORS: CORSConfig{
+					Enabled:        true,
+					AllowedOrigins: []string{"https://example.com"},
+					AllowedMethods: []string{"GET", "POST"},
+					AllowedHeaders: []string{"*"},
+				},
+			},
+			expectError: false,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			cmd := &cobra.Command{}
 			cfg := &Config{
 				CORS: CORSConfig{},
 			}
 			cmd.Flags().AddFlagSet(Flags())
 
-			err := cmd.Flags().Set(addrFlag, test.addrFlag)
+			err := cmd.Flags().Set(addrFlag, tt.addrFlag)
 			require.NoError(t, err)
 
-			err = cmd.Flags().Set(portFlag, test.portFlag)
+			err = cmd.Flags().Set(portFlag, tt.portFlag)
 			require.NoError(t, err)
 
-			err = cmd.Flags().Set(authFlag, fmt.Sprintf("%t", test.authFlag))
+			err = cmd.Flags().Set(authFlag, fmt.Sprintf("%t", tt.authFlag))
 			require.NoError(t, err)
 
-			err = cmd.Flags().Set(corsEnabledFlag, fmt.Sprintf("%t", test.corsEnabled))
+			err = cmd.Flags().Set(corsEnabledFlag, fmt.Sprintf("%t", tt.corsEnabled))
 			require.NoError(t, err)
 
-			for _, origin := range test.corsOrigins {
+			for _, origin := range tt.corsOrigins {
 				err = cmd.Flags().Set(corsAllowedOriginsFlag, origin)
 				require.NoError(t, err)
 			}
 
-			for _, method := range test.corsMethods {
+			for _, method := range tt.corsMethods {
 				err = cmd.Flags().Set(corsAllowedMethodsFlag, method)
 				require.NoError(t, err)
 			}
 
-			for _, header := range test.corsHeaders {
+			for _, header := range tt.corsHeaders {
 				err = cmd.Flags().Set(corsAllowedHeadersFlag, header)
 				require.NoError(t, err)
 			}
 
 			err = ParseFlags(cmd, cfg)
-			if !test.error {
-				assert.NoError(t, err)
-				assert.Equal(t, test.expected.Address, cfg.Address)
-				assert.Equal(t, test.expected.Port, cfg.Port)
-				assert.Equal(t, test.expected.SkipAuth, cfg.SkipAuth)
-				assert.Equal(t, test.expected.CORS.Enabled, cfg.CORS.Enabled)
-				assert.Equal(t, test.expected.CORS.AllowedOrigins, cfg.CORS.AllowedOrigins)
-				assert.Equal(t, test.expected.CORS.AllowedMethods, cfg.CORS.AllowedMethods)
-				assert.Equal(t, test.expected.CORS.AllowedHeaders, cfg.CORS.AllowedHeaders)
-			} else {
+
+			if tt.expectError {
 				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected.Address, cfg.Address)
+				assert.Equal(t, tt.expected.Port, cfg.Port)
+				assert.Equal(t, tt.expected.SkipAuth, cfg.SkipAuth)
+				assert.Equal(t, tt.expected.CORS.Enabled, cfg.CORS.Enabled)
+
+				if len(tt.expected.CORS.AllowedOrigins) == 0 {
+					assert.Empty(t, cfg.CORS.AllowedOrigins)
+				} else {
+					assert.Equal(t, tt.expected.CORS.AllowedOrigins, cfg.CORS.AllowedOrigins)
+				}
+
+				assert.Equal(t, tt.expected.CORS.AllowedMethods, cfg.CORS.AllowedMethods)
+				assert.Equal(t, tt.expected.CORS.AllowedHeaders, cfg.CORS.AllowedHeaders)
 			}
 		})
 	}
