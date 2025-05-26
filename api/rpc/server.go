@@ -21,10 +21,10 @@ import (
 var log = logging.Logger("rpc")
 
 type CORSConfig struct {
-	enabled        bool
-	allowedOrigins []string
-	allowedMethods []string
-	allowedHeaders []string
+	Enabled        bool
+	AllowedOrigins []string
+	AllowedMethods []string
+	AllowedHeaders []string
 }
 
 type Server struct {
@@ -40,24 +40,19 @@ type Server struct {
 	verifier jwt.Verifier
 }
 
-func NewServer(address, port string, authDisabled, corsEnabled bool, corsAllowedHeaders, corsAllowedOrigins, corsAllowedMethods []string, signer jwt.Signer, verifier jwt.Verifier) *Server {
+func NewServer(address, port string, authDisabled bool, corsConfig CORSConfig, signer jwt.Signer, verifier jwt.Verifier) *Server {
 	rpc := jsonrpc.NewServer()
 	srv := &Server{
 		rpc:          rpc,
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
-		corsConfig: CORSConfig{
-			enabled:        corsEnabled,
-			allowedOrigins: corsAllowedOrigins,
-			allowedMethods: corsAllowedMethods,
-			allowedHeaders: corsAllowedHeaders,
-		},
+		corsConfig:   corsConfig,
 	}
 
 	srv.srv = &http.Server{
 		Addr:    net.JoinHostPort(address, port),
-		Handler: srv.NewHandlerStack(rpc),
+		Handler: srv.newHandlerStack(rpc),
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
 	}
@@ -65,17 +60,18 @@ func NewServer(address, port string, authDisabled, corsEnabled bool, corsAllowed
 	return srv
 }
 
-// NewHTTPHandlerStack returns wrapped rpc related handlers
-func (s *Server) NewHandlerStack(core http.Handler) http.Handler {
-	handler := core
-
-	if !s.authDisabled {
-		handler = s.authHandler(handler)
+// newHandlerStack returns wrapped rpc related handlers
+func (s *Server) newHandlerStack(core http.Handler) http.Handler {
+	if s.authDisabled {
+		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
+		return s.corsAny(core)
 	}
 
-	handler = s.corsHandler(handler)
+	if s.corsConfig.Enabled {
+		return s.corsWithConfig(s.authHandler(core))
+	}
 
-	return handler
+	return s.authHandler(core)
 }
 
 // verifyAuth is the RPC server's auth middleware. This middleware is only
@@ -90,40 +86,24 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 
 // authHandler wraps the handler with authentication.
 func (s *Server) authHandler(next http.Handler) http.Handler {
-	if s.authDisabled {
-		return next
-	}
-
 	return &auth.Handler{
 		Verify: s.verifyAuth,
 		Next:   next.ServeHTTP,
 	}
 }
 
-// corsHandler applies CORS configuration to the handler.
-func (s *Server) corsHandler(next http.Handler) http.Handler {
-	if !s.corsConfig.enabled && !s.authDisabled {
-		return next
-	}
+// corsAny applies permissive CORS (allows all origins, methods, headers)
+func (s *Server) corsAny(next http.Handler) http.Handler {
+	c := cors.AllowAll()
+	return c.Handler(next)
+}
 
-	var origins, methods, headers []string
-
-	// for auth disable , allow all origins, methods and headers
-	if s.authDisabled {
-		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
-		origins = []string{"*"}
-		methods = []string{"*"}
-		headers = []string{"*"}
-	} else {
-		origins = s.corsConfig.allowedOrigins
-		methods = s.corsConfig.allowedMethods
-		headers = s.corsConfig.allowedHeaders
-	}
-
+// corsWithConfig applies CORS with specific configuration
+func (s *Server) corsWithConfig(next http.Handler) http.Handler {
 	c := cors.New(cors.Options{
-		AllowedOrigins: origins,
-		AllowedMethods: methods,
-		AllowedHeaders: headers,
+		AllowedOrigins: s.corsConfig.AllowedOrigins,
+		AllowedMethods: s.corsConfig.AllowedMethods,
+		AllowedHeaders: s.corsConfig.AllowedHeaders,
 	})
 	return c.Handler(next)
 }
