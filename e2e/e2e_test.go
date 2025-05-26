@@ -11,6 +11,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"os"
 	"testing"
 
@@ -27,8 +28,8 @@ import (
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
 	defaultCelestiaTag = "v4.0.0-rc6"
-	nodeImage          = "celestia-node"
-	defaultNodeTag     = "foo"
+	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
+	defaultNodeTag     = "v0.23.0-mocha"
 	testChainID        = "test"
 )
 
@@ -61,26 +62,9 @@ func (s *CelestiaTestSuite) SetupTest() {
 	s.lightNode = s.CreateAndStartLightNode(ctx, s.fullNode, s.celestia)
 }
 
-// appOverrides modifies the "app.toml" configuration for the application, setting the transaction indexer to "kv".
-func appOverrides() toml.Toml {
-	// required to query tx by hash when broadcasting transactions.
-	appTomlOverride := make(toml.Toml)
-	txIndexConfig := make(toml.Toml)
-	txIndexConfig["indexer"] = "kv"
-	appTomlOverride["tx-index"] = txIndexConfig
-	return appTomlOverride
-}
-
-// configOverrides modifies the "config.toml" configuration, enabling KV indexing for transaction queries.
-func configOverrides() toml.Toml {
-	// required to query tx by hash when broadcasting transactions.
-	overrides := make(toml.Toml)
-	txIndexConfig := make(toml.Toml)
-	txIndexConfig["indexer"] = "kv"
-	overrides["tx_index"] = txIndexConfig
-	return overrides
-}
-
+// CreateDockerProvider initializes a docker provider which can create docker chains
+// and DA nodes. NOTE: this will likely get moved to the tastora repo as there will be a lot of shared logic
+// between celestia-app and celestia-node ref: https://github.com/celestiaorg/tastora/issues/21
 func (s *CelestiaTestSuite) CreateDockerProvider() tastoratypes.Provider {
 	numValidators := 1
 	numFullNodes := 0
@@ -109,14 +93,20 @@ func (s *CelestiaTestSuite) CreateDockerProvider() tastoratypes.Provider {
 					UIDGID:     "10001:10001",
 				},
 			},
-			Bin:                 "celestia-appd",
-			Bech32Prefix:        "celestia",
-			Denom:               "utia",
-			CoinType:            "118",
-			GasPrices:           "0.025utia",
-			GasAdjustment:       1.3,
-			EncodingConfig:      &enc,
-			AdditionalStartArgs: []string{"--force-no-bbr", "--grpc.enable", "--grpc.address", "0.0.0.0:9090", "--rpc.grpc_laddr=tcp://0.0.0.0:9098"},
+			Bin:            "celestia-appd",
+			Bech32Prefix:   "celestia",
+			Denom:          "utia",
+			CoinType:       "118",
+			GasPrices:      "0.025utia",
+			GasAdjustment:  1.3,
+			EncodingConfig: &enc,
+			AdditionalStartArgs: []string{
+				"--force-no-bbr",
+				"--grpc.enable",
+				"--grpc.address", "0.0.0.0:9090",
+				"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
+				"--timeout-commit", "1s", // shorter block time.
+			},
 		},
 		DANodeConfig: &tastoradockertypes.DANodeConfig{
 			ChainID: testChainID,
@@ -140,17 +130,16 @@ func (s *CelestiaTestSuite) CreateTestWallet(ctx context.Context, celestia tasto
 	return testWallet
 }
 
-// CreateAndStartCelestiaChain initializes and starts a a Celestia chain, ensuring it successfully begins producing blocks.
+// CreateAndStartCelestiaChain initializes and starts a Celestia chain, ensuring it successfully begins producing blocks.
 func (s *CelestiaTestSuite) CreateAndStartCelestiaChain(ctx context.Context) tastoratypes.Chain {
 	celestia, err := s.provider.GetChain(ctx)
 	s.Require().NoError(err, "failed to get chain")
+
 	err = celestia.Start(ctx)
 	s.Require().NoError(err)
 
 	// verify the chain is producing blocks
-	height, err := celestia.Height(ctx)
-	s.Require().NoError(err)
-	s.Require().Greater(height, int64(0))
+	s.Require().NoError(wait.ForBlocks(ctx, 2, celestia))
 	return celestia
 }
 
@@ -219,7 +208,7 @@ func (s *CelestiaTestSuite) CreateAndStartLightNode(ctx context.Context, fullNod
 
 	err = lightNode.Start(ctx,
 		tastoratypes.WithP2PAddress(p2pAddr),
-		tastoratypes.WithCoreIP(hostname), // TODO: remove this, not required
+		tastoratypes.WithCoreIP(hostname), // TODO: remove this, not required. It is here now as not providing it is not supported in tastora.
 		tastoratypes.WithGenesisBlockHash(genesisHash),
 	)
 	s.Require().NoError(err, "failed to start light node")
@@ -268,15 +257,15 @@ func (s *CelestiaTestSuite) FundWallet(ctx context.Context, chain tastoratypes.C
 	// wait for blocks to ensure the funds are available.
 	s.Require().NoError(wait.ForBlocks(ctx, 2, chain))
 
-	grpcAddr := s.celestia.GetGRPCAddress()
-	bal := s.QueryBalance(ctx, grpcAddr, toAddr.String())
+	bal := s.QueryBalance(ctx, toAddr.String())
 	// ensure the balance has at least as much as what was just sent.
 	s.Require().GreaterOrEqualf(bal.Amount.Int64(), amount, "balance is not greater than or equal to %d", amount)
 }
 
 // queryBalance fetches the balance of a given address and denom from a Cosmos SDK chain via gRPC.
-func (s *CelestiaTestSuite) QueryBalance(ctx context.Context, grpcAddr string, addr string) sdk.Coin {
-	grpcConn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+func (s *CelestiaTestSuite) QueryBalance(ctx context.Context, addr string) sdk.Coin {
+	grpcAddr := s.celestia.GetGRPCAddress()
+	grpcConn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	s.Require().NoError(err, "failed to connect to gRPC")
 	bankClient := banktypes.NewQueryClient(grpcConn)
 	req := &banktypes.QueryBalanceRequest{
@@ -287,6 +276,26 @@ func (s *CelestiaTestSuite) QueryBalance(ctx context.Context, grpcAddr string, a
 	res, err := bankClient.Balance(ctx, req)
 	s.Require().NoError(err, "failed to query balance")
 	return *res.Balance
+}
+
+// appOverrides modifies the "app.toml" configuration for the application, setting the transaction indexer to "kv".
+func appOverrides() toml.Toml {
+	// required to query tx by hash when broadcasting transactions.
+	appTomlOverride := make(toml.Toml)
+	txIndexConfig := make(toml.Toml)
+	txIndexConfig["indexer"] = "kv"
+	appTomlOverride["tx-index"] = txIndexConfig
+	return appTomlOverride
+}
+
+// configOverrides modifies the "config.toml" configuration, enabling KV indexing for transaction queries.
+func configOverrides() toml.Toml {
+	// required to query tx by hash when broadcasting transactions.
+	overrides := make(toml.Toml)
+	txIndexConfig := make(toml.Toml)
+	txIndexConfig["indexer"] = "kv"
+	overrides["tx_index"] = txIndexConfig
+	return overrides
 }
 
 // getCelestiaTag returns the tag to use for Celestia images.
