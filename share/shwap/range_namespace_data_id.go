@@ -16,13 +16,11 @@ const RangeNamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize + 10
 // RangeNamespaceDataID identifies the continuous range of shares in the DataSquare(EDS),
 // starting from the given `SampleID` and contains `Length` number of shares.
 type RangeNamespaceDataID struct {
-	EdsID
+	NamespaceDataID
 	// coordinates from the first share of the range
 	From SampleCoords
 	// coordinates from the last share of the range
 	To SampleCoords
-	//  DataNamespace is a string representation of the namespace of the requested range.
-	DataNamespace libshare.Namespace
 
 	ProofsOnly bool
 }
@@ -36,11 +34,13 @@ func NewRangeNamespaceDataID(
 	proofsOnly bool,
 ) (RangeNamespaceDataID, error) {
 	rngid := RangeNamespaceDataID{
-		EdsID:         edsID,
-		From:          from,
-		DataNamespace: namespace,
-		To:            to,
-		ProofsOnly:    proofsOnly,
+		NamespaceDataID: NamespaceDataID{
+			EdsID:         edsID,
+			DataNamespace: namespace,
+		},
+		From:       from,
+		To:         to,
+		ProofsOnly: proofsOnly,
 	}
 
 	err := rngid.Verify(edsSize)
@@ -146,11 +146,13 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 	}
 
 	rngID := RangeNamespaceDataID{
-		EdsID:         edsID,
-		From:          fromCoords,
-		DataNamespace: ns,
-		To:            toCoords,
-		ProofsOnly:    proofsOnly,
+		NamespaceDataID: NamespaceDataID{
+			EdsID:         edsID,
+			DataNamespace: ns,
+		},
+		From:       fromCoords,
+		To:         toCoords,
+		ProofsOnly: proofsOnly,
 	}
 	return rngID, rngID.Validate()
 }
