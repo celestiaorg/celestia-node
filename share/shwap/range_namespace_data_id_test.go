@@ -4,35 +4,50 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestNewRangeNamespaceDataID(t *testing.T) {
-	edsSize := 16
-	ns := libshare.RandomNamespace()
+	tests := []struct {
+		name  string
+		from  SampleCoords
+		to    SampleCoords
+		total int
+		valid bool
+	}{
+		{"valid coordinates", SampleCoords{5, 10}, SampleCoords{7, 12}, 16, true},
+		{"invalid: negative row", SampleCoords{-1, 5}, SampleCoords{7, 12}, 16, false},
+		{"invalid: to before from", SampleCoords{7, 12}, SampleCoords{5, 10}, 16, false},
+		{"invalid: out of bounds row", SampleCoords{0, 0}, SampleCoords{17, 0}, 16, false},
+		{"invalid: out of bounds col", SampleCoords{0, 0}, SampleCoords{15, 17}, 16, false},
+	}
 
-	rngid, err := NewRangeNamespaceDataID(
-		EdsID{1},
-		ns,
-		SampleCoords{Row: 5, Col: 10},
-		SampleCoords{7, 12},
-		edsSize,
-		true,
-	)
-	require.NoError(t, err)
-
-	bin, err := rngid.MarshalBinary()
-	require.NoError(t, err)
-
-	rngidOut, err := RangeNamespaceDataIDFromBinary(bin)
-	require.NoError(t, err)
-	assert.EqualValues(t, rngid, rngidOut)
-
-	err = rngid.Validate()
-	require.NoError(t, err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ns := libshare.RandomNamespace()
+			rngid, err := NewRangeNamespaceDataID(
+				EdsID{1},
+				ns,
+				tc.from,
+				tc.to,
+				tc.total,
+				true,
+			)
+			if tc.valid {
+				require.NoError(t, err)
+				bin, err := rngid.MarshalBinary()
+				require.NoError(t, err)
+				rngidOut, err := RangeNamespaceDataIDFromBinary(bin)
+				require.NoError(t, err)
+				require.EqualValues(t, rngid, rngidOut)
+				require.NoError(t, rngid.Validate())
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
 }
 
 func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {

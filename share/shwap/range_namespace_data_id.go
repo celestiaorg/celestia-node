@@ -61,14 +61,17 @@ func (rngid RangeNamespaceDataID) Verify(edsSize int) error {
 	if err != nil {
 		return err
 	}
-	_, err = SampleCoordsAs1DIndex(rngid.From, edsSize)
+	fromIdx, err := SampleCoordsAs1DIndex(rngid.From, edsSize)
 	if err != nil {
 		return err
 	}
 	// verify that to is not exceed that edsSize
-	_, err = SampleCoordsAs1DIndex(rngid.To, edsSize)
+	toIdx, err := SampleCoordsAs1DIndex(rngid.To, edsSize)
 	if err != nil {
 		return err
+	}
+	if fromIdx > toIdx {
+		return fmt.Errorf("invalid range: from index %d > to index %d", fromIdx, toIdx)
 	}
 	return nil
 }
