@@ -56,22 +56,44 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 			to:        shwap.SampleCoords{Row: 7, Col: 3},
 			expectErr: false,
 		},
+		{
+			name:      "out of bounds row (should fail)",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 100, Col: 0},
+			to:        shwap.SampleCoords{Row: 101, Col: 2},
+			expectErr: true,
+		},
+		{
+			name:      "out of bounds col (should fail)",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 0, Col: 100},
+			to:        shwap.SampleCoords{Row: 2, Col: 101},
+			expectErr: true,
+		},
+		{
+			name:      "from greater than to (should fail)",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 3, Col: 3},
+			to:        shwap.SampleCoords{Row: 2, Col: 2},
+			expectErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			blk, err := NewEmptyRangeNamespaceDataBlock(1, tc.ns, tc.from, tc.to, 16, false)
-			require.NoError(t, err)
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			} else {
+				require.NoError(t, err)
+			}
 
 			err = Fetch(ctx, exchange, root, []Block{blk})
 			require.NoError(t, err)
 
 			err = blk.Container.Verify(tc.ns, tc.from, tc.to, root.Hash())
-			if tc.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 		})
 	}
 }
