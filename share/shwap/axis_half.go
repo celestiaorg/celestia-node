@@ -1,4 +1,4 @@
-package eds
+package shwap
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var codec = share.DefaultRSMT2DCodec()
@@ -19,12 +18,12 @@ type AxisHalf struct {
 }
 
 // ToRow converts the AxisHalf to a shwap.Row.
-func (a AxisHalf) ToRow() shwap.Row {
-	side := shwap.Left
+func (a AxisHalf) ToRow() Row {
+	side := Left
 	if a.IsParity {
-		side = shwap.Right
+		side = Right
 	}
-	return shwap.NewRow(a.Shares, side)
+	return NewRow(a.Shares, side)
 }
 
 // Extended returns full axis shares from half axis shares.

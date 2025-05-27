@@ -76,7 +76,7 @@ func (sb *SampleBlock) CID() cid.Cid {
 }
 
 func (sb *SampleBlock) Height() uint64 {
-	return sb.ID.Height
+	return sb.ID.Height()
 }
 
 func (sb *SampleBlock) Marshal() ([]byte, error) {
