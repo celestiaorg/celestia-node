@@ -73,7 +73,9 @@ func RangedNamespaceDataFromShares(
 		Shares: make([][]libshare.Share, numRows),
 		Proof:  make([]*Proof, numRows),
 	}
-	for i, row, col := 0, from.Row, from.Col; i < numRows; i++ {
+	row := from.Row
+	col := from.Col
+	for i := range numRows {
 		rowShares := shares[i]
 		// end index will be explicitly set only for the last row in range.
 		// in other cases, it will be equal to the odsSize.
@@ -96,7 +98,7 @@ func RangedNamespaceDataFromShares(
 		rngData.Shares[i] = rowShares[col:exclusiveEnd]
 		rngData.Proof[i] = &Proof{
 			rowRootProof: rowRootProofs[row],
-			shareProof:   &nmt.Proof{},
+			sharesProof:  &nmt.Proof{},
 		}
 
 		// reset from.Col as we are moving to the next row.
@@ -113,7 +115,7 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
-		rngData.Proof[0].shareProof = sharesProofs
+		rngData.Proof[0].sharesProof = sharesProofs
 	}
 	// incomplete to.Col needs a proof for the last row to be computed
 	if endProof {
@@ -121,7 +123,7 @@ func RangedNamespaceDataFromShares(
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
-		rngData.Proof[numRows-1].shareProof = sharesProofs
+		rngData.Proof[numRows-1].sharesProof = sharesProofs
 	}
 	return rngData, nil
 }
@@ -213,7 +215,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			return fmt.Errorf("row root proof is empty for row: %d", rngdata.Start+i)
 		}
 		// skip the incomplete rows
-		if !proofs[i].shareProof.IsEmptyProof() {
+		if !proofs[i].sharesProof.IsEmptyProof() {
 			continue
 		}
 
@@ -227,7 +229,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			return fmt.Errorf("failed to get row namespace data: %w", err)
 		}
 
-		proofs[i].shareProof = rowNamespaceData.Proof
+		proofs[i].sharesProof = rowNamespaceData.Proof
 		row++
 	}
 	if len(shares) != len(proofs) {
@@ -250,7 +252,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 		if proofs[i].IsEmptyProof() {
 			return fmt.Errorf("nil proof for row: %d", rngdata.Start+i)
 		}
-		if proofs[i].shareProof.IsOfAbsence() {
+		if proofs[i].sharesProof.IsOfAbsence() {
 			return fmt.Errorf("absence proof for row: %d", rngdata.Start+i)
 		}
 
