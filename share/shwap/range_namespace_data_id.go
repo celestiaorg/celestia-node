@@ -13,15 +13,33 @@ import (
 // for the end coordinates of share of the range and uint representation of bool flag.
 const RangeNamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize + 10
 
-// RangeNamespaceDataID identifies the continuous range of shares in the DataSquare(EDS),
-// starting from the given `SampleID` and contains `Length` number of shares.
+// RangeNamespaceDataID uniquely identifies a continuous range of shares within a DataSquare (EDS)
+// that belong to a specific namespace. The range is defined by the coordinates of the first (`From`)
+// and last (`To`) shares in the range. This struct is used to reference and verify a subset of shares
+// (e.g., for a blob or a namespace proof) within the EDS.
+//
+// Fields:
+//   - NamespaceDataID: Embeds the EDS ID and the namespace identifier.
+//   - From: The coordinates (row, col) of the first share in the range.
+//   - To: The coordinates (row, col) of the last share in the range.
+//   - ProofsOnly: If true, indicates that only proofs (not the actual share data) are referenced.
+//
+// Example usage:
+//
+//	id := RangeNamespaceDataID{
+//	  NamespaceDataID: ...,
+//	  From: shwap.SampleCoords{Row: 0, Col: 0},
+//	  To:   shwap.SampleCoords{Row: 2, Col: 2},
+//	  ProofsOnly: false,
+//	}
 type RangeNamespaceDataID struct {
 	NamespaceDataID
-	// coordinates from the first share of the range
+	// From specifies the coordinates of the first share in the range.
 	From SampleCoords
-	// coordinates from the last share of the range
+	// To specifies the coordinates of the last share in the range.
 	To SampleCoords
 
+	// ProofsOnly indicates whether this ID refers only to proofs (not actual share data).
 	ProofsOnly bool
 }
 

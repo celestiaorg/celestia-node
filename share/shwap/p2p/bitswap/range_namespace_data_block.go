@@ -126,6 +126,10 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarhaling RangeNamespaceDataID: %w", err)
 		}
 
+		if err = rndid.Verify(len(root.RowRoots)); err != nil {
+			return fmt.Errorf("verifying RangeNamespaceDataID: %w", err)
+		}
+
 		if !rndb.ID.Equals(rndid) {
 			return fmt.Errorf("requested %+v doesnt match given %+v", rndb.ID, rndid)
 		}
