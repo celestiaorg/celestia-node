@@ -22,7 +22,7 @@ type RangeNamespaceData struct {
 	Proof  []*Proof           `json:"proof"`
 }
 
-// RangedNamespaceDataFromShares constructs a RangeNamespaceData structure from a selection
+// RangeNamespaceDataFromShares constructs a RangeNamespaceData structure from a selection
 // of namespaced shares within an Extended Data Square (EDS).
 //
 // Parameters:
@@ -37,7 +37,7 @@ type RangeNamespaceData struct {
 //   - A RangeNamespaceData containing the shares in the given namespace and Merkle proofs
 //     needed to verify them.
 //   - An error if the range is invalid or extraction fails.
-func RangedNamespaceDataFromShares(
+func RangeNamespaceDataFromShares(
 	shares [][]libshare.Share,
 	namespace libshare.Namespace,
 	axisRoots *share.AxisRoots,

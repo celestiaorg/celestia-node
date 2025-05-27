@@ -137,7 +137,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 		return shwap.RangeNamespaceData{}, err
 	}
 
-	return shwap.RangedNamespaceDataFromShares(rawShares, ns, roots, from, to)
+	return shwap.RangeNamespaceDataFromShares(rawShares, ns, roots, from, to)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each

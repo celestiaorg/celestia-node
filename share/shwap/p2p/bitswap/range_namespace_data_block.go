@@ -23,7 +23,7 @@ const (
 )
 
 // maxRangeSize is the maximum size of the RangeNamespaceDataBlock.
-// It is calculated as a maxRoxSize multiplied by the half of the square size.
+// It is calculated as a maxRowSize multiplied by the half of the square size.
 var maxRangeSize = maxRowSize * share.MaxSquareSize / 2
 
 func init() {
