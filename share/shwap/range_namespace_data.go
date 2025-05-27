@@ -126,7 +126,29 @@ func RangedNamespaceDataFromShares(
 	return rngData, nil
 }
 
-// Verify verifies the underlying shares are included in the data root.
+// Verify checks whether the shares stored within the RangeNamespaceData (`rngdata.Shares`)
+// are valid and provably included in the data root (`dataHash`) for the specified namespace.
+//
+// It validates that:
+//   - The internal shares correspond to the given namespace.
+//   - The range specified by `from` and `to` matches the start and end coordinates of the shares.
+//   - All share proofs are present, correctly formed, and verify against the provided data root.
+//
+// This is a convenience wrapper around VerifyShares that reuses the internal share set (`rngdata.Shares`).
+//
+// Parameters:
+//   - namespace: The namespace to which the shares should belong.
+//   - from: The starting SampleCoords of the share range (inclusive).
+//   - to: The ending SampleCoords of the share range (exclusive).
+//   - dataHash: The expected data root hash that the shares should verify against.
+//
+// Returns:
+//   - nil if the shares are valid and the proofs confirm their inclusion in the data root.
+//   - An error if the shares are malformed, proofs are missing/invalid, or verification fails.
+//
+// Notes:
+//   - If the receiver (`rngdata`) is nil, calling this method will panic. Use defensive checks if needed.
+//   - Any empty or mismatched internal proof data will lead to an error.
 func (rngdata *RangeNamespaceData) Verify(
 	namespace libshare.Namespace,
 	from SampleCoords,
@@ -136,9 +158,37 @@ func (rngdata *RangeNamespaceData) Verify(
 	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, dataHash)
 }
 
-// VerifyShares verifies the passed shares are included in the data root.
-// `[][]libshare.Share` is a collection of the row shares from the range
-// NOTE: the underlying shares will be ignored even if they are not empty.
+// VerifyShares verifies that the provided 2D slice of shares is valid and correctly
+// included in the original data root for the specified namespace, using the associated proofs.
+//
+// This method is used to verify that a contiguous range of shares (`shares`) belonging to a
+// namespace exists and is valid within the original data square (ODS), as identified by the
+// `RangeNamespaceData` receiver.
+//
+// Parameters:
+//   - shares: A 2D slice where each inner slice represents a row of shares for the given range.
+//   - namespace: The namespace ID these shares are expected to belong to.
+//   - from: The inclusive starting SampleCoords (row, col) of the share range.
+//   - to: The exclusive ending SampleCoords (row, col) of the share range.
+//   - dataHash: The expected data root hash to verify inclusion against.
+//
+// Requirements:
+//   - `shares` must match the number of rows defined in the `RangeNamespaceData.Proof`.
+//   - The `from.Row` must match `rngdata.Start`.
+//   - The `from.Col` and `to.Col` must align with the start and end of the underlying proof ranges.
+//   - Each proof and corresponding share row must be valid and non-empty.
+//
+// Notes:
+//   - The `shares` data passed is used for recomputing proofs where missing. It is extended (erasure-coded)
+//     and parsed row-wise to fill in missing `shareProof`s.
+//   - Empty or absent proofs or mismatched share counts will cause verification to fail.
+//
+// Returns an error if:
+//   - The data or proofs are malformed or incomplete
+//   - Namespace share proof validation fails
+//   - Coordinates or share lengths do not align with proof metadata
+//
+// Panics: This method will not panic but will return descriptive errors on all failure conditions.
 func (rngdata *RangeNamespaceData) VerifyShares(
 	shares [][]libshare.Share,
 	namespace libshare.Namespace,
@@ -146,6 +196,9 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	to SampleCoords,
 	dataHash []byte,
 ) error {
+	if rngdata.IsEmpty() {
+		return errors.New("empty data")
+	}
 	if from.Row != rngdata.Start {
 		return fmt.Errorf("mismatched row: wanted: %d, got: %d", rngdata.Start, from.Row)
 	}
@@ -182,9 +235,6 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			"mismatch amount of row shares and proofs, %d:%d",
 			len(shares), len(rngdata.Proof),
 		)
-	}
-	if rngdata.IsEmpty() {
-		return errors.New("empty data")
 	}
 	if from.Col != proofs[0].Start() {
 		return fmt.Errorf("mismatched col: wanted: %d, got: %d", proofs[0].Start(), from.Col)
