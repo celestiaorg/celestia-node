@@ -20,22 +20,58 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 	namespace := libshare.RandomNamespace()
 	eds, root := edstest.RandEDSWithNamespace(t, namespace, 64, 8)
 	exchange := newExchangeOverEDS(ctx, t, eds)
-	blk, err := NewEmptyRangeNamespaceDataBlock(1, namespace,
-		shwap.SampleCoords{Row: 0, Col: 0},
-		shwap.SampleCoords{Row: 2, Col: 2},
-		16,
-		false,
-	)
-	require.NoError(t, err)
 
-	err = Fetch(ctx, exchange, root, []Block{blk})
-	require.NoError(t, err)
+	testCases := []struct {
+		name      string
+		ns        libshare.Namespace
+		from      shwap.SampleCoords
+		to        shwap.SampleCoords
+		expectErr bool
+	}{
+		{
+			name:      "range fetch and verify",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 0, Col: 0},
+			to:        shwap.SampleCoords{Row: 2, Col: 2},
+			expectErr: false,
+		},
+		{
+			name:      "single cell fetch and verify",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 1, Col: 1},
+			to:        shwap.SampleCoords{Row: 1, Col: 1},
+			expectErr: false,
+		},
+		{
+			name:      "full row fetch and verify",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 0, Col: 0},
+			to:        shwap.SampleCoords{Row: 0, Col: 7},
+			expectErr: false,
+		},
+		{
+			name:      "full column fetch and verify",
+			ns:        namespace,
+			from:      shwap.SampleCoords{Row: 0, Col: 3},
+			to:        shwap.SampleCoords{Row: 7, Col: 3},
+			expectErr: false,
+		},
+	}
 
-	err = blk.Container.Verify(
-		namespace,
-		shwap.SampleCoords{Row: 0, Col: 0},
-		shwap.SampleCoords{Row: 2, Col: 2},
-		root.Hash(),
-	)
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			blk, err := NewEmptyRangeNamespaceDataBlock(1, tc.ns, tc.from, tc.to, 16, false)
+			require.NoError(t, err)
+
+			err = Fetch(ctx, exchange, root, []Block{blk})
+			require.NoError(t, err)
+
+			err = blk.Container.Verify(tc.ns, tc.from, tc.to, root.Hash())
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
