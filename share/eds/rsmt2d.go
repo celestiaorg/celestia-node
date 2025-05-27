@@ -143,7 +143,7 @@ func (eds *Rsmt2D) RangeNamespaceData(
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
 func (eds *Rsmt2D) Shares(_ context.Context) ([]libshare.Share, error) {
-	return libshare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
+	return libshare.FromBytes(eds.FlattenedODS())
 }
 
 func (eds *Rsmt2D) Close() error {
