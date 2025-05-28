@@ -302,15 +302,10 @@ func (s *Store) validateAndRecoverODS(
 
 func (s *Store) linkHeight(datahash share.DataHash, height uint64) error {
 	linktoOds := s.heightToPath(height, odsFileExt)
-	if datahash.IsEmptyEDS() {
-		// empty EDS is always symlinked, because there is limited number of hardlinks
-		// for the same file in some filesystems (ext4)
-		pathOds := s.hashToRelativePath(datahash, odsFileExt)
-		return symlink(pathOds, linktoOds)
-	}
-	// create hard link with height as name
-	pathOds := s.hashToPath(datahash, odsFileExt)
-	return hardLink(pathOds, linktoOds)
+	// empty EDS is always symlinked, because there is limited number of hardlinks
+	// for the same file in some filesystems (ext4)
+	pathOds := s.hashToRelativePath(datahash, odsFileExt)
+	return symlink(pathOds, linktoOds)
 }
 
 // populateEmptyFile writes fresh empty EDS file on disk.
