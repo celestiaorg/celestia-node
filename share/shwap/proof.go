@@ -15,11 +15,33 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// Proof represents a proof that a data share is included in a
-// committed data root.
-// It consists of multiple components to support verification:
-// * sharesProof: A nmt proof that verifies the inclusion of data shares within a row of the datasquare.
-// * rowRootProof: A Merkle proof that verifies the inclusion of the row root within the final data root.
+// Proof encapsulates the cryptographic evidence required to verify that a set of data shares
+// belonging to a specific namespace is correctly included in a committed data root.
+//
+// A Proof consists of two layers:
+//
+//  1. sharesProof (NMT Proof):
+//     - Proves that a set of shares belonging to a namespace exists within a specific row
+//     of the Extended Data Square (EDS).
+//     - This is a Namespaced Merkle Tree (NMT) proof which validates both existence and
+//     namespace membership within the row.
+//
+//  2. rowRootProof (Merkle Proof):
+//     - Proves that the root of the row (produced by the NMT) is included in the final
+//     data root (Data Availability Header / DAH) via a Merkle inclusion proof.
+//
+// Together, these proofs provide end-to-end verifiability: from the share content, to the row,
+// to the final committed root.
+//
+// Usage Notes:
+//   - For complete rows (i.e., where the entire row's shares are included), the `sharesProof`
+//     may be omitted or left empty initially, and is typically reconstructed at verification time.
+//   - For incomplete rows (e.g., partial start or end), the `sharesProof` must be explicitly
+//     constructed and included to validate inclusion.
+//   - The rowRootProof must always be present to anchor the row to the data root.
+//
+// This structure is used in RangeNamespaceData and related types to prove namespace-scoped
+// inclusion across one or more rows of the EDS.
 type Proof struct {
 	sharesProof  *nmt.Proof
 	rowRootProof *merkle.Proof

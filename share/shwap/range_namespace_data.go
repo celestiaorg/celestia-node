@@ -14,8 +14,33 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// RangeNamespaceData embeds `NamespaceData` and contains a contiguous range of shares
-// along with proofs for these shares.
+// RangeNamespaceData represents a contiguous segment of shares from a data square (EDS)
+// that belong to a specific namespace. It encapsulates both the share data and the
+// cryptographic proofs necessary to verify the shares' inclusion in the data root.
+//
+// This structure is typically constructed using RangeNamespaceDataFromShares, which extracts
+// a rectangular subset of shares from the EDS and populates minimal proof information.
+//
+// Fields:
+//   - Start: The row index in the EDS where this range of shares begins.
+//   - Shares: A 2D slice of shares where each inner slice represents a row. The shares must
+//     all belong to the same namespace and fall within the [from, to] coordinate range.
+//   - Proof: A slice of Proof objects (one per row in the range) that enable verification
+//     of share inclusion. Each Proof contains:
+//   - rowRootProof: A Merkle proof verifying that the row root is included in the data root.
+//   - sharesProof: An NMT proof verifying that the shares belong to the requested namespace.
+//
+// Notes:
+//   - For **complete rows** (i.e., full rows of shares with no partial start or end), the
+//     `sharesProof` field is left empty when the RangeNamespaceData is created. This is
+//     because complete row proofs are not needed at construction time and can be computed
+//     lazily during verification.
+//   - For **incomplete rows** (e.g., where the range starts mid-row or ends mid-row), the
+//     `sharesProof` is computed eagerly during construction via `generateSharesProofs`.
+//   - Consumers of this struct should ensure that Verify() is called to validate the data
+//     against the root using the populated or generated proofs.
+//   - This structure is commonly used in blob availability proofs, light client verification,
+//     and namespace-scoped retrieval over the shwap or DAS interfaces.
 type RangeNamespaceData struct {
 	Start  int                `json:"start"`
 	Shares [][]libshare.Share `json:"shares,omitempty"`
