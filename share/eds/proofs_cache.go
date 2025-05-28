@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -242,7 +243,6 @@ func (c *proofsCache) RowNamespaceData(
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
-
 	return shwap.RowNamespaceData{
 		Shares: row,
 		Proof:  proof,
@@ -274,6 +274,72 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 		shares = append(shares, half...)
 	}
 	return shares, nil
+}
+
+// RangeNamespaceData tries to find all complete rows in cache. For all incomplete rows,
+// it uses the inner accessor to build the namespace data
+func (c *proofsCache) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	size, err := c.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
+
+	numRows := to.Row - from.Row + 1
+	rngdata := shwap.RangeNamespaceData{
+		Start:  from.Row,
+		Shares: make([][]libshare.Share, 0, numRows),
+		Proof:  make([]*shwap.Proof, 0, numRows),
+	}
+
+	root, err := c.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting axis roots: %w", err)
+	}
+	roots := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
+
+	// iterate over each row in the range [from.Row; to.Row].
+	// All complete rows(from.Col = 0 && to.Col = odsSize-1) is
+	// requested using `RowNamespaceData` that uses cache.
+	// Other cases are handled using `RangeNamespaceData` as these rows are incomplete.
+	for row := from.Row; row <= to.Row; row++ {
+		startCol := from.Col
+		endCol := to.Col
+		if row != to.Row {
+			endCol = odsSize - 1
+		}
+
+		if startCol == 0 && endCol == odsSize-1 {
+			// request full row using RowNamespaceData
+			rowData, err := c.RowNamespaceData(ctx, ns, row)
+			if err != nil {
+				return shwap.RangeNamespaceData{}, err
+			}
+			rngdata.Shares = append(rngdata.Shares, rowData.Shares)
+			rngdata.Proof = append(rngdata.Proof, shwap.NewProof(rowData.Proof, rowRootProofs[row]))
+			continue
+		}
+
+		// Otherwise, fetch the partial range
+		data, err := c.inner.RangeNamespaceData(
+			ctx, ns,
+			shwap.SampleCoords{Row: row, Col: startCol},
+			shwap.SampleCoords{Row: row, Col: endCol},
+		)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		rngdata.Shares = append(rngdata.Shares, data.Shares[0])
+		rngdata.Proof = append(rngdata.Proof, data.Proof[0])
+		// Reset column for subsequent rows
+		from.Col = 0
+	}
+	return rngdata, nil
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {
