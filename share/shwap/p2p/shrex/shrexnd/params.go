@@ -17,7 +17,9 @@ var log = logging.Logger("shrex/nd")
 type Parameters = shrex.Parameters
 
 func DefaultParameters() *Parameters {
-	return shrex.DefaultParameters()
+	defaultParams := shrex.DefaultParameters()
+	defaultParams.ConcurrencyLimit = 32
+	return defaultParams
 }
 
 func (c *Client) WithMetrics() error {
