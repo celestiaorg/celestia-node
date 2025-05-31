@@ -1,9 +1,13 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 // RowIDSize defines the size in bytes of RowID, consisting of the size of EdsID and 2 bytes for
@@ -129,4 +133,19 @@ func (rid RowID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return binary.BigEndian.AppendUint16(data, uint16(rid.RowIndex)), nil
+}
+
+func (rid RowID) ContainerDataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	r := axisHalf.ToRow()
+	buf := &bytes.Buffer{}
+	_, err = r.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
