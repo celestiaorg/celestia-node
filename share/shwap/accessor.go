@@ -5,6 +5,7 @@ import (
 	"io"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -13,5 +14,7 @@ import (
 type Accessor interface {
 	AxisRoots(context.Context) (*share.AxisRoots, error)
 	RowNamespaceData(context.Context, libshare.Namespace, int) (RowNamespaceData, error)
+	Sample(ctx context.Context, idx SampleCoords) (Sample, error)
+	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	Reader() (io.Reader, error)
 }

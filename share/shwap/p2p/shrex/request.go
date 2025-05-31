@@ -19,9 +19,15 @@ func newRequestID() map[string]newRequest {
 		return &shwap.EdsID{}
 	}
 
+	sampleIDs := func() request { return &shwap.SampleIDs{} }
+
+	rowID := func() request { return &shwap.RowID{} }
+
 	request := make(map[string]newRequest)
 	request[nsDataInitID().Name()] = nsDataInitID
 	request[edsInitID().Name()] = edsInitID
+	request[sampleIDs().Name()] = rowID
+	request[rowID().Name()] = rowID
 	return request
 }
 
