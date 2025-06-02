@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
@@ -129,6 +131,29 @@ func (s Sample) Verify(roots *share.AxisRoots, rowIdx, colIdx int) error {
 		return ErrFailedVerification
 	}
 	return nil
+}
+
+func (s *Sample) WriteTo(writer io.Writer) (int64, error) {
+	pbsample := s.ToProto()
+	n, err := serde.Write(writer, pbsample)
+	if err != nil {
+		return int64(n), fmt.Errorf("writing Sample: %w", err)
+	}
+
+	return int64(n), nil
+}
+
+func (s *Sample) ReadFrom(reader io.Reader) (int64, error) {
+	var sample pb.Sample
+	n, err := serde.Read(reader, &sample)
+	if err != nil {
+		return int64(n), fmt.Errorf("reading Sample: %w", err)
+	}
+	*s, err = SampleFromProto(&sample)
+	if err != nil {
+		return 0, fmt.Errorf("unmarshaling Sample: %w", err)
+	}
+	return int64(n), nil
 }
 
 // verifyInclusion checks if the share is included in the given root hash at the specified indices.
