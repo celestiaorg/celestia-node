@@ -76,7 +76,7 @@ func RangeNamespaceDataFromShares(
 	_, rowRootProofs := merkle.ProofsFromByteSlices(roots)
 
 	numRows := len(shares)
-	odsSize := len(shares[0]) / 2
+	odsSize := len(axisRoots.RowRoots) / 2
 
 	isMultiRow := from.Row != to.Row
 	startsMidRow := from.Col != 0
@@ -182,6 +182,9 @@ func (rngdata *RangeNamespaceData) Verify(
 	to SampleCoords,
 	dataHash []byte,
 ) error {
+	if rngdata.IsEmpty() {
+		return errors.New("empty RangeNamespaceData")
+	}
 	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, dataHash)
 }
 
@@ -224,7 +227,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	dataHash []byte,
 ) error {
 	if rngdata.IsEmpty() {
-		return errors.New("empty data")
+		return errors.New("empty RangeNamespaceData")
 	}
 	if from.Row != rngdata.Start {
 		return fmt.Errorf("mismatched row: wanted: %d, got: %d", rngdata.Start, from.Row)
@@ -291,6 +294,9 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
 func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
+	if rngdata.IsEmpty() {
+		return nil
+	}
 	var shares []libshare.Share
 	for _, shrs := range rngdata.Shares {
 		shares = append(shares, shrs...)
@@ -299,10 +305,16 @@ func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
 }
 
 func (rngdata *RangeNamespaceData) IsEmpty() bool {
+	if rngdata == nil {
+		return true
+	}
 	return len(rngdata.Shares) == 0 && len(rngdata.Proof) == 0
 }
 
 func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
+	if rngdata.IsEmpty() {
+		return nil
+	}
 	pbShares := make([]*pb.RowShares, len(rngdata.Shares))
 	pbProofs := make([]*pb.Proof, len(rngdata.Proof))
 	for i, shr := range rngdata.Shares {
@@ -323,6 +335,9 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
 }
 
 func (rngdata *RangeNamespaceData) CleanupData() {
+	if rngdata.IsEmpty() {
+		return
+	}
 	rngdata.Shares = nil
 }
 
@@ -375,26 +390,23 @@ func generateSharesProofs(
 	namespace libshare.Namespace,
 	rowShares []libshare.Share,
 ) (*nmt.Proof, error) {
+	// Create RowNamespaceData for the entire row first
+	rowData, err := RowNamespaceDataFromShares(rowShares, namespace, row)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate row namespace data for row %d: %w", row, err)
+	}
+
+	// If the namespace is not present in the row, return the non-inclusion proof
+	if rowData.Shares == nil {
+		return rowData.Proof, nil
+	}
+
+	// Generate range proof for the specific columns
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size), uint(row))
-
-	for i, shr := range rowShares {
+	for _, shr := range rowShares {
 		if err := tree.Push(shr.ToBytes()); err != nil {
-			return nil, fmt.Errorf("failed to build tree at share index %d (row %d): %w", i, row, err)
+			return nil, fmt.Errorf("failed to build tree at share index (row %d): %w", row, err)
 		}
-	}
-
-	root, err := tree.Root()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get root for row %d: %w", row, err)
-	}
-
-	// Check if the namespace is actually present in the row's range.
-	outside, err := share.IsOutsideRange(namespace, root, root)
-	if err != nil {
-		return nil, fmt.Errorf("namespace range check failed for row %d: %w", row, err)
-	}
-	if outside {
-		return nil, ErrNamespaceOutsideRange
 	}
 
 	proof, err := tree.ProveRange(fromCol, toCol)

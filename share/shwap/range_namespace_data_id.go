@@ -106,9 +106,6 @@ func (rngid *RangeNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return int64(n), err
 	}
-	if n != RangeNamespaceDataIDSize {
-		return int64(n), fmt.Errorf("RangeNamespaceDataID: expected %d bytes, got %d", RangeNamespaceDataIDSize, n)
-	}
 
 	id, err := RangeNamespaceDataIDFromBinary(data)
 	if err != nil {
