@@ -555,14 +555,6 @@ func mkdir(path string) error {
 	return nil
 }
 
-func hardLink(filepath, linkpath string) error {
-	err := os.Link(filepath, linkpath)
-	if err != nil {
-		return fmt.Errorf("creating hardlink (%s -> %s): %w", filepath, linkpath, err)
-	}
-	return nil
-}
-
 func symlink(filepath, linkpath string) error {
 	err := os.Symlink(filepath, linkpath)
 	if err != nil {
