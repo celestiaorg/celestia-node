@@ -313,7 +313,7 @@ func (sg *Getter) GetRangeNamespaceData(
 	_, _ shwap.SampleCoords,
 	_ bool,
 ) (shwap.RangeNamespaceData, error) {
-	return shwap.RangeNamespaceData{}, errors.New("not supported")
+	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
 }
 
 func (sg *Getter) getPeer(

@@ -181,7 +181,7 @@ func (rngid RangeNamespaceDataID) MarshalBinary() ([]byte, error) {
 	return rngid.appendTo(data)
 }
 
-// appendTo helps in constructing the binary representation  of RangeNamespaceDataID
+// appendTo helps in constructing the binary representation of RangeNamespaceDataID
 // by appending all encoded fields.
 func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	data, err := rngid.EdsID.AppendBinary(data)
