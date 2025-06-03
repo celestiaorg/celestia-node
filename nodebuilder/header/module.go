@@ -22,7 +22,7 @@ import (
 
 var log = logging.Logger("module/header")
 
-func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
+func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config, p2pCfg *modp2p.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
 
@@ -31,12 +31,6 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Error(cfgErr),
 		fx.Provide(newHeaderService),
 		fx.Provide(newInitStore[H]),
-		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
-			if subscriber == nil {
-				return nil
-			}
-			return subscriber
-		}),
 		fx.Provide(newSyncer[H]),
 		fx.Provide(fx.Annotate(
 			newFraudedSyncer[H],
@@ -53,71 +47,76 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return breaker.Stop(ctx)
 			}),
 		)),
-		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network, p2pCfg *modp2p.Config) (*p2p.Subscriber[H], error) {
-				if p2pCfg.DisableP2P || ps == nil {
-					return nil, nil
-				}
-				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
-				if MetricsEnabled {
-					opts = append(opts, p2p.WithSubscriberMetrics())
-				}
-				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
-			},
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
-				if sub == nil {
-					return nil
-				}
-				return sub.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
-				if sub == nil {
-					return nil
-				}
-				return sub.Stop(ctx)
-			}),
-		)),
-		fx.Provide(fx.Annotate(
-			func(
-				cfg Config,
-				host host.Host,
-				store libhead.Store[H],
-				network modp2p.Network,
-				p2pCfg *modp2p.Config,
-			) (*p2p.ExchangeServer[H], error) {
-				if p2pCfg.DisableP2P || host == nil {
-					return nil, nil
-				}
-				opts := []p2p.Option[p2p.ServerParameters]{
-					p2p.WithParams(cfg.Server),
-					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
-				}
-				if MetricsEnabled {
-					opts = append(opts, p2p.WithMetrics[p2p.ServerParameters]())
-				}
+	)
 
-				return p2p.NewExchangeServer[H](host, store, opts...)
-			},
-			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
-				if server == nil {
-					return nil
-				}
-				return server.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
-				if server == nil {
-					return nil
-				}
-				return server.Stop(ctx)
-			}),
-		)),
+	// Conditionally add p2p components only if p2p is enabled
+	var p2pComponents fx.Option
+	if !p2pCfg.DisableP2P {
+		p2pComponents = fx.Options(
+			fx.Provide(fx.Annotate(
+				func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+					opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
+					if MetricsEnabled {
+						opts = append(opts, p2p.WithSubscriberMetrics())
+					}
+					return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
+				},
+				fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+					return sub.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+					return sub.Stop(ctx)
+				}),
+			)),
+			fx.Provide(fx.Annotate(
+				func(
+					cfg Config,
+					host host.Host,
+					store libhead.Store[H],
+					network modp2p.Network,
+				) (*p2p.ExchangeServer[H], error) {
+					opts := []p2p.Option[p2p.ServerParameters]{
+						p2p.WithParams(cfg.Server),
+						p2p.WithNetworkID[p2p.ServerParameters](network.String()),
+					}
+					if MetricsEnabled {
+						opts = append(opts, p2p.WithMetrics[p2p.ServerParameters]())
+					}
+
+					return p2p.NewExchangeServer[H](host, store, opts...)
+				},
+				fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
+					return server.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
+					return server.Stop(ctx)
+				}),
+			)),
+		)
+	} else {
+		// When p2p is disabled, provide stub components
+		p2pComponents = fx.Options(
+			fx.Provide(func() *p2p.Subscriber[H] { return nil }),
+			fx.Provide(func() *p2p.ExchangeServer[H] { return nil }),
+		)
+	}
+
+	allComponents := fx.Options(
+		baseComponents,
+		p2pComponents,
+		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
+			if subscriber == nil {
+				return nil
+			}
+			return subscriber
+		}),
 	)
 
 	switch tp {
 	case node.Light, node.Full:
 		return fx.Module(
 			"header",
-			baseComponents,
+			allComponents,
 			fx.Provide(newP2PExchange[H]),
 			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
 				return pidstore.NewPeerIDStore(ctx, ds)
@@ -126,7 +125,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 	case node.Bridge:
 		return fx.Module(
 			"header",
-			baseComponents,
+			allComponents,
 			fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Broadcaster[H] {
 				if subscriber == nil {
 					return nil

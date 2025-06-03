@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 func Unmarshaler() fraud.ProofUnmarshaler[*header.ExtendedHeader] {
@@ -31,13 +30,7 @@ func newFraudServiceWithSync(
 	registry fraud.ProofUnmarshaler[*header.ExtendedHeader],
 	ds datastore.Batching,
 	network p2p.Network,
-	p2pCfg *modp2p.Config,
 ) (Module, fraud.Service[*header.ExtendedHeader], error) {
-	// If p2p is disabled, return a stub service
-	if p2pCfg.DisableP2P || sub == nil || host == nil {
-		return &module{Service: nil}, nil, nil
-	}
-	
 	syncerEnabled := true
 	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
 		return sync.Head(ctx)
@@ -62,13 +55,7 @@ func newFraudServiceWithoutSync(
 	registry fraud.ProofUnmarshaler[*header.ExtendedHeader],
 	ds datastore.Batching,
 	network p2p.Network,
-	p2pCfg *modp2p.Config,
 ) (Module, fraud.Service[*header.ExtendedHeader], error) {
-	// If p2p is disabled, return a stub service
-	if p2pCfg.DisableP2P || sub == nil || host == nil {
-		return &module{Service: nil}, nil, nil
-	}
-	
 	syncerEnabled := false
 	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
 		return sync.Head(ctx)
@@ -82,4 +69,8 @@ func newFraudServiceWithoutSync(
 	return &module{
 		Service: pservice,
 	}, pservice, nil
+}
+// newStubFraudService provides a stub fraud service when p2p is disabled
+func newStubFraudService() (Module, fraud.Service[*header.ExtendedHeader], error) {
+	return &module{Service: nil}, nil, nil
 }

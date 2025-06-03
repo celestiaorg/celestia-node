@@ -10,7 +10,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/store"
 )
 
 func TestStorageOnlyBridgeNode(t *testing.T) {
@@ -20,7 +19,7 @@ func TestStorageOnlyBridgeNode(t *testing.T) {
 	cfg.P2P.DisableP2P = true
 	
 	// Create a minimal store for testing
-	memStore := store.NewMemStore()
+	memStore := NewMemStore()
 	
 	// Test that the module can be constructed with p2p disabled
 	module := ConstructModule(node.Bridge, p2p.Mocha, cfg, memStore)
