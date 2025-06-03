@@ -32,6 +32,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(newHeaderService),
 		fx.Provide(newInitStore[H]),
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
+			if subscriber == nil {
+				return nil
+			}
 			return subscriber
 		}),
 		fx.Provide(newSyncer[H]),
@@ -51,7 +54,10 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			}),
 		)),
 		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+			func(ps *pubsub.PubSub, network modp2p.Network, p2pCfg *modp2p.Config) (*p2p.Subscriber[H], error) {
+				if p2pCfg.DisableP2P || ps == nil {
+					return nil, nil
+				}
 				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
 				if MetricsEnabled {
 					opts = append(opts, p2p.WithSubscriberMetrics())
@@ -59,9 +65,15 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+				if sub == nil {
+					return nil
+				}
 				return sub.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+				if sub == nil {
+					return nil
+				}
 				return sub.Stop(ctx)
 			}),
 		)),
@@ -71,7 +83,11 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				host host.Host,
 				store libhead.Store[H],
 				network modp2p.Network,
+				p2pCfg *modp2p.Config,
 			) (*p2p.ExchangeServer[H], error) {
+				if p2pCfg.DisableP2P || host == nil {
+					return nil, nil
+				}
 				opts := []p2p.Option[p2p.ServerParameters]{
 					p2p.WithParams(cfg.Server),
 					p2p.WithNetworkID[p2p.ServerParameters](network.String()),
@@ -83,9 +99,15 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return p2p.NewExchangeServer[H](host, store, opts...)
 			},
 			fx.OnStart(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
+				if server == nil {
+					return nil
+				}
 				return server.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, server *p2p.ExchangeServer[H]) error {
+				if server == nil {
+					return nil
+				}
 				return server.Stop(ctx)
 			}),
 		)),
@@ -106,6 +128,9 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 			"header",
 			baseComponents,
 			fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Broadcaster[H] {
+				if subscriber == nil {
+					return nil
+				}
 				return subscriber
 			}),
 			fx.Supply(header.MakeExtendedHeader),
