@@ -22,6 +22,11 @@ import (
 
 // dataExchange constructs Exchange(Bitswap Composition) for Shwap
 func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
+	// When host is not available (p2p disabled), return nil
+	if params.Host == nil {
+		return nil
+	}
+	
 	prefix := protocolID(params.Net)
 	net := bitswap.NewNetwork(params.Host, prefix)
 
@@ -85,7 +90,7 @@ type bitSwapParams struct {
 	Lifecycle fx.Lifecycle
 	Ctx       context.Context
 	Net       p2p.Network
-	Host      hst.Host
+	Host      hst.Host      `optional:"true"`
 	Bs        blockstore.Blockstore
 	PromReg   prometheus.Registerer `optional:"true"`
 }
