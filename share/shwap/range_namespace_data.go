@@ -14,6 +14,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
+// ErrEmptyRangeNamespaceData is returned when the RangeNamespaceData is empty.
+var ErrEmptyRangeNamespaceData = errors.New("empty RangeNamespaceData")
+
 // RangeNamespaceData represents a contiguous segment of shares from a data square (EDS)
 // that belong to a specific namespace. It encapsulates both the share data and the
 // cryptographic proofs necessary to verify the shares' inclusion in the data root.
@@ -183,7 +186,7 @@ func (rngdata *RangeNamespaceData) Verify(
 	dataHash []byte,
 ) error {
 	if rngdata.IsEmpty() {
-		return errors.New("empty RangeNamespaceData")
+		return ErrEmptyRangeNamespaceData
 	}
 	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, dataHash)
 }
@@ -227,7 +230,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	dataHash []byte,
 ) error {
 	if rngdata.IsEmpty() {
-		return errors.New("empty RangeNamespaceData")
+		return ErrEmptyRangeNamespaceData
 	}
 	if from.Row != rngdata.Start {
 		return fmt.Errorf("mismatched row: wanted: %d, got: %d", rngdata.Start, from.Row)
@@ -292,7 +295,10 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	return nil
 }
 
-// Flatten combines all shares from all rows within the namespace into a single slice.
+// Flatten returns a single slice containing all shares from all rows within the namespace.
+//
+// If the RangeNamespaceData is empty (i.e., contains no shares), Flatten returns nil.
+// Otherwise, it returns a flattened slice of libshare.Share combining shares from all rows.
 func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
 	if rngdata.IsEmpty() {
 		return nil
@@ -304,17 +310,16 @@ func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
 	return shares
 }
 
+// IsEmpty checks if the RangeNamespaceData is empty, meaning it contains no shares or proofs.
+//
+// Returns:
+//   - true if the RangeNamespaceData is nil or has no shares and proofs.
+//   - false otherwise.
 func (rngdata *RangeNamespaceData) IsEmpty() bool {
-	if rngdata == nil {
-		return true
-	}
-	return len(rngdata.Shares) == 0 && len(rngdata.Proof) == 0
+	return rngdata == nil || (len(rngdata.Shares) == 0 && len(rngdata.Proof) == 0)
 }
 
 func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
-	if rngdata.IsEmpty() {
-		return nil
-	}
 	pbShares := make([]*pb.RowShares, len(rngdata.Shares))
 	pbProofs := make([]*pb.Proof, len(rngdata.Proof))
 	for i, shr := range rngdata.Shares {
@@ -390,23 +395,26 @@ func generateSharesProofs(
 	namespace libshare.Namespace,
 	rowShares []libshare.Share,
 ) (*nmt.Proof, error) {
-	// Create RowNamespaceData for the entire row first
-	rowData, err := RowNamespaceDataFromShares(rowShares, namespace, row)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate row namespace data for row %d: %w", row, err)
-	}
-
-	// If the namespace is not present in the row, return the non-inclusion proof
-	if rowData.Shares == nil {
-		return rowData.Proof, nil
-	}
-
-	// Generate range proof for the specific columns
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size), uint(row))
-	for _, shr := range rowShares {
+
+	for i, shr := range rowShares {
 		if err := tree.Push(shr.ToBytes()); err != nil {
-			return nil, fmt.Errorf("failed to build tree at share index (row %d): %w", row, err)
+			return nil, fmt.Errorf("failed to build tree at share index %d (row %d): %w", i, row, err)
 		}
+	}
+
+	root, err := tree.Root()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root for row %d: %w", row, err)
+	}
+
+	// Check if the namespace is actually present in the row's range.
+	outside, err := share.IsOutsideRange(namespace, root, root)
+	if err != nil {
+		return nil, fmt.Errorf("namespace range check failed for row %d: %w", row, err)
+	}
+	if outside {
+		return nil, ErrNamespaceOutsideRange
 	}
 
 	proof, err := tree.ProveRange(fromCol, toCol)
