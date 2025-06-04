@@ -76,6 +76,9 @@ blob, err := blob.NewBlob(libshare.ShareVersionZero, namespace, []byte("data"), 
 height, err := celestiaClient.Blob.Submit(ctx, []*blob.Blob{blob}, nil)
 ```
 
+**Keyring Security Note:**
+If you use the `BackendTest` keyring backend, the client will log a warning about using a plaintext keyring. For production, use the `file` backend for better security.
+
 ### Retrieving a Blob
 
 ```go
@@ -94,8 +97,13 @@ balance, err := celestiaClient.State.Balance(ctx)
 ### ReadConfig
 
 - `BridgeDAAddr`: Address of the Bridge node
-- `DAAuthToken`: Authentication token for the Bridge node
-- `EnableDATLS`: Enable TLS for Bridge node connection
+- `DAAuthToken`: Authentication token for the Bridge node. If set, it will be included as a Bearer token in the `Authorization` HTTP header for all bridge node requests.
+- `HTTPHeader`: (Optional) Custom HTTP headers to include with each bridge node request. If you manually set an `Authorization` header here while also setting `DAAuthToken`, the client will return an error.
+- `EnableDATLS`: Enable TLS for Bridge node connection. **Warning:** If `DAAuthToken` is set and `EnableDATLS` is `false`, the client will log a warning that this setup is insecure.
+
+**Notes:**
+- If both `DAAuthToken` and an `Authorization` header are set, the client will return an error to prevent ambiguous authentication.
+- Using authentication tokens without TLS is insecure and will trigger a warning in the client logs.
 
 ### SubmitConfig
 
