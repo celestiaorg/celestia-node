@@ -1,11 +1,11 @@
 package header
 
 import (
+	core "github.com/cometbft/cometbft/types"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
-	core "github.com/tendermint/tendermint/types"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
@@ -14,7 +14,7 @@ import (
 // Paired with UnmarshalExtendedHeader.
 func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	out := &header_pb.ExtendedHeader{
-		Header: in.RawHeader.ToProto(),
+		Header: in.ToProto(),
 		Commit: in.Commit.ToProto(),
 	}
 

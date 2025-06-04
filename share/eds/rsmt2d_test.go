@@ -62,7 +62,7 @@ func TestRsmt2dSampleForProofAxis(t *testing.T) {
 				require.NoError(t, err)
 
 				want := eds.GetCell(uint(rowIdx), uint(colIdx))
-				require.Equal(t, want, sample.Share.ToBytes())
+				require.Equal(t, want, sample.ToBytes())
 				require.Equal(t, proofType, sample.ProofType)
 				require.NotNil(t, sample.Proof)
 				require.Equal(t, sample.Proof.End()-sample.Proof.Start(), 1)

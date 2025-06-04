@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -44,6 +44,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	expectedLastHeightInRange := to - 1
 	expectedLenHeaders := to - expectedFirstHeightInRange
 
+	// request headers from height 1 to 20 [2:30)
 	_, err = cctx.WaitForHeightWithTimeout(int64(to), 10*time.Second)
 	require.NoError(t, err)
 

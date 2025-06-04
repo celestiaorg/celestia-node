@@ -470,7 +470,7 @@ func (hse *halfSessionExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (
 			continue
 		}
 
-		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		blk, err := hse.GetBlock(ctx, cid)
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +498,7 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 	defer close(out)
 
 	for _, cid := range cids {
-		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		blk, err := hse.GetBlock(ctx, cid)
 		if err != nil {
 			break
 		}

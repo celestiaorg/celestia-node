@@ -40,7 +40,7 @@ func TestStoreGetter(t *testing.T) {
 
 				smpls, err := sg.GetSamples(ctx, eh, []shwap.SampleCoords{idx})
 				require.NoError(t, err)
-				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].Share.ToBytes())
+				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].ToBytes())
 			}
 		}
 
