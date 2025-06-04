@@ -28,6 +28,9 @@ type ReadConfig struct {
 }
 
 func (cfg ReadConfig) Validate() error {
+	if cfg.DAAuthToken != "" && cfg.HTTPHeader.Get("Authorization") != "" {
+		return fmt.Errorf("Authorization header already set, cannot use DAAuthToken as well")
+	}
 	_, err := utils.SanitizeAddr(cfg.BridgeDAAddr)
 	return err
 }
@@ -40,6 +43,14 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*Client, error) {
 
 	if cfg.HTTPHeader == nil {
 		cfg.HTTPHeader = http.Header{}
+	}
+
+	// Handle DAAuthToken logic
+	if cfg.DAAuthToken != "" {
+		cfg.HTTPHeader.Set("Authorization", "Bearer "+cfg.DAAuthToken)
+		if !cfg.EnableDATLS {
+			log.Warn("DAAuthToken is set but TLS is disabled, this is insecure")
+		}
 	}
 
 	// Initialize share client

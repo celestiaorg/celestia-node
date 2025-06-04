@@ -90,8 +90,8 @@ func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
 	}
 	err = c.initTxClient(ctx, cfg.SubmitConfig, cl, kr)
 	if err != nil {
-		cl.Close()
-		return nil, err
+		clerr := cl.Close()
+		return nil, errors.Join(err, clerr)
 	}
 	return c, nil
 }
