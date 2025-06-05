@@ -52,12 +52,18 @@ func Flags() *flag.FlagSet {
 	flags.StringSlice(
 		corsAllowedMethodsFlag,
 		[]string{},
-		fmt.Sprintf("Comma-separated list of HTTP methods allowed for CORS (cors enabled default: %s)", defaultAllowedMethods),
+		fmt.Sprintf(
+			"Comma-separated list of HTTP methods allowed for CORS (cors enabled default: %s)",
+			defaultAllowedMethods,
+		),
 	)
 	flags.StringSlice(
 		corsAllowedHeadersFlag,
 		[]string{},
-		fmt.Sprintf("Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)", defaultAllowedHeaders),
+		fmt.Sprintf(
+			"Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)",
+			defaultAllowedHeaders,
+		),
 	)
 
 	return flags
@@ -121,7 +127,9 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	}
 
 	if corsSettingsProvided && !cfg.CORS.Enabled {
-		return fmt.Errorf("CORS settings provided but CORS is not enabled. Set --rpc.cors-enabled=true to apply these settings.")
+		return fmt.Errorf(
+			"cors settings provided but CORS is not enabled. Set --rpc.cors-enabled=true to apply these settings",
+		)
 	}
 	if cfg.CORS.Enabled && !cfg.SkipAuth && len(cfg.CORS.AllowedOrigins) == 0 {
 		log.Warn("CORS enabled without allowed origins. Set --rpc.cors-allowed-origins to enable cross-origin requests.")

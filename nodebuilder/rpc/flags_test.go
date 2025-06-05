@@ -40,19 +40,37 @@ func TestFlags(t *testing.T) {
 	corsOrigins := flags.Lookup(corsAllowedOriginsFlag)
 	require.NotNil(t, corsOrigins)
 	assert.Equal(t, "[]", corsOrigins.Value.String())
-	assert.Equal(t, "Comma-separated list of origins allowed to access the RPC server via CORS (cors enabled default: empty)", corsOrigins.Usage)
+	assert.Equal(
+		t,
+		"Comma-separated list of origins allowed to access the RPC server via CORS (cors enabled default: empty)",
+		corsOrigins.Usage,
+	)
 
 	// Test corsAllowedMethodsFlag
 	corsMethods := flags.Lookup(corsAllowedMethodsFlag)
 	require.NotNil(t, corsMethods)
 	assert.Equal(t, "[]", corsMethods.Value.String())
-	assert.Equal(t, fmt.Sprintf("Comma-separated list of HTTP methods allowed for CORS (cors enabled default: %s)", defaultAllowedMethods), corsMethods.Usage)
+	assert.Equal(
+		t,
+		fmt.Sprintf(
+			"Comma-separated list of HTTP methods allowed for CORS (cors enabled default: %s)",
+			defaultAllowedMethods,
+		),
+		corsMethods.Usage,
+	)
 
 	// Test corsAllowedHeadersFlag
 	corsHeaders := flags.Lookup(corsAllowedHeadersFlag)
 	require.NotNil(t, corsHeaders)
 	assert.Equal(t, "[]", corsHeaders.Value.String())
-	assert.Equal(t, fmt.Sprintf("Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)", defaultAllowedHeaders), corsHeaders.Usage)
+	assert.Equal(
+		t,
+		fmt.Sprintf(
+			"Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)",
+			defaultAllowedHeaders,
+		),
+		corsHeaders.Usage,
+	)
 }
 
 // TestParseFlags tests the core flag parsing functionality

@@ -12,10 +12,10 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/rs/cors"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
-	"github.com/rs/cors"
 )
 
 var log = logging.Logger("rpc")
@@ -40,7 +40,13 @@ type Server struct {
 	verifier jwt.Verifier
 }
 
-func NewServer(address, port string, authDisabled bool, corsConfig CORSConfig, signer jwt.Signer, verifier jwt.Verifier) *Server {
+func NewServer(
+	address, port string,
+	authDisabled bool,
+	corsConfig CORSConfig,
+	signer jwt.Signer,
+	verifier jwt.Verifier,
+) *Server {
 	rpc := jsonrpc.NewServer()
 	srv := &Server{
 		rpc:          rpc,
