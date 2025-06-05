@@ -24,6 +24,10 @@ var PrintKeyringInfo = true
 // Init initializes the Node FileSystem Store for the given Node Type 'tp' in the directory under
 // 'path'.
 func Init(cfg Config, path string, tp node.Type) error {
+	if !tp.IsValid() {
+		return fmt.Errorf("invalid node type: %s", tp)
+	}
+
 	path, err := storePath(path)
 	if err != nil {
 		return err
@@ -45,18 +49,25 @@ func Init(cfg Config, path string, tp node.Type) error {
 	}
 	defer flk.Unlock() //nolint:errcheck
 
-	ksPath := keysPath(path)
+	// Create node type specific directory to avoid mixing configs
+	nodePath := filepath.Join(path, tp.String())
+	err = initDir(nodePath)
+	if err != nil {
+		return err
+	}
+
+	ksPath := keysPath(nodePath)
 	err = initDir(ksPath)
 	if err != nil {
 		return err
 	}
 
-	err = initDir(dataPath(path))
+	err = initDir(dataPath(nodePath))
 	if err != nil {
 		return err
 	}
 
-	cfgPath := configPath(path)
+	cfgPath := configPath(nodePath)
 	err = SaveConfig(cfgPath, &cfg)
 	if err != nil {
 		return err
@@ -74,9 +85,13 @@ func Init(cfg Config, path string, tp node.Type) error {
 	return nil
 }
 
-// Reset removes all data from the datastore and dagstore directories. It leaves the keystore and
-// config intact.
+// Reset removes all data from the datastore and dagstore directories for the specified node type.
+// It leaves the keystore and config intact.
 func Reset(path string, tp node.Type) error {
+	if !tp.IsValid() {
+		return fmt.Errorf("invalid node type: %s", tp)
+	}
+
 	path, err := storePath(path)
 	if err != nil {
 		return err
@@ -93,7 +108,8 @@ func Reset(path string, tp node.Type) error {
 	}
 	defer flk.Unlock() //nolint:errcheck
 
-	err = resetDir(dataPath(path))
+	nodePath := filepath.Join(path, tp.String())
+	err = resetDir(dataPath(nodePath))
 	if err != nil {
 		return err
 	}
@@ -104,17 +120,17 @@ func Reset(path string, tp node.Type) error {
 		return nil
 	}
 
-	err = resetDir(blocksPath(path))
+	err = resetDir(blocksPath(nodePath))
 	if err != nil {
 		return err
 	}
 
-	err = resetDir(transientsPath(path))
+	err = resetDir(transientsPath(nodePath))
 	if err != nil {
 		return err
 	}
 
-	err = resetDir(indexPath(path))
+	err = resetDir(indexPath(nodePath))
 	if err != nil {
 		return err
 	}
@@ -123,23 +139,29 @@ func Reset(path string, tp node.Type) error {
 	return nil
 }
 
-// IsInit checks whether FileSystem Store was setup under given 'path'.
+// IsInit checks whether FileSystem Store was setup under given 'path' for the specified node type.
 // If any required file/subdirectory does not exist, then false is reported.
-func IsInit(path string) bool {
+func IsInit(path string, tp node.Type) bool {
+	if !tp.IsValid() {
+		log.Errorw("invalid node type", "type", tp)
+		return false
+	}
+
 	path, err := storePath(path)
 	if err != nil {
 		log.Errorw("parsing store path", "path", path, "err", err)
 		return false
 	}
 
-	_, err = LoadConfig(configPath(path)) // load the Config and implicitly check for its existence
+	nodePath := filepath.Join(path, tp.String())
+	_, err = LoadConfig(configPath(nodePath)) // load the Config and implicitly check for its existence
 	if err != nil {
-		log.Errorw("loading config", "path", path, "err", err)
+		log.Errorw("loading config", "path", nodePath, "err", err)
 		return false
 	}
 
-	if utils.Exists(keysPath(path)) &&
-		utils.Exists(dataPath(path)) {
+	if utils.Exists(keysPath(nodePath)) &&
+		utils.Exists(dataPath(nodePath)) {
 		return true
 	}
 

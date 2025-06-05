@@ -229,34 +229,32 @@ func storePath(path string) (string, error) {
 	return homedir.Expand(filepath.Clean(path))
 }
 
-func configPath(base string) string {
-	return filepath.Join(base, "config.toml")
+func configPath(path string) string {
+	return filepath.Join(path, "config.toml")
 }
 
-func lockPath(base string) string {
-	return filepath.Join(base, ".lock")
+func lockPath(path string) string {
+	return filepath.Join(path, "store.lock")
 }
 
-func keysPath(base string) string {
-	return filepath.Join(base, "keys")
+func keysPath(path string) string {
+	return filepath.Join(path, "keys")
 }
 
-func blocksPath(base string) string {
-	return filepath.Join(base, "blocks")
+func blocksPath(path string) string {
+	return filepath.Join(path, "blocks")
 }
 
-func transientsPath(base string) string {
-	// we don't actually use the transients directory anymore, but it could be populated from previous
-	// versions.
-	return filepath.Join(base, "transients")
+func transientsPath(path string) string {
+	return filepath.Join(path, "transients")
 }
 
-func indexPath(base string) string {
-	return filepath.Join(base, "index")
+func indexPath(path string) string {
+	return filepath.Join(path, "index")
 }
 
-func dataPath(base string) string {
-	return filepath.Join(base, "data")
+func dataPath(path string) string {
+	return filepath.Join(path, "data")
 }
 
 // constraintBadgerConfig returns BadgerDB configuration optimized for low memory usage and more frequent
