@@ -1,0 +1,17 @@
+syntax = "proto3";
+package proof;
+
+import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
+
+
+message DataRootProof {
+  repeated proof.pb.Proof sharesProof = 1;
+  MerkleProof rowRootProof = 2;
+}
+
+message MerkleProof {
+    int64 total = 1;
+    int64 start = 2;
+    int64 end = 3;
+    repeated bytes subtreeRoots = 4;
+}
