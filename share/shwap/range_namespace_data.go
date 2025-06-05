@@ -401,18 +401,24 @@ func (rngdata *RangeNamespaceData) VerifySharesV1(
 	}
 
 	sharesProofs := rngdata.dataRootProof.SharesProof()
-	for _, proof := range sharesProofs {
-		if proof == nil {
-			break
+	if sharesProofs != nil {
+		for _, proof := range sharesProofs {
+			if proof == nil {
+				break
+			}
+			if proof.IsOfAbsence() {
+				return errors.New("range data does not support absence proofs")
+			}
 		}
-		if proof.IsOfAbsence() {
-			return errors.New("range data does not support absence proofs")
+		err := verifyCoordinates(from.Col, to.Col, sharesProofs[:])
+		if err != nil {
+			return err
 		}
 	}
 
-	err := verifyCoordinates(from.Col, to.Col, sharesProofs[:])
-	if err != nil {
-		return err
+	// row root proof is empty when the requested range is the whole ods
+	if rngdata.dataRootProof.RowRootProof() == nil {
+		return rngdata.dataRootProof.VerifyInclusion(shares, dataHash)
 	}
 
 	if rngdata.dataRootProof.RowRootProof().Start != int64(from.Row) ||

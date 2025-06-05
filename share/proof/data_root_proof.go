@@ -1,7 +1,9 @@
 package proof
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
@@ -9,6 +11,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	proof_pb "github.com/celestiaorg/celestia-node/share/proof/pb"
@@ -22,10 +25,20 @@ type DataRootProof struct {
 }
 
 func NewDataRootProof(sharesProof *sharesProof, root *share.AxisRoots, start, end int64) *DataRootProof {
-	items := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-	proof := NewProof(items, start, end)
+	var proof *MerkleProof
+
+	if sharesProof != nil && sharesProof[0] == nil {
+		sharesProof = nil
+	}
+	if start != 0 || end != int64(len(root.RowRoots)/2) ||
+		sharesProof != nil {
+		items := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
+		proof = NewProof(items, start, end)
+	}
+
 	return &DataRootProof{
-		sharesProof:  sharesProof,
+		sharesProof: sharesProof,
+		// keep it nil when the requested ranges is the *WHOLE* ods
 		rowRootProof: proof,
 	}
 }
@@ -63,8 +76,13 @@ func (p *DataRootProof) ToProto() *proof_pb.DataRootProof {
 			})
 		}
 	}
+
+	var pbRowRootPRoof *proof_pb.MerkleProof
+	if p.rowRootProof != nil {
+		pbRowRootPRoof = p.rowRootProof.ToProto()
+	}
 	return &proof_pb.DataRootProof{
-		RowRootProof: p.rowRootProof.ToProto(),
+		RowRootProof: pbRowRootPRoof,
 		SharesProof:  pbSharesProof,
 	}
 }
@@ -109,8 +127,27 @@ func DataRootProofFromProto(p *proof_pb.DataRootProof) (*DataRootProof, error) {
 //   - dataRootHash: the expected root hash of the entire data square
 //   - verifyNsCompleteness: whether to verify namespace completeness in proofs
 func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, verifyNsCompleteness bool) error {
-	if p.rowRootProof == nil {
-		return fmt.Errorf("row root proof is empty")
+	namespace := shares[0][0].Namespace()
+	for _, rowShare := range shares {
+		for _, share := range rowShare {
+			if !namespace.Equals(share.Namespace()) {
+				return errors.New("namespace mismatch")
+			}
+		}
+	}
+
+	// verify special case when the requested range spans across the whole eds.
+	if p.rowRootProof == nil && p.sharesProof == nil {
+		// reconstruct the axis roots
+		roots, err := reconstructEDS(shares)
+		if err != nil {
+			return fmt.Errorf("failed to build the eds to verify the proof")
+		}
+		// compare hashes
+		if !bytes.Equal(roots.Hash(), dataRootHash) {
+			return errors.New("data root hash mismatch")
+		}
+		return nil
 	}
 
 	if len(shares) == 0 || len(shares[0]) == 0 {
@@ -122,10 +159,9 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 		return fmt.Errorf("incorrect number of row shares provided")
 	}
 
-	namespace := shares[0][0].Namespace().Bytes()
 	nth := nmt.NewNmtHasher(
 		share.NewSHA256Hasher(),
-		nmt_ns.ID(namespace).Size(),
+		nmt_ns.ID(namespace.Bytes()).Size(),
 		true,
 	)
 
@@ -157,13 +193,13 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 		}
 
 		// Compute leaf hashes for the namespace merkle tree
-		hashes, err := nmt.ComputePrefixedLeafHashes(nth, namespace, leaves)
+		hashes, err := nmt.ComputePrefixedLeafHashes(nth, namespace.Bytes(), leaves)
 		if err != nil {
 			return fmt.Errorf("failed to compute leaf hashes: %w", err)
 		}
 
 		// Compute the row root using the namespace merkle tree proof
-		root, err := proof.ComputeRootWithBasicValidation(nth, namespace, hashes, verifyNsCompleteness)
+		root, err := proof.ComputeRootWithBasicValidation(nth, namespace.Bytes(), hashes, verifyNsCompleteness)
 		if err != nil {
 			return fmt.Errorf("failed to compute proof root: %w", err)
 		}
@@ -231,4 +267,18 @@ func buildTreeRootFromLeaves(shares [][]byte, index uint) ([]byte, error) {
 		}
 	}
 	return tree.Root()
+}
+
+func reconstructEDS(shares [][]libshare.Share) (*share.AxisRoots, error) {
+	rawShares := make([][]byte, 0, len(shares)*len(shares))
+	for _, shares := range shares {
+		rawShares = append(rawShares, libshare.ToBytes(shares)...)
+	}
+
+	treeFn := wrapper.NewConstructor(uint64(len(shares)))
+	eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, share.DefaultRSMT2DCodec(), treeFn)
+	if err != nil {
+		return nil, err
+	}
+	return share.NewAxisRoots(eds)
 }

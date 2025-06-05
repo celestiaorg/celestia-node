@@ -264,6 +264,9 @@ func (p *MerkleProof) ToProto() *proof_pb.MerkleProof {
 }
 
 func MerkleProofFromProto(p *proof_pb.MerkleProof) *MerkleProof {
+	if p == nil {
+		return nil
+	}
 	return &MerkleProof{
 		Total:        p.Total,
 		Start:        p.Start,
