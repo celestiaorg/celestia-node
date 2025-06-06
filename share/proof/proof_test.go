@@ -137,7 +137,7 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "json marshaling/unmarshalling",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(&[2]*nmt.Proof{&nmtProof1, &nmtProof2}, roots, int64(from), int64(to))
+				dtProof := NewDataRootProof(&nmtProof1, &nmtProof2, roots, int64(from), int64(to))
 				bb, err := json.Marshal(dtProof)
 				require.NoError(t, err)
 				newDtProof := &DataRootProof{}
@@ -149,7 +149,7 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "json marshaling/unmarshalling with empty shares proof",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(nil, roots, int64(from), int64(to))
+				dtProof := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
 				bb, err := json.Marshal(dtProof)
 				require.NoError(t, err)
 				newDtProof := &DataRootProof{}
@@ -161,7 +161,7 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "proto encoding/decoding",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(&[2]*nmt.Proof{&nmtProof1, &nmtProof2}, roots, int64(from), int64(to))
+				dtProof := NewDataRootProof(&nmtProof1, &nmtProof2, roots, int64(from), int64(to))
 				protoProof := dtProof.ToProto()
 				require.NoError(t, err)
 				newDtProof, err := DataRootProofFromProto(protoProof)
@@ -172,7 +172,8 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "proto encoding/decoding with empty shares proof",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(nil, roots, int64(from), int64(to))
+				dtProof := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
+				dtProof.rowRootProof = nil
 				protoProof := dtProof.ToProto()
 				require.NoError(t, err)
 				newDtProof, err := DataRootProofFromProto(protoProof)

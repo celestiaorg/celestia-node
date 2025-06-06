@@ -17,105 +17,74 @@ import (
 	proof_pb "github.com/celestiaorg/celestia-node/share/proof/pb"
 )
 
-type sharesProof = [2]*nmt.Proof
-
 type DataRootProof struct {
-	sharesProof  *sharesProof
+	// leftSharesProof provides inclusion proof for the first row(of the range) if it's incomplete
+	// (i.e., the namespace doesn't span the entire row). nil if the row is complete.
+	leftSharesProof *nmt.Proof
+	// rightSharesProof provides namespace proof for the last row if it's incomplete
+	// (i.e., the namespace doesn't span the entire row). nil if the row is complete.
+	rightSharesProof *nmt.Proof
+	// rowRootProof provides Merkle inclusion proof for the row roots within the data root.
+	// nil if range spans the whole ods.
 	rowRootProof *MerkleProof
 }
 
-func NewDataRootProof(sharesProof *sharesProof, root *share.AxisRoots, start, end int64) *DataRootProof {
-	var proof *MerkleProof
-
-	if sharesProof != nil && sharesProof[0] == nil {
-		sharesProof = nil
+func NewDataRootProof(leftProof, rightProof *nmt.Proof, root *share.AxisRoots, start, end int64) *DataRootProof {
+	dataRootProof := &DataRootProof{
+		leftSharesProof:  leftProof,
+		rightSharesProof: rightProof,
 	}
+
 	if start != 0 || end != int64(len(root.RowRoots)/2) ||
-		sharesProof != nil {
+		leftProof != nil || rightProof != nil {
 		items := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
-		proof = NewProof(items, start, end)
+		dataRootProof.rowRootProof = NewProof(items, start, end)
 	}
-
-	return &DataRootProof{
-		sharesProof: sharesProof,
-		// keep it nil when the requested ranges is the *WHOLE* ods
-		rowRootProof: proof,
-	}
+	return dataRootProof
 }
 
-// SharesProof returns a shares inclusion proof.
-// The returned value can be nil.
-func (p *DataRootProof) SharesProof() *[2]*nmt.Proof {
-	return p.sharesProof
+// LeftProof returns the proof of the first row.
+// NOTE: can be nil
+func (p *DataRootProof) LeftProof() *nmt.Proof {
+	return p.leftSharesProof
+}
+
+// RightProof returns the proof of the last row.
+// NOTE: can be nil
+func (p *DataRootProof) RightProof() *nmt.Proof {
+	return p.rightSharesProof
 }
 
 // RowRootProof returns a merkle proof of the row root to the data root.
+// NOTE: can be nil
 func (p *DataRootProof) RowRootProof() *MerkleProof {
 	return p.rowRootProof
 }
 
+// VerifyInclusion verifies that the provided shares are included in the data root.
 func (p *DataRootProof) VerifyInclusion(shares [][]libshare.Share, dataRootHash []byte) error {
 	return p.verify(shares, dataRootHash, false)
 }
 
+// VerifyNamespace verifies that the provided shares are included in the data root with a specific
+// namespace validation.
 func (p *DataRootProof) VerifyNamespace(shares [][]libshare.Share, dataRootHash []byte) error {
 	return p.verify(shares, dataRootHash, true)
 }
 
 func (p *DataRootProof) ToProto() *proof_pb.DataRootProof {
-	var pbSharesProof []*nmt_pb.Proof
-	if p.sharesProof != nil {
-		pbSharesProof = make([]*nmt_pb.Proof, 0)
-		for _, sharesProof := range p.sharesProof {
-			pbSharesProof = append(pbSharesProof, &nmt_pb.Proof{
-				Start:                 int64(sharesProof.Start()),
-				End:                   int64(sharesProof.End()),
-				Nodes:                 sharesProof.Nodes(),
-				LeafHash:              sharesProof.LeafHash(),
-				IsMaxNamespaceIgnored: sharesProof.IsMaxNamespaceIDIgnored(),
-			})
-		}
-	}
-
-	var pbRowRootPRoof *proof_pb.MerkleProof
-	if p.rowRootProof != nil {
-		pbRowRootPRoof = p.rowRootProof.ToProto()
-	}
 	return &proof_pb.DataRootProof{
-		RowRootProof: pbRowRootPRoof,
-		SharesProof:  pbSharesProof,
+		RowRootProof:     p.rowRootProof.ToProto(),
+		LeftSharesProof:  nmtToNmtPbProof(p.leftSharesProof),
+		RightSharesProof: nmtToNmtPbProof(p.rightSharesProof),
 	}
 }
 
 func DataRootProofFromProto(p *proof_pb.DataRootProof) (*DataRootProof, error) {
-	var proofs *[2]*nmt.Proof
-	for i, pp := range p.SharesProof {
-		if proofs == nil {
-			proofs = new([2]*nmt.Proof)
-		}
-		if pp.GetLeafHash() != nil {
-			proof := nmt.NewAbsenceProof(
-				int(pp.GetStart()),
-				int(pp.GetEnd()),
-				pp.GetNodes(),
-				pp.GetLeafHash(),
-				pp.GetIsMaxNamespaceIgnored(),
-			)
-			proofs[i] = &proof
-		} else {
-			proof := nmt.NewInclusionProof(
-				int(pp.GetStart()),
-				int(pp.GetEnd()),
-				pp.GetNodes(),
-				pp.GetIsMaxNamespaceIgnored(),
-			)
-			proofs[i] = &proof
-		}
-	}
-
 	return &DataRootProof{
-		sharesProof:  proofs,
-		rowRootProof: MerkleProofFromProto(p.RowRootProof),
+		leftSharesProof:  pbNmtTonmtProof(p.LeftSharesProof),
+		rightSharesProof: pbNmtTonmtProof(p.RightSharesProof),
+		rowRootProof:     MerkleProofFromProto(p.RowRootProof),
 	}, nil
 }
 
@@ -137,7 +106,7 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 	}
 
 	// verify special case when the requested range spans across the whole eds.
-	if p.rowRootProof == nil && p.sharesProof == nil {
+	if p.rowRootProof == nil && p.leftSharesProof == nil && p.rightSharesProof == nil {
 		// reconstruct the axis roots
 		roots, err := reconstructEDS(shares)
 		if err != nil {
@@ -168,11 +137,12 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 	// Initialize array to store computed row roots for each row of shares
 	rowRoots := make([][]byte, len(shares))
 
+	sharesProof := []*nmt.Proof{p.leftSharesProof, p.rightSharesProof}
 	// Process rows that have proofs
 	// These are typically incomplete rows (partial namespace data within a row)
-	for _, proof := range p.sharesProof {
+	for _, proof := range sharesProof {
 		if proof == nil {
-			break // No more proofs to process
+			continue
 		}
 
 		nth.Reset()
@@ -236,25 +206,29 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 
 func (p *DataRootProof) MarshalJSON() ([]byte, error) {
 	temp := struct {
-		ShareProof   *[2]*nmt.Proof `json:"shares_proof,omitempty"`
-		RowRootProof *MerkleProof   `json:"row_root_proof"`
+		LeftSharesProof  *nmt.Proof   `json:"left_shares_proof,omitempty"`
+		RightSharesProof *nmt.Proof   `json:"right_shares_proof,omitempty"`
+		RowRootProof     *MerkleProof `json:"row_root_proof,omitempty"`
 	}{
-		ShareProof:   p.sharesProof,
-		RowRootProof: p.rowRootProof,
+		LeftSharesProof:  p.leftSharesProof,
+		RightSharesProof: p.rightSharesProof,
+		RowRootProof:     p.rowRootProof,
 	}
 	return json.Marshal(temp)
 }
 
 func (p *DataRootProof) UnmarshalJSON(data []byte) error {
 	temp := struct {
-		ShareProof   *[2]*nmt.Proof `json:"shares_proof"`
-		RowRootProof *MerkleProof   `json:"row_root_proof"`
+		LeftSharesProof  *nmt.Proof   `json:"left_shares_proof,omitempty"`
+		RightSharesProof *nmt.Proof   `json:"right_shares_proof,omitempty"`
+		RowRootProof     *MerkleProof `json:"row_root_proof,omitempty"`
 	}{}
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
 		return err
 	}
-	p.sharesProof = temp.ShareProof
+	p.leftSharesProof = temp.LeftSharesProof
+	p.rightSharesProof = temp.RightSharesProof
 	p.rowRootProof = temp.RowRootProof
 	return nil
 }
@@ -281,4 +255,26 @@ func reconstructEDS(shares [][]libshare.Share) (*share.AxisRoots, error) {
 		return nil, err
 	}
 	return share.NewAxisRoots(eds)
+}
+
+func nmtToNmtPbProof(proof *nmt.Proof) *nmt_pb.Proof {
+	if proof == nil {
+		return nil
+	}
+
+	return &nmt_pb.Proof{
+		Start:                 int64(proof.Start()),
+		End:                   int64(proof.End()),
+		Nodes:                 proof.Nodes(),
+		LeafHash:              proof.LeafHash(),
+		IsMaxNamespaceIgnored: proof.IsMaxNamespaceIDIgnored(),
+	}
+}
+
+func pbNmtTonmtProof(pbproof *nmt_pb.Proof) *nmt.Proof {
+	if pbproof == nil {
+		return nil
+	}
+	proof := nmt.ProtoToProof(*pbproof)
+	return &proof
 }

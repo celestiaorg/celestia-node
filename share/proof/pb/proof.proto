@@ -5,8 +5,10 @@ import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
 
 message DataRootProof {
-  repeated proof.pb.Proof sharesProof = 1;
-  MerkleProof rowRootProof = 2;
+  proof.pb.Proof leftSharesProof = 1;
+  proof.pb.Proof rightSharesProof = 2;
+  MerkleProof rowRootProof = 3;
+
 }
 
 message MerkleProof {

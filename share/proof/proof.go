@@ -255,6 +255,9 @@ func (p *MerkleProof) computeRoot(leafHashes [][]byte) []byte {
 }
 
 func (p *MerkleProof) ToProto() *proof_pb.MerkleProof {
+	if p == nil {
+		return nil
+	}
 	return &proof_pb.MerkleProof{
 		Total:        p.Total,
 		Start:        p.Start,
