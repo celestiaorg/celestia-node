@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/proof"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
@@ -48,6 +49,11 @@ type RangeNamespaceData struct {
 	Start  int                `json:"start"`
 	Shares [][]libshare.Share `json:"shares,omitempty"`
 	Proof  []*Proof           `json:"proof"`
+
+	// DataRootProof is a new optimized data root inclusion proofs that
+	// will change Proof field after API deprecation.
+	// We can keep it private so it won't be marshaled/unmarshalled
+	dataRootProof *proof.DataRootProof
 }
 
 // RangeNamespaceDataFromShares constructs a RangeNamespaceData structure from a selection
@@ -156,6 +162,80 @@ func RangeNamespaceDataFromShares(
 	return rngData, nil
 }
 
+func RangeNamespaceDataFromSharesV1(
+	shares [][]libshare.Share,
+	namespace libshare.Namespace,
+	axisRoots *share.AxisRoots,
+	from, to SampleCoords,
+) (RangeNamespaceData, error) {
+	if len(shares) == 0 {
+		return RangeNamespaceData{}, fmt.Errorf("empty share list")
+	}
+	odsSize := len(axisRoots.RowRoots) / 2
+	isMultiRow := from.Row != to.Row
+	startsMidRow := from.Col != 0
+	endsMidRow := to.Col != odsSize-1
+	isSingleRow := from.Row == to.Row
+
+	// We need a start proof if:
+	// - The range doesn't start at the beginning of the row
+	// - OR it's a single-row range that ends before the row ends
+	startProof := startsMidRow || (isSingleRow && endsMidRow)
+
+	// We need an end proof if:
+	// - The range ends before the row ends
+	// - AND spans multiple rows
+	endProof := endsMidRow && isMultiRow
+	var (
+		leftProof  *nmt.Proof
+		rightProof *nmt.Proof
+		err        error
+	)
+
+	if startProof {
+		endCol := odsSize
+		if isSingleRow {
+			endCol = to.Col + 1
+		}
+		leftProof, err = generateSharesProofs(from.Row, from.Col, endCol, odsSize, namespace, shares[0])
+		if err != nil {
+			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
+		}
+		shares[0] = shares[0][from.Col:endCol]
+	}
+
+	// incomplete to.Col needs a proof for the last row to be computed
+	if endProof {
+		rightProof, err = generateSharesProofs(to.Row, 0, to.Col+1, odsSize, namespace, shares[len(shares)-1])
+		if err != nil {
+			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
+		}
+		shares[len(shares)-1] = shares[len(shares)-1][:to.Col+1]
+	}
+
+	for row, rowShares := range shares {
+		// keep only original data
+		if len(rowShares) >= odsSize {
+			rowShares = rowShares[:odsSize]
+			shares[row] = rowShares
+		}
+		for col, shr := range rowShares {
+			if !namespace.Equals(shr.Namespace()) {
+				return RangeNamespaceData{},
+					fmt.Errorf("targeted namespace was not found in share at {Row: %d, Col: %d}",
+						row, col,
+					)
+			}
+		}
+	}
+
+	dataRootProof := proof.NewDataRootProof(leftProof, rightProof, axisRoots, int64(from.Row), int64(to.Row+1))
+	return RangeNamespaceData{
+		Shares:        shares,
+		dataRootProof: dataRootProof,
+	}, nil
+}
+
 // Verify checks whether the shares stored within the RangeNamespaceData (`rngdata.Shares`)
 // are valid and provably included in the data root (`dataHash`) for the specified namespace.
 //
@@ -185,9 +265,6 @@ func (rngdata *RangeNamespaceData) Verify(
 	to SampleCoords,
 	dataHash []byte,
 ) error {
-	if rngdata.IsEmpty() {
-		return ErrEmptyRangeNamespaceData
-	}
 	return rngdata.VerifyShares(rngdata.Shares, namespace, from, to, dataHash)
 }
 
@@ -293,6 +370,79 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 		}
 	}
 	return nil
+}
+
+func (rngdata *RangeNamespaceData) VerifySharesV1(
+	shares [][]libshare.Share,
+	namespace libshare.Namespace,
+	from SampleCoords,
+	to SampleCoords,
+	dataHash []byte,
+) error {
+	if len(shares) == 0 {
+		return ErrEmptyRangeNamespaceData
+	}
+
+	if rngdata.dataRootProof == nil {
+		return errors.New("data root proof is empty")
+	}
+
+	count := int64(0)
+	for row, rowShares := range shares {
+		for col, shr := range rowShares {
+			if !namespace.Equals(shr.Namespace()) {
+				return fmt.Errorf("targeted namespace was not found in share at {Row: %d, Col: %d}",
+					row, col,
+				)
+			}
+			count++
+		}
+	}
+
+	odsSize := rngdata.dataRootProof.ODSSize()
+	start, err := SampleCoordsAs1DIndex(from, int(odsSize))
+	if err != nil {
+		return fmt.Errorf("unable to calcluate start index: %w", err)
+	}
+	end, err := SampleCoordsAs1DIndex(to, int(odsSize))
+	if err != nil {
+		return fmt.Errorf("unable to calcluate end index: %w", err)
+	}
+
+	proofStartIndex := rngdata.dataRootProof.Start()
+	proofEndIndex := rngdata.dataRootProof.End()
+	// compare shares number
+	if (proofEndIndex - proofStartIndex + 1) != count {
+		return fmt.Errorf("mismatched amount of shares to proven: wanted: %d, got: %d",
+			proofEndIndex-proofStartIndex+1, count,
+		)
+	}
+
+	// verify whether indexes matches
+	if int64(start) != proofStartIndex || int64(end) != proofEndIndex {
+		return fmt.Errorf("mismatched range indexes. want: [%d, %d], got: [%d, %d]",
+			start, end, proofStartIndex, proofEndIndex,
+		)
+	}
+
+	if proof := rngdata.dataRootProof.LeftProof(); proof != nil {
+		if proof.IsOfAbsence() {
+			return errors.New("range data does not support absence proofs")
+		}
+		if proof.Start() != from.Col {
+			return fmt.Errorf("mismatched start col: wanted: %d, got: %d", from.Col, proof.Start())
+		}
+	}
+
+	if proof := rngdata.dataRootProof.RightProof(); proof != nil {
+		if proof.IsOfAbsence() {
+			return errors.New("range data does not support absence proofs")
+		}
+		if proof.End()-1 != to.Col {
+			return fmt.Errorf("mismatched end col: wanted: %d, got: %d", to.Col, proof.End())
+		}
+	}
+	return rngdata.dataRootProof.VerifyInclusion(shares, dataHash)
 }
 
 // Flatten returns a single slice containing all shares from all rows within the namespace.
