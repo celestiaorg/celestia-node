@@ -102,6 +102,7 @@ balance, err := celestiaClient.State.Balance(ctx)
 - `EnableDATLS`: Enable TLS for Bridge node connection. **Warning:** If `DAAuthToken` is set and `EnableDATLS` is `false`, the client will log a warning that this setup is insecure.
 
 **Notes:**
+
 - If both `DAAuthToken` and an `Authorization` header are set, the client will return an error to prevent ambiguous authentication.
 - Using authentication tokens without TLS is insecure and will trigger a warning in the client logs.
 
