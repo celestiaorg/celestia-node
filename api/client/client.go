@@ -23,14 +23,6 @@ var log = logging.Logger("celestia-client")
 
 // Config holds configuration for the Client.
 type Config struct {
-	// TODO: Do we need backwards compatibility tracking? APIVersion will check version of the API and
-	// fail if it doesn't match
-	// APIVersion        string
-
-	// TODO: do we need logging inside the client?
-	// EnableLogging     bool
-	// LogLevel          string
-
 	ReadConfig   ReadConfig
 	SubmitConfig SubmitConfig
 }
