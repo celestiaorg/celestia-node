@@ -39,8 +39,42 @@ func NewDataRootProof(leftProof, rightProof *nmt.Proof, root *share.AxisRoots, s
 		leftProof != nil || rightProof != nil {
 		items := append(root.RowRoots, root.ColumnRoots...) //nolint: gocritic
 		dataRootProof.rowRootProof = NewProof(items, start, end)
+	} else {
+		dataRootProof.rowRootProof = &MerkleProof{
+			Start: 0,
+			End:   int64(len(root.RowRoots) / 2),
+			Total: int64(len(root.RowRoots)) * 2,
+		}
 	}
 	return dataRootProof
+}
+
+// Start returns the ods index of the first share of the range.
+func (p *DataRootProof) Start() int64 {
+	odsSize := p.rowRootProof.Total / 4
+	startRow := p.rowRootProof.Start
+	startCol := 0
+	if p.leftSharesProof != nil {
+		startCol = p.leftSharesProof.Start()
+	}
+	return startRow*odsSize + int64(startCol)
+}
+
+// End returns the end index of the last share of the range.
+func (p *DataRootProof) End() int64 {
+	odsSize := p.rowRootProof.Total / 4
+	endRow := p.rowRootProof.End - 1
+	endCol := odsSize - 1
+	if p.rightSharesProof != nil {
+		endCol = int64(p.rightSharesProof.End() - 1)
+	} else if p.leftSharesProof != nil { // in case we have a single row range
+		endCol = int64(p.leftSharesProof.End() - 1)
+	}
+	return endRow*odsSize + endCol
+}
+
+func (p *DataRootProof) ODSSize() int64 {
+	return p.rowRootProof.Total / 4
 }
 
 // LeftProof returns the proof of the first row.
@@ -106,7 +140,7 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 	}
 
 	// verify special case when the requested range spans across the whole eds.
-	if p.rowRootProof == nil && p.leftSharesProof == nil && p.rightSharesProof == nil {
+	if p.rowRootProof.SubtreeRoots == nil && p.leftSharesProof == nil && p.rightSharesProof == nil {
 		// reconstruct the axis roots
 		roots, err := reconstructEDS(shares)
 		if err != nil {

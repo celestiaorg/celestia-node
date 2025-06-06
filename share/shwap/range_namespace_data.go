@@ -387,6 +387,7 @@ func (rngdata *RangeNamespaceData) VerifySharesV1(
 		return errors.New("data root proof is empty")
 	}
 
+	count := int64(0)
 	for row, rowShares := range shares {
 		for col, shr := range rowShares {
 			if !namespace.Equals(shr.Namespace()) {
@@ -394,12 +395,34 @@ func (rngdata *RangeNamespaceData) VerifySharesV1(
 					row, col,
 				)
 			}
+			count++
 		}
 	}
 
-	// row root proof is empty when the requested range is the whole ods
-	if rngdata.dataRootProof.RowRootProof() == nil {
-		return rngdata.dataRootProof.VerifyInclusion(shares, dataHash)
+	odsSize := rngdata.dataRootProof.ODSSize()
+	start, err := SampleCoordsAs1DIndex(from, int(odsSize))
+	if err != nil {
+		return fmt.Errorf("unable to calcluate start index: %w", err)
+	}
+	end, err := SampleCoordsAs1DIndex(to, int(odsSize))
+	if err != nil {
+		return fmt.Errorf("unable to calcluate end index: %w", err)
+	}
+
+	proofStartIndex := rngdata.dataRootProof.Start()
+	proofEndIndex := rngdata.dataRootProof.End()
+	// compare shares number
+	if (proofEndIndex - proofStartIndex + 1) != count {
+		return fmt.Errorf("mismatched amount of shares to proven: wanted: %d, got: %d",
+			proofEndIndex-proofStartIndex+1, count,
+		)
+	}
+
+	// verify whether indexes matches
+	if int64(start) != proofStartIndex || int64(end) != proofEndIndex {
+		return fmt.Errorf("mismatched range indexes. want: [%d, %d], got: [%d, %d]",
+			start, end, proofStartIndex, proofEndIndex,
+		)
 	}
 
 	if proof := rngdata.dataRootProof.LeftProof(); proof != nil {
@@ -418,13 +441,6 @@ func (rngdata *RangeNamespaceData) VerifySharesV1(
 		if proof.End()-1 != to.Col {
 			return fmt.Errorf("mismatched end col: wanted: %d, got: %d", to.Col, proof.End())
 		}
-	}
-
-	if rngdata.dataRootProof.RowRootProof().Start != int64(from.Row) ||
-		rngdata.dataRootProof.RowRootProof().End-1 != int64(to.Row) {
-		return fmt.Errorf("mismatched row roots indexes. expected: [%d;%d], got: [%d;%d]",
-			rngdata.dataRootProof.RowRootProof().Start, rngdata.dataRootProof.RowRootProof().End-1,
-			from.Row, to.Row)
 	}
 	return rngdata.dataRootProof.VerifyInclusion(shares, dataHash)
 }
