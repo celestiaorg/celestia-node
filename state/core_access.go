@@ -199,7 +199,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, err
 	}
 
-	account := ca.client.AccountByAddress(ctx, author)
+	account := ca.client.AccountByAddress(author)
 	if account == nil {
 		return nil, fmt.Errorf("account for signer %s not found", author)
 	}

@@ -336,8 +336,8 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.33.14 h1:TzeR06UCMUq+KA3bDkujxK1GVGy
 github.com/aws/aws-sdk-go-v2/service/sts v1.33.14/go.mod h1:dspXf/oYWGWo6DEvj98wpaTeqt5+DMidZD0A9BYTizc=
 github.com/aws/smithy-go v1.22.2 h1:6D9hW43xKFrRx/tXXfAlIZc4JI+yQe6snnWcQyxSyLQ=
 github.com/aws/smithy-go v1.22.2/go.mod h1:irrKGvNn1InZwb2d7fkIRNucdfwR8R+Ts3wxYa/cJHg=
-github.com/bcp-innovations/hyperlane-cosmos v1.0.0 h1:h1AP5gTCCWABlIPxy5pXXuSvMmDgCie1U/iRxNa+TT0=
-github.com/bcp-innovations/hyperlane-cosmos v1.0.0/go.mod h1:3yfa0io5Ii6GmhHWsWl2LEAOEHsqWuMgw2R02+LPogw=
+github.com/bcp-innovations/hyperlane-cosmos v1.0.1 h1:gT8OqyJ866Q6AHOlIXKxSdLjd0p8crKG9XXERIWoh4c=
+github.com/bcp-innovations/hyperlane-cosmos v1.0.1/go.mod h1:3yfa0io5Ii6GmhHWsWl2LEAOEHsqWuMgw2R02+LPogw=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/benbjohnson/clock v1.3.5 h1:VvXlSJBzZpA/zum6Sj74hxwYI2DIxRWuNIoXAzHZz5o=
@@ -367,8 +367,8 @@ github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4
 github.com/bytedance/sonic/loader v0.2.4 h1:ZWCw4stuXUsn1/+zQDqeE7JKP+QO47tz7QCNan80NzY=
 github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFosQU6FxH2JmUe6VI=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app/v4 v4.0.1-mocha.0.20250521112605-9034d466a320 h1:da8i/+33C+vO3RQDVGjLg6i0hGsyH6ukb2D74nLZ49U=
-github.com/celestiaorg/celestia-app/v4 v4.0.1-mocha.0.20250521112605-9034d466a320/go.mod h1:SSl0XCKl3GI3Wd1srCsCEl0XeiXAbKHcx76OSIpN1Xg=
+github.com/celestiaorg/celestia-app/v4 v4.0.2-mocha h1:s/zfBD12S+WlNf+FaHKCKG8gCNUdQNc8emDRQ2cndSc=
+github.com/celestiaorg/celestia-app/v4 v4.0.2-mocha/go.mod h1:1jd4w2Y+6KVt7KEKiplXouNEmadSEx1qVgFzZwA+lwQ=
 github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17 h1:AHjnWwPoOFH5zr+aPqdWkF1CutP1ynVEOGOuW1/8iq8=
 github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17/go.mod h1:PiU80T/t0z8FPlz7DRZgvrBux0jJiqxFi9lNBFdGUps=
 github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12 h1:EWJIBTMB9H2KFMqmNB22KvgqvAObqcToJbAdPCM+LBw=
