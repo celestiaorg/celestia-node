@@ -9,7 +9,7 @@ import (
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
-	"github.com/celestiaorg/celestia-node/api/client"
+	"github.com/celestiaorg/celestia-node/api/celestia-client"
 	"github.com/celestiaorg/celestia-node/blob"
 )
 
