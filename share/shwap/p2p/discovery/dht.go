@@ -16,13 +16,13 @@ import (
 func NewDHT(
 	ctx context.Context,
 	prefix string,
-	bootsrappers []peer.AddrInfo,
+	bootstrappers []peer.AddrInfo,
 	host host.Host,
 	dataStore datastore.Batching,
 	mode dht.ModeOpt,
 ) (*dht.IpfsDHT, error) {
 	opts := []dht.Option{
-		dht.BootstrapPeers(bootsrappers...),
+		dht.BootstrapPeers(bootstrappers...),
 		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", prefix))),
 		dht.Datastore(dataStore),
 		dht.Mode(mode),

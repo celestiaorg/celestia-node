@@ -167,13 +167,13 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 
 	peerStat, err := mgr.BandwidthForPeer(ctx, peer.ID())
 	require.NoError(t, err)
-	assert.NotZero(t, peerStat.TotalIn)
-	assert.Greater(t, int(peerStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
+	assert.NotZero(t, peerStat.totaling, total in)
+	assert.Greater(t, int(peerStat.totaling, total in), bufSize) // should be slightly more than buf size due negotiations, etc
 
 	protoStat, err := mgr.BandwidthForProtocol(ctx, protoID)
 	require.NoError(t, err)
-	assert.NotZero(t, protoStat.TotalIn)
-	assert.Greater(t, int(protoStat.TotalIn), bufSize) // should be slightly more than buf size due negotiations, etc
+	assert.NotZero(t, protoStat.totaling, total in)
+	assert.Greater(t, int(protoStat.totaling, total in), bufSize) // should be slightly more than buf size due negotiations, etc
 }
 
 // TestP2PModule_Pubsub tests P2P Module methods on
