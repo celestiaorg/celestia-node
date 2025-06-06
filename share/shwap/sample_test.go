@@ -54,7 +54,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
 	// Corrupt the share
-	b := sample.Share.ToBytes()
+	b := sample.ToBytes()
 	b[0] ^= 0xFF
 	shr, err := libshare.NewShare(b)
 	require.NoError(t, err)

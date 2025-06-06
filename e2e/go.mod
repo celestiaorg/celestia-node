@@ -1,20 +1,20 @@
 module github.com/celestiaorg/celestia-node/e2e
 
-go 1.24.0
+go 1.24.1
 
 toolchain go1.24.3
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v4 v4.0.1-mocha.0.20250521112605-9034d466a320
-	github.com/celestiaorg/celestia-node v0.22.2
+	github.com/celestiaorg/celestia-app/v4 v4.0.2-mocha
+	github.com/celestiaorg/celestia-node v0.23.0
 	github.com/celestiaorg/go-square/v2 v2.2.0
-	github.com/celestiaorg/tastora v0.0.2-0.20250523102750-0634584d001f
+	github.com/celestiaorg/tastora v0.0.2-0.20250606115605-85daa9ffdd17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
-	google.golang.org/grpc v1.72.1
+	google.golang.org/grpc v1.72.2
 )
 
 require (
@@ -84,7 +84,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.23.0 // indirect
+	github.com/celestiaorg/nmt v0.24.0 // indirect
 	github.com/celestiaorg/rsmt2d v0.14.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -385,14 +385,14 @@ require (
 
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
-	//github.com/celestiaorg/celestia-app/v4 => ../../celestia-app
 	github.com/celestiaorg/celestia-node => ../../celestia-node
 	//github.com/celestiaorg/tastora => ../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
-	github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.45.0-tm-v0.34.35
 )
+
+replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork

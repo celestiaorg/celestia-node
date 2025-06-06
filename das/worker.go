@@ -148,7 +148,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	logout := log.Debugw
 
 	// notify network about availability of new block data (note: only full nodes can notify)
-	if w.state.job.jobType == recentJob {
+	if w.state.jobType == recentJob {
 		err = w.broadcast(ctx, shrexsub.Notification{
 			DataHash: h.DataHash.Bytes(),
 			Height:   h.Height(),

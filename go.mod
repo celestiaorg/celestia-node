@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.24.0
+go 1.24.1
 
 require (
 	cosmossdk.io/log v1.6.0
@@ -16,7 +16,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.2.0
-	github.com/celestiaorg/nmt v0.23.0
+	github.com/celestiaorg/nmt v0.24.0
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
@@ -76,7 +76,7 @@ require (
 	golang.org/x/crypto v0.37.0
 	golang.org/x/sync v0.14.0
 	golang.org/x/text v0.24.0
-	google.golang.org/grpc v1.72.1
+	google.golang.org/grpc v1.72.2
 	google.golang.org/protobuf v1.36.6
 )
 
@@ -395,4 +395,4 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
+//replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork

@@ -43,6 +43,7 @@ type CelestiaTestSuite struct {
 	client     *client.Client
 	network    string
 	provider   tastoratypes.Provider
+	daNetwork  tastoratypes.DataAvailabilityNetwork
 	bridgeNode tastoratypes.DANode
 	fullNode   tastoratypes.DANode
 	lightNode  tastoratypes.DANode
@@ -57,9 +58,13 @@ func (s *CelestiaTestSuite) SetupTest() {
 
 	ctx := context.Background()
 	s.celestia = s.CreateAndStartCelestiaChain(ctx)
-	s.bridgeNode = s.CreateAndStartBridgeNode(ctx, s.celestia)
-	s.fullNode = s.CreateAndStartFullNode(ctx, s.bridgeNode, s.celestia)
-	s.lightNode = s.CreateAndStartLightNode(ctx, s.fullNode, s.celestia)
+	daNetwork, err := s.provider.GetDataAvailabilityNetwork(ctx)
+	s.Require().NoError(err)
+
+	s.daNetwork = daNetwork
+	s.bridgeNode = s.StartBridgeNode(ctx, s.celestia)
+	s.fullNode = s.StartFullNode(ctx, s.bridgeNode, s.celestia)
+	s.lightNode = s.StartLightNode(ctx, s.fullNode, s.celestia)
 }
 
 // CreateDockerProvider initializes a docker provider which can create docker chains
@@ -108,15 +113,16 @@ func (s *CelestiaTestSuite) CreateDockerProvider() tastoratypes.Provider {
 				"--timeout-commit", "1s", // shorter block time.
 			},
 		},
-		DANodeConfig: &tastoradockertypes.DANodeConfig{
-			ChainID: testChainID,
-			Images: []tastoradockertypes.DockerImage{
-				{
-					Repository: getNodeImage(),
-					Version:    getNodeTag(),
-					UIDGID:     "10001:10001",
-				},
-			}},
+		DataAvailabilityNetworkConfig: &tastoradockertypes.DataAvailabilityNetworkConfig{
+			FullNodeCount:   1,
+			BridgeNodeCount: 1,
+			LightNodeCount:  1,
+			Image: tastoradockertypes.DockerImage{
+				Repository: getNodeImage(),
+				Version:    getNodeTag(),
+				UIDGID:     "10001:10001",
+			},
+		},
 	}
 	return tastoradockertypes.NewProvider(cfg, s.T())
 }
@@ -143,26 +149,31 @@ func (s *CelestiaTestSuite) CreateAndStartCelestiaChain(ctx context.Context) tas
 	return celestia
 }
 
-// CreateAndStartBridgeNode initializes and starts a bridge node, setting it up with the required genesis hash and core IP.
-func (s *CelestiaTestSuite) CreateAndStartBridgeNode(ctx context.Context, chain tastoratypes.Chain) tastoratypes.DANode {
+// StartBridgeNode initializes and starts a bridge node, setting it up with the required genesis hash and core IP.
+func (s *CelestiaTestSuite) StartBridgeNode(ctx context.Context, chain tastoratypes.Chain) tastoratypes.DANode {
 	genesisHash := s.getGenesisHash(ctx, chain)
 
-	bridgeNode, err := s.provider.GetDANode(ctx, tastoratypes.BridgeNode)
-	s.Require().NoError(err, "failed to get bridge node")
+	bridgeNode := s.daNetwork.GetBridgeNodes()[0]
 
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
 	s.Require().NoError(err, "failed to get internal hostname")
 
 	err = bridgeNode.Start(ctx,
-		tastoratypes.WithCoreIP(hostname),
-		tastoratypes.WithGenesisBlockHash(genesisHash),
+		tastoratypes.WithChainID(testChainID),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":     testChainID,
+			},
+		),
 	)
 	s.Require().NoError(err, "failed to start bridge node")
 	return bridgeNode
 }
 
-// CreateAndStartFullNode initializes and starts a full node, connecting it to a bridge node and ensuring proper configuration.
-func (s *CelestiaTestSuite) CreateAndStartFullNode(ctx context.Context, bridgeNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
+// StartFullNode initializes and starts a full node, connecting it to a bridge node and ensuring proper configuration.
+func (s *CelestiaTestSuite) StartFullNode(ctx context.Context, bridgeNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
 	genesisHash := s.getGenesisHash(ctx, chain)
 
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
@@ -174,13 +185,17 @@ func (s *CelestiaTestSuite) CreateAndStartFullNode(ctx context.Context, bridgeNo
 	p2pAddr, err := p2pInfo.GetP2PAddress()
 	s.Require().NoError(err, "failed to get bridge node p2p address")
 
-	fullNode, err := s.provider.GetDANode(ctx, tastoratypes.FullNode)
-	s.Require().NoError(err, "failed to get fullnode node")
+	fullNode := s.daNetwork.GetFullNodes()[0]
 
 	err = fullNode.Start(ctx,
-		tastoratypes.WithCoreIP(hostname),
-		tastoratypes.WithGenesisBlockHash(genesisHash),
-		tastoratypes.WithP2PAddress(p2pAddr),
+		tastoratypes.WithChainID(testChainID),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+				"P2P_NETWORK":     testChainID,
+			},
+		),
 	)
 
 	s.Require().NoError(err, "failed to start full node")
@@ -188,12 +203,9 @@ func (s *CelestiaTestSuite) CreateAndStartFullNode(ctx context.Context, bridgeNo
 	return fullNode
 }
 
-// CreateAndStartLightNode initializes and starts a light node, configuring it with the provided full node and chain details.
-func (s *CelestiaTestSuite) CreateAndStartLightNode(ctx context.Context, fullNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
+// StartLightNode initializes and starts a light node, configuring it with the provided full node and chain details.
+func (s *CelestiaTestSuite) StartLightNode(ctx context.Context, fullNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
 	genesisHash := s.getGenesisHash(ctx, chain)
-
-	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
-	s.Require().NoError(err, "failed to get internal hostname")
 
 	p2pInfo, err := fullNode.GetP2PInfo(ctx)
 	s.Require().NoError(err, "failed to get bridge node p2p info")
@@ -203,13 +215,16 @@ func (s *CelestiaTestSuite) CreateAndStartLightNode(ctx context.Context, fullNod
 
 	s.T().Logf("Full node P2P Addr: %s", p2pAddr)
 
-	lightNode, err := s.provider.GetDANode(ctx, tastoratypes.LightNode)
-	s.Require().NoError(err, "failed to get light node")
-
+	lightNode := s.daNetwork.GetLightNodes()[0]
 	err = lightNode.Start(ctx,
-		tastoratypes.WithP2PAddress(p2pAddr),
-		tastoratypes.WithCoreIP(hostname), // TODO: remove this, not required. It is here now as not providing it is not supported in tastora.
-		tastoratypes.WithGenesisBlockHash(genesisHash),
+		tastoratypes.WithChainID(testChainID),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+				"P2P_NETWORK":     testChainID,
+			},
+		),
 	)
 	s.Require().NoError(err, "failed to start light node")
 
