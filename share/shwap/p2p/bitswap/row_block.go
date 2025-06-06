@@ -75,7 +75,7 @@ func (rb *RowBlock) CID() cid.Cid {
 }
 
 func (rb *RowBlock) Height() uint64 {
-	return rb.ID.Height
+	return rb.ID.Height()
 }
 
 func (rb *RowBlock) Marshal() ([]byte, error) {

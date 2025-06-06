@@ -54,7 +54,11 @@ func NewEmptyRangeNamespaceDataBlock(
 	edsSize int,
 	proofsOnly bool,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, namespace, from, to, edsSize, proofsOnly)
+	edsID, err := shwap.NewEdsID(height)
+	if err != nil {
+		return nil, err
+	}
+	id, err := shwap.NewRangeNamespaceDataID(edsID, namespace, from, to, edsSize, proofsOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +85,7 @@ func (rndb *RangeNamespaceDataBlock) CID() cid.Cid {
 }
 
 func (rndb *RangeNamespaceDataBlock) Height() uint64 {
-	return rndb.ID.Height
+	return rndb.ID.Height()
 }
 
 func (rndb *RangeNamespaceDataBlock) Marshal() ([]byte, error) {
