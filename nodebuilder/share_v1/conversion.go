@@ -11,10 +11,11 @@ import (
 	coretypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	nodeShare "github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // ConversionAdapter provides conversion utilities between old and new proof structures.
