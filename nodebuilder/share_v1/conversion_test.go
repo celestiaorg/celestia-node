@@ -1,3 +1,4 @@
+//revive:disable:var-naming
 package share_v1_test
 
 import (

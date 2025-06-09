@@ -14,25 +14,31 @@ The `share_v1` module implements an optimized API with key improvements:
 ## API Structure
 
 ### 🔄 Legacy Interface (Perfect Backwards Compatibility)
+
 ```go
 GetRangeWithLegacyProof(ctx, height, start, end) -> (*share.GetRangeResult, error)
 ```
+
 - ✅ Drop-in replacement for legacy `GetRange`
 - ✅ No namespace parameter needed
 - ❌ No optimization benefits
 
 ### ⚡ Optimized Interface (New Format)
+
 ```go
 OptimizedGetRange(ctx, namespace, height, fromCoords, toCoords, proofsOnly) -> (shwap.RangeNamespaceData, error)
 ```
+
 - ✅ Full optimization benefits
 - ✅ New efficient proof format
 - ⚠️ Requires namespace parameter
 
 ### 🎯 Hybrid Interface (Optimized Backend + Legacy Format)
+
 ```go
 OptimizedGetRangeWithLegacyFormat(ctx, namespace, height, start, end) -> (*share.GetRangeResult, error)
 ```
+
 - ✅ Optimization benefits internally
 - ✅ Legacy format output
 - ⚠️ Requires namespace parameter
@@ -104,4 +110,4 @@ All existing share module tests should pass when using the backwards compatibili
 
 - The conversion utilities provide a bridge during the transition period
 - The optimized proof structure is designed for long-term use
-- Legacy proof support can be maintained as long as needed for backwards compatibility 
+- Legacy proof support can be maintained as long as needed for backwards compatibility
