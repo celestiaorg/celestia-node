@@ -222,7 +222,7 @@ func replaceShrexServer(cfg *nodebuilder.Config, handler network.StreamHandler) 
 			for _, protocolName := range shrex.SupportedProtocols() {
 				// replace handler for server
 				server.SetHandler(
-					shrex.ProtocolID(cfg.Share.ShrexServer.NetworkID(), protocolName),
+					shrex.ProtocolID(cfg.Share.ShrexServer.NetworkID(), protocolName.String()),
 					handler,
 				)
 			}

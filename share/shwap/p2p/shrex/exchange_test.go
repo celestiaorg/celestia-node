@@ -99,11 +99,11 @@ func TestExchange_RequestND(t *testing.T) {
 		protocols := SupportedProtocols()
 		for _, protocol := range protocols {
 			server.host.SetStreamHandler(
-				ProtocolID(server.params.NetworkID(), protocol),
+				ProtocolID(server.params.NetworkID(), protocol.String()),
 				middleware.rateLimitHandler(
 					ctx,
 					mockHandler,
-					protocol,
+					protocol.String(),
 				),
 			)
 		}

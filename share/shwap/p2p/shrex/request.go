@@ -25,18 +25,24 @@ func newRequestID() map[string]newRequest {
 	return request
 }
 
+type SupportedProtocolName string
+
+func (s SupportedProtocolName) String() string {
+	return string(s)
+}
+
 // SupportedProtocols returns  a slice of protocol names that
 // the client and server support by default.
-func SupportedProtocols() []string {
+func SupportedProtocols() []SupportedProtocolName {
 	req := newRequestID()
-	protocolNames := make([]string, 0, len(req))
+	protocolNames := make([]SupportedProtocolName, 0, len(req))
 	for name := range maps.Keys(req) {
-		protocolNames = append(protocolNames, name)
+		protocolNames = append(protocolNames, SupportedProtocolName(name))
 	}
 	return protocolNames
 }
 
-// request represents compatible generalised interface type for shwap requests.
+// request represents compatible generalised interface for requests.
 type request interface {
 	io.WriterTo
 	io.ReaderFrom
@@ -47,11 +53,11 @@ type request interface {
 	// Validate performs a basic validation of the request.
 	Validate() error
 
-	// ContainerDataReader returns io.Reader that reads data from the Accessor.
-	ContainerDataReader(ctx context.Context, acc shwap.Accessor) (io.Reader, error)
+	// DataReader returns io.Reader that reads data from the Accessor.
+	DataReader(ctx context.Context, acc shwap.Accessor) (io.Reader, error)
 }
 
-// response compatible generalised interface type for shwap responses
+// response compatible generalised interface type for responses
 type response interface {
 	io.ReaderFrom
 }
