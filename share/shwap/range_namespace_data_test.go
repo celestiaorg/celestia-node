@@ -79,6 +79,95 @@ func TestRangeNamespaceData(t *testing.T) {
 	}
 }
 
+func TestRangeNamespaceDataV1(t *testing.T) {
+	const (
+		odsSize      = 16
+		sharesAmount = odsSize * odsSize
+	)
+
+	ns := libshare.RandomNamespace()
+	square, root := edstest.RandEDSWithNamespace(t, ns, sharesAmount, odsSize)
+
+	nsRowStart := -1
+	for i, row := range root.RowRoots {
+		outside, err := share.IsOutsideRange(ns, row, row)
+		require.NoError(t, err)
+		if !outside {
+			nsRowStart = i
+			break
+		}
+	}
+	assert.Greater(t, nsRowStart, -1)
+
+	extended := &eds.Rsmt2D{ExtendedDataSquare: square}
+
+	nsData, err := extended.RowNamespaceData(context.Background(), ns, nsRowStart)
+	require.NoError(t, err)
+	nsColStart := nsData.Proof.Start()
+
+	t.Logf("ns started at - row:%d col:%d ", nsRowStart, nsColStart)
+	for fromRow := nsRowStart; fromRow < odsSize; fromRow++ {
+		for fromCol := nsColStart; fromCol < odsSize; fromCol++ {
+			for toRow := odsSize - 1; toRow >= fromRow; toRow-- {
+				for toCol := odsSize - 1; toCol >= fromCol; toCol-- {
+					from := shwap.SampleCoords{Row: fromRow, Col: fromCol}
+					to := shwap.SampleCoords{Row: toRow, Col: toCol}
+					fromIndex, err := shwap.SampleCoordsAs1DIndex(from, odsSize)
+					require.NoError(t, err)
+					toIndex, err := shwap.SampleCoordsAs1DIndex(to, odsSize)
+					require.NoError(t, err)
+					str := fmt.Sprintf(
+						"range with coordinate from [%d;%d] to[%d;%d]. Number of shares:%d",
+						fromRow, fromCol, toRow, toCol, toIndex-fromIndex+1,
+					)
+					rawShares := make([][]libshare.Share, 0, toRow-fromRow+1)
+					for row := fromRow; row <= toRow; row++ {
+						rawShare := extended.Row(uint(row))
+						sh, err := libshare.FromBytes(rawShare)
+						require.NoError(t, err)
+						rawShares = append(rawShares, sh)
+					}
+
+					t.Run(str, func(t *testing.T) {
+						rngdata, err := shwap.RangeNamespaceDataFromSharesV1(rawShares, ns, root, from, to)
+						require.NoError(t, err)
+						err = rngdata.VerifySharesV1(rngdata.Shares, ns, from, to, root.Hash())
+						require.NoError(t, err)
+					})
+				}
+			}
+		}
+	}
+}
+
+func TestRangeNamespaceDataV1_FullODS(t *testing.T) {
+	const (
+		odsSize      = 4
+		sharesAmount = odsSize * odsSize
+	)
+
+	ns := libshare.RandomNamespace()
+	square, root := edstest.RandEDSWithNamespace(t, ns, sharesAmount, odsSize)
+
+	from := shwap.SampleCoords{Row: 0, Col: 0}
+	to := shwap.SampleCoords{Row: odsSize - 1, Col: odsSize - 1}
+	rawShares := make([][]libshare.Share, 0, odsSize)
+	for row := 0; row < odsSize; row++ {
+		rawShare := square.Row(uint(row))
+		sh, err := libshare.FromBytes(rawShare)
+		require.NoError(t, err)
+		rawShares = append(rawShares, sh)
+	}
+	rngdata, err := shwap.RangeNamespaceDataFromSharesV1(rawShares, ns, root, from, to)
+	require.NoError(t, err)
+
+	assert.Len(t, rngdata.Shares, odsSize)
+	for _, rowShare := range rngdata.Shares {
+		assert.Len(t, rowShare, odsSize)
+	}
+	require.NoError(t, rngdata.VerifySharesV1(rawShares, ns, from, to, root.Hash()))
+}
+
 func TestRangeCoordsFromIdx(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
