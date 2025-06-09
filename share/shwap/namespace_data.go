@@ -11,7 +11,7 @@ import (
 )
 
 // NamespaceDataName is the name identifier for the namespace data container.
-const NamespaceDataName = "nd_v0"
+const namespaceDataName = "nd_v0"
 
 // NamespaceData stores collections of RowNamespaceData, each representing shares and their proofs
 // within a namespace.
