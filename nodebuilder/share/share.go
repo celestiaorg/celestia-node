@@ -3,9 +3,10 @@ package share
 import (
 	"context"
 
+	"github.com/cometbft/cometbft/types"
+
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/cometbft/cometbft/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"

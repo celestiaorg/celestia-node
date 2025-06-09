@@ -5,13 +5,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	nodeShare "github.com/celestiaorg/celestia-node/share"
