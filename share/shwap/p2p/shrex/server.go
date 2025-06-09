@@ -27,7 +27,7 @@ type Server struct {
 
 	host host.Host
 	// list of protocol names that is supported by the server
-	enabledProtocols []string
+	enabledProtocols []SupportedProtocolName
 
 	store *store.Store
 
@@ -40,7 +40,12 @@ type Server struct {
 // NewServer creates a new shrEx-Server. It configures the server with the provided
 // parameters, host, and data store. By default, it creates handlers for all types
 // of the requests that the node supports unless the user specifies what protocols should be enabled.
-func NewServer(params *ServerParams, host host.Host, store *store.Store, enabledProtocols ...string) (*Server, error) {
+func NewServer(
+	params *ServerParams,
+	host host.Host,
+	store *store.Store,
+	enabledProtocols ...SupportedProtocolName,
+) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)
 	}
@@ -67,16 +72,16 @@ func NewServer(params *ServerParams, host host.Host, store *store.Store, enabled
 
 	initID := newRequestID()
 	for _, protocolName := range enabledProtocols {
-		id, ok := initID[protocolName]
+		id, ok := initID[protocolName.String()]
 		if !ok {
 			return nil, fmt.Errorf("shrex/server: %w: %s", ErrUnsupportedProtocol,
-				ProtocolID(params.NetworkID(), protocolName),
+				ProtocolID(params.NetworkID(), protocolName.String()),
 			)
 		}
 		handler := srv.streamHandler(srv.ctx, id)
 		withRateLimit := srv.middleware.rateLimitHandler(ctx, handler, id().Name())
 		withRecovery := RecoveryMiddleware(withRateLimit)
-		srv.SetHandler(ProtocolID(srv.params.NetworkID(), protocolName), withRecovery)
+		srv.SetHandler(ProtocolID(srv.params.NetworkID(), protocolName.String()), withRecovery)
 	}
 	return srv, nil
 }
@@ -89,7 +94,7 @@ func (srv *Server) SetHandler(p protocol.ID, h network.StreamHandler) {
 func (srv *Server) Stop(_ context.Context) error {
 	srv.cancel()
 	for _, id := range srv.enabledProtocols {
-		srv.host.RemoveStreamHandler(ProtocolID(srv.params.NetworkID(), id))
+		srv.host.RemoveStreamHandler(ProtocolID(srv.params.NetworkID(), id.String()))
 	}
 	return nil
 }
@@ -160,7 +165,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	file, err := srv.store.GetByHeight(ctx, requestID.Height())
 	if err == nil {
 		defer utils.CloseAndLog(log, "file", file)
-		r, err = requestID.ContainerDataReader(ctx, file)
+		r, err = requestID.DataReader(ctx, file)
 	}
 
 	deadlineErr := stream.SetWriteDeadline(time.Now().Add(srv.params.WriteTimeout))

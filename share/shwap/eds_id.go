@@ -101,7 +101,7 @@ func (eid EdsID) Height() uint64 {
 	return eid.height
 }
 
-func (eid EdsID) ContainerDataReader(_ context.Context, acc Accessor) (io.Reader, error) {
+func (eid EdsID) DataReader(_ context.Context, acc Accessor) (io.Reader, error) {
 	return acc.Reader()
 }
 
