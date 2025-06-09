@@ -236,7 +236,7 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 			errMsg = wstats.err.Error()
 		}
 		workers = append(workers, WorkerStats{
-			JobType: wstats.job.jobType,
+			JobType: wstats.jobType,
 			Curr:    wstats.curr,
 			From:    wstats.from,
 			To:      wstats.to,

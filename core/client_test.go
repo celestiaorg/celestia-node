@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
 
 func TestRemoteClient_Status(t *testing.T) {
@@ -23,8 +23,16 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	client := StartTestNode(t).Client
-	eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
+	node, wsClient := StartTestNodeWithConfigAndClient(t)
+	client := node.Client
+
+	err := wsClient.Start()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, wsClient.Stop())
+	})
+
+	eventChan, err := wsClient.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
 	require.NoError(t, err)
 
 	for i := 1; i <= 3; i++ {
@@ -38,6 +46,5 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 			require.NoError(t, ctx.Err())
 		}
 	}
-	// unsubscribe to event channel
-	require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery))
+	require.NoError(t, wsClient.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery))
 }

@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -269,6 +269,44 @@ func (g *Getter) GetNamespaceData(
 
 	span.SetStatus(codes.Ok, "")
 	return nsShrs, nil
+}
+
+func (g *Getter) GetRangeNamespaceData(
+	ctx context.Context,
+	hdr *header.ExtendedHeader,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	if err := ns.ValidateForData(); err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	ctx, span := tracer.Start(ctx, "get-shares-range")
+	defer span.End()
+
+	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
+		hdr.Height(), ns, from, to, len(hdr.DAH.RowRoots), proofsOnly,
+	)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
+	blks := []Block{rangeDataBlock}
+
+	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Fetch")
+		return shwap.RangeNamespaceData{}, err
+	}
+	return blks[0].(*RangeNamespaceDataBlock).Container, nil
 }
 
 // isArchival reports whether the header is for archival data

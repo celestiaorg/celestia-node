@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -116,10 +116,34 @@ func (eds *Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
 }
 
+// RangeNamespaceData builds a namespace range from the given coordinates and the length of the
+// range.
+func (eds *Rsmt2D) RangeNamespaceData(
+	ctx context.Context,
+	ns libshare.Namespace,
+	from, to shwap.SampleCoords,
+) (shwap.RangeNamespaceData, error) {
+	rawShares := make([][]libshare.Share, 0, to.Row-from.Row+1)
+	for row := from.Row; row <= to.Row; row++ {
+		rawShare := eds.Row(uint(row))
+		sh, err := libshare.FromBytes(rawShare)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		rawShares = append(rawShares, sh)
+	}
+	roots, err := eds.AxisRoots(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	return shwap.RangeNamespaceDataFromShares(rawShares, ns, roots, from, to)
+}
+
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
 func (eds *Rsmt2D) Shares(_ context.Context) ([]libshare.Share, error) {
-	return libshare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
+	return libshare.FromBytes(eds.FlattenedODS())
 }
 
 func (eds *Rsmt2D) Close() error {

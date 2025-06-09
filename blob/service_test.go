@@ -12,16 +12,16 @@ import (
 	"testing"
 	"time"
 
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/golang/mock/gomock"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v4/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"
@@ -149,7 +149,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.NoError(t, err)
 					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 					require.NoError(t, err)
-					require.True(t, bytes.Equal(smpls[0].Share.ToBytes(), resultShares[shareOffset].ToBytes()),
+					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
 					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
@@ -977,7 +977,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.NoError(t, actualCommitmentProof.Validate())
 			valid, err := actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
+				appconsts.SubtreeRootThreshold,
 			)
 			require.NoError(t, err)
 			require.True(t, valid)
@@ -987,7 +987,7 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.NoError(t, expectedCommitmentProof.Validate())
 			valid, err = expectedCommitmentProof.Verify(
 				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
+				appconsts.SubtreeRootThreshold,
 			)
 			require.NoError(t, err)
 			require.True(t, valid)

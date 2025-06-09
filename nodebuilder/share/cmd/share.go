@@ -46,10 +46,8 @@ var sharesAvailableCmd = &cobra.Command{
 		err = client.Share.SharesAvailable(cmd.Context(), height)
 		formatter := func(data any) any {
 			err, ok := data.(error)
-			available := false
-			if !ok {
-				available = true
-			}
+			available := !ok
+
 			return struct {
 				Available bool   `json:"available"`
 				Hash      []byte `json:"dah_hash"`
