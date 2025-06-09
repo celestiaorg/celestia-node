@@ -11,10 +11,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
-	"github.com/celestiaorg/celestia-node/libs/utils"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
 
@@ -53,14 +53,15 @@ func (c *Client) Get(
 	resp response,
 	peer peer.ID,
 ) error {
+	logger := log.With(
+		"source", "client",
+		"name", req.Name(),
+		"peer", peer.String(),
+	)
 	requestTime := time.Now()
-	status, err := c.doRequest(ctx, req, resp, peer)
+	status, err := c.doRequest(ctx, logger, req, resp, peer)
 	if err != nil {
-		log.Warnw("shrex/client: requesting data from peer failed",
-			"request", req.Name(),
-			"peer", peer,
-			"error", err,
-		)
+		logger.Warnw("requesting data from peer failed", "error", err)
 	}
 	c.metrics.observeRequests(ctx, 1, req.Name(), status, time.Since(requestTime))
 	return err
@@ -68,7 +69,9 @@ func (c *Client) Get(
 
 // doRequest performs a request to the given peer
 // and expecting a response along with a payload that will be written into `container`.
-func (c *Client) doRequest(ctx context.Context,
+func (c *Client) doRequest(
+	ctx context.Context,
+	logger *zap.SugaredLogger,
 	req request,
 	resp response,
 	peer peer.ID,
@@ -85,9 +88,7 @@ func (c *Client) doRequest(ctx context.Context,
 		return statusSendReqErr, err
 	}
 
-	defer utils.CloseAndLog(log, "client", stream)
-
-	c.setStreamDeadlines(ctx, stream)
+	c.setStreamDeadlines(ctx, logger, stream)
 
 	_, err = req.WriteTo(stream)
 	if err != nil {
@@ -96,7 +97,7 @@ func (c *Client) doRequest(ctx context.Context,
 
 	err = stream.CloseWrite()
 	if err != nil {
-		log.Warnw("shrex/client: closing write side of the stream", "err", err)
+		logger.Warnw("closing write side of the stream", "err", err)
 	}
 
 	var statusResp shrexpb.Response
@@ -133,7 +134,7 @@ func (c *Client) doRequest(ctx context.Context,
 	return statusReadRespErr, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 }
 
-func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) {
+func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogger, stream network.Stream) {
 	// set read/write deadline to use context deadline if it exists
 	deadline, ok := ctx.Deadline()
 	if ok {
@@ -141,14 +142,14 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 		if err == nil {
 			return
 		}
-		log.Debugw("client: set stream deadline", "err", err)
+		logger.Debugw("set stream deadline", "err", err)
 	}
 
 	// if deadline not set, client read deadline defaults to server write deadline
 	if c.params.WriteTimeout != 0 {
 		err := stream.SetReadDeadline(time.Now().Add(c.params.WriteTimeout))
 		if err != nil {
-			log.Debugw("client: set read deadline", "err", err)
+			logger.Debugw("set read deadline", "err", err)
 		}
 	}
 
@@ -156,7 +157,7 @@ func (c *Client) setStreamDeadlines(ctx context.Context, stream network.Stream) 
 	if c.params.ReadTimeout != 0 {
 		err := stream.SetWriteDeadline(time.Now().Add(c.params.ReadTimeout))
 		if err != nil {
-			log.Debugw("client: set write deadline", "err", err)
+			logger.Debugw("set write deadline", "err", err)
 		}
 	}
 }
