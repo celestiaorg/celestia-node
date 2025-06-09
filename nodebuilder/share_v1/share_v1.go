@@ -1,29 +1,23 @@
-package share
+package share_v1
 
 import (
 	"context"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/cometbft/cometbft/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Module = (*API)(nil)
 
-// GetRangeResult wraps the return value of the GetRange endpoint
-// because Json-RPC doesn't support more than two return values.
-type GetRangeResult struct {
-	Shares []libshare.Share
-	Proof  *types.ShareProof
-}
-
-// Module provides access to any data square or block share on the network.
+// Module provides access to any data square or block share on the network using optimized proof structures.
+//
+// This is an enhanced version of the share module that uses the optimized shwap.RangeNamespaceData
+// proof structure instead of the legacy types.ShareProof structure.
 //
 // All Get methods provided on Module follow the following flow:
 //  1. Check local storage for the requested share.
@@ -73,8 +67,20 @@ type Module interface {
 		namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
 
-	// GetRange gets a list of shares and their corresponding proof.
-	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
+	// GetRange retrieves a range of shares and their corresponding proofs within a specific
+	// namespace in the Extended Data Square (EDS) at the given height. The range is defined
+	// by from and to coordinates. If proofsOnly is true, only the proofs are returned without
+	// the actual share data. Returns the optimized RangeNamespaceData with dataroot proofs.
+	//
+	// This method uses the optimized shwap.RangeNamespaceData proof structure instead of
+	// the legacy types.ShareProof structure used in the original share module.
+	GetRange(
+		ctx context.Context,
+		namespace libshare.Namespace,
+		height uint64,
+		fromCoords, toCoords shwap.SampleCoords,
+		proofsOnly bool,
+	) (shwap.RangeNamespaceData, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -107,9 +113,11 @@ type API struct {
 		) (shwap.NamespaceData, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
+			ns libshare.Namespace,
 			height uint64,
-			start, end int,
-		) (*GetRangeResult, error) `perm:"read"`
+			from, to shwap.SampleCoords,
+			proofsOnly bool,
+		) (shwap.RangeNamespaceData, error) `perm:"read"`
 	}
 }
 
@@ -135,8 +143,10 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 	return api.Internal.GetRow(ctx, height, rowIdx)
 }
 
-func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	return api.Internal.GetRange(ctx, height, start, end)
+func (api *API) GetRange(
+	ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	return api.Internal.GetRange(ctx, ns, height, from, to, proofsOnly)
 }
 
 func (api *API) GetNamespaceData(
@@ -191,26 +201,18 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 	return m.avail.SharesAvailable(ctx, header)
 }
 
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	extendedDataSquare, err := m.GetEDS(ctx, height)
+func (m module) GetRange(
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
-		return nil, err
+		return shwap.RangeNamespaceData{}, err
 	}
-
-	proof, err := eds.ProveShares(extendedDataSquare, start, end)
-	if err != nil {
-		return nil, err
-	}
-
-	shares, err := libshare.FromBytes(extendedDataSquare.FlattenedODS()[start:end])
-	if err != nil {
-		return nil, err
-	}
-
-	return &GetRangeResult{
-		Shares: shares,
-		Proof:  proof,
-	}, nil
+	return m.getter.GetRangeNamespaceData(ctx, header, ns, from, to, proofsOnly)
 }
 
 func (m module) GetNamespaceData(
