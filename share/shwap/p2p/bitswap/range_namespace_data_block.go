@@ -48,7 +48,11 @@ func NewEmptyRangeNamespaceDataBlock(
 	height uint64,
 	from, to, odsSize int,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, odsSize)
+	edsID, err := shwap.NewEdsID(height)
+	if err != nil {
+		return nil, err
+	}
+	id, err := shwap.NewRangeNamespaceDataID(edsID, from, to, odsSize)
 	if err != nil {
 		return nil, err
 	}
