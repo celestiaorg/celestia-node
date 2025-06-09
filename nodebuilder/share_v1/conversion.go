@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/cometbft/cometbft/crypto/merkle"
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	nodeShare "github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // ConversionAdapter provides conversion utilities between old and new proof structures.
@@ -235,8 +235,10 @@ func ConvertLegacyToRangeNamespaceData(
 
 	// Validate total shares needed upfront (more efficient than checking each iteration)
 	if totalSharesNeeded > len(legacyResult.Shares) {
-		return shwap.RangeNamespaceData{}, fmt.Errorf("insufficient shares for conversion: need %d shares (%d rows × %d cols), but only have %d shares",
-			totalSharesNeeded, numRows, rowShareCount, len(legacyResult.Shares))
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"insufficient shares for conversion: need %d shares (%d rows × %d cols), but only have %d shares",
+			totalSharesNeeded, numRows, rowShareCount, len(legacyResult.Shares),
+		)
 	}
 
 	// Create grouped shares array and efficiently populate it
