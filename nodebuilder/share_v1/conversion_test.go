@@ -5,7 +5,6 @@ import (
 	"context"
 	"testing"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -13,6 +12,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"

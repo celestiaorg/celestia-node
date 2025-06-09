@@ -130,18 +130,18 @@ func (ca *ConversionAdapter) OptimizedGetRangeWithLegacyFormat(
 // This is useful when you have optimized data but need to return it in legacy format for backwards compatibility.
 //
 // Parameters:
-//   - ctx: Context for cancellation and timeout
+//   - _: Context (unused, kept for interface compatibility)
 //   - rangeData: Optimized range data to convert
-//   - height: Block height (for legacy proof structure)
-//   - start: Starting share index for legacy format
-//   - end: Ending share index for legacy format
+//   - _: Block height (unused, kept for interface compatibility)
+//   - _: Starting share index (unused, kept for interface compatibility)
+//   - _: Ending share index (unused, kept for interface compatibility)
 //
 // Returns: Legacy GetRangeResult with converted proof structure
 func ConvertRangeNamespaceDataToLegacy(
-	ctx context.Context,
+	_ context.Context,
 	rangeData shwap.RangeNamespaceData,
-	height uint64,
-	start, end int,
+	_ uint64,
+	_, _ int,
 ) (*share.GetRangeResult, error) {
 	// Flatten shares from the RangeNamespaceData
 	shares := rangeData.Flatten()
@@ -203,20 +203,20 @@ func ConvertRangeNamespaceDataToLegacy(
 // This is useful when you have legacy data but want to work with the optimized structure.
 //
 // Parameters:
-//   - ctx: Context for cancellation and timeout
+//   - _: Context (unused, kept for interface compatibility)
 //   - legacyResult: Legacy result to convert
-//   - namespace: Target namespace for the conversion
+//   - _: Target namespace (unused, kept for interface compatibility)
 //   - fromCoords: Starting coordinates for optimized format (row, col)
 //   - toCoords: Ending coordinates for optimized format (row, col)
-//   - edsSize: Extended Data Square size (kept for interface compatibility, not used in coordinate calculation)
+//   - _: Extended Data Square size (unused, kept for interface compatibility)
 //
 // Returns: Optimized RangeNamespaceData with efficient proof structure
 func ConvertLegacyToRangeNamespaceData(
-	ctx context.Context,
+	_ context.Context,
 	legacyResult *share.GetRangeResult,
-	namespace libshare.Namespace,
+	_ libshare.Namespace,
 	fromCoords, toCoords shwap.SampleCoords,
-	edsSize int,
+	_ int,
 ) (shwap.RangeNamespaceData, error) {
 	if legacyResult == nil || len(legacyResult.Shares) == 0 {
 		return shwap.RangeNamespaceData{}, fmt.Errorf("empty legacy result")

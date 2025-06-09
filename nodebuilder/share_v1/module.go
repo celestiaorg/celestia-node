@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-func ConstructModule(tp node.Type, options ...fx.Option) fx.Option {
+func ConstructModule(_ node.Type, options ...fx.Option) fx.Option {
 	baseComponents := fx.Options(
 		fx.Options(options...),
 		fx.Provide(newShareV1Module),
