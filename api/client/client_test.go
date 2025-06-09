@@ -10,16 +10,15 @@ import (
 	"testing"
 	"time"
 
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cristalhq/jwt/v5"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
@@ -302,8 +301,6 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...genesis.Keyri
 	appConf := testnode.DefaultAppConfig()
 	appConf.API.Enable = true
 
-	appCreator := testnode.CustomAppCreator(fmt.Sprintf("0.002%s", app.BondDenom))
-
 	g := genesis.NewDefaultGenesis().
 		WithChainID(chainID).
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -313,8 +310,8 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...genesis.Keyri
 		WithChainID(chainID).
 		WithTendermintConfig(tmCfg).
 		WithAppConfig(appConf).
-		WithGenesis(g).
-		WithAppCreator(appCreator) // needed until https://github.com/celestiaorg/celestia-app/pull/3680 merges
+		WithGenesis(g)
+
 	cctx, _, _ := testnode.NewNetwork(t, config)
 
 	bAPI := coregrpc.NewBlockAPIClient(cctx.GRPCClient)
