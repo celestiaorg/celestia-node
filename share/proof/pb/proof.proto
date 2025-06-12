@@ -3,11 +3,17 @@ package proof;
 
 import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
+message IncompleteRowsProof {
+  proof.pb.Proof firstIncompleteRowProof = 1;
+  proof.pb.Proof lastIncompleteRowProof = 2;
+}
+
 
 message DataRootProof {
-  proof.pb.Proof leftSharesProof = 1;
-  proof.pb.Proof rightSharesProof = 2;
-  MerkleProof rowRootProof = 3;
+  int64 squareSize = 1;
+  proof.pb.Proof leftSharesProof = 2;
+  proof.pb.Proof rightSharesProof = 3;
+  MerkleProof rowRootProof = 4;
 
 }
 
