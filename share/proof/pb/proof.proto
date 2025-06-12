@@ -3,23 +3,22 @@ package proof;
 
 import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
 
+
 message IncompleteRowsProof {
   proof.pb.Proof firstIncompleteRowProof = 1;
   proof.pb.Proof lastIncompleteRowProof = 2;
 }
 
-
 message DataRootProof {
   int64 squareSize = 1;
-  proof.pb.Proof leftSharesProof = 2;
-  proof.pb.Proof rightSharesProof = 3;
-  MerkleProof rowRootProof = 4;
+  IncompleteRowsProof rowsProof = 2;
+  MerkleProof merkleProof = 3;
 
 }
 
 message MerkleProof {
-    int64 total = 1;
-    int64 start = 2;
-    int64 end = 3;
-    repeated bytes subtreeRoots = 4;
+  int64 total = 1;
+  int64 start = 2;
+  int64 end = 3;
+  repeated bytes subtreeRoots = 4;
 }
