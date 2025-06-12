@@ -1,8 +1,9 @@
 package proof
 
 import (
-	"bytes"
 	"crypto/sha256"
+	"crypto/subtle"
+	"fmt"
 	"math/bits"
 
 	proof_pb "github.com/celestiaorg/celestia-node/share/proof/pb"
@@ -23,13 +24,18 @@ type MerkleProof struct {
 }
 
 // NewProof creates a Merkle inclusion proof for items[start:end)
-func NewProof(items [][]byte, start, end int64) *MerkleProof {
+func NewProof(items [][]byte, start, end int64) (*MerkleProof, error) {
 	total := int64(len(items))
+	err := validateInput(total, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("merkleProof: failed to build the proof: %w", err)
+	}
+
 	// Build the proof by systematically traversing the tree and collecting
 	// subtree roots that are needed to reconstruct the full tree
 	subtreeRoots, err := buildRangeProof(items, start, end)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("merkleProof: failed to get subtree roots: %w", err)
 	}
 
 	return &MerkleProof{
@@ -37,7 +43,20 @@ func NewProof(items [][]byte, start, end int64) *MerkleProof {
 		Start:        start,
 		End:          end,
 		SubtreeRoots: subtreeRoots,
+	}, nil
+}
+
+func validateInput(total, start, end int64) error {
+	if total <= 0 {
+		return fmt.Errorf("invalid input, total %d", total)
 	}
+	if start >= end {
+		return fmt.Errorf("invalid input, start %d is greater or equal than end %d", start, end)
+	}
+	if end > total/4 {
+		return fmt.Errorf("invalid input, end %d is greater than ods size %d", end, total/4)
+	}
+	return nil
 }
 
 // buildRangeProof creates a proof by systematically traversing the Merkle tree:
@@ -154,7 +173,8 @@ func buildRangeProof(items [][]byte, proofStart, proofEnd int64) ([][]byte, erro
 // 3. Comparing the reconstructed root with the expected root
 func (p *MerkleProof) Verify(rootHash []byte, items [][]byte) bool {
 	// Basic structural validation
-	if int64(len(items)) != p.End-p.Start {
+	err := validateInput(p.Total, p.Start, p.End)
+	if err != nil {
 		return false
 	}
 
@@ -169,7 +189,7 @@ func (p *MerkleProof) Verify(rootHash []byte, items [][]byte) bool {
 	computedRoot := p.computeRoot(leafHashes)
 
 	// Verify the reconstructed root matches the expected root
-	return bytes.Equal(rootHash, computedRoot)
+	return subtle.ConstantTimeCompare(rootHash, computedRoot) == 1
 }
 
 // computeRoot reconstructs the Merkle tree root using a two-phase approach
@@ -287,6 +307,10 @@ func MerkleProofFromProto(p *proof_pb.MerkleProof) *MerkleProof {
 // 2. The right subtree contains the remaining elements
 // 3. The tree is as balanced as possible
 func getSplitPoint(length int64) int64 {
+	if length <= 0 {
+		return 0
+	}
+
 	uLength := uint(length)
 	bitlen := bits.Len(uLength)
 	k := int64(1 << uint(bitlen-1))

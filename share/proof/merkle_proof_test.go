@@ -15,15 +15,17 @@ import (
 )
 
 func Test_VerifyMerkleProof(t *testing.T) {
-	square := edstest.RandEDS(t, 64)
+	odsSize := 64
+	square := edstest.RandEDS(t, odsSize)
 	roots, err := share.NewAxisRoots(square)
 	require.NoError(t, err)
 	items := append(roots.RowRoots, roots.ColumnRoots...) //nolint: gocritic
 	hash := roots.Hash()
 
-	for from := 0; from < len(items); from++ {
-		for to := len(items); to >= from; to-- {
-			proof := NewProof(items, int64(from), int64(to))
+	for from := 0; from < odsSize; from++ {
+		for to := odsSize; to > from; to-- {
+			proof, err := NewProof(items, int64(from), int64(to))
+			require.NoError(t, err)
 			isValid := proof.Verify(hash, items[from:to])
 			require.True(t, isValid)
 		}
@@ -45,8 +47,8 @@ func Test_VerifyMerkleProofFailed(t *testing.T) {
 
 	from, to := 0, 0
 	for {
-		from = rand.Intn(len(items))
-		to = rand.Intn(len(items))
+		from = rand.Intn(len(items) / 4)
+		to = rand.Intn(len(items) / 4)
 		if from == to {
 			continue
 		}
@@ -56,7 +58,8 @@ func Test_VerifyMerkleProofFailed(t *testing.T) {
 		}
 	}
 
-	proof := NewProof(items, int64(from), int64(to))
+	proof, err := NewProof(items, int64(from), int64(to))
+	require.NoError(t, err)
 	isValid := proof.Verify(hash, items[from:to])
 	require.True(t, isValid)
 
@@ -95,7 +98,22 @@ func Test_VerifyMerkleProofFailed(t *testing.T) {
 		{
 			name: "mismatched items and hash",
 			doFn: func(t *testing.T) {
-				proof.Verify(invalidHash, invalidItems[from:to])
+				isValid := proof.Verify(invalidHash, invalidItems[from:to])
+				require.False(t, isValid)
+			},
+		},
+		{
+			name: "correct indexes for ods",
+			doFn: func(t *testing.T) {
+				_, err = NewProof(items, 20, 36)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "end index is less than start index",
+			doFn: func(t *testing.T) {
+				_, err = NewProof(nil, 20, 0)
+				require.Error(t, err)
 			},
 		},
 	}
@@ -119,8 +137,8 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 	items := append(roots.RowRoots, roots.ColumnRoots...) //nolint: gocritic
 	from, to := 0, 0
 	for {
-		from = rand.Intn(len(items))
-		to = rand.Intn(len(items))
+		from = rand.Intn(len(items) / 4)
+		to = rand.Intn(len(items) / 4)
 		if from == to {
 			continue
 		}
@@ -137,7 +155,8 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "json marshaling/unmarshalling",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(&nmtProof1, &nmtProof2, roots, int64(from), int64(to))
+				dtProof, err := NewDataRootProof(&nmtProof1, &nmtProof2, roots, int64(from), int64(to))
+				require.NoError(t, err)
 				bb, err := json.Marshal(dtProof)
 				require.NoError(t, err)
 				newDtProof := &DataRootProof{}
@@ -149,7 +168,8 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "json marshaling/unmarshalling with empty shares proof",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
+				dtProof, err := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
+				require.NoError(t, err)
 				bb, err := json.Marshal(dtProof)
 				require.NoError(t, err)
 				newDtProof := &DataRootProof{}
@@ -159,9 +179,24 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 			},
 		},
 		{
+			name: "json marshaling/unmarshalling full range",
+			doFn: func(t *testing.T) {
+				from, to = 0, 64
+				dtProof, err := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
+				require.NoError(t, err)
+				bb, err := json.Marshal(dtProof)
+				require.NoError(t, err)
+				newDtProof := &DataRootProof{}
+				err = json.Unmarshal(bb, newDtProof)
+				require.NoError(t, err)
+				require.Equal(t, dtProof, newDtProof)
+			},
+		},
+		{
 			name: "proto encoding/decoding",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(&nmtProof1, &nmtProof2, roots, int64(from), int64(to))
+				dtProof, err := NewDataRootProof(&nmtProof1, &nmtProof2, roots, int64(from), int64(to))
+				require.NoError(t, err)
 				protoProof := dtProof.ToProto()
 				require.NoError(t, err)
 				newDtProof, err := DataRootProofFromProto(protoProof)
@@ -172,8 +207,9 @@ func Test_Encoding_Decoding_Proof(t *testing.T) {
 		{
 			name: "proto encoding/decoding with empty shares proof",
 			doFn: func(t *testing.T) {
-				dtProof := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
-				dtProof.rowRootProof = nil
+				dtProof, err := NewDataRootProof(nil, nil, roots, int64(from), int64(to))
+				require.NoError(t, err)
+				dtProof.merkleProof = nil
 				protoProof := dtProof.ToProto()
 				require.NoError(t, err)
 				newDtProof, err := DataRootProofFromProto(protoProof)
