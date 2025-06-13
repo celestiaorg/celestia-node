@@ -311,7 +311,6 @@ func testRangeNamespaceData(
 					actualSharesAmount := endCol - startCol + multiplier + 1
 					rngData, err := acc.RangeNamespaceData(
 						ctx,
-						namespace,
 						shwap.SampleCoords{Row: startRow, Col: startCol},
 						shwap.SampleCoords{Row: endRow, Col: endCol},
 					)
@@ -319,11 +318,10 @@ func testRangeNamespaceData(
 					shares := rngData.Flatten()
 					require.Equal(t, actualSharesAmount, len(shares))
 					require.NoError(t, err)
-					err = rngData.Verify(
-						namespace,
+					err = rngData.VerifyInclusion(
 						shwap.SampleCoords{Row: startRow, Col: startCol},
 						shwap.SampleCoords{Row: endRow, Col: endCol},
-						dah.Hash(),
+						dah.RowRoots[startRow:endRow+1],
 					)
 					require.NoError(t, err)
 				}

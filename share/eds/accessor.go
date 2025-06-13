@@ -37,9 +37,8 @@ type Accessor interface {
 	// from the Accessor. Response might have only proofs.
 	RangeNamespaceData(
 		ctx context.Context,
-		ns libshare.Namespace,
 		from, to shwap.SampleCoords,
-	) (shwap.RangeNamespaceData, error)
+	) (*shwap.RangeNamespaceData, error)
 }
 
 // AccessorStreamer is an interface that groups Accessor and Streamer interfaces.
