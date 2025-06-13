@@ -136,8 +136,9 @@ func (c *Client) doRequest(
 	case shrexpb.Status_OK:
 		// reset stream deadlines to original values, since read deadline was changed during status read
 		c.setStreamDeadlines(ctx, stream)
-		eds, err := c.readEDSWithContext(ctx, stream, root)
+		eds, err := c.readEDS(ctx, stream, root)
 		if err != nil {
+			stream.Reset() //nolint:errcheck
 			return nil, fmt.Errorf("read eds from stream: %w", err)
 		}
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusSuccess)
@@ -156,8 +157,8 @@ func (c *Client) doRequest(
 	}
 }
 
-// readEDSWithContext reads EDS data with context cancellation support.
-func (c *Client) readEDSWithContext(
+// readEDS reads EDS data with context cancellation support.
+func (c *Client) readEDS(
 	ctx context.Context, stream network.Stream, root *share.AxisRoots,
 ) (*eds.Rsmt2D, error) {
 	type result struct {
@@ -167,6 +168,7 @@ func (c *Client) readEDSWithContext(
 	resultCh := make(chan result, 1)
 
 	go func() {
+		defer close(resultCh)
 		eds, err := eds.ReadAccessor(ctx, stream, root)
 		resultCh <- result{eds: eds, err: err}
 	}()
@@ -175,7 +177,6 @@ func (c *Client) readEDSWithContext(
 	case res := <-resultCh:
 		return res.eds, res.err
 	case <-ctx.Done():
-		stream.Reset() //nolint:errcheck
 		return nil, ctx.Err()
 	}
 }
