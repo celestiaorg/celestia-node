@@ -112,12 +112,12 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 	newData := &shwap.RangeNamespaceData{}
 	err = json.Unmarshal(data, newData)
 	require.NoError(t, err)
-	assert.Equal(t, rngdata, *newData)
+	assert.Equal(t, rngdata, newData)
 
 	pbData := newData.ToProto()
 	rangeNsData, err := shwap.RangeNamespaceDataFromProto(pbData)
 	require.NoError(t, err)
-	assert.Equal(t, rngdata, *rangeNsData)
+	assert.Equal(t, rngdata, rangeNsData)
 }
 
 func FuzzRangeCoordsFromIdx(f *testing.F) {
