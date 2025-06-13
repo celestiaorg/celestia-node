@@ -14,7 +14,7 @@ import (
 )
 
 func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	namespace := libshare.RandomNamespace()
@@ -81,7 +81,7 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			blk, err := NewEmptyRangeNamespaceDataBlock(1, tc.ns, tc.from, tc.to, 16, false)
+			blk, err := NewEmptyRangeNamespaceDataBlock(1, tc.from, tc.to, 16, false)
 			if tc.expectErr {
 				require.Error(t, err)
 				return
@@ -92,7 +92,7 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 			err = Fetch(ctx, exchange, root, []Block{blk})
 			require.NoError(t, err)
 
-			err = blk.Container.Verify(tc.ns, tc.from, tc.to, root.Hash())
+			err = blk.Container.VerifyInclusion(tc.from, tc.to, root.RowRoots[tc.from.Row:tc.to.Row+1])
 			require.NoError(t, err)
 		})
 	}
