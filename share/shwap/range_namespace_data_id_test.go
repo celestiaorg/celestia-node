@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestNewRangeNamespaceDataID(t *testing.T) {
@@ -26,10 +24,8 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ns := libshare.RandomNamespace()
 			rngid, err := NewRangeNamespaceDataID(
 				EdsID{1},
-				ns,
 				tc.from,
 				tc.to,
 				tc.total,
@@ -52,10 +48,9 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 
 func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {
 	edsSize := 32
-	ns := libshare.RandomNamespace()
 	to, err := SampleCoordsFrom1DIndex(10, edsSize)
 	require.NoError(t, err)
-	rngid, err := NewRangeNamespaceDataID(EdsID{1}, ns, SampleCoords{Row: 0, Col: 1}, to, edsSize, false)
+	rngid, err := NewRangeNamespaceDataID(EdsID{1}, SampleCoords{Row: 0, Col: 1}, to, edsSize, false)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)

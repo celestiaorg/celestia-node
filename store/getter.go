@@ -114,20 +114,19 @@ func (g *Getter) GetNamespaceData(
 func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	h *header.ExtendedHeader,
-	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
 	proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
+) (*shwap.RangeNamespaceData, error) {
 	acc, err := g.store.GetByHeight(ctx, h.Height())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return shwap.RangeNamespaceData{}, shwap.ErrNotFound
+			return nil, shwap.ErrNotFound
 		}
-		return shwap.RangeNamespaceData{}, fmt.Errorf("getting accessor from store:%w", err)
+		return nil, fmt.Errorf("getting accessor from store:%w", err)
 	}
-	rngData, err := acc.RangeNamespaceData(ctx, ns, from, to)
+	rngData, err := acc.RangeNamespaceData(ctx, from, to)
 	if err != nil {
-		return shwap.RangeNamespaceData{}, fmt.Errorf("getting range from accessor:%w", err)
+		return nil, fmt.Errorf("getting range from accessor:%w", err)
 	}
 	if proofsOnly {
 		rngData.CleanupData()
