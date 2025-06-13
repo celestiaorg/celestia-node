@@ -206,7 +206,8 @@ func (m module) GetRange(
 	if err != nil {
 		return nil, err
 	}
-	to, err := shwap.SampleCoordsFrom1DIndex(end, len(hdr.DAH.RowRoots)/2)
+	// end is exclusive in the API but an inclusive for coords calculation
+	to, err := shwap.SampleCoordsFrom1DIndex(end-1, len(hdr.DAH.RowRoots)/2)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (m module) GetRange(
 	if err != nil {
 		return nil, err
 	}
-	return types.NewGetRangeResult(rngData, hdr)
+	return types.NewGetRangeResult(rngData, start, end, hdr.DAH)
 }
 
 func (m module) GetNamespaceData(
