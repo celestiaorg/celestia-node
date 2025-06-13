@@ -4,14 +4,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
 // combining SampleID size, Namespace size, 4 additional bytes
 // for the end coordinates of share of the range and uint representation of bool flag.
-const RangeNamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize + 10
+const RangeNamespaceDataIDSize = EdsIDSize + 10
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within a DataSquare (EDS)
 // that belong to a specific namespace. The range is defined by the coordinates of the first (`From`)
@@ -33,7 +31,7 @@ const RangeNamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize + 10
 //	  ProofsOnly: false,
 //	}
 type RangeNamespaceDataID struct {
-	NamespaceDataID
+	EdsID
 	// From specifies the coordinates of the first share in the range.
 	From SampleCoords
 	// To specifies the coordinates of the last share in the range.
@@ -45,17 +43,13 @@ type RangeNamespaceDataID struct {
 
 func NewRangeNamespaceDataID(
 	edsID EdsID,
-	namespace libshare.Namespace,
 	from SampleCoords,
 	to SampleCoords,
 	edsSize int,
 	proofsOnly bool,
 ) (RangeNamespaceDataID, error) {
 	rngid := RangeNamespaceDataID{
-		NamespaceDataID: NamespaceDataID{
-			EdsID:         edsID,
-			DataNamespace: namespace,
-		},
+		EdsID:      edsID,
 		From:       from,
 		To:         to,
 		ProofsOnly: proofsOnly,
@@ -75,10 +69,6 @@ func (rngid RangeNamespaceDataID) Verify(edsSize int) error {
 	if err != nil {
 		return fmt.Errorf("invalid EdsID: %w", err)
 	}
-	err = rngid.DataNamespace.ValidateForData()
-	if err != nil {
-		return err
-	}
 	fromIdx, err := SampleCoordsAs1DIndex(rngid.From, edsSize)
 	if err != nil {
 		return err
@@ -96,7 +86,7 @@ func (rngid RangeNamespaceDataID) Verify(edsSize int) error {
 
 // Validate performs basic fields validation.
 func (rngid RangeNamespaceDataID) Validate() error {
-	return rngid.DataNamespace.ValidateForData()
+	return nil
 }
 
 // ReadFrom reads the binary form of RangeNamespaceDataID from the provided reader.
@@ -127,7 +117,7 @@ func (rngid RangeNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
 
 // Equals checks equality of RangeNamespaceDataID.
 func (rngid *RangeNamespaceDataID) Equals(other RangeNamespaceDataID) bool {
-	return rngid.DataNamespace.Equals(other.DataNamespace) && rngid.From == other.From &&
+	return rngid.EdsID == other.EdsID && rngid.From == other.From &&
 		rngid.To == other.To
 }
 
@@ -153,21 +143,13 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 		Col: int(binary.BigEndian.Uint16(data[EdsIDSize+6 : EdsIDSize+8])),
 	}
 
-	ns, err := libshare.NewNamespaceFromBytes(data[EdsIDSize+8 : EdsIDSize+8+libshare.NamespaceSize])
-	if err != nil {
-		return RangeNamespaceDataID{}, fmt.Errorf("converting namespace from binary: %w", err)
-	}
-
 	var proofsOnly bool
 	if data[RangeNamespaceDataIDSize-1] == 1 {
 		proofsOnly = true
 	}
 
 	rngID := RangeNamespaceDataID{
-		NamespaceDataID: NamespaceDataID{
-			EdsID:         edsID,
-			DataNamespace: ns,
-		},
+		EdsID:      edsID,
 		From:       fromCoords,
 		To:         toCoords,
 		ProofsOnly: proofsOnly,
@@ -184,7 +166,7 @@ func (rngid RangeNamespaceDataID) MarshalBinary() ([]byte, error) {
 // appendTo helps in constructing the binary representation of RangeNamespaceDataID
 // by appending all encoded fields.
 func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
-	data, err := rngid.EdsID.AppendBinary(data)
+	data, err := rngid.AppendBinary(data)
 	if err != nil {
 		return nil, fmt.Errorf("appending EdsID: %w", err)
 	}
@@ -192,7 +174,6 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Col))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Row))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Col))
-	data = append(data, rngid.DataNamespace.Bytes()...)
 	if rngid.ProofsOnly {
 		data = binary.BigEndian.AppendUint16(data, 1)
 	} else {
