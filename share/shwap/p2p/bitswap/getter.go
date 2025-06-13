@@ -274,22 +274,17 @@ func (g *Getter) GetNamespaceData(
 func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
 	proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
-	if err := ns.ValidateForData(); err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
+) (*shwap.RangeNamespaceData, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-range")
 	defer span.End()
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
-		hdr.Height(), ns, from, to, len(hdr.DAH.RowRoots), proofsOnly,
+		hdr.Height(), from, to, len(hdr.DAH.RowRoots), proofsOnly,
 	)
 	if err != nil {
-		return shwap.RangeNamespaceData{}, err
+		return nil, err
 	}
 
 	isArchival := g.isArchival(hdr)
@@ -304,7 +299,7 @@ func (g *Getter) GetRangeNamespaceData(
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Fetch")
-		return shwap.RangeNamespaceData{}, err
+		return nil, err
 	}
 	return blks[0].(*RangeNamespaceDataBlock).Container, nil
 }

@@ -309,11 +309,10 @@ func (sg *Getter) GetNamespaceData(
 func (sg *Getter) GetRangeNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
-	_ libshare.Namespace,
 	_, _ shwap.SampleCoords,
 	_ bool,
-) (shwap.RangeNamespaceData, error) {
-	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
+) (*shwap.RangeNamespaceData, error) {
+	return nil, shwap.ErrOperationNotSupported
 }
 
 func (sg *Getter) getPeer(

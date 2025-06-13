@@ -80,8 +80,7 @@ type Getter interface {
 	GetRangeNamespaceData(
 		ctx context.Context,
 		header *header.ExtendedHeader,
-		namespace libshare.Namespace,
 		from, to SampleCoords,
 		proofsOnly bool,
-	) (RangeNamespaceData, error)
+	) (*RangeNamespaceData, error)
 }
