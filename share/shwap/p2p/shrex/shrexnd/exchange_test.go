@@ -151,8 +151,9 @@ func TestExchange_RequestND(t *testing.T) {
 		elapsed := time.Since(start)
 
 		assert.Error(t, err)
-		isCanceledOrReset := errors.Is(err, context.Canceled) ||
-			(err != nil && (strings.Contains(err.Error(), "stream reset") || strings.Contains(err.Error(), "context canceled")))
+isCanceled := errors.Is(err, context.Canceled)
+	isStreamReset := err != nil && strings.Contains(err.Error(), "stream reset")
+	isCanceledOrReset := isCanceled || isStreamReset
 		assert.True(t, isCanceledOrReset, "Expected context cancellation error, got: %v", err)
 		assert.Less(t, elapsed, 500*time.Millisecond, "Request should return quickly on context cancellation")
 	})
