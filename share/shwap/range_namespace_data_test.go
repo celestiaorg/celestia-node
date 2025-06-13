@@ -12,7 +12,6 @@ import (
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -23,59 +22,45 @@ func TestRangeNamespaceData(t *testing.T) {
 		odsSize      = 16
 		sharesAmount = odsSize * odsSize
 	)
-
-	ns := libshare.RandomNamespace()
-	square, root := edstest.RandEDSWithNamespace(t, ns, sharesAmount, odsSize)
-
-	nsRowStart := -1
-	for i, row := range root.RowRoots {
-		outside, err := share.IsOutsideRange(ns, row, row)
-		require.NoError(t, err)
-		if !outside {
-			nsRowStart = i
-			break
-		}
-	}
-	assert.Greater(t, nsRowStart, -1)
+	square, root := edstest.RandEDSWithNamespace(t, libshare.RandomNamespace(), sharesAmount, odsSize)
 
 	extended := &eds.Rsmt2D{ExtendedDataSquare: square}
+	nsRowStart := 0
+	nsColStart := 0
 
-	nsData, err := extended.RowNamespaceData(context.Background(), ns, nsRowStart)
-	require.NoError(t, err)
-	col := nsData.Proof.Start()
+	t.Logf("ns started at - row:%d col:%d ", nsRowStart, nsColStart)
+	// 18k test cases
+	for fromRow := nsRowStart; fromRow < odsSize; fromRow++ {
+		for fromCol := nsColStart; fromCol < odsSize; fromCol++ {
+			for toRow := odsSize - 1; toRow >= fromRow; toRow-- {
+				for toCol := odsSize - 1; toCol >= fromCol; toCol-- {
+					from := shwap.SampleCoords{Row: fromRow, Col: fromCol}
+					to := shwap.SampleCoords{Row: toRow, Col: toCol}
+					fromIndex, err := shwap.SampleCoordsAs1DIndex(from, odsSize)
+					require.NoError(t, err)
+					toIndex, err := shwap.SampleCoordsAs1DIndex(to, odsSize)
+					require.NoError(t, err)
+					str := fmt.Sprintf(
+						"range with coordinate from [%d;%d] to[%d;%d]. Number of shares:%d",
+						fromRow, fromCol, toRow, toCol, toIndex-fromIndex+1,
+					)
+					rawShares := make([][]libshare.Share, 0, toRow-fromRow+1)
+					for row := fromRow; row <= toRow; row++ {
+						rawShare := extended.Row(uint(row))
+						sh, err := libshare.FromBytes(rawShare)
+						require.NoError(t, err)
+						rawShares = append(rawShares, sh)
+					}
 
-	for i := 1; i <= odsSize; i++ {
-		t.Run(fmt.Sprintf("range of %d shares", i), func(t *testing.T) {
-			toRow, toCol := nsRowStart, col+i-1
-			for toCol >= odsSize {
-				toRow++
-				toCol -= odsSize
+					t.Run(str, func(t *testing.T) {
+						rngdata, err := shwap.RangeNamespaceDataFromShares(rawShares, from, to)
+						require.NoError(t, err)
+						err = rngdata.VerifyShares(rngdata.Shares, from, to, root.RowRoots[from.Row:to.Row+1], false)
+						require.NoError(t, err)
+					})
+				}
 			}
-
-			to := shwap.SampleCoords{Row: toRow, Col: toCol}
-			dataID, err := shwap.NewRangeNamespaceDataID(
-				shwap.EdsID{Height: 1},
-				ns,
-				shwap.SampleCoords{Row: nsRowStart, Col: col},
-				to,
-				sharesAmount,
-				false,
-			)
-			require.NoError(t, err)
-
-			rngdata, err := extended.RangeNamespaceData(
-				context.Background(),
-				dataID.DataNamespace,
-				shwap.SampleCoords{Row: dataID.From.Row, Col: dataID.From.Col},
-				to,
-			)
-			require.NoError(t, err)
-			err = rngdata.Verify(ns, dataID.From, dataID.To, root.Hash())
-			require.NoError(t, err)
-
-			err = rngdata.VerifyShares(rngdata.Shares, ns, dataID.From, dataID.To, root.Hash())
-			require.NoError(t, err)
-		})
+		}
 	}
 }
 
@@ -94,7 +79,7 @@ func TestRangeCoordsFromIdx(t *testing.T) {
 	for _, length := range rngLengths {
 		from, to, err := shwap.RangeCoordsFromIdx(0, length, edsSize)
 		require.NoError(t, err)
-		rngData, err := extended.RangeNamespaceData(ctx, ns, from, to)
+		rngData, err := extended.RangeNamespaceData(ctx, from, to)
 		require.NoError(t, err)
 		require.Equal(t, length, len(rngData.Flatten()))
 	}
@@ -114,12 +99,11 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 	to := shwap.SampleCoords{Row: odsSize - 1, Col: odsSize - 1}
 	rngdata, err := eds.RangeNamespaceData(
 		context.Background(),
-		ns,
 		from,
 		to,
 	)
 	require.NoError(t, err)
-	err = rngdata.Verify(ns, from, to, root.Hash())
+	err = rngdata.VerifyInclusion(from, to, root.RowRoots[from.Row:to.Row+1])
 	require.NoError(t, err)
 
 	data, err := json.Marshal(rngdata)
