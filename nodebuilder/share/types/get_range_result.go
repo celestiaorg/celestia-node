@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 
@@ -26,7 +26,11 @@ type GetRangeResult struct {
 	Proof  *types.ShareProof
 }
 
-func NewGetRangeResult(rngdata *shwap.RangeNamespaceData, start, end int, dah *da.DataAvailabilityHeader) (*GetRangeResult, error) {
+func NewGetRangeResult(
+	rngdata *shwap.RangeNamespaceData,
+	start, end int,
+	dah *da.DataAvailabilityHeader,
+) (*GetRangeResult, error) {
 	ns, err := parseNamespace(rngdata.Flatten(), start, end)
 	if err != nil {
 		return nil, err
@@ -144,18 +148,24 @@ func parseNamespace(rawShares []libshare.Share, startShare, endShare int) (libsh
 	}
 
 	if endShare <= startShare {
-		return libshare.Namespace{}, fmt.Errorf("end share %d cannot be lower or equal to the starting share %d", endShare, startShare)
+		return libshare.Namespace{}, fmt.Errorf(
+			"end share %d cannot be lower or equal to the starting share %d", endShare, startShare,
+		)
 	}
 
 	if endShare-startShare != len(rawShares) {
-		return libshare.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
+		return libshare.Namespace{}, fmt.Errorf(
+			"end share %d is higher than block shares %d", endShare, len(rawShares),
+		)
 	}
 
 	startShareNs := rawShares[startShare].Namespace()
 	for i, sh := range rawShares {
 		ns := sh.Namespace()
 		if !bytes.Equal(startShareNs.Bytes(), ns.Bytes()) {
-			return libshare.Namespace{}, fmt.Errorf("shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns)
+			return libshare.Namespace{}, fmt.Errorf(
+				"shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns,
+			)
 		}
 	}
 	return startShareNs, nil
