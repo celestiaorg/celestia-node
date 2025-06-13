@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	header "github.com/celestiaorg/celestia-node/header"
+	types "github.com/celestiaorg/celestia-node/nodebuilder/share/types"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
 	share "github.com/celestiaorg/go-square/v2/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
@@ -69,18 +70,18 @@ func (mr *MockModuleMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{})
 }
 
 // GetRange mocks base method.
-func (m *MockModule) GetRange(arg0 context.Context, arg1 share.Namespace, arg2 uint64, arg3, arg4 shwap.SampleCoords, arg5 bool) (shwap.RangeNamespaceData, error) {
+func (m *MockModule) GetRange(arg0 context.Context, arg1 uint64, arg2, arg3 int) (*types.GetRangeResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3, arg4, arg5)
-	ret0, _ := ret[0].(shwap.RangeNamespaceData)
+	ret := m.ctrl.Call(m, "GetRange", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*types.GetRangeResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRange indicates an expected call of GetRange.
-func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) GetRange(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3, arg4, arg5)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRange", reflect.TypeOf((*MockModule)(nil).GetRange), arg0, arg1, arg2, arg3)
 }
 
 // GetRow mocks base method.

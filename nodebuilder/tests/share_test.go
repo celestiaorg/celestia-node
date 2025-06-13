@@ -209,25 +209,23 @@ func TestShareModule(t *testing.T) {
 				require.NoError(t, err)
 				from, to, err := shwap.RangeCoordsFromIdx(sampledBlob.Index(), blobLength, len(dah.RowRoots))
 				require.NoError(t, err)
+				start, err := shwap.SampleCoordsAs1DIndex(from, len(dah.RowRoots)/2)
+				require.NoError(t, err)
+				end, err := shwap.SampleCoordsAs1DIndex(to, len(dah.RowRoots)/2)
+				require.NoError(t, err)
 				for _, client := range clients {
-					rng, err := client.Share.GetRange(ctx, nodeBlob[0].Namespace(), height, from, to, false)
+					rng, err := client.Share.GetRange(ctx, height, start, end)
 					require.NoError(t, err)
-					err = rng.Verify(nodeBlob[0].Namespace(), from, to, dah.Hash())
+					err = rng.Verify(dah.Hash())
 					require.NoError(t, err)
 
-					shrs := rng.Flatten()
+					shrs := rng.Shares
 					blbs, err := libshare.ParseBlobs(shrs)
 					require.NoError(t, err)
 
 					parsedBlob, err := blob.ToNodeBlobs(blbs...)
 					require.NoError(t, err)
 					require.Equal(t, nodeBlob[0].Commitment, parsedBlob[0].Commitment)
-
-					rngProofsOnly, err := client.Share.GetRange(ctx, nodeBlob[0].Namespace(), height, from, to, true)
-					require.NoError(t, err)
-					assert.Empty(t, rngProofsOnly.Shares)
-					err = rngProofsOnly.VerifyShares(rng.Shares, nodeBlob[0].Namespace(), from, to, dah.Hash())
-					require.NoError(t, err)
 				}
 			},
 		},

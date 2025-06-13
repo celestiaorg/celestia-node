@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share/types"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -70,11 +71,9 @@ type Module interface {
 	// the actual share data. Returns the range data with proofs or an error if retrieval fails.
 	GetRange(
 		ctx context.Context,
-		namespace libshare.Namespace,
 		height uint64,
-		fromCoords, toCoords shwap.SampleCoords,
-		proofsOnly bool,
-	) (shwap.RangeNamespaceData, error)
+		start, end int,
+	) (*types.GetRangeResult, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -107,11 +106,9 @@ type API struct {
 		) (shwap.NamespaceData, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
-			ns libshare.Namespace,
 			height uint64,
-			from, to shwap.SampleCoords,
-			proofsOnly bool,
-		) (shwap.RangeNamespaceData, error) `perm:"read"`
+			start, end int,
+		) (*types.GetRangeResult, error) `perm:"read"`
 	}
 }
 
@@ -137,10 +134,9 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 	return api.Internal.GetRow(ctx, height, rowIdx)
 }
 
-func (api *API) GetRange(
-	ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
-	return api.Internal.GetRange(ctx, ns, height, from, to, proofsOnly)
+func (api *API) GetRange(ctx context.Context, height uint64, from, to int,
+) (*types.GetRangeResult, error) {
+	return api.Internal.GetRange(ctx, height, from, to)
 }
 
 func (api *API) GetNamespaceData(
@@ -197,16 +193,29 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 
 func (m module) GetRange(
 	ctx context.Context,
-	ns libshare.Namespace,
 	height uint64,
-	from, to shwap.SampleCoords,
-	proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
-	header, err := m.hs.GetByHeight(ctx, height)
+	start, end int,
+) (*types.GetRangeResult, error) {
+	hdr, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
-		return shwap.RangeNamespaceData{}, err
+		return nil, err
 	}
-	return m.getter.GetRangeNamespaceData(ctx, header, ns, from, to, proofsOnly)
+
+	// build ODS coordinates from the provided indexes
+	from, err := shwap.SampleCoordsFrom1DIndex(start, len(hdr.DAH.RowRoots)/2)
+	if err != nil {
+		return nil, err
+	}
+	to, err := shwap.SampleCoordsFrom1DIndex(end, len(hdr.DAH.RowRoots)/2)
+	if err != nil {
+		return nil, err
+	}
+
+	rngData, err := m.getter.GetRangeNamespaceData(ctx, hdr, from, to, false)
+	if err != nil {
+		return nil, err
+	}
+	return types.NewGetRangeResult(rngData, hdr)
 }
 
 func (m module) GetNamespaceData(
