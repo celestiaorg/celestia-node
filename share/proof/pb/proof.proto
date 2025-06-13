@@ -1,0 +1,11 @@
+syntax = "proto3";
+package share.proof;
+
+option go_package = "github.com/celestiaorg/celestia-node/share/proof/pb";
+
+import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
+
+message IncompleteRowsProof {
+  .proof.pb.Proof firstIncompleteRowProof = 1;
+  .proof.pb.Proof lastIncompleteRowProof = 2;
+}
