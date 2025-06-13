@@ -1,5 +1,3 @@
-//go:build share || integration
-
 package tests
 
 import (
@@ -224,7 +222,7 @@ func TestShareModule(t *testing.T) {
 				end, err := shwap.SampleCoordsAs1DIndex(to, len(dah.RowRoots)/2)
 				require.NoError(t, err)
 				for _, client := range clients {
-					rng, err := client.Share.GetRange(ctx, height, start, end)
+					rng, err := client.Share.GetRange(ctx, height, start, end+1) // end is exclusive
 					require.NoError(t, err)
 					err = rng.Verify(dah.Hash())
 					require.NoError(t, err)
