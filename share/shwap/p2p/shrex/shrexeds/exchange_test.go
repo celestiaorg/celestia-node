@@ -2,6 +2,8 @@ package shrexeds
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -130,6 +132,77 @@ func TestExchange_RequestEDS(t *testing.T) {
 		wg.Wait()
 		_, err = client.RequestEDS(ctx, emptyRoot, 1, server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrNotFound)
+	})
+
+	// Testcase: Context cancellation should return quickly
+	t.Run("EDS_ContextCancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		eds := edstest.RandEDS(t, 4)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		height := uint64(2)
+
+		// create a slow handler that simulates a slow server response
+		slowHandler := func(stream network.Stream) {
+			time.Sleep(100 * time.Millisecond)
+
+			select {
+			case <-ctx.Done():
+				stream.Reset() //nolint:errcheck
+				return
+			default:
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+
+		// set slow handler
+		server.host.SetStreamHandler(server.protocolID, slowHandler)
+
+		// cancel after short deplay
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		start := time.Now()
+		_, err = client.RequestEDS(ctx, roots, height, server.host.ID())
+		elapsed := time.Since(start)
+
+		assert.Error(t, err)
+		isCanceledOrReset := errors.Is(err, context.Canceled) ||
+			(err != nil && (strings.Contains(err.Error(), "stream reset") || strings.Contains(err.Error(), "context canceled")))
+		assert.True(t, isCanceledOrReset, "Expected context cancellation error, got: %v", err)
+		assert.Less(t, elapsed, 500*time.Millisecond, "Request should return quickly on context cancellation")
+	})
+
+	// Testcase: Context cancellation during data reading should abort quickly
+	t.Run("EDS_ContextCancellationDuringDataReading", func(t *testing.T) {
+		store, client, server := makeExchange(t)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		err := server.Start(ctx)
+		require.NoError(t, err)
+
+		eds := edstest.RandEDS(t, 32)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		height := uint64(3)
+
+		err = store.PutODSQ4(ctx, roots, height, eds)
+		require.NoError(t, err)
+
+		// cancel the context immediately to simulate a quick cancellation
+		reqCtx, reqCancel := context.WithCancel(context.Background())
+		reqCancel()
+
+		_, err = client.RequestEDS(reqCtx, roots, height, server.host.ID())
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, context.Canceled), "Expected context.Canceled error, got: %v", err)
 	})
 }
 

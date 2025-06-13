@@ -46,7 +46,7 @@ func TestReadODSFromFile(t *testing.T) {
 	eds := edstest.RandEDS(t, 8)
 	f := createODSFile(t, eds)
 
-	ods, err := f.readODS()
+	ods, err := f.readODS(context.Background())
 	require.NoError(t, err)
 	for i, row := range ods {
 		original := eds.Row(uint(i))[:eds.Width()/2]
@@ -244,7 +244,7 @@ func createODSAccessor(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.Accesso
 
 func createCachedStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
 	f := createODSFile(t, eds)
-	_, err := f.readODS()
+	_, err := f.readODS(context.Background())
 	require.NoError(t, err)
 	return f
 }

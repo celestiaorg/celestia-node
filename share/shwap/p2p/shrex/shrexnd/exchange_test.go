@@ -2,6 +2,8 @@ package shrexnd
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	libhost "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -103,6 +106,83 @@ func TestExchange_RequestND(t *testing.T) {
 		wg.Wait()
 		_, err = client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrRateLimited)
+	})
+
+	// Testcase: Context cancellation should return quickly
+	t.Run("ND_ContextCancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		net, err := mocknet.FullMeshConnected(2)
+		require.NoError(t, err)
+
+		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
+		require.NoError(t, err)
+		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil)
+		require.NoError(t, err)
+
+		// create a slow handler that simulates a slow server response
+		slowHandler := func(stream network.Stream) {
+			time.Sleep(100 * time.Millisecond)
+
+			select {
+			case <-ctx.Done():
+				stream.Reset() //nolint:errcheck
+				return
+			default:
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+
+		require.NoError(t, server.Start(context.Background()))
+
+		// set slow handler
+		server.host.SetStreamHandler(server.protocolID, slowHandler)
+
+		// cancel after short delay
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		start := time.Now()
+		_, err = client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID())
+		elapsed := time.Since(start)
+
+		assert.Error(t, err)
+		isCanceledOrReset := errors.Is(err, context.Canceled) ||
+			(err != nil && (strings.Contains(err.Error(), "stream reset") || strings.Contains(err.Error(), "context canceled")))
+		assert.True(t, isCanceledOrReset, "Expected context cancellation error, got: %v", err)
+		assert.Less(t, elapsed, 500*time.Millisecond, "Request should return quickly on context cancellation")
+	})
+
+	// Testcase: Context cancellation during namespace data reading should abort quickly
+	t.Run("ND_ContextCancellationDuringDataReading", func(t *testing.T) {
+		edsStore, client, server := makeExchange(t)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		require.NoError(t, server.Start(ctx))
+
+		eds := edstest.RandEDS(t, 16)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		height := uint64(42)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, eds)
+		require.NoError(t, err)
+		namespace := libshare.RandomNamespace()
+
+		// cancel the context immediately to simulate a quick cancellation
+		reqCtx, reqCancel := context.WithCancel(context.Background())
+		reqCancel()
+
+		_, err = client.RequestND(reqCtx, height, namespace, server.host.ID())
+
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, context.Canceled), "Expected context.Canceled error, got: %v", err)
 	})
 }
 
