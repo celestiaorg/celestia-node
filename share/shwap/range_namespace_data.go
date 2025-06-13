@@ -237,6 +237,21 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), roots)
 	}
 
+	numIncompleteProofs := 0
+	if rngdata.Proof != nil {
+		if rngdata.Proof.FirstIncompleteRowProof != nil {
+			numIncompleteProofs++
+		}
+		if rngdata.Proof.LastIncompleteRowProof != nil {
+			numIncompleteProofs++
+		}
+	}
+	if numRows < numIncompleteProofs {
+		return fmt.Errorf(
+			"amount of row shares is less than amount of incomplete proofs: %d vs %d", numRows, numIncompleteProofs,
+		)
+	}
+
 	nth := nmt.NewNmtHasher(
 		share.NewSHA256Hasher(),
 		nmt_ns.ID(namespace.Bytes()).Size(),
