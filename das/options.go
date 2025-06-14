@@ -34,7 +34,12 @@ type Parameters struct {
 	BackgroundStoreInterval time.Duration
 
 	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
-	SampleFrom uint64
+	// TODO: Do we want to keep it ?
+	//  I would say no. A BN anyway doesn't use Daser and follows Syncer's configuration.
+	//  An (imaginary) FN, pruned or not, may always follow Tail to ensure blocks are in par with headers.
+	//  LN node is the same, except in future, it may sync below Tail, but this is going to be a constant networks
+	//  parameters and not something users would be allowed to configure (nor I think they would want)
+	// SampleFrom uint64
 
 	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
 	// canceled. High ConcurrencyLimit value may increase sampling time due to node resources being
@@ -52,7 +57,6 @@ func DefaultParameters() Parameters {
 		SamplingRange:           100,
 		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
-		SampleFrom:              1,
 		// SampleTimeout = approximate block time (with a bit of wiggle room) * max amount of catchup
 		// workers
 		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
@@ -85,12 +89,12 @@ func (p *Parameters) Validate() error {
 
 	// SampleFrom = 0 would tell the DASer to start sampling from block height 0
 	// which does not exist therefore breaking the DASer.
-	if p.SampleFrom <= 0 {
-		return errInvalidOptionValue(
-			"SampleFrom",
-			"negative or 0",
-		)
-	}
+	// if p.SampleFrom <= 0 {
+	// 	return errInvalidOptionValue(
+	// 		"SampleFrom",
+	// 		"negative or 0",
+	// 	)
+	// }
 
 	// SampleTimeout = 0 would fail every sample operation with timeout error
 	if p.SampleTimeout <= 0 {
@@ -143,11 +147,11 @@ func WithBackgroundStoreInterval(backgroundStoreInterval time.Duration) Option {
 
 // WithSampleFrom is a functional option to configure the daser's `SampleFrom` parameter
 // Refer to WithSamplingRange documentation to see an example of how to use this
-func WithSampleFrom(sampleFrom uint64) Option {
-	return func(d *DASer) {
-		d.params.SampleFrom = sampleFrom
-	}
-}
+// func WithSampleFrom(sampleFrom uint64) Option {
+// 	return func(d *DASer) {
+// 		d.params.SampleFrom = sampleFrom
+// 	}
+// }
 
 // WithSampleTimeout is a functional option to configure the daser's `SampleTimeout` parameter
 // Refer to WithSamplingRange documentation to see an example of how to use this
