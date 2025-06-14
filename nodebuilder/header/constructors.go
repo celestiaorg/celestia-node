@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
@@ -68,12 +69,27 @@ func newP2PExchange[H libhead.Header[H]](
 
 // newSyncer constructs new Syncer for headers.
 func newSyncer[H libhead.Header[H]](
+	ndtp node.Type,
+	net modp2p.Network,
 	ex libhead.Exchange[H],
 	store libhead.Store[H],
 	sub libhead.Subscriber[H],
 	cfg Config,
 ) (*sync.Syncer[H], error) {
-	opts := []sync.Option{sync.WithParams(cfg.Syncer), sync.WithBlockTime(modp2p.BlockTime)}
+	// sync from genesis unless configured differently and not a light not
+	if cfg.Syncer.SyncFromHash == nil && ndtp != node.Light {
+		hash, err := cfg.trustedHash(net)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.Syncer.SyncFromHash = hash
+	}
+
+	opts := []sync.Option{
+		sync.WithParams(cfg.Syncer),
+		sync.WithBlockTime(modp2p.BlockTime),
+	}
 	if MetricsEnabled {
 		opts = append(opts, sync.WithMetrics())
 	}
@@ -101,7 +117,6 @@ func newFraudedSyncer[H libhead.Header[H]](
 func newInitStore[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	cfg Config,
-	net modp2p.Network,
 	ds datastore.Batching,
 	ex libhead.Exchange[H],
 ) (libhead.Store[H], error) {
@@ -115,17 +130,8 @@ func newInitStore[H libhead.Header[H]](
 		return nil, err
 	}
 
-	trustedHash, err := cfg.trustedHash(net)
-	if err != nil {
-		return nil, err
-	}
-
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			err = store.Init[H](ctx, s, ex, trustedHash)
-			if err != nil {
-				return err
-			}
 			return s.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
