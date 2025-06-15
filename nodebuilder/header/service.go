@@ -70,15 +70,29 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	if height == 0 {
 		return nil, ErrHeightZero
 	}
+
 	head, err := s.syncer.Head(ctx)
 	switch {
 	case err != nil:
-		return nil, err
+		return nil, fmt.Errorf("getting head header: %w", err)
 	case head.Height() == height:
 		return head, nil
 	case head.Height()+1 < height:
 		return nil, fmt.Errorf("header: given height is from the future: "+
 			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
+	}
+
+	tail, err := s.store.Tail(ctx)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("getting tail header: %w", err)
+	case height < tail.Height():
+		log.Warnf(`requested header (%d) is below Tail (%d)
+		 	lazy fetching is not currently supported
+			make sure to set SyncFromHeight value in config covering desired header height`, height, tail.Height())
+		return nil, fmt.Errorf("requested header (%d) is below Tail (%d)", height, tail.Height())
+	case height == tail.Height():
+		return tail, nil
 	}
 
 	head, err = s.store.Head(ctx)
