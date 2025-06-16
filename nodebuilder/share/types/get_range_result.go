@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -15,7 +14,6 @@ import (
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/proof"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
@@ -28,31 +26,23 @@ type GetRangeResult struct {
 
 func NewGetRangeResult(
 	rngdata *shwap.RangeNamespaceData,
-	start, end int,
+	startIndex, endIndex int,
 	dah *da.DataAvailabilityHeader,
 ) (*GetRangeResult, error) {
-	ns, err := parseNamespace(rngdata.Flatten(), start, end)
+	ns, err := shwap.ParseNamespace(rngdata.Shares, startIndex, endIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	rawShares := make([][]byte, 0, rngdata.EndRow+1)
-	for _, shares := range rngdata.Shares {
-		rawShares = append(rawShares, libshare.ToBytes(shares)...)
-	}
+	odsSize := len(dah.RowRoots) / 2
+	startRow := startIndex / odsSize
+	endRow := (endIndex - 1) / odsSize
 
-	nmtProofs := make([]*nmt.Proof, rngdata.EndRow+1)
-	if rngdata.Proof != nil {
-		if rngdata.Proof.FirstIncompleteRowProof != nil {
-			nmtProofs[0] = rngdata.Proof.FirstIncompleteRowProof
-		}
-		if rngdata.Proof.LastIncompleteRowProof != nil {
-			nmtProofs[rngdata.EndRow] = rngdata.Proof.LastIncompleteRowProof
-		}
+	nmtProofs := make([]*nmt.Proof, len(rngdata.Shares))
+	nmtProofs[0] = rngdata.FirstIncompleteRowProof
+	if startRow != endRow {
+		nmtProofs[len(rngdata.Shares)-1] = rngdata.LastIncompleteRowProof
 	}
-
-	startRow := rngdata.StartRow
-	endRow := rngdata.EndRow
 	for i, nmtProof := range nmtProofs {
 		if nmtProof != nil {
 			continue
@@ -61,8 +51,8 @@ func NewGetRangeResult(
 		if err != nil {
 			return nil, err
 		}
-		proof, err := proof.GenerateSharesProofs(
-			int(startRow)+i,
+		proof, err := shwap.GenerateSharesProofs(
+			startRow+i,
 			0,
 			len(dah.RowRoots)/2,
 			len(dah.RowRoots)/2,
@@ -77,7 +67,8 @@ func NewGetRangeResult(
 
 	_, allProofs := merkle.ProofsFromByteSlices(append(dah.RowRoots, dah.ColumnRoots...))
 	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
-	rowRoots := make([]tmbytes.HexBytes, len(rowProofs))
+	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
+
 	for i := startRow; i <= endRow; i++ {
 		rowProofs[i-startRow] = &merkle.Proof{
 			Total:    allProofs[i].Total,
@@ -89,7 +80,7 @@ func NewGetRangeResult(
 	}
 
 	sharesProof := &types.ShareProof{
-		Data:             rawShares,
+		Data:             libshare.ToBytes(rngdata.Flatten()),
 		ShareProofs:      coreProofs,
 		NamespaceID:      ns.ID(),
 		NamespaceVersion: uint32(ns.Version()),
@@ -100,7 +91,6 @@ func NewGetRangeResult(
 			EndRow:   uint32(endRow),
 		},
 	}
-
 	return &GetRangeResult{
 		Shares: rngdata.Flatten(),
 		Proof:  sharesProof,
@@ -133,40 +123,4 @@ func toCoreNMTProof(proofs []*nmt.Proof) []*tmproto.NMTProof {
 		}
 	}
 	return coreProofs
-}
-
-// parseNamespace validates the share range, checks if it only contains one namespace and returns
-// that namespace ID.
-// The provided range, defined by startShare and endShare, is end-exclusive.
-func parseNamespace(rawShares []libshare.Share, startShare, endShare int) (libshare.Namespace, error) {
-	if startShare < 0 {
-		return libshare.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
-	}
-
-	if endShare < 0 {
-		return libshare.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
-	}
-
-	if endShare <= startShare {
-		return libshare.Namespace{}, fmt.Errorf(
-			"end share %d cannot be lower or equal to the starting share %d", endShare, startShare,
-		)
-	}
-
-	if endShare-startShare != len(rawShares) {
-		return libshare.Namespace{}, fmt.Errorf(
-			"end share %d is higher than block shares %d", endShare, len(rawShares),
-		)
-	}
-
-	startShareNs := rawShares[startShare].Namespace()
-	for i, sh := range rawShares {
-		ns := sh.Namespace()
-		if !bytes.Equal(startShareNs.Bytes(), ns.Bytes()) {
-			return libshare.Namespace{}, fmt.Errorf(
-				"shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns,
-			)
-		}
-	}
-	return startShareNs, nil
 }

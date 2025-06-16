@@ -92,7 +92,7 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 			err = Fetch(ctx, exchange, root, []Block{blk})
 			require.NoError(t, err)
 
-			err = blk.Container.VerifyInclusion(tc.from, tc.to, root.RowRoots[tc.from.Row:tc.to.Row+1])
+			err = blk.Container.VerifyInclusion(tc.from, tc.to, len(root.RowRoots)/2, root.RowRoots[tc.from.Row:tc.to.Row+1])
 			require.NoError(t, err)
 		})
 	}
