@@ -24,7 +24,6 @@ const (
 	StatusNotFound    status = "not_found"
 	StatusTimeout     status = "timeout"
 	StatusSuccess     status = "success"
-	StatusRateLimited status = "rate_limited"
 )
 
 type Metrics struct {

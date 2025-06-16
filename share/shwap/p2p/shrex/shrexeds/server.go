@@ -31,10 +31,8 @@ type Server struct {
 
 	store *store.Store
 
-	params *Parameters
-	// TODO: decouple middleware metrics from shrex and remove middleware from Server
-	middleware *shrex.Middleware
-	metrics    *shrex.Metrics
+	params  *Parameters
+	metrics *shrex.Metrics
 }
 
 // NewServer creates a new ShrEx/EDS server.
@@ -48,7 +46,6 @@ func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server,
 		store:      store,
 		protocolID: shrex.ProtocolID(params.NetworkID(), protocolString),
 		params:     params,
-		middleware: shrex.NewMiddleware(params.ConcurrencyLimit),
 	}, nil
 }
 
@@ -57,8 +54,7 @@ func (s *Server) Start(context.Context) error {
 	s.cancel = cancel
 
 	handler := s.streamHandler(ctx)
-	withRateLimit := s.middleware.RateLimitHandler(handler)
-	withRecovery := shrex.RecoveryMiddleware(withRateLimit)
+	withRecovery := shrex.RecoveryMiddleware(handler)
 	s.host.SetStreamHandler(s.protocolID, withRecovery)
 	return nil
 }
@@ -67,13 +63,6 @@ func (s *Server) Stop(context.Context) error {
 	defer s.cancel()
 	s.host.RemoveStreamHandler(s.protocolID)
 	return nil
-}
-
-func (s *Server) observeRateLimitedRequests() {
-	numRateLimited := s.middleware.DrainCounter()
-	if numRateLimited > 0 {
-		s.metrics.ObserveRequests(context.Background(), numRateLimited, shrex.StatusRateLimited)
-	}
 }
 
 func (s *Server) streamHandler(ctx context.Context) network.StreamHandler {
@@ -93,10 +82,6 @@ func (s *Server) streamHandler(ctx context.Context) network.StreamHandler {
 func (s *Server) handleEDS(ctx context.Context, stream network.Stream) error {
 	logger := log.With("peer", stream.Conn().RemotePeer().String())
 	logger.Debug("server: handling eds request")
-	// observe rate limited requests is draining the counter for rate limited requests
-	// since last handleStream call. This is not optimal observing strategy, but it is
-	// good enough for now. Will be improved in shrex unification PR.
-	s.observeRateLimitedRequests()
 
 	// read request from stream to get the dataHash for store lookup
 	id, err := s.readRequest(logger, stream)

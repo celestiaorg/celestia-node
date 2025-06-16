@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
@@ -130,11 +129,6 @@ func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {
 	var resp shrexpb.Response
 	_, err := serde.Read(stream, &resp)
 	if err != nil {
-		// server is overloaded and closed the stream
-		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, shrex.StatusRateLimited)
-			return shrex.ErrRateLimited
-		}
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
 		stream.Reset() //nolint:errcheck
 		return fmt.Errorf("client-nd: reading status response: %w", err)
