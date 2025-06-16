@@ -55,7 +55,13 @@ func TestRangeNamespaceData(t *testing.T) {
 					t.Run(str, func(t *testing.T) {
 						rngdata, err := shwap.RangeNamespaceDataFromShares(rawShares, from, to)
 						require.NoError(t, err)
-						err = rngdata.VerifyShares(rngdata.Shares, from, to, root.RowRoots[from.Row:to.Row+1], false)
+						err = rngdata.VerifyShares(
+							rngdata.Shares,
+							from, to,
+							len(root.RowRoots)/2,
+							root.RowRoots[from.Row:to.Row+1],
+							false,
+						)
 						require.NoError(t, err)
 					})
 				}
@@ -103,7 +109,7 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 		to,
 	)
 	require.NoError(t, err)
-	err = rngdata.VerifyInclusion(from, to, root.RowRoots[from.Row:to.Row+1])
+	err = rngdata.VerifyInclusion(from, to, len(root.RowRoots)/2, root.RowRoots[from.Row:to.Row+1])
 	require.NoError(t, err)
 
 	data, err := json.Marshal(rngdata)

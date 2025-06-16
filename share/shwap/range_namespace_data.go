@@ -9,9 +9,9 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/proof"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
@@ -25,18 +25,19 @@ import (
 // Fields:
 //   - Shares: A 2D slice of shares where each inner slice represents a row. The shares must
 //     all belong to the same namespace and fall within the [from, to] coordinate range.
-//   - Proof: A Proof object (contains proofs for the boundary rows of a data range)
+//   - FirstIncompleteRowProof: A Proof object (contains proofs for the first row of a data range)
+//   - LastIncompleteRowProof: A Proof object (contains proofs for the last row of a data range)
 //
 // Notes:
 //   - Consumers of this struct should ensure that Verify() is called to validate the data
 //     against the respective row roots using the populated or generated proofs.
 //   - This structure is commonly used in blob availability proofs, light client verification,
 //     and namespace-scoped retrieval over the shwap or DAS interfaces.
+//   - FirstIncompleteRowProof, LastIncompleteRowProof can be empty
 type RangeNamespaceData struct {
-	StartRow int64                      `json:"start_row"`
-	EndRow   int64                      `json:"end_row"`
-	Shares   [][]libshare.Share         `json:"shares,omitempty"`
-	Proof    *proof.IncompleteRowsProof `json:"incomplete_row_proof,omitempty"`
+	Shares                  [][]libshare.Share `json:"shares,omitempty"`
+	FirstIncompleteRowProof *nmt.Proof         `json:"first_row_proof,omitempty"`
+	LastIncompleteRowProof  *nmt.Proof         `json:"last_row_proof,omitempty"`
 }
 
 // RangeNamespaceDataFromShares constructs a RangeNamespaceData structure from a selection
@@ -85,8 +86,9 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 	endProof := endsMidRow && isMultiRow
 
 	var (
-		incompleteRowProof = &proof.IncompleteRowsProof{}
-		err                error
+		firstIncompleteRowProof *nmt.Proof
+		lastIncompleteRowProof  *nmt.Proof
+		err                     error
 	)
 
 	if startProof {
@@ -94,7 +96,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 		if isSingleRow {
 			endCol = to.Col + 1
 		}
-		incompleteRowProof.FirstIncompleteRowProof, err = proof.GenerateSharesProofs(
+		firstIncompleteRowProof, err = GenerateSharesProofs(
 			from.Row,
 			from.Col,
 			endCol,
@@ -109,7 +111,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 
 	// incomplete to.Col needs a proof for the last row to be computed
 	if endProof {
-		incompleteRowProof.LastIncompleteRowProof, err = proof.GenerateSharesProofs(
+		lastIncompleteRowProof, err = GenerateSharesProofs(
 			to.Row,
 			0,
 			to.Col+1,
@@ -134,10 +136,9 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 		}
 	}
 	return &RangeNamespaceData{
-		StartRow: int64(from.Row),
-		EndRow:   int64(to.Row),
-		Shares:   shares,
-		Proof:    incompleteRowProof,
+		Shares:                  shares,
+		FirstIncompleteRowProof: firstIncompleteRowProof,
+		LastIncompleteRowProof:  lastIncompleteRowProof,
 	}, nil
 }
 
@@ -167,9 +168,10 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 func (rngdata *RangeNamespaceData) VerifyInclusion(
 	from SampleCoords,
 	to SampleCoords,
+	odsSize int,
 	roots [][]byte,
 ) error {
-	return rngdata.VerifyShares(rngdata.Shares, from, to, roots, false)
+	return rngdata.VerifyShares(rngdata.Shares, from, to, odsSize, roots, false)
 }
 
 // VerifyNamespace checks whether the shares stored within the RangeNamespaceData (`rngdata.Shares`)
@@ -178,9 +180,10 @@ func (rngdata *RangeNamespaceData) VerifyInclusion(
 func (rngdata *RangeNamespaceData) VerifyNamespace(
 	from SampleCoords,
 	to SampleCoords,
+	odsSize int,
 	roots [][]byte,
 ) error {
-	return rngdata.VerifyShares(rngdata.Shares, from, to, roots, true)
+	return rngdata.VerifyShares(rngdata.Shares, from, to, odsSize, roots, true)
 }
 
 // VerifyShares verifies that the provided 2D slice of shares is valid and correctly
@@ -211,106 +214,60 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 	shares [][]libshare.Share,
 	from SampleCoords,
 	to SampleCoords,
-	roots [][]byte,
+	odsSize int,
+	expectedRoots [][]byte,
 	nsCompleteness bool,
 ) error {
-	if len(shares) == 0 {
-		return errors.New("empty rows share list")
+	if to.Row-from.Row+1 != len(shares) {
+		return fmt.Errorf("mismatched number of rows: expected %d vs got %d", to.Row-from.Row+1, len(shares))
 	}
-	if len(shares[0]) == 0 {
-		return errors.New("empty shares list")
+	if len(expectedRoots) != len(shares) {
+		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), expectedRoots)
 	}
-	if rngdata.StartRow != int64(from.Row) {
-		return fmt.Errorf("mismatched start row index: expected %d vs got %d", from.Row, rngdata.StartRow)
-	}
-	if rngdata.EndRow != int64(to.Row) {
-		return fmt.Errorf("mismatched end row index: expected %d vs got %d", from.Row, rngdata.StartRow)
-	}
-
-	namespace := shares[0][0].Namespace()
-	numRows := to.Row - from.Row + 1
-
-	if numRows != len(shares) {
-		return fmt.Errorf("mismatched number of rows: expected %d vs got %d", numRows, len(shares))
-	}
-	if len(roots) != len(shares) {
-		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), roots)
-	}
-
-	numIncompleteProofs := 0
-	if rngdata.Proof != nil {
-		if rngdata.Proof.FirstIncompleteRowProof != nil {
-			numIncompleteProofs++
-		}
-		if rngdata.Proof.LastIncompleteRowProof != nil {
-			numIncompleteProofs++
-		}
-	}
-	if numRows < numIncompleteProofs {
+	if rngdata.FirstIncompleteRowProof != nil && rngdata.FirstIncompleteRowProof.Start() != from.Col {
 		return fmt.Errorf(
-			"amount of row shares is less than amount of incomplete proofs: %d vs %d", numRows, numIncompleteProofs,
+			"first col share index mismatch: expected %d vs got %d", from.Col, rngdata.FirstIncompleteRowProof.Start(),
+		)
+	}
+	if rngdata.LastIncompleteRowProof != nil && rngdata.LastIncompleteRowProof.End()-1 != to.Col {
+		return fmt.Errorf(
+			"last share index mismatch: expected %d vs got %d", to.Col, rngdata.LastIncompleteRowProof.End()-1,
 		)
 	}
 
-	nth := nmt.NewNmtHasher(
-		share.NewSHA256Hasher(),
-		nmt_ns.ID(namespace.Bytes()).Size(),
-		true,
-	)
-	proofs := rngdata.Proof
-
-	var nmtProofs []*nmt.Proof
-	if proofs != nil {
-		nmtProofs = []*nmt.Proof{rngdata.Proof.FirstIncompleteRowProof, rngdata.Proof.LastIncompleteRowProof}
+	startIndex, err := SampleCoordsAs1DIndex(from, odsSize)
+	if err != nil {
+		return err
+	}
+	endIndex, err := SampleCoordsAs1DIndex(to, odsSize)
+	if err != nil {
+		return err
 	}
 
-	rowRoots := make([][]byte, numRows)
-	for _, nmtProof := range nmtProofs {
-		if nmtProof == nil {
-			continue
-		}
+	ns, err := ParseNamespace(shares, startIndex, endIndex+1)
+	if err != nil {
+		return err
+	}
 
-		if nmtProof.IsOfAbsence() {
-			return fmt.Errorf("absence proof is not expected")
-		}
+	computedRoots := make([][]byte, len(shares))
+	firstRoot, err := computeRoot(shares[0], ns, rngdata.FirstIncompleteRowProof, nsCompleteness)
+	if err != nil {
+		return err
+	}
+	lastRoot, err := computeRoot(shares[len(shares)-1], ns, rngdata.LastIncompleteRowProof, nsCompleteness)
+	if err != nil {
+		return err
+	}
 
-		var (
-			leaves [][]byte // The actual share data to hash
-			index  uint     // Index of the row being processed(first or last)
-		)
-
-		if nmtProof.Start() > 0 {
-			if from.Col != nmtProof.Start() {
-				return fmt.Errorf("mismatched start column index: expected %d got %d", from.Col, nmtProof.Start())
-			}
-			leaves = libshare.ToBytes(shares[0])
-		} else {
-			if to.Col != nmtProof.End()-1 {
-				return fmt.Errorf("mismatched end column index: expected %d got %d", to.Col, nmtProof.End())
-			}
-			leaves = libshare.ToBytes(shares[numRows-1])
-			index = uint(numRows - 1)
-		}
-
-		nth.Reset()
-		// Compute leaf hashes for the namespace merkle tree
-		hashes, err := nmt.ComputePrefixedLeafHashes(nth, namespace.Bytes(), leaves)
-		if err != nil {
-			return fmt.Errorf("failed to compute leaf hashes: %w", err)
-		}
-
-		// Compute the row root using the namespace merkle tree proof
-		root, err := nmtProof.ComputeRootWithBasicValidation(nth, namespace.Bytes(), hashes, nsCompleteness)
-		if err != nil {
-			return fmt.Errorf("failed to compute root with leaf hashes: %w", err)
-		}
-		rowRoots[index] = root
+	computedRoots[0] = firstRoot
+	if len(shares) > 1 {
+		computedRoots[len(shares)-1] = lastRoot
 	}
 
 	// Handle rows that don't have namespace proofs (complete rows)
-	for i := range rowRoots {
+	for i := range computedRoots {
 		// Skip rows that already have their roots computed from proofs
-		if rowRoots[i] != nil {
+		if computedRoots[i] != nil {
 			continue
 		}
 
@@ -325,13 +282,13 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 			return fmt.Errorf("failed to build shares proof: %w", err)
 		}
 
-		// Store the computed root for this row
-		rowRoots[i] = root
+		// Store the computed root for the row
+		computedRoots[i] = root
 	}
 
-	for i, root := range roots {
-		if !bytes.Equal(root, rowRoots[i]) {
-			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, rowRoots[i])
+	for i, root := range expectedRoots {
+		if !bytes.Equal(root, computedRoots[i]) {
+			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, expectedRoots[i])
 		}
 	}
 	return nil
@@ -358,10 +315,9 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
 	}
 
 	return &pb.RangeNamespaceData{
-		StartRow: rngdata.StartRow,
-		EndRow:   rngdata.EndRow,
-		Shares:   pbShares,
-		Proof:    rngdata.Proof.ToProto(),
+		Shares:                  pbShares,
+		FirstIncompleteRowProof: nmtToNmtPbProof(rngdata.FirstIncompleteRowProof),
+		LastIncompleteRowProof:  nmtToNmtPbProof(rngdata.LastIncompleteRowProof),
 	}
 }
 
@@ -373,7 +329,7 @@ func (rngdata *RangeNamespaceData) CleanupData() {
 }
 
 func (rngdata *RangeNamespaceData) IsEmpty() bool {
-	return rngdata == nil || rngdata.Proof == nil
+	return rngdata == nil
 }
 
 func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (*RangeNamespaceData, error) {
@@ -388,10 +344,9 @@ func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (*RangeNamespaceData
 	}
 
 	return &RangeNamespaceData{
-		StartRow: nd.StartRow,
-		EndRow:   nd.EndRow,
-		Shares:   shares,
-		Proof:    proof.IncompleteRowsProofFromProto(nd.Proof),
+		Shares:                  shares,
+		FirstIncompleteRowProof: pbNmtToNmtProof(nd.FirstIncompleteRowProof),
+		LastIncompleteRowProof:  pbNmtToNmtProof(nd.LastIncompleteRowProof),
 	}, nil
 }
 
@@ -417,6 +372,39 @@ func RangeCoordsFromIdx(edsIndex, length, edsSize int) (SampleCoords, SampleCoor
 	return from, toCoords, nil
 }
 
+func computeRoot(
+	shares []libshare.Share,
+	ns libshare.Namespace,
+	proof *nmt.Proof, nsCompleteness bool,
+) ([]byte, error) {
+	// this is an expected behavior.
+	if proof == nil {
+		return nil, nil
+	}
+
+	if len(shares) == 0 {
+		return nil, errors.New("empty share list")
+	}
+
+	nth := nmt.NewNmtHasher(
+		share.NewSHA256Hasher(),
+		nmt_ns.ID(ns.Bytes()).Size(),
+		true,
+	)
+
+	if proof.IsEmptyProof() || proof.IsOfAbsence() {
+		return nil, fmt.Errorf("incomplete row proof is invalid")
+	}
+
+	// Compute leaf hashes for the namespace merkle tree
+	hashes, err := nmt.ComputePrefixedLeafHashes(nth, ns.Bytes(), libshare.ToBytes(shares))
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute leaf hashes: %w", err)
+	}
+	// Compute the row root using the namespace merkle tree proof
+	return proof.ComputeRootWithBasicValidation(nth, ns.Bytes(), hashes, nsCompleteness)
+}
+
 func buildTreeRootFromLeaves(shares [][]byte, index uint) ([]byte, error) {
 	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), index)
 	for _, shr := range shares {
@@ -425,4 +413,87 @@ func buildTreeRootFromLeaves(shares [][]byte, index uint) ([]byte, error) {
 		}
 	}
 	return tree.Root()
+}
+
+func nmtToNmtPbProof(proof *nmt.Proof) *nmt_pb.Proof {
+	if proof == nil {
+		return nil
+	}
+	return &nmt_pb.Proof{
+		Start:                 int64(proof.Start()),
+		End:                   int64(proof.End()),
+		Nodes:                 proof.Nodes(),
+		LeafHash:              proof.LeafHash(),
+		IsMaxNamespaceIgnored: proof.IsMaxNamespaceIDIgnored(),
+	}
+}
+
+func pbNmtToNmtProof(pbproof *nmt_pb.Proof) *nmt.Proof {
+	if pbproof == nil {
+		return nil
+	}
+	proof := nmt.ProtoToProof(*pbproof)
+	return &proof
+}
+
+// ParseNamespace validates the share range, checks if it only contains one namespace and returns
+// that namespace.
+// The provided range, defined by startShare and endShare, is end-exclusive.
+func ParseNamespace(rawShares [][]libshare.Share, startShare, endShare int) (libshare.Namespace, error) {
+	if startShare < 0 {
+		return libshare.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
+	}
+
+	if endShare <= 0 {
+		return libshare.Namespace{}, fmt.Errorf("end share %d should be greater the 0", endShare)
+	}
+
+	if endShare <= startShare {
+		return libshare.Namespace{}, fmt.Errorf(
+			"end share %d cannot be lower or equal to the starting share %d", endShare, startShare,
+		)
+	}
+
+	sharesAmount := 0
+	for _, shr := range rawShares {
+		sharesAmount += len(shr)
+	}
+
+	if endShare-startShare != sharesAmount {
+		return libshare.Namespace{}, fmt.Errorf(
+			"mismatch shares amount expected %d got %d", endShare-startShare, sharesAmount,
+		)
+	}
+
+	startShareNs := rawShares[0][0].Namespace()
+	for i, rowShares := range rawShares {
+		for j, sh := range rowShares {
+			ns := sh.Namespace()
+			if !bytes.Equal(startShareNs.Bytes(), ns.Bytes()) {
+				return libshare.Namespace{}, fmt.Errorf(
+					"shares range contain different namespaces at index [%d:%d] %v ", i, j, ns,
+				)
+			}
+		}
+	}
+	return startShareNs, nil
+}
+
+func GenerateSharesProofs(
+	row, fromCol, toCol, size int,
+	rowShares []libshare.Share,
+) (*nmt.Proof, error) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(size), uint(row))
+
+	for i, shr := range rowShares {
+		if err := tree.Push(shr.ToBytes()); err != nil {
+			return nil, fmt.Errorf("failed to build tree at share index %d (row %d): %w", i, row, err)
+		}
+	}
+
+	proof, err := tree.ProveRange(fromCol, toCol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate proof for row %d, range %d-%d: %w", row, fromCol, toCol, err)
+	}
+	return &proof, nil
 }
