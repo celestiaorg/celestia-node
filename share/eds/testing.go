@@ -321,6 +321,7 @@ func testRangeNamespaceData(
 					err = rngData.VerifyInclusion(
 						shwap.SampleCoords{Row: startRow, Col: startCol},
 						shwap.SampleCoords{Row: endRow, Col: endCol},
+						len(dah.RowRoots)/2,
 						dah.RowRoots[startRow:endRow+1],
 					)
 					require.NoError(t, err)

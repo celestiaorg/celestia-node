@@ -4,7 +4,6 @@ package shwap;
 option go_package = "github.com/celestiaorg/celestia-node/share/shwap/pb";
 
 import "pb/proof.proto"; // celestiaorg/nmt/pb/proof.proto
-import "share/proof/pb/proof.proto";
 
 message Row {
     repeated Share shares_half = 1;
@@ -36,10 +35,9 @@ message RowShares {
 }
 
 message RangeNamespaceData {
-    int64 StartRow  = 1;
-    int64 EndRow  = 2;
-    repeated RowShares shares = 3;
-    share.proof.IncompleteRowsProof proof = 4;
+    repeated RowShares shares = 1;
+    proof.pb.Proof firstIncompleteRowProof = 2;
+    proof.pb.Proof lastIncompleteRowProof = 3;
 }
 
 message Share {

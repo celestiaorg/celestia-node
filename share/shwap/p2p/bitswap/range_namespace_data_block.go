@@ -140,6 +140,7 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 
 		if err = rangeNsData.VerifyInclusion(
 			rndid.From, rndid.To,
+			len(root.RowRoots)/2,
 			root.RowRoots[rndid.From.Row:rndid.To.Row+1],
 		); err != nil {
 			return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
