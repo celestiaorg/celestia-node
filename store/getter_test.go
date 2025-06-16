@@ -81,11 +81,11 @@ func TestStoreGetter(t *testing.T) {
 		for i := range eh.DAH.RowRoots {
 			row, err := sg.GetRow(ctx, eh, i)
 			require.NoError(t, err)
-			retreivedShrs, err := row.Shares()
+			retrievedShrs, err := row.Shares()
 			require.NoError(t, err)
 			edsShrs, err := libshare.FromBytes(eds.Row(uint(i)))
 			require.NoError(t, err)
-			require.Equal(t, edsShrs, retreivedShrs)
+			require.Equal(t, edsShrs, retrievedShrs)
 		}
 	})
 
