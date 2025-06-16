@@ -367,6 +367,8 @@ github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4
 github.com/bytedance/sonic/loader v0.2.4 h1:ZWCw4stuXUsn1/+zQDqeE7JKP+QO47tz7QCNan80NzY=
 github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFosQU6FxH2JmUe6VI=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
+github.com/celestiaorg/boxo v0.29.0-fork h1:gvoKagc3npL+ra8pEtgR+SMGGgeGsirJtzWrYQJ+5cs=
+github.com/celestiaorg/boxo v0.29.0-fork/go.mod h1:c3R52nMlgMsN1tADffYcogKoVRsX1RJE1TMYSpJ4uVs=
 github.com/celestiaorg/celestia-app/v4 v4.0.2-mocha h1:s/zfBD12S+WlNf+FaHKCKG8gCNUdQNc8emDRQ2cndSc=
 github.com/celestiaorg/celestia-app/v4 v4.0.2-mocha/go.mod h1:1jd4w2Y+6KVt7KEKiplXouNEmadSEx1qVgFzZwA+lwQ=
 github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17 h1:AHjnWwPoOFH5zr+aPqdWkF1CutP1ynVEOGOuW1/8iq8=
@@ -923,8 +925,6 @@ github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLf
 github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d/go.mod h1:qj24IKcXYK6Iy9ceXlo3Tc+vtHo9lIhSX5JddghvEPo=
 github.com/ipfs/bbloom v0.0.4 h1:Gi+8EGJ2y5qiD5FbsbpX/TMNcJw8gSqr7eyjHa4Fhvs=
 github.com/ipfs/bbloom v0.0.4/go.mod h1:cS9YprKXpoZ9lT0n/Mw/a6/aFV6DTjTLYHeA+gyqMG0=
-github.com/ipfs/boxo v0.29.0 h1:clzd7PglUcE+Ufq1KucS3aKID7pzGVaSgcdRsW395t4=
-github.com/ipfs/boxo v0.29.0/go.mod h1:c3R52nMlgMsN1tADffYcogKoVRsX1RJE1TMYSpJ4uVs=
 github.com/ipfs/go-block-format v0.2.0 h1:ZqrkxBA2ICbDRbK8KJs/u0O3dlp6gmAuuXUJNiW1Ycs=
 github.com/ipfs/go-block-format v0.2.0/go.mod h1:+jpL11nFx5A/SPpsoBn6Bzkra/zaArfSmsknbPMYgzM=
 github.com/ipfs/go-cid v0.5.0 h1:goEKKhaGm0ul11IHA7I6p1GmKz8kEYniqFopaB5Otwg=
