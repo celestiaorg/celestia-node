@@ -71,7 +71,7 @@ type CoreAccessor struct {
 	estimatorServiceTLS  bool
 	estimatorConn        *grpc.ClientConn
 
-	// these fields are mutatable and thus need to be protected by a mutex
+	// these fields are mutable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
 	payForBlobCount int64
