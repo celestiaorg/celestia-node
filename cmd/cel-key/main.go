@@ -26,7 +26,7 @@ var initClientCtx = client.Context{}.
 	WithInput(os.Stdin).
 	WithAccountRetriever(types.AccountRetriever{}).
 	WithBroadcastMode(flags.BroadcastSync).
-	WithHomeDir(app.DefaultNodeHome).
+	WithHomeDir(app.NodeHome).
 	WithViper("CELESTIA")
 
 var rootCmd = keys.Commands()
