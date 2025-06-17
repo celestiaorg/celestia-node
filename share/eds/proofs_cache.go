@@ -280,7 +280,7 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 func (c *proofsCache) RangeNamespaceData(
 	ctx context.Context,
 	from, to shwap.SampleCoords,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	return c.inner.RangeNamespaceData(ctx, from, to)
 }
 

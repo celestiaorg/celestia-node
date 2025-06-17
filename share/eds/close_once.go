@@ -96,9 +96,9 @@ func (c *closeOnce) Shares(ctx context.Context) ([]libshare.Share, error) {
 func (c *closeOnce) RangeNamespaceData(
 	ctx context.Context,
 	from, to shwap.SampleCoords,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	if c.closed.Load() {
-		return nil, errAccessorClosed
+		return shwap.RangeNamespaceData{}, errAccessorClosed
 	}
 	return c.f.RangeNamespaceData(ctx, from, to)
 }

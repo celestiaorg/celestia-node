@@ -108,7 +108,7 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	header *header.ExtendedHeader,
 	from, to shwap.SampleCoords,
 	proofsOnly bool,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	ctx, span := tracer.Start(
 		ctx,
 		"cascade/get-shares-range",
@@ -122,11 +122,11 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	defer span.End()
 
 	if from.Row > to.Row {
-		return nil,
+		return shwap.RangeNamespaceData{},
 			fmt.Errorf("start row must not be bigger to end row: %d-%d", from.Row, to.Row)
 	}
 
-	get := func(ctx context.Context, get shwap.Getter) (*shwap.RangeNamespaceData, error) {
+	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
 		return get.GetRangeNamespaceData(ctx, header, from, to, proofsOnly)
 	}
 

@@ -216,7 +216,7 @@ func (m module) GetRange(
 	if err != nil {
 		return nil, err
 	}
-	return types.NewGetRangeResult(rngData, start, end, hdr.DAH)
+	return types.NewGetRangeResult(start, end, &rngData, hdr.DAH)
 }
 
 func (m module) GetNamespaceData(
