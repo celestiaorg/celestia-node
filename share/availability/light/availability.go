@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -92,7 +95,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	defer release()
 
-	key := datastoreKeyForRoot(dah)
+	key := datastoreKeyForHeight(header.Height())
 	samples := &SamplingResult{}
 
 	// Attempt to load previous sampling results
@@ -183,19 +186,16 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 // Prune deletes samples and all sampling data corresponding to provided header from store.
 // The operation will remove all data that ShareAvailable might have created
 func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader) error {
-	dah := h.DAH
-	if share.DataHash(dah.Hash()).IsEmptyEDS() {
-		return nil
-	}
+	height := h.Height()
 
 	// Prevent multiple sampling and pruning sessions for the same header height
-	release, err := la.activeHeights.StartSession(ctx, h.Height())
+	release, err := la.activeHeights.StartSession(ctx, height)
 	if err != nil {
 		return err
 	}
 	defer release()
 
-	key := datastoreKeyForRoot(dah)
+	key := datastoreKeyForHeight(height)
 	la.dsLk.RLock()
 	data, err := la.ds.Get(ctx, key)
 	la.dsLk.RUnlock()
@@ -217,7 +217,10 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	for _, sample := range result.Available {
 		idx := shwap.SampleCoords{Row: sample.Row, Col: sample.Col}
 
-		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
+		// we don't know the exact EDS size, so we use the upper bound
+		// this is ok as the size is only used for validation purposes
+		edsSize := appconsts.SquareSizeUpperBound
+		blk, err := bitswap.NewEmptySampleBlock(height, idx, edsSize)
 		if err != nil {
 			return fmt.Errorf("marshal sample ID: %w", err)
 		}
@@ -226,7 +229,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 			if !errors.Is(err, ipld.ErrNodeNotFound) {
 				return fmt.Errorf("delete sample: %w", err)
 			}
-			log.Warnf("can't delete sample: %v, height: %v,  missing in blockstore", sample, h.Height())
+			log.Warnf("can't delete sample: %v, height: %v,  missing in blockstore", sample, height)
 		}
 	}
 
@@ -240,8 +243,8 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	return nil
 }
 
-func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
-	return datastore.NewKey(root.String())
+func datastoreKeyForHeight(height uint64) datastore.Key {
+	return datastore.NewKey(strconv.FormatUint(height, 10))
 }
 
 // Close flushes all queued writes to disk.

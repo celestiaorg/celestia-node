@@ -70,7 +70,7 @@ func TestSharesAvailableSuccess(t *testing.T) {
 	avail := NewShareAvailability(getter, ds, nil)
 
 	// Ensure the datastore doesn't have the sampling result yet
-	has, err := avail.ds.Has(ctx, datastoreKeyForRoot(roots))
+	has, err := avail.ds.Has(ctx, datastoreKeyForHeight(eh.Height()))
 	require.NoError(t, err)
 	require.False(t, has)
 
@@ -78,7 +78,7 @@ func TestSharesAvailableSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify that the sampling result is stored with all samples marked as available
-	data, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	data, err := avail.ds.Get(ctx, datastoreKeyForHeight(eh.Height()))
 	require.NoError(t, err)
 
 	var result SamplingResult
@@ -118,7 +118,7 @@ func TestSharesAvailableSkipSampled(t *testing.T) {
 	}
 	data, err := json.Marshal(samplingResult)
 	require.NoError(t, err)
-	err = avail.ds.Put(ctx, datastoreKeyForRoot(roots), data)
+	err = avail.ds.Put(ctx, datastoreKeyForHeight(eh.Height()), data)
 	require.NoError(t, err)
 
 	// SharesAvailable should now return nil since the success sampling result is stored
@@ -178,7 +178,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 		require.ErrorIs(t, err, share.ErrNotAvailable)
 
 		// The datastore should now contain the sampling result with all samples in Remaining
-		data, err := avail.ds.Get(ctx, datastoreKeyForRoot(tt.roots))
+		data, err := avail.ds.Get(ctx, datastoreKeyForHeight(tt.eh.Height()))
 		require.NoError(t, err)
 
 		var failed SamplingResult
@@ -201,7 +201,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 		require.NoError(t, err)
 
 		// The sampling result should now have all samples in Available
-		data, err = avail.ds.Get(ctx, datastoreKeyForRoot(tt.roots))
+		data, err = avail.ds.Get(ctx, datastoreKeyForHeight(tt.eh.Height()))
 		require.NoError(t, err)
 
 		var result SamplingResult
@@ -251,7 +251,7 @@ func TestParallelAvailability(t *testing.T) {
 	successfulGetter.checkOnce(t)
 
 	// Verify that the sampling result is stored with all samples marked as available
-	resultData, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	resultData, err := avail.ds.Get(ctx, datastoreKeyForHeight(eh.Height()))
 	require.NoError(t, err)
 
 	var samplingResult SamplingResult
@@ -365,7 +365,7 @@ func TestPruneAll(t *testing.T) {
 	require.Zero(t, postDeleteCount)
 
 	// Check if sampling result is deleted
-	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
+	exist, err := avail.ds.Has(ctx, datastoreKeyForHeight(h.Height()))
 	require.NoError(t, err)
 	require.False(t, exist)
 }
@@ -405,7 +405,7 @@ func TestPrunePartialFailed(t *testing.T) {
 	require.Zero(t, postDeleteCount)
 
 	// Check if sampling result is deleted
-	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
+	exist, err := avail.ds.Has(ctx, datastoreKeyForHeight(h.Height()))
 	require.NoError(t, err)
 	require.False(t, exist)
 }
@@ -453,7 +453,7 @@ func TestPruneWithCancelledContext(t *testing.T) {
 	require.Zero(t, postDeleteCount)
 
 	// Check if sampling result is deleted
-	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
+	exist, err := avail.ds.Has(ctx, datastoreKeyForHeight(h.Height()))
 	require.NoError(t, err)
 	require.False(t, exist)
 }
