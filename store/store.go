@@ -441,7 +441,7 @@ func (s *Store) HasQ4ByHash(_ context.Context, datahash share.DataHash) (bool, e
 	return exists(pathQ4File)
 }
 
-// RemoveODSQ4 removes both ODS and Q4 files from the Store indepotently.
+// RemoveODSQ4 removes both ODS and Q4 files from the Store idempotently.
 // Datahash parameter is allowed to be nil, in which case it is retrieved from the respective file.
 func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
 	tNow := time.Now()
@@ -491,7 +491,7 @@ func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
 	return nil
 }
 
-// RemoveODSQ4 removes only Q4 file from the Store indepotently.
+// RemoveQ4 removes only Q4 file from the Store idempotently.
 // Datahash parameter is allowed to be nil, in which case it is retrieved from the respective file.
 func (s *Store) RemoveQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
 	tNow := time.Now()
@@ -540,7 +540,8 @@ func (s *Store) dataHash(ctx context.Context, height uint64, datahash share.Data
 
 	datahash, err = acc.DataHash(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting datahash by height %d: %w", height, err)
+		err = fmt.Errorf("getting datahash by height %d: %w", height, err)
+		return nil, errors.Join(err, acc.Close())
 	}
 
 	err = acc.Close()
