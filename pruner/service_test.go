@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 )
 
@@ -334,9 +333,9 @@ type pruned struct {
 	height uint64
 }
 
-func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
+func (mp *mockPruner) Prune(_ context.Context, height uint64) error {
 	for fail := range mp.failHeight {
-		if h.Height() == fail {
+		if height == fail {
 			// if retried, return successful
 			if mp.failHeight[fail] > 0 {
 				return nil
@@ -345,6 +344,6 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 			return fmt.Errorf("failed to prune")
 		}
 	}
-	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
+	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{height: height})
 	return nil
 }

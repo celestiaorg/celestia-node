@@ -172,7 +172,7 @@ func (s *Service) prune(
 		for _, eh := range headers {
 			pruneCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
-			err = s.pruner.Prune(pruneCtx, eh)
+			err = s.pruner.Prune(pruneCtx, eh.Height())
 			if err != nil {
 				log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 				failed[eh.Height()] = struct{}{}
@@ -206,7 +206,7 @@ func (s *Service) retryFailed(ctx context.Context) {
 			log.Errorw("failed to load header from failed map", "height", failed, "err", err)
 			continue
 		}
-		err = s.pruner.Prune(ctx, h)
+		err = s.pruner.Prune(ctx, h.Height())
 		if err != nil {
 			log.Errorw("failed to prune block from failed map", "height", failed, "err", err)
 			continue
