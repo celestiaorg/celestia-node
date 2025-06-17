@@ -196,6 +196,6 @@ func (odsq4 *ODSQ4) Close() error {
 func (odsq4 *ODSQ4) RangeNamespaceData(
 	ctx context.Context,
 	from, to shwap.SampleCoords,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	return odsq4.ods.RangeNamespaceData(ctx, from, to)
 }

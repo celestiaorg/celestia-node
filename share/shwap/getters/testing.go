@@ -98,7 +98,7 @@ func (seg *SingleEDSGetter) GetRangeNamespaceData(
 	_ *header.ExtendedHeader,
 	_, _ shwap.SampleCoords,
 	_ bool,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	panic("SingleEDSGetter: GetRangeNamespaceData is not implemented")
 }
 
