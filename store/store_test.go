@@ -181,8 +181,7 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-			hash := share.DataHash(roots.Hash())
-			err = edsStore.RemoveODSQ4(ctx, height, hash)
+			err = edsStore.RemoveODSQ4(ctx, height, nil) // setting nil tests the entire codepath with and without nil
 			require.NoError(t, err)
 
 			// file should be removed from cache
@@ -190,6 +189,7 @@ func TestEDSStore(t *testing.T) {
 			require.ErrorIs(t, err, cache.ErrCacheMiss)
 
 			// empty file should be accessible by hash, non-empty file should not
+			hash := share.DataHash(roots.Hash())
 			hasByHash := hash.IsEmptyEDS()
 			// all files should not be accessible by height
 			hasByHashAndHeight(t, edsStore, ctx, hash, height, hasByHash, false)
@@ -209,8 +209,7 @@ func TestEDSStore(t *testing.T) {
 			require.NoError(t, err)
 			ensureAmountFileAndLinks(t, dir, test.addedFiles, test.addedLinks)
 
-			hash := share.DataHash(roots.Hash())
-			err = edsStore.RemoveQ4(ctx, height, hash)
+			err = edsStore.RemoveQ4(ctx, height, nil) // setting nil tests the entire codepath with and without nil
 			require.NoError(t, err)
 
 			// file should be removed from cache
@@ -218,6 +217,7 @@ func TestEDSStore(t *testing.T) {
 			require.ErrorIs(t, err, cache.ErrCacheMiss)
 
 			// ods file should still be accessible by hash and height
+			hash := share.DataHash(roots.Hash())
 			hasByHashAndHeight(t, edsStore, ctx, hash, height, true, true)
 
 			// ensure ods file and link are not removed
