@@ -311,8 +311,8 @@ func (sg *Getter) GetRangeNamespaceData(
 	_ *header.ExtendedHeader,
 	_, _ shwap.SampleCoords,
 	_ bool,
-) (*shwap.RangeNamespaceData, error) {
-	return nil, shwap.ErrOperationNotSupported
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
 }
 
 func (sg *Getter) getPeer(

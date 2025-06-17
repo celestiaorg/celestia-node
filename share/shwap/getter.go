@@ -82,5 +82,5 @@ type Getter interface {
 		header *header.ExtendedHeader,
 		from, to SampleCoords,
 		proofsOnly bool,
-	) (*RangeNamespaceData, error)
+	) (RangeNamespaceData, error)
 }

@@ -40,7 +40,7 @@ func init() {
 type RangeNamespaceDataBlock struct {
 	ID shwap.RangeNamespaceDataID
 
-	Container *shwap.RangeNamespaceData
+	Container shwap.RangeNamespaceData
 }
 
 // NewEmptyRangeNamespaceDataBlock constructs a new empty RangeNamespaceDataBlock.

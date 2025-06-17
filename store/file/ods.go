@@ -325,18 +325,18 @@ func (o *ODS) Reader() (io.Reader, error) {
 func (o *ODS) RangeNamespaceData(
 	_ context.Context,
 	from, to shwap.SampleCoords,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	shares := make([][]libshare.Share, to.Row-from.Row+1)
 
 	for row, idx := from.Row, 0; row <= to.Row; row++ {
 		half, err := o.readAxisHalf(rsmt2d.Row, row)
 		if err != nil {
-			return nil, fmt.Errorf("reading axis half: %w", err)
+			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
 		}
 
 		sh, err := half.Extended()
 		if err != nil {
-			return nil, fmt.Errorf("extending the data: %w", err)
+			return shwap.RangeNamespaceData{}, fmt.Errorf("extending the data: %w", err)
 		}
 		shares[idx] = sh
 		idx++

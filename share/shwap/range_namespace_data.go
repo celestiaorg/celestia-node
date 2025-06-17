@@ -55,17 +55,17 @@ type RangeNamespaceData struct {
 //   - A RangeNamespaceData containing the shares in the given namespace and Merkle proofs
 //     needed to verify them.
 //   - An error if the range is invalid or extraction fails.
-func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoords) (*RangeNamespaceData, error) {
+func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoords) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
-		return nil, errors.New("empty rows share list")
+		return RangeNamespaceData{}, errors.New("empty rows share list")
 	}
 	if len(shares[0]) == 0 {
-		return nil, errors.New("empty rows share list")
+		return RangeNamespaceData{}, errors.New("empty rows share list")
 	}
 
 	numRows := to.Row - from.Row + 1
 	if len(shares) != numRows {
-		return nil, fmt.Errorf("mismatched rows: expected %d vs got %d", numRows, len(shares))
+		return RangeNamespaceData{}, fmt.Errorf("mismatched rows: expected %d vs got %d", numRows, len(shares))
 	}
 
 	namespace := shares[0][from.Col].Namespace()
@@ -104,7 +104,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 			shares[0],
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
+			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
 		shares[0] = shares[0][from.Col:endCol]
 	}
@@ -119,7 +119,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 			shares[len(shares)-1],
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
+			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
 		shares[len(shares)-1] = shares[len(shares)-1][:to.Col+1]
 	}
@@ -131,11 +131,11 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 		}
 		for col, shr := range rowShares {
 			if !namespace.Equals(shr.Namespace()) {
-				return nil, fmt.Errorf("mismatched namespace for share at: row %d, col: %d", row, col)
+				return RangeNamespaceData{}, fmt.Errorf("mismatched namespace for share at: row %d, col: %d", row, col)
 			}
 		}
 	}
-	return &RangeNamespaceData{
+	return RangeNamespaceData{
 		Shares:                  shares,
 		FirstIncompleteRowProof: firstIncompleteRowProof,
 		LastIncompleteRowProof:  lastIncompleteRowProof,
@@ -329,21 +329,27 @@ func (rngdata *RangeNamespaceData) CleanupData() {
 }
 
 func (rngdata *RangeNamespaceData) IsEmpty() bool {
-	return rngdata == nil
+	if rngdata == nil {
+		return true
+	}
+	if rngdata.Shares == nil && rngdata.FirstIncompleteRowProof == nil && rngdata.LastIncompleteRowProof == nil {
+		return true
+	}
+	return false
 }
 
-func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (*RangeNamespaceData, error) {
+func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData, error) {
 	shares := make([][]libshare.Share, len(nd.Shares))
 
 	for i, shr := range nd.Shares {
 		shrs, err := SharesFromProto(shr.GetShares())
 		if err != nil {
-			return nil, err
+			return RangeNamespaceData{}, err
 		}
 		shares[i] = shrs
 	}
 
-	return &RangeNamespaceData{
+	return RangeNamespaceData{
 		Shares:                  shares,
 		FirstIncompleteRowProof: pbNmtToNmtProof(nd.FirstIncompleteRowProof),
 		LastIncompleteRowProof:  pbNmtToNmtProof(nd.LastIncompleteRowProof),

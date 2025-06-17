@@ -121,13 +121,13 @@ func (eds *Rsmt2D) RowNamespaceData(
 func (eds *Rsmt2D) RangeNamespaceData(
 	_ context.Context,
 	from, to shwap.SampleCoords,
-) (*shwap.RangeNamespaceData, error) {
+) (shwap.RangeNamespaceData, error) {
 	rawShares := make([][]libshare.Share, 0, to.Row-from.Row+1)
 	for row := from.Row; row <= to.Row; row++ {
 		rawShare := eds.Row(uint(row))
 		sh, err := libshare.FromBytes(rawShare)
 		if err != nil {
-			return nil, err
+			return shwap.RangeNamespaceData{}, err
 		}
 		rawShares = append(rawShares, sh)
 	}

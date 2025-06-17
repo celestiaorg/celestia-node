@@ -38,7 +38,7 @@ type Accessor interface {
 	RangeNamespaceData(
 		ctx context.Context,
 		from, to shwap.SampleCoords,
-	) (*shwap.RangeNamespaceData, error)
+	) (shwap.RangeNamespaceData, error)
 }
 
 // AccessorStreamer is an interface that groups Accessor and Streamer interfaces.

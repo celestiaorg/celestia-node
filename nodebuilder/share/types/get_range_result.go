@@ -25,8 +25,8 @@ type GetRangeResult struct {
 }
 
 func NewGetRangeResult(
-	rngdata *shwap.RangeNamespaceData,
 	startIndex, endIndex int,
+	rngdata *shwap.RangeNamespaceData,
 	dah *da.DataAvailabilityHeader,
 ) (*GetRangeResult, error) {
 	ns, err := shwap.ParseNamespace(rngdata.Shares, startIndex, endIndex)
