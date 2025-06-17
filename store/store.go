@@ -441,11 +441,10 @@ func (s *Store) HasQ4ByHash(_ context.Context, datahash share.DataHash) (bool, e
 	return exists(pathQ4File)
 }
 
-// RemoveODSQ4 removes both ODS and Q4 files from the Store idempotently.
-// Datahash parameter is allowed to be nil, in which case it is retrieved from the respective file.
-func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
+// RemoveODSQ4 removes both ODS and Q4 files from the Store idempotently by height.
+func (s *Store) RemoveODSQ4(ctx context.Context, height uint64) error {
 	tNow := time.Now()
-	datahash, err := s.dataHash(ctx, height, datahash)
+	datahash, err := s.dataHash(ctx, height)
 	if err != nil {
 		return err
 	}
@@ -491,11 +490,10 @@ func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
 	return nil
 }
 
-// RemoveQ4 removes only Q4 file from the Store idempotently.
-// Datahash parameter is allowed to be nil, in which case it is retrieved from the respective file.
-func (s *Store) RemoveQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
+// RemoveQ4 removes only Q4 file from the Store idempotently by height.
+func (s *Store) RemoveQ4(ctx context.Context, height uint64) error {
 	tNow := time.Now()
-	datahash, err := s.dataHash(ctx, height, datahash)
+	datahash, err := s.dataHash(ctx, height)
 	if err != nil {
 		return err
 	}
@@ -527,18 +525,14 @@ func (s *Store) removeQ4(height uint64, datahash share.DataHash) error {
 	return nil
 }
 
-// dataHash retrieves data hash from the file with the given height, unless data hash is already in place.
-func (s *Store) dataHash(ctx context.Context, height uint64, datahash share.DataHash) (share.DataHash, error) {
-	if datahash != nil {
-		return datahash, nil
-	}
-
+// dataHash retrieves data hash from the file with the given height.
+func (s *Store) dataHash(ctx context.Context, height uint64) (share.DataHash, error) {
 	acc, err := s.getByHeight(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("getting datahash by height %d: %w", height, err)
 	}
 
-	datahash, err = acc.DataHash(ctx)
+	datahash, err := acc.DataHash(ctx)
 	if err != nil {
 		err = fmt.Errorf("getting datahash by height %d: %w", height, err)
 		return nil, errors.Join(err, acc.Close())
