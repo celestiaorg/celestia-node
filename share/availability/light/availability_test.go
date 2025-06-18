@@ -325,7 +325,6 @@ func (g successGetter) GetRangeNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
 	_, _ shwap.SampleCoords,
-	_ bool,
 ) (shwap.RangeNamespaceData, error) {
 	panic("not implemented")
 }

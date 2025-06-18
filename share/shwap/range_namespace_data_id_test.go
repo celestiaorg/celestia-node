@@ -29,7 +29,6 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 				tc.from,
 				tc.to,
 				tc.total,
-				true,
 			)
 			if tc.valid {
 				require.NoError(t, err)
@@ -50,7 +49,7 @@ func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {
 	edsSize := 32
 	to, err := SampleCoordsFrom1DIndex(10, edsSize)
 	require.NoError(t, err)
-	rngid, err := NewRangeNamespaceDataID(EdsID{1}, SampleCoords{Row: 0, Col: 1}, to, edsSize, false)
+	rngid, err := NewRangeNamespaceDataID(EdsID{1}, SampleCoords{Row: 0, Col: 1}, to, edsSize)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)

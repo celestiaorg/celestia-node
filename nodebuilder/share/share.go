@@ -67,8 +67,7 @@ type Module interface {
 
 	// GetRange retrieves a range of shares and their corresponding proofs within a specific
 	// namespace in the Extended Data Square (EDS) at the given height. The range is defined
-	// by from and to coordinates. If proofsOnly is true, only the proofs are returned without
-	// the actual share data. Returns the range data with proofs or an error if retrieval fails.
+	// by from and to coordinates. Returns the range data with proofs or an error if retrieval fails.
 	GetRange(
 		ctx context.Context,
 		height uint64,
@@ -212,7 +211,7 @@ func (m module) GetRange(
 		return nil, err
 	}
 
-	rngData, err := m.getter.GetRangeNamespaceData(ctx, hdr, from, to, false)
+	rngData, err := m.getter.GetRangeNamespaceData(ctx, hdr, from, to)
 	if err != nil {
 		return nil, err
 	}

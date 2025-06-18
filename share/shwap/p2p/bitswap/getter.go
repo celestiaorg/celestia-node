@@ -275,13 +275,12 @@ func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	from, to shwap.SampleCoords,
-	proofsOnly bool,
 ) (shwap.RangeNamespaceData, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-range")
 	defer span.End()
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
-		hdr.Height(), from, to, len(hdr.DAH.RowRoots), proofsOnly,
+		hdr.Height(), from, to, len(hdr.DAH.RowRoots),
 	)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
