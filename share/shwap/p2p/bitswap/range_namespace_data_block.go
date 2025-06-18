@@ -49,9 +49,8 @@ func NewEmptyRangeNamespaceDataBlock(
 	from shwap.SampleCoords,
 	to shwap.SampleCoords,
 	edsSize int,
-	proofsOnly bool,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, edsSize, proofsOnly)
+	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, edsSize)
 	if err != nil {
 		return nil, err
 	}
@@ -101,10 +100,6 @@ func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Acces
 	)
 	if err != nil {
 		return fmt.Errorf("accessing RangeNamespaceData: %w", err)
-	}
-
-	if rndb.ID.ProofsOnly {
-		rnd.CleanupData()
 	}
 	rndb.Container = rnd
 	return nil

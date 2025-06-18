@@ -81,7 +81,7 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			blk, err := NewEmptyRangeNamespaceDataBlock(1, tc.from, tc.to, 16, false)
+			blk, err := NewEmptyRangeNamespaceDataBlock(1, tc.from, tc.to, 16)
 			if tc.expectErr {
 				require.Error(t, err)
 				return
