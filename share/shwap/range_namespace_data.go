@@ -321,13 +321,6 @@ func (rngdata *RangeNamespaceData) ToProto() *pb.RangeNamespaceData {
 	}
 }
 
-func (rngdata *RangeNamespaceData) CleanupData() {
-	if rngdata == nil {
-		return
-	}
-	rngdata.Shares = nil
-}
-
 func (rngdata *RangeNamespaceData) IsEmpty() bool {
 	if rngdata == nil {
 		return true

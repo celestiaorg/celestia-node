@@ -74,13 +74,11 @@ type Getter interface {
 	// GetRangeNamespaceData retrieves a range of shares within a specific namespace in the
 	// Extended Data Square (EDS). The range is defined by from and to coordinates, which
 	// specify the start and end points of the desired range. The coordinates are inclusive,
-	// meaning shares at both from and to positions are included in the result. If proofsOnly
-	// is true, only the proofs are returned without the actual share data. The shares are
+	// meaning shares at both from and to positions are included in the result. The shares are
 	// returned in a row-by-row order if the range spans multiple rows.
 	GetRangeNamespaceData(
 		ctx context.Context,
 		header *header.ExtendedHeader,
 		from, to SampleCoords,
-		proofsOnly bool,
 	) (RangeNamespaceData, error)
 }

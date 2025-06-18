@@ -9,7 +9,7 @@ import (
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
 // combining SampleID size, Namespace size, 4 additional bytes
 // for the end coordinates of share of the range and uint representation of bool flag.
-const RangeNamespaceDataIDSize = EdsIDSize + 10
+const RangeNamespaceDataIDSize = EdsIDSize + 8
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within a DataSquare (EDS)
 // that belong to a specific namespace. The range is defined by the coordinates of the first (`From`)
@@ -20,7 +20,6 @@ const RangeNamespaceDataIDSize = EdsIDSize + 10
 //   - NamespaceDataID: Embeds the EDS ID and the namespace identifier.
 //   - From: The coordinates (row, col) of the first share in the range.
 //   - To: The coordinates (row, col) of the last share in the range.
-//   - ProofsOnly: If true, indicates that only proofs (not the actual share data) are referenced.
 //
 // Example usage:
 //
@@ -28,7 +27,6 @@ const RangeNamespaceDataIDSize = EdsIDSize + 10
 //	  NamespaceDataID: ...,
 //	  From: shwap.SampleCoords{Row: 0, Col: 0},
 //	  To:   shwap.SampleCoords{Row: 2, Col: 2},
-//	  ProofsOnly: false,
 //	}
 type RangeNamespaceDataID struct {
 	EdsID
@@ -36,9 +34,6 @@ type RangeNamespaceDataID struct {
 	From SampleCoords
 	// To specifies the coordinates of the last share in the range.
 	To SampleCoords
-
-	// ProofsOnly indicates whether this ID refers only to proofs (not actual share data).
-	ProofsOnly bool
 }
 
 func NewRangeNamespaceDataID(
@@ -46,13 +41,11 @@ func NewRangeNamespaceDataID(
 	from SampleCoords,
 	to SampleCoords,
 	edsSize int,
-	proofsOnly bool,
 ) (RangeNamespaceDataID, error) {
 	rngid := RangeNamespaceDataID{
-		EdsID:      edsID,
-		From:       from,
-		To:         to,
-		ProofsOnly: proofsOnly,
+		EdsID: edsID,
+		From:  from,
+		To:    to,
 	}
 
 	err := rngid.Verify(edsSize)
@@ -143,16 +136,10 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 		Col: int(binary.BigEndian.Uint16(data[EdsIDSize+6 : EdsIDSize+8])),
 	}
 
-	var proofsOnly bool
-	if data[RangeNamespaceDataIDSize-1] == 1 {
-		proofsOnly = true
-	}
-
 	rngID := RangeNamespaceDataID{
-		EdsID:      edsID,
-		From:       fromCoords,
-		To:         toCoords,
-		ProofsOnly: proofsOnly,
+		EdsID: edsID,
+		From:  fromCoords,
+		To:    toCoords,
 	}
 	return rngID, rngID.Validate()
 }
@@ -174,10 +161,5 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Col))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Row))
 	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Col))
-	if rngid.ProofsOnly {
-		data = binary.BigEndian.AppendUint16(data, 1)
-	} else {
-		data = binary.BigEndian.AppendUint16(data, 0)
-	}
 	return data, nil
 }
