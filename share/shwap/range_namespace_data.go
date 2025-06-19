@@ -15,9 +15,10 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// RangeNamespaceData represents a contiguous segment of shares from a data square (EDS)
-// that belong to a specific namespace. It encapsulates both the share data and the
-// cryptographic proofs necessary to verify the shares' inclusion to the respective row roots.
+// RangeNamespaceData represents a contiguous segment of shares from an original part of the
+// data square (ODS) that belong to a specific namespace. It encapsulates both the share data and the
+// cryptographic proofs for the incomplete rows necessary to verify the shares' inclusion
+// to the respective row roots.
 //
 // This structure is typically constructed using RangeNamespaceDataFromShares, which extracts
 // a rectangular subset of shares from the EDS and populates minimal proof information.
@@ -41,19 +42,16 @@ type RangeNamespaceData struct {
 }
 
 // RangeNamespaceDataFromShares constructs a RangeNamespaceData structure from a selection
-// of namespaced shares within an Extended Data Square (EDS).
+// of namespaced shares within an ODS.
 //
 // Parameters:
 //   - shares: A 2D slice of shares grouped by rows (each inner slice represents a row).
 //     These shares should cover the range between the 'from' and 'to' coordinates, inclusive.
-//   - namespace: The target namespace ID to filter and extract data for.
-//   - axisRoots: The AxisRoots (row and column roots) associated with the EDS.
-//   - from: The starting coordinate (row, column) of the range within the EDS.
+//   - from: The starting coordinate (row, column) of the range within the ODS.
 //   - to: The ending coordinate (row, column) of the range (inclusive).
 //
 // Returns:
-//   - A RangeNamespaceData containing the shares in the given namespace and Merkle proofs
-//     needed to verify them.
+//   - A RangeNamespaceData containing the shares and Merkle proofs for the incomplete rows.
 //   - An error if the range is invalid or extraction fails.
 func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoords) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
@@ -70,15 +68,14 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 
 	namespace := shares[0][from.Col].Namespace()
 	odsSize := len(shares[0]) / 2
-	isMultiRow := from.Row != to.Row
+	isMultiRow := numRows > 1
 	startsMidRow := from.Col != 0
 	endsMidRow := to.Col != odsSize-1
-	isSingleRow := from.Row == to.Row
 
 	// We need a start proof if:
 	// - The range doesn't start at the beginning of the row
 	// - OR it's a single-row range that ends before the row ends
-	startProof := startsMidRow || (isSingleRow && endsMidRow)
+	startProof := startsMidRow || (!isMultiRow && endsMidRow)
 
 	// We need an end proof if:
 	// - The range ends before the row ends
@@ -93,7 +90,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 
 	if startProof {
 		endCol := odsSize
-		if isSingleRow {
+		if !isMultiRow {
 			endCol = to.Col + 1
 		}
 		firstIncompleteRowProof, err = GenerateSharesProofs(
@@ -144,34 +141,13 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 
 // VerifyInclusion checks whether the shares stored within the RangeNamespaceData (`rngdata.Shares`)
 // are valid and provably included in the provided rowRoots.
-//
-// It validates that:
-//   - The internal shares correspond to the given namespace.
-//   - The range specified by `from` and `to` matches the start and end coordinates of the shares.
-//   - All computed row roots match to the provided roots.
-//
-// This is a convenience wrapper around VerifyShares that reuses the internal share set (`rngdata.Shares`).
-//
-// Parameters:
-//   - namespace: The namespace to which the shares should belong.
-//   - from: The starting SampleCoords of the share range (inclusive).
-//   - to: The ending SampleCoords of the share range (exclusive).
-//   - dataHash: The expected data root hash that the shares should verify against.
-//
-// Returns:
-//   - nil if the shares are valid and the proofs confirm their inclusion in the data root.
-//   - An error if the shares are malformed, proofs are missing/invalid, or verification fails.
-//
-// Notes:
-//   - If the receiver (`rngdata`) is nil, calling this method will panic. Use defensive checks if needed.
-//   - Any empty or mismatched internal proof data will lead to an error.
 func (rngdata *RangeNamespaceData) VerifyInclusion(
 	from SampleCoords,
 	to SampleCoords,
 	odsSize int,
 	roots [][]byte,
 ) error {
-	return rngdata.VerifyShares(rngdata.Shares, from, to, odsSize, roots, false)
+	return rngdata.verifyShares(rngdata.Shares, from, to, odsSize, roots, false)
 }
 
 // VerifyNamespace checks whether the shares stored within the RangeNamespaceData (`rngdata.Shares`)
@@ -183,7 +159,7 @@ func (rngdata *RangeNamespaceData) VerifyNamespace(
 	odsSize int,
 	roots [][]byte,
 ) error {
-	return rngdata.VerifyShares(rngdata.Shares, from, to, odsSize, roots, true)
+	return rngdata.verifyShares(rngdata.Shares, from, to, odsSize, roots, true)
 }
 
 // VerifyShares verifies that the provided 2D slice of shares is valid and correctly
@@ -197,7 +173,10 @@ func (rngdata *RangeNamespaceData) VerifyNamespace(
 //   - shares: A 2D slice where each inner slice represents a row of shares for the given range.
 //   - from: The inclusive starting SampleCoords (row, col) of the share range.
 //   - to: The exclusive ending SampleCoords (row, col) of the share range.
+//   - odsSize: The size of the original data square.
 //   - roots: The expected row root hashes to verify inclusion against.
+//   - nsCompleteness: Specifies whether the additional check for namespace completeness
+//     within the row is needed or not.
 //
 // Notes:
 //   - The `shares` data passed is used for recomputing proofs where missing. It is extended (erasure-coded)
@@ -210,7 +189,7 @@ func (rngdata *RangeNamespaceData) VerifyNamespace(
 //   - Coordinates or share lengths do not align with proof metadata
 //
 // Panics: This method will not panic but will return descriptive errors on all failure conditions.
-func (rngdata *RangeNamespaceData) VerifyShares(
+func (rngdata *RangeNamespaceData) verifyShares(
 	shares [][]libshare.Share,
 	from SampleCoords,
 	to SampleCoords,
@@ -288,7 +267,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 
 	for i, root := range expectedRoots {
 		if !bytes.Equal(root, computedRoots[i]) {
-			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, expectedRoots[i])
+			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, computedRoots[i])
 		}
 	}
 	return nil

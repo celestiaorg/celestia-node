@@ -54,8 +54,8 @@ func NewGetRangeResult(
 		proof, err := shwap.GenerateSharesProofs(
 			startRow+i,
 			0,
-			len(dah.RowRoots)/2,
-			len(dah.RowRoots)/2,
+			odsSize,
+			odsSize,
 			extendedShares,
 		)
 		if err != nil {
@@ -65,7 +65,11 @@ func NewGetRangeResult(
 	}
 	coreProofs := toCoreNMTProof(nmtProofs)
 
-	_, allProofs := merkle.ProofsFromByteSlices(append(dah.RowRoots, dah.ColumnRoots...))
+	root, allProofs := merkle.ProofsFromByteSlices(append(dah.RowRoots, dah.ColumnRoots...))
+	if !bytes.Equal(root, dah.Hash()) {
+		return nil, errors.New("recomputed data hash does not match expected data hash")
+	}
+
 	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
 	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 
@@ -104,10 +108,6 @@ func (r *GetRangeResult) Verify(dataRoot []byte) error {
 		if !bytes.Equal(shares, r.Proof.Data[i]) {
 			return errors.New("share data mismatch")
 		}
-	}
-
-	if !r.Proof.VerifyProof() {
-		return errors.New("proof verification failed")
 	}
 	return r.Proof.Validate(dataRoot)
 }
