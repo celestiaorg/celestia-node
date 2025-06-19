@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultBlockstoreCacheSize = 128
+	defaultBlockstoreCacheSize = 0
 )
 
 type Config struct {
