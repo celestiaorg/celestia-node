@@ -73,7 +73,7 @@ func (c *Client) RequestND(
 			return nil, context.DeadlineExceeded
 		}
 	}
-	if !errors.Is(err, shrex.ErrNotFound) && errors.Is(err, shrex.ErrRateLimited) {
+	if !errors.Is(err, shrex.ErrNotFound) {
 		log.Warnw("client-nd: peer returned err", "err", err)
 	}
 	return nil, err
