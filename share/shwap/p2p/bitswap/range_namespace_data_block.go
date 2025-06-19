@@ -48,9 +48,9 @@ func NewEmptyRangeNamespaceDataBlock(
 	height uint64,
 	from shwap.SampleCoords,
 	to shwap.SampleCoords,
-	edsSize int,
+	odsSize int,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, edsSize)
+	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, odsSize)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarhaling RangeNamespaceDataID: %w", err)
 		}
 
-		if err = rndid.Verify(len(root.RowRoots)); err != nil {
+		if err = rndid.Verify(len(root.RowRoots) / 2); err != nil {
 			return fmt.Errorf("verifying RangeNamespaceDataID: %w", err)
 		}
 

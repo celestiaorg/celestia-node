@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -54,8 +55,8 @@ func NewGetRangeResult(
 		proof, err := shwap.GenerateSharesProofs(
 			startRow+i,
 			0,
-			len(dah.RowRoots)/2,
-			len(dah.RowRoots)/2,
+			odsSize,
+			odsSize,
 			extendedShares,
 		)
 		if err != nil {
@@ -75,6 +76,10 @@ func NewGetRangeResult(
 			Index:    allProofs[i].Index,
 			LeafHash: allProofs[i].LeafHash,
 			Aunts:    allProofs[i].Aunts,
+		}
+		err := rowProofs[i].Verify(dah.Hash(), dah.RowRoots[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify row proof at %d: %w", i, err)
 		}
 		rowRoots[i-startRow] = dah.RowRoots[i]
 	}
@@ -104,10 +109,6 @@ func (r *GetRangeResult) Verify(dataRoot []byte) error {
 		if !bytes.Equal(shares, r.Proof.Data[i]) {
 			return errors.New("share data mismatch")
 		}
-	}
-
-	if !r.Proof.VerifyProof() {
-		return errors.New("proof verification failed")
 	}
 	return r.Proof.Validate(dataRoot)
 }

@@ -16,7 +16,7 @@ type SampleCoords struct {
 }
 
 func (s SampleCoords) String() string {
-	return fmt.Sprintf("[%d:%d]", s.Row, s.Col)
+	return fmt.Sprintf("(%d:%d)", s.Row, s.Col)
 }
 
 func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {

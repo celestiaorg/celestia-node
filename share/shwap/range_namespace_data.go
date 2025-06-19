@@ -17,7 +17,8 @@ import (
 
 // RangeNamespaceData represents a contiguous segment of shares from a data square (EDS)
 // that belong to a specific namespace. It encapsulates both the share data and the
-// cryptographic proofs necessary to verify the shares' inclusion to the respective row roots.
+// cryptographic proofs for the incomplete rows necessary to verify the shares' inclusion
+// to the respective row roots.
 //
 // This structure is typically constructed using RangeNamespaceDataFromShares, which extracts
 // a rectangular subset of shares from the EDS and populates minimal proof information.
@@ -46,14 +47,11 @@ type RangeNamespaceData struct {
 // Parameters:
 //   - shares: A 2D slice of shares grouped by rows (each inner slice represents a row).
 //     These shares should cover the range between the 'from' and 'to' coordinates, inclusive.
-//   - namespace: The target namespace ID to filter and extract data for.
-//   - axisRoots: The AxisRoots (row and column roots) associated with the EDS.
 //   - from: The starting coordinate (row, column) of the range within the EDS.
 //   - to: The ending coordinate (row, column) of the range (inclusive).
 //
 // Returns:
-//   - A RangeNamespaceData containing the shares in the given namespace and Merkle proofs
-//     needed to verify them.
+//   - A RangeNamespaceData containing the shares and Merkle proofs for the incomplete rows.
 //   - An error if the range is invalid or extraction fails.
 func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoords) (RangeNamespaceData, error) {
 	if len(shares) == 0 {
@@ -70,15 +68,14 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 
 	namespace := shares[0][from.Col].Namespace()
 	odsSize := len(shares[0]) / 2
-	isMultiRow := from.Row != to.Row
+	isMultiRow := numRows > 1
 	startsMidRow := from.Col != 0
 	endsMidRow := to.Col != odsSize-1
-	isSingleRow := from.Row == to.Row
 
 	// We need a start proof if:
 	// - The range doesn't start at the beginning of the row
 	// - OR it's a single-row range that ends before the row ends
-	startProof := startsMidRow || (isSingleRow && endsMidRow)
+	startProof := startsMidRow || (!isMultiRow && endsMidRow)
 
 	// We need an end proof if:
 	// - The range ends before the row ends
@@ -93,7 +90,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 
 	if startProof {
 		endCol := odsSize
-		if isSingleRow {
+		if !isMultiRow {
 			endCol = to.Col + 1
 		}
 		firstIncompleteRowProof, err = GenerateSharesProofs(
@@ -288,7 +285,7 @@ func (rngdata *RangeNamespaceData) VerifyShares(
 
 	for i, root := range expectedRoots {
 		if !bytes.Equal(root, computedRoots[i]) {
-			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, expectedRoots[i])
+			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, computedRoots[i])
 		}
 	}
 	return nil
