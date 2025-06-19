@@ -26,7 +26,7 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.6.0
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gofrs/flock v0.12.1
-	// github.com/gogo/protobuf v1.3.3
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/grafana/otel-profiling-go v0.5.1
@@ -79,8 +79,6 @@ require (
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 )
-
-require github.com/gogo/protobuf v1.3.2
 
 require (
 	cel.dev/expr v0.23.0 // indirect
