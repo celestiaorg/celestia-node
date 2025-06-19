@@ -17,13 +17,15 @@ type module struct {
 	tp       Type
 	signer   jwt.Signer
 	verifier jwt.Verifier
+	network  string
 }
 
-func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
+func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier, network string) Module {
 	return &module{
 		tp:       tp,
 		signer:   signer,
 		verifier: verifier,
+		network:  network,
 	}
 }
 
@@ -32,12 +34,14 @@ func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
 type Info struct {
 	Type       Type   `json:"type"`
 	APIVersion string `json:"api_version"`
+	Network    string `json:"network_id"`
 }
 
 func (m *module) Info(context.Context) (Info, error) {
 	return Info{
 		Type:       m.tp,
 		APIVersion: APIVersion,
+		Network:    m.network,
 	}, nil
 }
 
@@ -65,4 +69,8 @@ func (m *module) AuthNewWithExpiry(_ context.Context,
 	permissions []auth.Permission, ttl time.Duration,
 ) (string, error) {
 	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
+}
+
+func (m *module) NetworkID(_ context.Context) (string, error) {
+	return m.network, nil
 }
