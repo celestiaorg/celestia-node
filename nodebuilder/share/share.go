@@ -65,9 +65,9 @@ type Module interface {
 		namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
 
-	// GetRange retrieves a range of shares and their corresponding proofs within a specific
+	// GetRange retrieves a range of the *original* shares and their corresponding proofs within a specific
 	// namespace in the Extended Data Square (EDS) at the given height. The range is defined
-	// by from and to coordinates. Returns the range data with proofs or an error if retrieval fails.
+	// by start and end indexes. Returns the range data with proof to the data root or an error if retrieval fails.
 	GetRange(
 		ctx context.Context,
 		height uint64,
