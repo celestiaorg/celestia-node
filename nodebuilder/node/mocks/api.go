@@ -7,6 +7,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	node "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	auth "github.com/filecoin-project/go-jsonrpc/auth"
@@ -51,6 +52,21 @@ func (mr *MockModuleMockRecorder) AuthNew(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthNew", reflect.TypeOf((*MockModule)(nil).AuthNew), arg0, arg1)
 }
 
+// AuthNewWithExpiry mocks base method.
+func (m *MockModule) AuthNewWithExpiry(arg0 context.Context, arg1 []auth.Permission, arg2 time.Duration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthNewWithExpiry", arg0, arg1, arg2)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthNewWithExpiry indicates an expected call of AuthNewWithExpiry.
+func (mr *MockModuleMockRecorder) AuthNewWithExpiry(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthNewWithExpiry", reflect.TypeOf((*MockModule)(nil).AuthNewWithExpiry), arg0, arg1, arg2)
+}
+
 // AuthVerify mocks base method.
 func (m *MockModule) AuthVerify(arg0 context.Context, arg1 string) ([]auth.Permission, error) {
 	m.ctrl.T.Helper()
@@ -93,6 +109,21 @@ func (m *MockModule) LogLevelSet(arg0 context.Context, arg1, arg2 string) error 
 func (mr *MockModuleMockRecorder) LogLevelSet(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogLevelSet", reflect.TypeOf((*MockModule)(nil).LogLevelSet), arg0, arg1, arg2)
+}
+
+// NetworkID mocks base method.
+func (m *MockModule) NetworkID(arg0 context.Context) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NetworkID", arg0)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NetworkID indicates an expected call of NetworkID.
+func (mr *MockModuleMockRecorder) NetworkID(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkID", reflect.TypeOf((*MockModule)(nil).NetworkID), arg0)
 }
 
 // Ready mocks base method.
