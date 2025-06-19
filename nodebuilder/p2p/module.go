@@ -6,7 +6,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 )
 
 var log = logging.Logger("module/p2p")
@@ -24,7 +23,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(newHost),
 		fx.Provide(routedHost),
 		fx.Provide(pubSub),
-		fx.Provide(ipld.NewBlockservice),
+		//fx.Provide(ipld.NewBlockservice),
 		fx.Provide(peerRouting),
 		fx.Provide(newDHT),
 		fx.Provide(addrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),

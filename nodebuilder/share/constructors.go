@@ -31,14 +31,9 @@ func bitswapGetter(
 
 func lightGetter(
 	shrexGetter *shrex_getter.Getter,
-	bitswapGetter *bitswap.Getter,
-	cfg Config,
 ) shwap.Getter {
 	var cascade []shwap.Getter
-	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
-	}
-	cascade = append(cascade, bitswapGetter)
+	cascade = append(cascade, shrexGetter)
 	return getters.NewCascadeGetter(cascade)
 }
 
@@ -48,14 +43,9 @@ func lightGetter(
 func bridgeAndFullGetter(
 	storeGetter *store.Getter,
 	shrexGetter *shrex_getter.Getter,
-	bitswapGetter *bitswap.Getter,
-	cfg Config,
 ) shwap.Getter {
 	var cascade []shwap.Getter
 	cascade = append(cascade, storeGetter)
-	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
-	}
-	cascade = append(cascade, bitswapGetter)
+	cascade = append(cascade, shrexGetter)
 	return getters.NewCascadeGetter(cascade)
 }

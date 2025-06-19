@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/cristalhq/jwt/v5"
-	"github.com/ipfs/boxo/blockservice"
-	"github.com/ipfs/boxo/exchange"
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -62,11 +60,11 @@ type Node struct {
 	EDSStore *store.Store `optional:"true"`
 
 	// p2p components
-	Host         host.Host
-	ConnGater    *conngater.BasicConnectionGater
-	Routing      routing.PeerRouting
-	DataExchange exchange.SessionExchange
-	BlockService blockservice.BlockService
+	Host      host.Host
+	ConnGater *conngater.BasicConnectionGater
+	Routing   routing.PeerRouting
+	//DataExchange exchange.SessionExchange
+	//BlockService blockservice.BlockService
 	// p2p protocols
 	PubSub *pubsub.PubSub
 	// services
