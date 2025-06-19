@@ -280,7 +280,7 @@ func (g *Getter) GetRangeNamespaceData(
 	defer span.End()
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
-		hdr.Height(), from, to, len(hdr.DAH.RowRoots),
+		hdr.Height(), from, to, len(hdr.DAH.RowRoots)/2,
 	)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
