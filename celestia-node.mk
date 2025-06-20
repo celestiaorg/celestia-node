@@ -11,20 +11,20 @@ node-help:
 	@echo "  get-address        - Display the wallet address from cel-key"
 	@echo "  check-and-fund     - Check wallet balance and request funds if needed"
 	@echo "  reset-node         - Reset node state and update config with latest block height"
-	@echo "  light-arabica-up   - Start the Celestia light node"
+	@echo "  light-mocha-up   - Start the Celestia light node"
 	@echo ""
 	@echo "Special usage:"
-	@echo "  light-arabica-up options:"
+	@echo "  light-mocha-up options:"
 	@echo "    COMMAND=again    - Reset the node before starting"
 	@echo "    CORE_IP=<ip>     - Use custom IP instead of default validator"
 	@echo "    CORE_PORT=<port> - Use custom port instead of default 9090"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make light-arabica-up"
-	@echo "  make light-arabica-up COMMAND=again"
-	@echo "  make light-arabica-up CORE_IP=custom.ip.address"
-	@echo "  make light-arabica-up CORE_IP=custom.ip.address CORE_PORT=9091"
-	@echo "  make light-arabica-up COMMAND=again CORE_IP=custom.ip.address CORE_PORT=9091"
+	@echo "  make light-mocha-up"
+	@echo "  make light-mocha-up COMMAND=again"
+	@echo "  make light-mocha-up CORE_IP=custom.ip.address"
+	@echo "  make light-mocha-up CORE_IP=custom.ip.address CORE_PORT=9091"
+	@echo "  make light-mocha-up COMMAND=again CORE_IP=custom.ip.address CORE_PORT=9091"
 
 # Install celestia node and cel-key binaries
 node-install:
@@ -33,14 +33,14 @@ node-install:
 
 # Get wallet address from cel-key
 get-address:
-	@address=$$(cel-key list --node.type light --p2p.network arabica | grep "address: " | cut -d' ' -f3); \
+	@address=$$(cel-key list --node.type light --p2p.network mocha | grep "address: " | cut -d' ' -f3); \
 	echo $$address
 
 # Check balance and fund if needed
 check-and-fund:
-	@address=$$(cel-key list --node.type light --p2p.network arabica | grep "address: " | cut -d' ' -f3); \
+	@address=$$(cel-key list --node.type light --p2p.network mocha | grep "address: " | cut -d' ' -f3); \
 	echo "Checking balance for address: $$address"; \
-	balance=$$(curl -s "https://api.celestia-arabica-11.com/cosmos/bank/v1beta1/balances/$$address" | jq -r '.balances[] | select(.denom == "utia") | .amount // "0"'); \
+	balance=$$(curl -s "https://api-mocha-4.consensus.celestia-mocha.com/cosmos/bank/v1beta1/balances/$$address" | jq -r '.balances[] | select(.denom == "utia") | .amount // "0"'); \
 	if [[ $$balance =~ ^[0-9]+$$ ]]; then \
 		balance_tia=$$(echo "scale=6; $$balance/1000000" | bc); \
 		echo "Current balance: $$balance_tia TIA"; \
@@ -49,9 +49,9 @@ check-and-fund:
 	fi; \
 	if (( $$(echo "$$balance_tia < 1" | bc -l) )); then \
 		echo "Balance too low. Requesting funds from faucet..."; \
-		curl -X POST 'https://faucet.celestia-arabica-11.com/api/v1/faucet/give_me' \
+		curl -X POST 'https://faucet.celestia-mocha.com/api/v1/faucet/give_me' \
 			-H 'Content-Type: application/json' \
-			-d '{"address": "'$$address'", "chainId": "arabica-11" }'; \
+			-d '{"address": "'$$address'", "chainId": "mocha-4" }'; \
 		echo "Waiting 10 seconds for transaction to process..."; \
 		sleep 10; \
 	fi
@@ -59,14 +59,14 @@ check-and-fund:
 # Reset node state and update config
 reset-node:
 	@echo "Resetting node state..."
-	@celestia light unsafe-reset-store --p2p.network arabica
+	@celestia light unsafe-reset-store --p2p.network mocha
 	@echo "Getting latest block height and hash..."
-	@block_response=$$(curl -s https://rpc.celestia-arabica-11.com/block); \
+	@block_response=$$(curl -s https://api-mocha-4.consensus.celestia-mocha.com/block); \
 	latest_block=$$(echo $$block_response | jq -r '.result.block.header.height'); \
 	latest_hash=$$(echo $$block_response | jq -r '.result.block_id.hash'); \
 	echo "Latest block height: $$latest_block"; \
 	echo "Latest block hash: $$latest_hash"; \
-	config_file="$$HOME/.celestia-light-arabica-11/config.toml"; \
+	config_file="$$HOME/.celestia-light-mocha-4/config.toml"; \
 	echo "Updating config.toml..."; \
 	sed -i.bak -e "s/\(TrustedHash[[:space:]]*=[[:space:]]*\).*/\1\"$$latest_hash\"/" \
 		   -e "s/\(SampleFrom[[:space:]]*=[[:space:]]*\).*/\1$$latest_block/" \
@@ -74,16 +74,16 @@ reset-node:
 	echo "Configuration updated successfully"
 
 # Start the Celestia light node
-# Usage: make light-arabica-up [COMMAND=again] [CORE_IP=custom_ip]
-light-arabica-up:
-	@config_file="$$HOME/.celestia-light-arabica-11/config.toml"; \
+# Usage: make light-mocha-up [COMMAND=again] [CORE_IP=custom_ip]
+light-mocha-up:
+	@config_file="$$HOME/.celestia-light-mocha-4/config.toml"; \
 	if [ "$(COMMAND)" = "again" ]; then \
 		$(MAKE) reset-node; \
 	fi; \
 	if [ -e "$$config_file" ]; then \
 		echo "Using config file: $$config_file"; \
 	else \
-		celestia light init --p2p.network arabica; \
+		celestia light init --p2p.network mocha; \
 		$(MAKE) reset-node; \
 		$(MAKE) check-and-fund; \
 	fi; \
@@ -94,12 +94,12 @@ light-arabica-up:
 			--core.port $(if $(CORE_PORT),$(CORE_PORT),9090) \
 			--rpc.skip-auth \
 			--rpc.addr 0.0.0.0 \
-			--p2p.network arabica; \
+			--p2p.network mocha; \
 	else \
 		celestia light start \
-			--core.ip validator-1.celestia-arabica-11.com \
+			--core.ip consensus-full-mocha-4.celestia-mocha.com \
 			--core.port $(if $(CORE_PORT),$(CORE_PORT),9090) \
 			--rpc.skip-auth \
 			--rpc.addr 0.0.0.0 \
-			--p2p.network arabica; \
+			--p2p.network mocha; \
 	fi
