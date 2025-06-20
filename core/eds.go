@@ -82,7 +82,7 @@ func storeEDS(
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
 	}
 	if err == nil {
-		log.Debugw("stored EDS for height", "height", eh.Height())
+		log.Debugw("stored EDS for height", "height", eh.Height(), "EDS size", len(eh.DAH.RowRoots))
 	}
 	return err
 }
