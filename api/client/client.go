@@ -61,7 +61,7 @@ type Client struct {
 
 // New initializes the Celestia client. It connects to the Celestia consensus nodes and Bridge
 // nodes. Any changes to the keyring are not visible to the client. The client needs to be
-// reinitialized to pick up new keys.
+// reinitialized to pick up new keys. Client should be closed after use by calling Close().
 func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
 	c, err := NewReadClient(ctx, cfg.ReadConfig)
 	if err != nil {
