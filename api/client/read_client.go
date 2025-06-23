@@ -29,7 +29,7 @@ type ReadConfig struct {
 
 func (cfg ReadConfig) Validate() error {
 	if cfg.DAAuthToken != "" && cfg.HTTPHeader.Get("Authorization") != "" {
-		return fmt.Errorf("Authorization header already set, cannot use DAAuthToken as well")
+		return fmt.Errorf("authorization header already set, cannot use DAAuthToken as well")
 	}
 	_, err := utils.SanitizeAddr(cfg.BridgeDAAddr)
 	return err
