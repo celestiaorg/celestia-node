@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -117,7 +116,7 @@ func (s *Service) run() {
 
 	lastPrunedHeader, err := s.lastPruned(s.ctx)
 	if err != nil {
-		log.Errorw("failed to get last pruned block", "height", s.checkpoint.LastPrunedHeight,
+		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
 			"err", err)
 		log.Warn("exiting pruner service!")
 
