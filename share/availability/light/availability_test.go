@@ -321,6 +321,16 @@ func (g successGetter) GetNamespaceData(
 	panic("not implemented")
 }
 
+func (g successGetter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ libshare.Namespace,
+	_, _ shwap.SampleCoords,
+	_ bool,
+) (shwap.RangeNamespaceData, error) {
+	panic("not implemented")
+}
+
 func TestPruneAll(t *testing.T) {
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
@@ -470,7 +480,7 @@ func (hse *halfSessionExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (
 			continue
 		}
 
-		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		blk, err := hse.GetBlock(ctx, cid)
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +508,7 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 	defer close(out)
 
 	for _, cid := range cids {
-		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		blk, err := hse.GetBlock(ctx, cid)
 		if err != nil {
 			break
 		}

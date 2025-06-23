@@ -3,26 +3,16 @@ package share
 import (
 	"context"
 
-	"github.com/cometbft/cometbft/types"
-
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var _ Module = (*API)(nil)
-
-// GetRangeResult wraps the return value of the GetRange endpoint
-// because Json-RPC doesn't support more than two return values.
-type GetRangeResult struct {
-	Shares []libshare.Share
-	Proof  *types.ShareProof
-}
 
 // Module provides access to any data square or block share on the network.
 //
@@ -41,24 +31,50 @@ type GetRangeResult struct {
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// SharesAvailable subjectively validates if Shares committed to the given
-	// ExtendedHeader are available on the Network.
+	// SharesAvailable performs a subjective validation to check if the shares committed to
+	// the ExtendedHeader at the specified height are available and retrievable from the network.
+	// Returns an error if the shares are not available or if validation fails.
 	SharesAvailable(ctx context.Context, height uint64) error
-	// GetShare gets a Share by coordinates in EDS.
-	GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error)
-	// GetSamples gets sample for given indices.
+
+	// GetShare retrieves a specific share from the Extended Data Square (EDS) at the given height
+	// using its row and column coordinates. Returns the share data or an error if retrieval fails.
+	GetShare(ctx context.Context, height uint64, rowIdx, colIdx int) (libshare.Share, error)
+
+	// GetSamples retrieves multiple shares from the Extended Data Square (EDS) specified by the header
+	// at the given sample coordinates. Returns an array of samples containing the requested shares
+	// or an error if retrieval fails.
 	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error)
-	// GetEDS gets the full EDS identified by the given extended header.
+
+	// GetEDS retrieves the complete Extended Data Square (EDS) for the specified height.
+	// The EDS contains all shares organized in a 2D matrix format with erasure coding.
+	// Returns the full EDS or an error if retrieval fails.
 	GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error)
-	// GetRow gets all shares from specified row.
-	GetRow(context.Context, uint64, int) (shwap.Row, error)
-	// GetNamespaceData gets all shares from an EDS within the given namespace.
-	// Shares are returned in a row-by-row order if the namespace spans multiple rows.
+
+	// GetRow retrieves all shares from a specific row in the Extended Data Square (EDS)
+	// at the given height. Returns the complete row of shares or an error if retrieval fails.
+	GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Row, error)
+
+	// GetNamespaceData retrieves all shares that belong to the specified namespace within
+	// the Extended Data Square (EDS) at the given height. The shares are returned in a
+	// row-by-row order, maintaining the original layout if the namespace spans multiple rows.
+	// Returns the namespace data or an error if retrieval fails.
 	GetNamespaceData(
-		ctx context.Context, height uint64, namespace libshare.Namespace,
+		ctx context.Context,
+		height uint64,
+		namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
-	// GetRange gets a list of shares and their corresponding proof.
-	GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error)
+
+	// GetRange retrieves a range of shares and their corresponding proofs within a specific
+	// namespace in the Extended Data Square (EDS) at the given height. The range is defined
+	// by from and to coordinates. If proofsOnly is true, only the proofs are returned without
+	// the actual share data. Returns the range data with proofs or an error if retrieval fails.
+	GetRange(
+		ctx context.Context,
+		namespace libshare.Namespace,
+		height uint64,
+		fromCoords, toCoords shwap.SampleCoords,
+		proofsOnly bool,
+	) (shwap.RangeNamespaceData, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -91,9 +107,11 @@ type API struct {
 		) (shwap.NamespaceData, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
+			ns libshare.Namespace,
 			height uint64,
-			start, end int,
-		) (*GetRangeResult, error) `perm:"read"`
+			from, to shwap.SampleCoords,
+			proofsOnly bool,
+		) (shwap.RangeNamespaceData, error) `perm:"read"`
 	}
 }
 
@@ -119,8 +137,10 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 	return api.Internal.GetRow(ctx, height, rowIdx)
 }
 
-func (api *API) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	return api.Internal.GetRange(ctx, height, start, end)
+func (api *API) GetRange(
+	ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	return api.Internal.GetRange(ctx, ns, height, from, to, proofsOnly)
 }
 
 func (api *API) GetNamespaceData(
@@ -175,25 +195,18 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 	return m.avail.SharesAvailable(ctx, header)
 }
 
-func (m module) GetRange(ctx context.Context, height uint64, start, end int) (*GetRangeResult, error) {
-	extendedDataSquare, err := m.GetEDS(ctx, height)
+func (m module) GetRange(
+	ctx context.Context,
+	ns libshare.Namespace,
+	height uint64,
+	from, to shwap.SampleCoords,
+	proofsOnly bool,
+) (shwap.RangeNamespaceData, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
-		return nil, err
+		return shwap.RangeNamespaceData{}, err
 	}
-
-	proof, err := eds.ProveShares(extendedDataSquare, start, end)
-	if err != nil {
-		return nil, err
-	}
-
-	shares, err := libshare.FromBytes(extendedDataSquare.FlattenedODS()[start:end])
-	if err != nil {
-		return nil, err
-	}
-	return &GetRangeResult{
-		Shares: shares,
-		Proof:  proof,
-	}, nil
+	return m.getter.GetRangeNamespaceData(ctx, header, ns, from, to, proofsOnly)
 }
 
 func (m module) GetNamespaceData(

@@ -14,7 +14,7 @@ import (
 // Paired with UnmarshalExtendedHeader.
 func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	out := &header_pb.ExtendedHeader{
-		Header: in.RawHeader.ToProto(),
+		Header: in.ToProto(),
 		Commit: in.Commit.ToProto(),
 	}
 
