@@ -13,6 +13,10 @@ var (
 	addrFlag = "rpc.addr"
 	portFlag = "rpc.port"
 	authFlag = "rpc.skip-auth"
+	// TLS flags
+	tlsEnabledFlag  = "rpc.tls"
+	tlsCertPathFlag = "rpc.tls-cert"
+	tlsKeyPathFlag  = "rpc.tls-key"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -33,6 +37,22 @@ func Flags() *flag.FlagSet {
 		authFlag,
 		false,
 		"Skips authentication for RPC requests",
+	)
+	// TLS flags
+	flags.Bool(
+		tlsEnabledFlag,
+		false,
+		"Enable TLS for RPC server",
+	)
+	flags.String(
+		tlsCertPathFlag,
+		"",
+		"Path to TLS certificate file for RPC server",
+	)
+	flags.String(
+		tlsKeyPathFlag,
+		"",
+		"Path to TLS private key file for RPC server",
 	)
 
 	return flags
@@ -55,5 +75,19 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	if ok {
 		log.Warn("RPC authentication is disabled")
 		cfg.SkipAuth = true
+	}
+	// TLS flags
+	tlsEnabled, err := cmd.Flags().GetBool(tlsEnabledFlag)
+	if err != nil {
+		panic(err)
+	}
+	cfg.TLSEnabled = tlsEnabled
+	certPath := cmd.Flag(tlsCertPathFlag).Value.String()
+	if certPath != "" {
+		cfg.TLSCertPath = certPath
+	}
+	keyPath := cmd.Flag(tlsKeyPathFlag).Value.String()
+	if keyPath != "" {
+		cfg.TLSKeyPath = keyPath
 	}
 }
