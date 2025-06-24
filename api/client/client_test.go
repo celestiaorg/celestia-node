@@ -108,11 +108,6 @@ func TestClientReadOnlyMode(t *testing.T) {
 	submitBlobs := []*blob.Blob{b}
 	_, err = client.Blob.Submit(ctx, submitBlobs, nil)
 	require.ErrorIs(t, err, ErrReadOnlyMode)
-
-	// Test State returns an error in read-only mode
-	_, err = client.State.Balance(ctx)
-	require.Error(t, err)
-	require.ErrorIs(t, err, ErrReadOnlyMode)
 }
 
 // TestClientWithSubmission tests the client with submission capabilities

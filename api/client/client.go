@@ -3,18 +3,14 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	logging "github.com/ipfs/go-log/v2"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	blobapi "github.com/celestiaorg/celestia-node/nodebuilder/blob"
-	blobstreamapi "github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-	fraudapi "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	headerapi "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	shareapi "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	stateapi "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -49,12 +45,8 @@ func (cfg SubmitConfig) Validate() error {
 
 // Client is a simplified Celestia client to submit blobs and interact with DA RPC.
 type Client struct {
-	Blob       blobapi.Module
-	Header     headerapi.Module
-	State      stateapi.Module
-	Share      shareapi.Module
-	Fraud      fraudapi.Module
-	Blobstream blobstreamapi.Module
+	ReadClient
+	State stateapi.Module
 
 	chainCloser func() error
 }
@@ -63,9 +55,13 @@ type Client struct {
 // nodes. Any changes to the keyring are not visible to the client. The client needs to be
 // reinitialized to pick up new keys. Client should be closed after use by calling Close().
 func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
-	c, err := NewReadClient(ctx, cfg.ReadConfig)
+	rc, err := NewReadClient(ctx, cfg.ReadConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	cl := &Client{
+		ReadClient: *rc,
 	}
 
 	err = cfg.Validate()
@@ -76,16 +72,16 @@ func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
 		return nil, errors.New("keyring is nil")
 	}
 
-	cl, err := grpcClient(cfg.SubmitConfig.CoreGRPCConfig)
+	grpcCl, err := grpcClient(cfg.SubmitConfig.CoreGRPCConfig)
 	if err != nil {
 		return nil, err
 	}
-	err = c.initTxClient(ctx, cfg.SubmitConfig, cl, kr)
+	err = cl.initTxClient(ctx, cfg.SubmitConfig, grpcCl, kr)
 	if err != nil {
 		clerr := cl.Close()
 		return nil, errors.Join(err, clerr)
 	}
-	return c, nil
+	return cl, nil
 }
 
 func (c *Client) initTxClient(
@@ -122,23 +118,25 @@ func (c *Client) initTxClient(
 		submitter: blobSvc,
 	}
 
-	c.chainCloser = func(prev func() error) func() error {
-		return func() error {
-			err := conn.Close()
-			if err != nil {
-				return err
-			}
-			err = core.Stop(ctx)
-			if err != nil {
-				return err
-			}
-			err = blobSvc.Stop(ctx)
-			if err != nil {
-				return err
-			}
-			return prev()
+	c.chainCloser = func() error {
+		err := conn.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close grpc connection: %w", err)
 		}
-	}(c.chainCloser)
+		err = core.Stop(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to stop core accessor: %w", err)
+		}
+		err = blobSvc.Stop(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to stop blob service: %w", err)
+		}
+		err = c.ReadClient.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close read client: %w", err)
+		}
+		return nil
+	}
 	return nil
 }
 

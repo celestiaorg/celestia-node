@@ -27,6 +27,16 @@ type ReadConfig struct {
 	EnableDATLS bool
 }
 
+type ReadClient struct {
+	Blob       blobapi.Module
+	Header     headerapi.Module
+	Share      shareapi.Module
+	Fraud      fraudapi.Module
+	Blobstream blobstreamapi.Module
+
+	chainCloser func() error
+}
+
 func (cfg ReadConfig) Validate() error {
 	if cfg.DAAuthToken != "" && cfg.HTTPHeader.Get("Authorization") != "" {
 		return fmt.Errorf("authorization header already set, cannot use DAAuthToken as well")
@@ -35,7 +45,7 @@ func (cfg ReadConfig) Validate() error {
 	return err
 }
 
-func NewReadClient(ctx context.Context, cfg ReadConfig) (*Client, error) {
+func NewReadClient(ctx context.Context, cfg ReadConfig) (*ReadClient, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -102,12 +112,16 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*Client, error) {
 		return nil
 	}
 
-	return &Client{
+	return &ReadClient{
 		Share:       &shareAPI,
 		Blobstream:  &blobstreamAPI,
 		Header:      &headerAPI,
 		Blob:        &readOnlyBlobAPI{&blobAPI},
-		State:       &disabledStateAPI{},
 		chainCloser: chainCloser,
 	}, nil
+}
+
+// Close closes all open connections to Celestia consensus nodes and Bridge nodes.
+func (c *ReadClient) Close() error {
+	return c.chainCloser()
 }
