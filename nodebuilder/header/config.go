@@ -23,6 +23,9 @@ var MetricsEnabled = false
 type Config struct {
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
 	// Only affects the node once on initial sync.
+	//  TODO: Deprecate or break?
+	//   Also depends on whether we want to make pruning a default behavior from the start and for which nodes.
+	//   I guess we want to make it default for LNs and the opposite for FNs
 	TrustedHash string
 	// TrustedPeers are the peers we trust to fetch headers from.
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch
