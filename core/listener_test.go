@@ -118,7 +118,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	opt := WithAvailabilityWindow(time.Nanosecond)
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
 
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	err = cl.Start(ctx)
 	require.NoError(t, err)
@@ -135,6 +135,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 		assert.False(t, has)
 	}
 	require.NoError(t, cl.Stop(ctx))
+	require.NoError(t, cctx.Stop())
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
