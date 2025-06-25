@@ -3,7 +3,6 @@ package eds
 import (
 	"context"
 	"fmt"
-
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
