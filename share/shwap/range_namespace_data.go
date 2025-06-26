@@ -54,11 +54,8 @@ type RangeNamespaceData struct {
 //   - A RangeNamespaceData containing the shares and Merkle proofs for the incomplete rows.
 //   - An error if the range is invalid or extraction fails.
 func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoords) (RangeNamespaceData, error) {
-	if len(shares) == 0 {
-		return RangeNamespaceData{}, errors.New("empty rows share list")
-	}
-	if len(shares[0]) == 0 {
-		return RangeNamespaceData{}, errors.New("empty rows share list")
+	if len(shares) == 0 || len(shares[0]) == 0 {
+		return RangeNamespaceData{}, errors.New("shares contain no rows or empty row")
 	}
 
 	numRows := to.Row - from.Row + 1
@@ -162,33 +159,12 @@ func (rngdata *RangeNamespaceData) VerifyNamespace(
 	return rngdata.verifyShares(rngdata.Shares, from, to, odsSize, roots, true)
 }
 
-// VerifyShares verifies that the provided 2D slice of shares is valid and correctly
+// verifyShares verifies that the provided 2D slice of shares is valid and correctly
 // included in the provided row roots using the associated proofs.
 //
 // This method is used to verify that a contiguous range of shares (`shares`)
 // and is valid within the original data square (ODS),
 // as identified by the `RangeNamespaceData` receiver.
-//
-// Parameters:
-//   - shares: A 2D slice where each inner slice represents a row of shares for the given range.
-//   - from: The inclusive starting SampleCoords (row, col) of the share range.
-//   - to: The exclusive ending SampleCoords (row, col) of the share range.
-//   - odsSize: The size of the original data square.
-//   - roots: The expected row root hashes to verify inclusion against.
-//   - nsCompleteness: Specifies whether the additional check for namespace completeness
-//     within the row is needed or not.
-//
-// Notes:
-//   - The `shares` data passed is used for recomputing proofs where missing. It is extended (erasure-coded)
-//     and parsed row-wise to compute the row roots
-//   - Empty or absent proofs or mismatched share counts will cause verification to fail.
-//
-// Returns an error if:
-//   - The data or proofs are malformed or incomplete
-//   - Namespace share proof validation fails
-//   - Coordinates or share lengths do not align with proof metadata
-//
-// Panics: This method will not panic but will return descriptive errors on all failure conditions.
 func (rngdata *RangeNamespaceData) verifyShares(
 	shares [][]libshare.Share,
 	from SampleCoords,

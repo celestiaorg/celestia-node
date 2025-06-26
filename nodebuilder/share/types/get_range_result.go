@@ -37,8 +37,9 @@ func NewGetRangeResult(
 	odsSize := len(dah.RowRoots) / 2
 	startRow := startIndex / odsSize
 	endRow := (endIndex - 1) / odsSize
+	numRows := endRow - startRow + 1
 
-	nmtProofs := make([]*nmt.Proof, len(rngdata.Shares))
+	nmtProofs := make([]*nmt.Proof, numRows)
 	nmtProofs[0] = rngdata.FirstIncompleteRowProof
 	if startRow != endRow {
 		nmtProofs[len(rngdata.Shares)-1] = rngdata.LastIncompleteRowProof
@@ -70,8 +71,8 @@ func NewGetRangeResult(
 		return nil, errors.New("recomputed data hash does not match expected data hash")
 	}
 
-	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
-	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
+	rowProofs := make([]*merkle.Proof, numRows)
+	rowRoots := make([]tmbytes.HexBytes, numRows)
 
 	for i := startRow; i <= endRow; i++ {
 		rowProofs[i-startRow] = &merkle.Proof{
@@ -83,8 +84,9 @@ func NewGetRangeResult(
 		rowRoots[i-startRow] = dah.RowRoots[i]
 	}
 
+	data := rngdata.Flatten()
 	sharesProof := &types.ShareProof{
-		Data:             libshare.ToBytes(rngdata.Flatten()),
+		Data:             libshare.ToBytes(data),
 		ShareProofs:      coreProofs,
 		NamespaceID:      ns.ID(),
 		NamespaceVersion: uint32(ns.Version()),
@@ -96,7 +98,7 @@ func NewGetRangeResult(
 		},
 	}
 	return &GetRangeResult{
-		Shares: rngdata.Flatten(),
+		Shares: data,
 		Proof:  sharesProof,
 	}, nil
 }
