@@ -100,7 +100,7 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusBadRequest)
 		return err
 	}
-	fmt.Println("\n\n time to read request (L106):   ", time.Since(startTime).String())
+	fmt.Println("\n\n time to read request (L106):   ", time.Since(startTime).Milliseconds())
 
 	logger = logger.With(
 		"namespace", ndid.DataNamespace.String(),
@@ -113,7 +113,7 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 
 	startTime = time.Now()
 	nd, status, err := srv.getNamespaceData(ctx, ndid)
-	fmt.Println("\n\n time to get namespaced data (L116):   ", time.Since(startTime).String())
+	fmt.Println("\n\n time to get namespaced data (L116):   ", time.Since(startTime).Milliseconds())
 
 	if err != nil {
 		// server should respond with status regardless if there was an error getting data
@@ -128,7 +128,7 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 
 	startTime = time.Now()
 	err = srv.respondStatus(ctx, logger, stream, status)
-	fmt.Println("\n\n time to respond status (L131):   ", time.Since(startTime).String())
+	fmt.Println("\n\n time to respond status (L131):   ", time.Since(startTime).Milliseconds())
 
 	if err != nil {
 		logger.Errorw("sending response", "err", err)
@@ -138,7 +138,7 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 
 	startTime = time.Now()
 	_, err = nd.WriteTo(stream)
-	fmt.Println("\n\n time to write nd to stream (L141):   ", time.Since(startTime).String())
+	fmt.Println("\n\n time to write nd to stream (L141):   ", time.Since(startTime).Milliseconds())
 
 	if err != nil {
 		logger.Errorw("send nd data", "err", err)
