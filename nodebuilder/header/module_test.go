@@ -121,9 +121,9 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	)
 	require.NoError(t, app.Err())
 	require.Equal(t, exchange.Params.MaxHeadersPerRangeRequest, cfg.Client.MaxHeadersPerRangeRequest)
-	require.Equal(t, exchange.Params.RequestTimeout, cfg.Client.RequestTimeout)
+	require.Equal(t, exchange.Params.RangeRequestTimeout, cfg.Client.RangeRequestTimeout)
 
 	require.Equal(t, exchangeServer.Params.WriteDeadline, cfg.Server.WriteDeadline)
 	require.Equal(t, exchangeServer.Params.ReadDeadline, cfg.Server.ReadDeadline)
-	require.Equal(t, exchangeServer.Params.RequestTimeout, cfg.Server.RequestTimeout)
+	require.Equal(t, exchangeServer.Params.RangeRequestTimeout, cfg.Server.RangeRequestTimeout)
 }
