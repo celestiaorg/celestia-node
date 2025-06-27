@@ -15,6 +15,10 @@ type SampleCoords struct {
 	Col int `json:"col"`
 }
 
+func (s SampleCoords) String() string {
+	return fmt.Sprintf("(%d:%d)", s.Row, s.Col)
+}
+
 func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {
 	if idx.Row < 0 || idx.Col < 0 {
 		return 0, fmt.Errorf("negative row or col index: %w", ErrInvalidID)

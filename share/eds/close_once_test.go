@@ -77,7 +77,6 @@ func (s *stubEdsAccessorCloser) RowNamespaceData(
 
 func (s *stubEdsAccessorCloser) RangeNamespaceData(
 	_ context.Context,
-	_ libshare.Namespace,
 	_, _ shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, nil
