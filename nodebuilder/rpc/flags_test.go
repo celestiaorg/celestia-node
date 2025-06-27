@@ -93,3 +93,21 @@ func TestParseFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestParseFlags_TLS(t *testing.T) {
+	cmd := &cobra.Command{}
+	cfg := &Config{}
+	cmd.Flags().AddFlagSet(Flags())
+
+	err := cmd.Flags().Set(tlsEnabledFlag, "true")
+	assert.NoError(t, err)
+	err = cmd.Flags().Set(tlsCertPathFlag, "/tmp/cert.pem")
+	assert.NoError(t, err)
+	err = cmd.Flags().Set(tlsKeyPathFlag, "/tmp/key.pem")
+	assert.NoError(t, err)
+
+	ParseFlags(cmd, cfg)
+	assert.True(t, cfg.TLSEnabled)
+	assert.Equal(t, "/tmp/cert.pem", cfg.TLSCertPath)
+	assert.Equal(t, "/tmp/key.pem", cfg.TLSKeyPath)
+}
