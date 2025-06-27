@@ -381,10 +381,10 @@ github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12 h1:Q5Y9mZymbQP9qUr/l5IPcg
 github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2 h1:o+cQNLd5GQJdtlD8k7YofVIOJB9wkPX9cIEJz0E3FFg=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2/go.mod h1:GdR2F3YQhICk8j5cEHOoSBdsIkKBDUcznPfjgnDHg5U=
-github.com/celestiaorg/go-fraud v0.2.3 h1:vsGmd5HtGL92q/pvjN0cpDsXn7hGJSbVZwOJl+dNX8E=
-github.com/celestiaorg/go-fraud v0.2.3/go.mod h1:h2Or0jHka/TDlQ3XsJV6OibIiwm49UiGVEu2jHKzybA=
-github.com/celestiaorg/go-header v0.6.6 h1:17GvSXU/w8L1YWHZP4pYm9/4YHA8iy5Ku2wTEKYYkCU=
-github.com/celestiaorg/go-header v0.6.6/go.mod h1:RdnlTmsyuNerztNiJiQE5G/EGEH+cErhQ83xNjuGcaQ=
+github.com/celestiaorg/go-fraud v0.2.1 h1:oYhxI0gM/EpGRgbVQdRI/LSlqyT65g/WhQGSVGfx09w=
+github.com/celestiaorg/go-fraud v0.2.1/go.mod h1:lNY1i4K6kUeeE60Z2VK8WXd+qXb8KRzfBhvwPkK6aUc=
+github.com/celestiaorg/go-header v0.6.4 h1:3kXi7N3qBc4SCmT+tNVWhLi0Ilw5e/7qq2cxVGbs0ss=
+github.com/celestiaorg/go-header v0.6.4/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
