@@ -53,8 +53,10 @@ func TestRangeNamespaceData(t *testing.T) {
 			}
 
 			to := shwap.SampleCoords{Row: toRow, Col: toCol}
+			edsID, err := shwap.NewEdsID(1)
+			require.NoError(t, err)
 			dataID, err := shwap.NewRangeNamespaceDataID(
-				shwap.EdsID{Height: 1},
+				edsID,
 				ns,
 				shwap.SampleCoords{Row: nsRowStart, Col: col},
 				to,

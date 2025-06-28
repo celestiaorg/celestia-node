@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 type square [][]libshare.Share
@@ -54,19 +55,19 @@ func (s square) shares() ([]libshare.Share, error) {
 	return shares, nil
 }
 
-func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	if s == nil {
-		return eds.AxisHalf{}, fmt.Errorf("square is nil")
+		return shwap.AxisHalf{}, fmt.Errorf("square is nil")
 	}
 
 	if axisIdx >= s.size() {
-		return eds.AxisHalf{}, fmt.Errorf("index is out of square bounds")
+		return shwap.AxisHalf{}, fmt.Errorf("index is out of square bounds")
 	}
 
 	// square stores rows directly in high level slice, so we can return by accessing row by index
 	if axisType == rsmt2d.Row {
 		row := s[axisIdx]
-		return eds.AxisHalf{
+		return shwap.AxisHalf{
 			Shares:   row,
 			IsParity: false,
 		}, nil
@@ -77,7 +78,7 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error
 	for i := range s.size() {
 		col[i] = s[i][axisIdx]
 	}
-	return eds.AxisHalf{
+	return shwap.AxisHalf{
 		Shares:   col,
 		IsParity: false,
 	}, nil
@@ -86,7 +87,7 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error
 func (s square) computeAxisHalf(
 	axisType rsmt2d.Axis,
 	axisIdx int,
-) (eds.AxisHalf, error) {
+) (shwap.AxisHalf, error) {
 	shares := make([]libshare.Share, s.size())
 
 	// extend opposite half of the square while collecting Shares for the first half of required axis
@@ -129,7 +130,7 @@ func (s square) computeAxisHalf(
 	}
 
 	err := g.Wait()
-	return eds.AxisHalf{
+	return shwap.AxisHalf{
 		Shares:   shares,
 		IsParity: false,
 	}, err

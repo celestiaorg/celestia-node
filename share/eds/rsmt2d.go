@@ -84,13 +84,13 @@ func (eds *Rsmt2D) SampleForProofAxis(
 }
 
 // AxisHalf returns Shares for the first half of the axis of the given type and index.
-func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	shares, err := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("while getting axis share: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("while getting axis share: %w", err)
 	}
 	halfShares := shares[:eds.Width()/2]
-	return AxisHalf{
+	return shwap.AxisHalf{
 		Shares:   halfShares,
 		IsParity: false,
 	}, nil
