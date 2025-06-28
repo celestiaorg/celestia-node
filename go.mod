@@ -399,3 +399,5 @@ replace (
 )
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
+
+replace github.com/celestiaorg/go-header => ../go-header

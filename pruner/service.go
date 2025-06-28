@@ -39,7 +39,7 @@ type Service struct {
 func NewService(
 	p Pruner,
 	window time.Duration,
-	getter libhead.Getter[*header.ExtendedHeader],
+	getter libhead.Store[*header.ExtendedHeader],
 	ds datastore.Datastore,
 	blockTime time.Duration,
 	opts ...Option,
@@ -53,7 +53,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{
+	s := &Service{
 		pruner:     p,
 		window:     window,
 		getter:     getter,
@@ -62,7 +62,11 @@ func NewService(
 		blockTime:  blockTime,
 		doneCh:     make(chan struct{}),
 		params:     params,
-	}, nil
+	}
+
+	// ensure we set delete handler before all the services start
+	getter.OnDelete(s.onHeadersDelete)
+	return s, nil
 }
 
 // Start loads the pruner's last pruned height (1 if pruner is freshly
@@ -213,4 +217,34 @@ func (s *Service) retryFailed(ctx context.Context) {
 		}
 		delete(s.checkpoint.FailedHeaders, failed)
 	}
+}
+
+func (s *Service) onHeadersDelete(ctx context.Context, headers []*header.ExtendedHeader) error {
+	var lastPrunedHeader *header.ExtendedHeader
+	failed := make(map[uint64]struct{})
+
+	log.Debugw("pruning headers", "from", headers[0].Height(), "to",
+		headers[len(headers)-1].Height())
+	for _, eh := range headers {
+		// TODO(@Wondertan): make it a configurable value
+		pruneCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+
+		err := s.pruner.Prune(pruneCtx, eh)
+		if err != nil {
+			log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
+			failed[eh.Height()] = struct{}{}
+		} else {
+			lastPrunedHeader = eh
+		}
+
+		s.metrics.observePrune(pruneCtx, err != nil)
+		cancel()
+	}
+
+	err := s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failed)
+	if err != nil {
+		log.Errorw("failed to update checkpoint", "err", err)
+	}
+
+	return nil
 }
