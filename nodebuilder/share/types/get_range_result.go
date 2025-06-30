@@ -66,11 +66,7 @@ func NewGetRangeResult(
 	}
 	coreProofs := toCoreNMTProof(nmtProofs)
 
-	root, allProofs := merkle.ProofsFromByteSlices(append(dah.RowRoots, dah.ColumnRoots...))
-	if !bytes.Equal(root, dah.Hash()) {
-		return nil, errors.New("recomputed data hash does not match expected data hash")
-	}
-
+	_, allProofs := merkle.ProofsFromByteSlices(append(dah.RowRoots, dah.ColumnRoots...))
 	rowProofs := make([]*merkle.Proof, numRows)
 	rowRoots := make([]tmbytes.HexBytes, numRows)
 
