@@ -3,10 +3,12 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"testing"
+
+	libshare "github.com/celestiaorg/go-square/v2/share"
+
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"testing"
 )
 
 func (s *CelestiaTestSuite) TestE2EBlobModule() {

@@ -2,27 +2,29 @@ package e2e
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
-	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
-	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
-	"github.com/celestiaorg/tastora/framework/testutil/wait"
-	"github.com/celestiaorg/tastora/framework/testutil/wallet"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"go.uber.org/zap/zaptest"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
-	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
-	"github.com/celestiaorg/tastora/framework/testutil/toml"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
+	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
+	"github.com/celestiaorg/tastora/framework/testutil/toml"
+	"github.com/celestiaorg/tastora/framework/testutil/wait"
+	"github.com/celestiaorg/tastora/framework/testutil/wallet"
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+
+	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 )
 
 const (
