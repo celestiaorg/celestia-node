@@ -167,7 +167,7 @@ test-e2e:
 		exit 1; \
 	fi
 	@echo "--> Running: TestCelestiaTestSuite/$(test)"
-	cd e2e && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
+	cd nodebuilder/tests/tastora && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
 .PHONY: test-e2e
 
 ## benchmark: Run all benchmarks.

@@ -1,12 +1,10 @@
-module github.com/celestiaorg/celestia-node/e2e
+module github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 
-go 1.24.1
-
-toolchain go1.24.3
+go 1.24.4
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v4 v4.0.2-rc2.0.20250613174023-b768c4417b17
+	github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha
 	github.com/celestiaorg/celestia-node v0.23.0
 	github.com/celestiaorg/go-square/v2 v2.3.0
 	github.com/celestiaorg/tastora v0.0.2-0.20250606115605-85daa9ffdd17
@@ -77,6 +75,7 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/bytedance/sonic v1.13.1 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/go-fraud v0.2.3 // indirect
@@ -179,7 +178,6 @@ require (
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.8 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-getter v1.7.6 // indirect
@@ -328,6 +326,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
+	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
@@ -343,13 +342,11 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.34.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/dig v1.18.1 // indirect
 	go.uber.org/fx v1.23.0 // indirect
@@ -385,7 +382,7 @@ require (
 
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.1.0
-	github.com/celestiaorg/celestia-node => ../../celestia-node
+	github.com/celestiaorg/celestia-node => ../../..
 	//github.com/celestiaorg/tastora => ../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.53.0-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.1-sdk-v0.50.12
