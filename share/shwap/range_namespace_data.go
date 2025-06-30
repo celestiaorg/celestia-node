@@ -433,6 +433,23 @@ func ParseNamespace(rawShares [][]libshare.Share, startShare, endShare int) (lib
 	return startShareNs, nil
 }
 
+// GenerateSharesProofs generates a nmt proof for a range of shares within a specific row.
+// It builds a Namespaced Merkle Tree from the provided row shares and creates a proof
+// that the shares in the specified column range are valid
+//
+// Parameters:
+//   - row: the row index in the data square
+//   - fromCol: the starting column index (inclusive) for the proof range
+//   - toCol: the ending column index (exclusive) for the proof range
+//   - size: the size of the original data in th row.
+//   - rowShares: slice of shares representing the complete row data
+//
+// Returns a nmt proof that can be used to verify that shares
+// in were included in the specified row.
+//
+// Returns an error if:
+//   - tree construction fails when pushing any share
+//   - proof generation fails for the specified range.
 func GenerateSharesProofs(
 	row, fromCol, toCol, size int,
 	rowShares []libshare.Share,
