@@ -1,4 +1,4 @@
-package utils
+package utils //nolint:revive // generic package name is acceptable for utilities
 
 import (
 	"context"
