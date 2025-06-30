@@ -20,8 +20,10 @@ import (
 // GetRangeResult wraps the return value of the GetRange endpoint
 // because Json-RPC doesn't support more than two return values.
 type GetRangeResult struct {
+	// Shares contains the data shares retrieved from the specified range.
 	Shares []libshare.Share
-	Proof  *types.ShareProof
+	// Proof proves that shares were included in the data root.
+	Proof *types.ShareProof
 }
 
 func NewGetRangeResult(
