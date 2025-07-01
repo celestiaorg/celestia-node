@@ -40,7 +40,8 @@ type Module interface {
 	SyncWait(ctx context.Context) error
 	// NetworkHead provides the Syncer's view of the current network head.
 	NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
-
+	// Tail reports current tail header of the node.
+	Tail(context.Context) (*header.ExtendedHeader, error)
 	// Subscribe to recent ExtendedHeaders from the network.
 	Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 }
@@ -63,6 +64,7 @@ type API struct {
 		SyncState     func(ctx context.Context) (sync.State, error)                    `perm:"read"`
 		SyncWait      func(ctx context.Context) error                                  `perm:"read"`
 		NetworkHead   func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"read"`
+		Tail          func(ctx context.Context) (*header.ExtendedHeader, error)        `perm:"read"`
 		Subscribe     func(ctx context.Context) (<-chan *header.ExtendedHeader, error) `perm:"read"`
 	}
 }
@@ -101,6 +103,10 @@ func (api *API) SyncWait(ctx context.Context) error {
 
 func (api *API) NetworkHead(ctx context.Context) (*header.ExtendedHeader, error) {
 	return api.Internal.NetworkHead(ctx)
+}
+
+func (api *API) Tail(ctx context.Context) (*header.ExtendedHeader, error) {
+	return api.Internal.Tail(ctx)
 }
 
 func (api *API) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
