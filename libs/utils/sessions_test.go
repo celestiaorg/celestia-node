@@ -25,7 +25,7 @@ func TestSessionsSerialExecution(t *testing.T) {
 
 	for i := range numSessions {
 		wg.Add(1)
-		go func(id int) {
+		go func(_ int) {
 			defer wg.Done()
 			endSession, err := sessions.StartSession(ctx, key)
 			require.NoError(t, err)

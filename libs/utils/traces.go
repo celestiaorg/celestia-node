@@ -1,4 +1,4 @@
-package utils //nolint:revive // generic package name is acceptable for utilities
+package utils
 
 import (
 	"go.opentelemetry.io/otel/codes"
