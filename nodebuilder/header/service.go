@@ -130,6 +130,10 @@ func (s *Service) NetworkHead(ctx context.Context) (*header.ExtendedHeader, erro
 	return s.syncer.Head(ctx)
 }
 
+func (s *Service) Tail(ctx context.Context) (*header.ExtendedHeader, error) {
+	return s.store.Tail(ctx)
+}
+
 func (s *Service) Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 	subscription, err := s.sub.Subscribe()
 	if err != nil {
