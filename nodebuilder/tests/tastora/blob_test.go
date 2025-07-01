@@ -8,15 +8,14 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // BlobTestSuite is a dedicated test suite for blob module functionality.

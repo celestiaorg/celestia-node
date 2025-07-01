@@ -1,10 +1,14 @@
 # Tastora Testing Framework
 
-This directory contains the Tastora-based testing framework for Celestia Node, providing Docker-based end-to-end testing infrastructure similar to how the `swamp` framework provides mock-based testing.
+This directory contains the Tastora-based testing framework for Celestia Node,
+providing Docker-based end-to-end testing infrastructure similar to how the
+`swamp` framework provides mock-based testing.
 
 ## Architecture
 
-The Tastora framework provides a structured approach to testing Celestia Node modules using real Docker containers and networks, making tests closer to production environments.
+The Tastora framework provides a structured approach to testing Celestia Node
+modules using real Docker containers and networks, making tests closer to
+production environments.
 
 ### Framework Components
 
@@ -14,9 +18,12 @@ The Tastora framework provides a structured approach to testing Celestia Node mo
 
 ### Key Design Principles
 
-1. **Reusable Framework**: Similar to how `swamp.NewSwamp()` creates a testing environment, `NewFramework()` sets up the Tastora infrastructure
-2. **Module-Specific Test Suites**: Each module has its own test suite that embeds the framework
-3. **Docker-Based**: Uses real Docker containers instead of mocks for more realistic testing
+1. **Reusable Framework**: Similar to how `swamp.NewSwamp()` creates a testing
+   environment, `NewFramework()` sets up the Tastora infrastructure
+2. **Module-Specific Test Suites**: Each module has its own test suite that
+   embeds the framework
+3. **Docker-Based**: Uses real Docker containers instead of mocks for more
+   realistic testing
 4. **Configurable**: Supports various network topologies and node configurations
 
 ## Usage
@@ -84,6 +91,7 @@ framework := NewFramework(t,
 For modules currently using the swamp framework, follow this migration pattern:
 
 ### Before (Swamp)
+
 ```go
 func TestYourModule(t *testing.T) {
     sw := swamp.NewSwamp(t)
@@ -94,6 +102,7 @@ func TestYourModule(t *testing.T) {
 ```
 
 ### After (Tastora)
+
 ```go
 type YourModuleTestSuite struct {
     suite.Suite
@@ -115,7 +124,8 @@ func TestYourModuleTestSuite(t *testing.T) {
 ## Test Organization
 
 ### Current Structure
-```
+
+```text
 nodebuilder/tests/tastora/
 ├── framework.go        # Core framework infrastructure
 ├── config.go          # Configuration options
@@ -127,7 +137,8 @@ nodebuilder/tests/tastora/
 ```
 
 ### Future Structure (as modules migrate)
-```
+
+```text
 nodebuilder/tests/tastora/
 ├── framework.go        # Core framework
 ├── config.go          # Configuration
@@ -143,9 +154,11 @@ nodebuilder/tests/tastora/
 ## Available Test Suites
 
 ### Blob Tests (`make test-blob`)
+
 **Status: ✅ Fully Working**
 
 Complete blob module test suite covering:
+
 - Blob submission via direct chain API
 - Blob retrieval and verification
 - V0 and V1 blob support
@@ -154,11 +167,10 @@ Complete blob module test suite covering:
 - Proof generation and validation
 - Error handling for non-existent blobs
 
-
-
 ### Running Tests
 
 #### Individual Test Suites
+
 ```bash
 # Run only blob tests
 make test-blob
@@ -168,27 +180,26 @@ make test-tastora
 ```
 
 #### Specific Test Cases
+
 ```bash
 # Run specific blob test
 go test -v -run TestBlobTestSuite/TestBlobModule ./nodebuilder/tests/tastora/
-
-
 ```
 
 ## Migration Status from Swamp
 
-
-
 ### Key Migration Achievements
 
 **✅ Successfully Migrated:**
+
 - Complete testing framework infrastructure  
 - Docker-based node management (vs swamp's mocks)
 - Test suite organization and patterns
 - Blob module test coverage
 - Wallet funding and account management
 
-**🎯 Framework Completeness:** **90%** - Core infrastructure and most test patterns successfully migrated
+**🎯 Framework Completeness:** **90%** - Core infrastructure and most test
+patterns successfully migrated
 
 ## Key Differences from Swamp
 
@@ -206,6 +217,7 @@ go test -v -run TestBlobTestSuite/TestBlobModule ./nodebuilder/tests/tastora/
 ## Running Tests
 
 ### Individual Test Suite
+
 ```bash
 # Run only blob tests
 go test -v -run TestBlobTestSuite ./nodebuilder/tests/tastora/
@@ -215,6 +227,7 @@ go test -v -run TestBlobTestSuite/TestBlobModule ./nodebuilder/tests/tastora/
 ```
 
 ### Via Makefile
+
 ```bash
 # Run e2e tests (update Makefile target as needed)
 make test-e2e test=TestBlobTestSuite
@@ -233,18 +246,21 @@ When adding new module tests to this framework:
 ## Troubleshooting
 
 ### Docker Issues
+
 - Ensure Docker is running and accessible
 - Check Docker socket permissions (see main e2e test documentation)
 
 ### Test Timeouts
+
 - Increase context timeout for slower environments
 - Consider reducing test scope for CI environments
 
 ### Resource Constraints
-- Tastora tests use more resources than swamp tests
-- Consider running fewer parallel tests if resource-constrained 
 
-### Framework Services
+- Tastora tests use more resources than swamp tests
+- Consider running fewer parallel tests if resource-constrained
+
+## Framework Services
 
 The framework provides several key services:
 
@@ -253,7 +269,7 @@ The framework provides several key services:
 3. **Wallet Operations**: Creates and funds test wallets
 4. **RPC Clients**: Provides access to node APIs
 
-#### Wallet and Funding Operations
+### Wallet and Funding Operations
 
 The framework provides consolidated methods for wallet and account management:
 
@@ -269,7 +285,11 @@ nodeAccAddr := framework.FundNodeAccount(ctx, fromWallet, daNode, amount)
 ```
 
 **Key Benefits of Consolidated Funding:**
-- **Reusable**: All test modules (blob, share, da, header) can use the same funding logic
+
+- **Reusable**: All test modules (blob, share, da, header) can use the same
+  funding logic
 - **Consistent**: Standardized approach to node account funding across tests
 - **Maintainable**: Single implementation reduces code duplication
-- **Reliable**: Uses proven funding patterns with proper error handling and waiting 
+- **Reliable**: Uses proven funding patterns with proper error handling and
+  waiting
+
