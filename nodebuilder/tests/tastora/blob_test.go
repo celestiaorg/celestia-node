@@ -13,6 +13,7 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/state"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -38,10 +39,6 @@ func (s *BlobTestSuite) SetupSuite() {
 
 	// Create and fund a test wallet for chain operations
 	s.testWallet = s.framework.CreateTestWallet(s.ctx, 10_000_000_000) // 10 billion utia
-
-	// Fund the node's default account using the consolidated framework method
-	fullNode := s.framework.GetFullNodes()[0]
-	s.framework.FundNodeAccount(s.ctx, s.testWallet, fullNode, 1_000_000_000) // 1 billion utia
 }
 
 // TearDownSuite cleans up the test suite.
@@ -51,89 +48,61 @@ func (s *BlobTestSuite) TearDownSuite() {
 	}
 }
 
-// TestBlobModule runs the main blob module API test.
-// This test covers comprehensive blob operations using the working chain submission approach.
+// TestBlobModule runs the main blob module API test using the Submit API.
 func (s *BlobTestSuite) TestBlobModule() {
-	// Test data setup - use smaller data to avoid truncation issues
+	// Get the full node client
+	fullNode := s.framework.GetFullNodes()[0]
+	fullNodeClient := s.framework.GetNodeRPCClient(s.ctx, fullNode)
+
+	// Get the node's account address from its keystore
+	nodeAddr, err := fullNodeClient.State.AccountAddress(s.ctx)
+	s.Require().NoError(err)
+
+	// Fund the node's account directly
+	s.framework.FundWallet(s.ctx, s.testWallet, nodeAddr.Bytes(), 1_000_000_000) // 1 billion utia
+
+	// Test data setup
 	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
 	s.Require().NoError(err)
 
 	data1 := []byte("Hello Celestia blob data 1")
 	data2 := []byte("Hello Celestia blob data 2")
 
-	// Get wallet address for signing
-	walletAddr, err := sdkacc.AddressFromWallet(s.testWallet)
+	// Create V1 blobs using the node's address as signer
+	v1Blob1, err := libshare.NewV1Blob(namespace, data1, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
-	// Create V1 blobs with explicit signer
-	libBlob1, err := blobtypes.NewV1Blob(namespace, data1, walletAddr)
+	v1Blob2, err := libshare.NewV1Blob(namespace, data2, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
-	libBlob2, err := blobtypes.NewV1Blob(namespace, data2, walletAddr)
+	// Convert to node blobs
+	nodeBlobs, err := nodeblob.ToNodeBlobs(v1Blob1, v1Blob2)
 	s.Require().NoError(err)
 
-	// Create MsgPayForBlobs transaction
-	signerStr := s.testWallet.GetFormattedAddress()
-	msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob1, libBlob2)
+	// Create transaction configuration
+	txConfig := state.NewTxConfig(
+		state.WithGas(200_000),
+		state.WithGasPrice(5000),
+	)
+
+	// Submit blobs via node's Submit API
+	height, err := fullNodeClient.Blob.Submit(s.ctx, nodeBlobs, txConfig)
+	s.Require().NoError(err, "Blob.Submit should not error")
+	s.Require().NotZero(height, "returned height should not be zero")
+
+	s.T().Logf("Blobs submitted successfully at height %d using Submit API", height)
+
+	// Wait for blob inclusion
+	_, err = fullNodeClient.Header.WaitForHeight(s.ctx, height)
 	s.Require().NoError(err)
 
-	// Submit via direct chain transaction
-	chain := s.framework.GetCelestiaChain()
-	resp, err := chain.BroadcastBlobMessage(s.ctx, s.testWallet, msg, libBlob1, libBlob2)
-	s.Require().NoError(err)
-	s.Require().Equal(uint32(0), resp.Code, "failed to broadcast blob: %s", resp.RawLog)
-
-	// Wait for blob inclusion (allow time for the blob to be processed)
-	time.Sleep(10 * time.Second)
-
-	// Get the full node client for blob retrieval
-	fullNode := s.framework.GetFullNodes()[0]
-	fullNodeClient := s.framework.GetNodeRPCClient(s.ctx, fullNode)
-
-	// Get the current height to search for blobs
-	header, err := fullNodeClient.Header.NetworkHead(s.ctx)
-	s.Require().NoError(err)
-	currentHeight := header.Height()
-
-	// Find the height where blobs were actually included
-	var blobHeight uint64
-	var retrievedBlobs []*nodeblob.Blob
-	found := false
-	for h := uint64(resp.Height); h <= currentHeight; h++ {
-		blobs, err := fullNodeClient.Blob.GetAll(s.ctx, h, []libshare.Namespace{namespace})
-		if err == nil && len(blobs) > 0 {
-			blobHeight = h
-			retrievedBlobs = blobs
-			found = true
-			s.T().Logf("Found %d blobs at height %d", len(blobs), h)
-			break
-		}
-	}
-	s.Require().True(found, "blobs not found at any height from %d to %d", resp.Height, currentHeight)
-	s.Require().Len(retrievedBlobs, 2, "expected 2 blobs")
-
-	// Test: Get single blob using the commitment from the retrieved blob
-	s.Run("Get_Single_Blob_V0", func() {
-		// Use the commitment from the actual retrieved blob
-		retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, blobHeight, namespace, retrievedBlobs[0].Commitment)
-		s.Require().NoError(err)
-		s.Require().NotNil(retrievedBlob)
-
-		// Trim null padding from retrieved data for comparison
-		retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
-		// Check if it matches either data1 or data2 since order may vary
-		s.Require().True(bytes.Equal(retrievedData, data1) || bytes.Equal(retrievedData, data2),
-			"retrieved data doesn't match either expected blob data")
-		s.Require().True(retrievedBlob.Namespace().Equals(namespace))
-	})
-
-	// Test: Get all blobs for namespace (this already works)
+	// Test: Get all blobs for namespace
 	s.Run("GetAll_Blobs_For_Namespace", func() {
-		blobs, err := fullNodeClient.Blob.GetAll(s.ctx, blobHeight, []libshare.Namespace{namespace})
+		blobs, err := fullNodeClient.Blob.GetAll(s.ctx, height, []libshare.Namespace{namespace})
 		s.Require().NoError(err)
-		s.Require().Len(blobs, 2)
+		s.Require().Len(blobs, 2, "expected 2 blobs")
 
-		// Verify all blobs are retrieved correctly (with padding trimmed)
+		// Verify all blobs are retrieved correctly
 		foundData1, foundData2 := false, false
 		for _, blob := range blobs {
 			retrievedData := bytes.TrimRight(blob.Data(), "\x00")
@@ -149,20 +118,39 @@ func (s *BlobTestSuite) TestBlobModule() {
 		s.Require().True(foundData2, "data2 blob not found")
 	})
 
-	// Test: Get proof for blob using actual commitment
+	// Test: Get single blob using commitment
+	s.Run("Get_Single_Blob_V1", func() {
+		// Use the commitment from the submitted blob
+		retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, height, namespace, nodeBlobs[0].Commitment)
+		s.Require().NoError(err)
+		s.Require().NotNil(retrievedBlob)
+
+		// Verify the blob data
+		retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
+		s.Require().True(bytes.Equal(retrievedData, data1) || bytes.Equal(retrievedData, data2),
+			"retrieved data should match one of the submitted blobs")
+		s.Require().True(retrievedBlob.Namespace().Equals(namespace))
+
+		// Verify it's a V1 blob with signer information
+		s.Require().Equal(libshare.ShareVersionOne, retrievedBlob.ShareVersion(), "should be V1 blob")
+		s.Require().NotNil(retrievedBlob.Signer(), "V1 blob should have signer")
+		s.Require().Equal(nodeAddr.Bytes(), retrievedBlob.Signer(), "signer should match node address")
+	})
+
+	// Test: Get proof for blob
 	s.Run("GetProof_For_Blob", func() {
-		proof, err := fullNodeClient.Blob.GetProof(s.ctx, blobHeight, namespace, retrievedBlobs[0].Commitment)
+		proof, err := fullNodeClient.Blob.GetProof(s.ctx, height, namespace, nodeBlobs[0].Commitment)
 		s.Require().NoError(err)
 		s.Require().NotNil(proof)
 		s.Require().NotEmpty(proof)
 	})
 
-	// Test: Verify blob inclusion using actual commitment
+	// Test: Verify blob inclusion
 	s.Run("Included_Blob_Verification", func() {
-		proof, err := fullNodeClient.Blob.GetProof(s.ctx, blobHeight, namespace, retrievedBlobs[0].Commitment)
+		proof, err := fullNodeClient.Blob.GetProof(s.ctx, height, namespace, nodeBlobs[0].Commitment)
 		s.Require().NoError(err)
 
-		included, err := fullNodeClient.Blob.Included(s.ctx, blobHeight, namespace, proof, retrievedBlobs[0].Commitment)
+		included, err := fullNodeClient.Blob.Included(s.ctx, height, namespace, proof, nodeBlobs[0].Commitment)
 		s.Require().NoError(err)
 		s.Require().True(included)
 	})
@@ -170,25 +158,31 @@ func (s *BlobTestSuite) TestBlobModule() {
 	// Test: Non-existent blob error handling
 	s.Run("Get_NonExistent_Blob_Error", func() {
 		nonExistentCommitment := bytes.Repeat([]byte{0xFF}, 32)
-		_, err := fullNodeClient.Blob.Get(s.ctx, blobHeight, namespace, nonExistentCommitment)
+		_, err := fullNodeClient.Blob.Get(s.ctx, height, namespace, nonExistentCommitment)
 		s.Require().Error(err)
 		s.Require().Contains(err.Error(), "blob: not found")
 	})
 
-	// Test: V1 blob-specific verification (matching swamp coverage)
-	s.Run("Get_BlobV1_With_Signer", func() {
-		// Get one of the V1 blobs we submitted
-		retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, blobHeight, namespace, retrievedBlobs[0].Commitment)
+	// Test: Submit duplicate blobs
+	s.Run("Submit_Equal_Blobs", func() {
+		// Create identical blob
+		duplicateBlob, err := libshare.NewV1Blob(namespace, []byte("duplicate data"), nodeAddr.Bytes())
 		s.Require().NoError(err)
-		s.Require().NotNil(retrievedBlob)
 
-		// Verify it's a V1 blob with signer information
-		s.Require().Equal(libshare.ShareVersionOne, retrievedBlob.ShareVersion(), "should be V1 blob")
-		s.Require().NotNil(retrievedBlob.Signer(), "V1 blob should have signer")
+		nodeDuplicateBlob, err := nodeblob.ToNodeBlobs(duplicateBlob)
+		s.Require().NoError(err)
 
-		// Verify signer matches what we used for submission
-		expectedSigner := walletAddr.Bytes()
-		s.Require().Equal(expectedSigner, retrievedBlob.Signer(), "signer should match submission wallet")
+		// Submit the same blob twice in one transaction
+		height, err := fullNodeClient.Blob.Submit(s.ctx, []*nodeblob.Blob{nodeDuplicateBlob[0], nodeDuplicateBlob[0]}, txConfig)
+		s.Require().NoError(err, "submitting duplicate blobs should succeed")
+
+		_, err = fullNodeClient.Header.WaitForHeight(s.ctx, height)
+		s.Require().NoError(err)
+
+		// Verify blob can be retrieved
+		retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, height, namespace, nodeDuplicateBlob[0].Commitment)
+		s.Require().NoError(err)
+		s.Require().Equal(nodeDuplicateBlob[0].Commitment, retrievedBlob.Commitment)
 	})
 }
 
