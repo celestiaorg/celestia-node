@@ -15,8 +15,10 @@ func TestValidate(t *testing.T) {
 		{
 			name: "valid config",
 			cfg: Config{
-				IP:   "127.0.0.1",
-				Port: DefaultPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
 			},
 			expectErr: false,
 		},
@@ -28,31 +30,39 @@ func TestValidate(t *testing.T) {
 		{
 			name: "hostname preserved",
 			cfg: Config{
-				IP:   "celestia.org",
-				Port: DefaultPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "celestia.org",
+					Port: DefaultPort,
+				},
 			},
 			expectErr: false,
 		},
 		{
 			name: "missing GRPC port",
 			cfg: Config{
-				IP: "127.0.0.1",
+				EndpointConfig: EndpointConfig{
+					IP: "127.0.0.1",
+				},
 			},
 			expectErr: true,
 		},
 		{
 			name: "invalid IP, but will be accepted as host and not raise an error",
 			cfg: Config{
-				IP:   "invalid-ip",
-				Port: DefaultPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "invalid-ip",
+					Port: DefaultPort,
+				},
 			},
 			expectErr: false,
 		},
 		{
 			name: "invalid port",
 			cfg: Config{
-				IP:   "127.0.0.1",
-				Port: "invalid-port",
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: "invalid-port",
+				},
 			},
 			expectErr: true,
 		},

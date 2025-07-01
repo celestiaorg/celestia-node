@@ -64,8 +64,8 @@ type CoreAccessor struct {
 
 	prt *merkle.ProofRuntime
 
-	coreConn *grpc.ClientConn
-	network  string
+	coreConns []*grpc.ClientConn
+	network   string
 
 	estimatorServiceAddr string
 	estimatorServiceTLS  bool
@@ -108,7 +108,7 @@ func NewCoreAccessor(
 		defaultSignerAddress: addr,
 		getter:               getter,
 		prt:                  prt,
-		coreConn:             conn,
+		coreConns:            []*grpc.ClientConn{conn},
 		network:              network,
 	}
 
@@ -122,10 +122,10 @@ func NewCoreAccessor(
 func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
-	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
+	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConns[0])
 	// create ABCI query client
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get node info: %w", err)
@@ -525,7 +525,12 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 	}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConn, encCfg, opts...)
+
+	if len(ca.coreConns) > 1 {
+		opts = append(opts, user.WithAdditionalCoreEndpoints(ca.coreConns[1:]))
+	}
+
+	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
