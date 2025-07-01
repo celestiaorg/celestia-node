@@ -57,8 +57,8 @@ func (s *BlobTestSuite) TestBlobModule() {
 	nodeAddr, err := fullNodeClient.State.AccountAddress(s.ctx)
 	s.Require().NoError(err)
 
-	// Fund the node's account directly
-	s.framework.FundWallet(s.ctx, s.testWallet, nodeAddr.Bytes(), 1_000_000_000) // 1 billion utia
+	// Fund the node's account directly (need enough for multiple transactions)
+	s.framework.FundWallet(s.ctx, s.testWallet, nodeAddr.Bytes(), 3_000_000_000) // 3 billion utia
 
 	// Test data setup
 	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
@@ -164,6 +164,9 @@ func (s *BlobTestSuite) TestBlobModule() {
 
 	// Test: Submit duplicate blobs
 	s.Run("Submit_Equal_Blobs", func() {
+		// Fund the node account again for this test (each transaction costs 1 billion utia)
+		s.framework.FundWallet(s.ctx, s.testWallet, nodeAddr.Bytes(), 1_000_000_000) // 1 billion utia
+
 		// Create identical blob
 		duplicateBlob, err := libshare.NewV1Blob(namespace, []byte("duplicate data"), nodeAddr.Bytes())
 		s.Require().NoError(err)

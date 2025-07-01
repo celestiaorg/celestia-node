@@ -32,7 +32,7 @@ const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
 	defaultCelestiaTag = "v4.0.0-rc6"
 	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
-	defaultNodeTag     = "v0.23.0-mocha"
+	defaultNodeTag     = "v0.23.2-mocha"
 	testChainID        = "test"
 )
 
