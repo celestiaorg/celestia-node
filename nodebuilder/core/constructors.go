@@ -35,9 +35,11 @@ const (
 	xtokenFileName = "xtoken.json"
 )
 
+type AdditionalCoreEndpoints []*grpc.ClientConn
+
 // TODO @renaynay: should we make this reusable so we can have all auth + other features
 // for the estimator service too?
-func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
+func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	if cfg.TLSEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(
@@ -98,6 +100,19 @@ func grpcClient(lc fx.Lifecycle, cfg Config) (*grpc.ClientConn, error) {
 		},
 	})
 	return conn, nil
+}
+
+func additionalCoreEndpointGrpcClients(lc fx.Lifecycle, cfg Config) (AdditionalCoreEndpoints, error) {
+	additionalEndpoints := make(AdditionalCoreEndpoints, 0, len(cfg.AdditionalCoreEndpoints))
+	for _, additionalCfg := range cfg.AdditionalCoreEndpoints {
+		endpoint, err := grpcClient(lc, additionalCfg)
+		if err != nil {
+			return nil, err
+		}
+		additionalEndpoints = append(additionalEndpoints, endpoint)
+	}
+
+	return additionalEndpoints, nil
 }
 
 func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {

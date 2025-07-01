@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -24,6 +25,7 @@ func coreAccessor(
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
 	client *grpc.ClientConn,
+	additionalEndpoints core.AdditionalCoreEndpoints,
 ) (
 	*state.CoreAccessor,
 	Module,
@@ -31,6 +33,9 @@ func coreAccessor(
 	error,
 ) {
 	var opts []state.Option
+	if len(additionalEndpoints) > 0 {
+		opts = append(opts, state.WithAdditionalCoreEndpoints(additionalEndpoints))
+	}
 	if cfg.EstimatorAddress != "" {
 		opts = append(opts, state.WithEstimatorService(cfg.EstimatorAddress))
 
