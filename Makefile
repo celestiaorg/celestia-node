@@ -166,9 +166,18 @@ test-e2e:
 		echo "ERROR: 'test' variable is required. Usage: make test-e2e test=TestE2EMsgPayForBlob"; \
 		exit 1; \
 	fi
-	@echo "--> Running: TestCelestiaTestSuite/$(test)"
-	cd nodebuilder/tests/tastora && go test -v -run ^TestCelestiaTestSuite/$(test)$$ ./...
-.PHONY: test-e2e
+	@echo "--> Running: $(test)"
+	cd nodebuilder/tests/tastora && go test -v -run ^$(test)$$ ./...
+
+## test-blob: Run blob module tests via Tastora framework.
+test-blob:
+	@echo "--> Running blob module tests"
+	cd nodebuilder/tests/tastora && go test -v -run TestBlobTestSuite ./...
+
+## test-tastora: Run all Tastora framework tests.
+test-tastora: test-blob
+	@echo "--> Running all Tastora tests"
+	cd nodebuilder/tests/tastora && go test -v ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:
@@ -300,3 +309,5 @@ jemalloc:
 		rm -rf /tmp/jemalloc-temp ; \
 	fi
 .PHONY: jemalloc
+
+.PHONY: test-e2e test-blob test-tastora

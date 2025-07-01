@@ -7,7 +7,7 @@ require (
 	github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha
 	github.com/celestiaorg/celestia-node v0.23.0
 	github.com/celestiaorg/go-square/v2 v2.3.0
-	github.com/celestiaorg/tastora v0.0.2-0.20250606115605-85daa9ffdd17
+	github.com/celestiaorg/tastora v0.0.4
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.10.0
@@ -100,6 +100,7 @@ require (
 	github.com/cometbft/cometbft v0.38.17 // indirect
 	github.com/cometbft/cometbft-db v1.0.4 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.1.1 // indirect
@@ -123,7 +124,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.6.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v27.5.1+incompatible // indirect
+	github.com/docker/docker v28.2.2+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -254,6 +255,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
