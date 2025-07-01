@@ -155,7 +155,7 @@ nodebuilder/tests/tastora/
 
 ### Blob Tests (`make test-blob`)
 
-**Status: ✅ Fully Working**
+Status: ✅ Fully Working
 
 Complete blob module test suite covering:
 
@@ -292,4 +292,3 @@ nodeAccAddr := framework.FundNodeAccount(ctx, fromWallet, daNode, amount)
 - **Maintainable**: Single implementation reduces code duplication
 - **Reliable**: Uses proven funding patterns with proper error handling and
   waiting
-
