@@ -294,9 +294,6 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 	options = append(options,
 		p2p.WithHost(s.createPeer(ks)),
 		fx.Replace(node.StorePath(tempDir)),
-		fx.Invoke(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-			return store.Init(ctx, s.genesis)
-		}),
 	)
 	return nodebuilder.New(t, p2p.Private, store, options...)
 }

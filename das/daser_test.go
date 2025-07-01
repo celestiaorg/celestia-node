@@ -20,10 +20,9 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-var timeout = time.Second * 15
+var timeout = time.Second * 3
 
 // TestDASerLifecycle tests to ensure every mock block is DASed and
 // the DASer checkpoint is updated to network head.
@@ -54,13 +53,6 @@ func TestDASerLifecycle(t *testing.T) {
 		require.EqualValues(t, 30, checkpoint.SampleFrom-1)
 	}()
 
-	// wait for mock to indicate that catchup is done
-	select {
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	case <-mockGet.doneCh:
-	}
-
 	// wait for DASer to indicate done
 	require.NoError(t, waitHeight(ctx, daser, 30))
 }
@@ -82,26 +74,16 @@ func TestDASer_Restart(t *testing.T) {
 	err = daser.Start(ctx)
 	require.NoError(t, err)
 
-	// wait for mock to indicate that catchup is done
-	select {
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	case <-mockGet.doneCh:
-	}
-
 	// wait for DASer to indicate done
 	require.NoError(t, waitHeight(ctx, daser, 30))
 
 	err = daser.Stop(ctx)
 	require.NoError(t, err)
 
-	// reset mockGet, generate 15 "past" headers, building off chain head which is 30
-	mockGet.generateHeaders(t, 30, 45)
-	mockGet.doneCh = make(chan struct{})
-	// reset dummy subscriber
-	mockGet.fillSubWithHeaders(t, sub, 45, 60)
-	// manually set mockGet head to trigger finished at 45
-	mockGet.head = int64(45)
+	// reset mockGet and mockSub, generate 15 "past" headers, building off chain head which is 30
+	head, err := mockGet.Head(ctx)
+	require.NoError(t, err)
+	mockGet, sub = createMockGetterAndSub(t, 15, 15, head)
 
 	// restart DASer with new context
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
@@ -112,13 +94,6 @@ func TestDASer_Restart(t *testing.T) {
 
 	err = daser.Start(restartCtx)
 	require.NoError(t, err)
-
-	// wait for dasing catch-up routine to indicateDone
-	select {
-	case <-restartCtx.Done():
-		t.Fatal(restartCtx.Err())
-	case <-mockGet.doneCh:
-	}
 
 	require.NoError(t, waitHeight(ctx, daser, 60))
 	err = daser.Stop(restartCtx)
@@ -206,7 +181,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	getter := getterStub{}
+	getter := headertest.NewStore(t)
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
 	doneCh := make(chan struct{})
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().
@@ -214,7 +189,11 @@ func TestDASerSampleTimeout(t *testing.T) {
 			func(sampleCtx context.Context, h *header.ExtendedHeader) error {
 				select {
 				case <-sampleCtx.Done():
-					close(doneCh)
+					select {
+					case <-doneCh:
+					default:
+						close(doneCh)
+					}
 					return nil
 				case <-ctx.Done():
 					t.Fatal("call context didn't timeout in time")
@@ -249,7 +228,11 @@ func createDASerSubcomponents(
 	t *testing.T,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.Subscriber, *fraudtest.DummyService[*header.ExtendedHeader]) {
+) (
+	libhead.Store[*header.ExtendedHeader],
+	libhead.Subscriber[*header.ExtendedHeader],
+	*fraudtest.DummyService[*header.ExtendedHeader],
+) {
 	mockGet, sub := createMockGetterAndSub(t, numGetter, numSub)
 	fraud := &fraudtest.DummyService[*header.ExtendedHeader]{}
 	return mockGet, sub, fraud
@@ -259,96 +242,15 @@ func createMockGetterAndSub(
 	t *testing.T,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.Subscriber) {
-	mockGet := &mockGetter{
-		headers:        make(map[int64]*header.ExtendedHeader),
-		doneCh:         make(chan struct{}),
-		brokenHeightCh: make(chan struct{}),
+	tail ...*header.ExtendedHeader,
+) (libhead.Store[*header.ExtendedHeader], libhead.Subscriber[*header.ExtendedHeader]) {
+	hsuite := headertest.NewTestSuiteDefaults(t)
+	if len(tail) > 0 {
+		hsuite = headertest.NewTestSuiteWithTail(t, tail[0])
 	}
 
-	mockGet.generateHeaders(t, 0, numGetter)
-
-	sub := new(headertest.Subscriber)
-	mockGet.fillSubWithHeaders(t, sub, numGetter, numGetter+numSub)
-	return mockGet, sub
-}
-
-// fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
-func (m *mockGetter) fillSubWithHeaders(
-	t *testing.T,
-	sub *headertest.Subscriber,
-	startHeight,
-	endHeight int,
-) {
-	sub.Headers = make([]*header.ExtendedHeader, endHeight-startHeight)
-
-	index := 0
-	for i := startHeight; i < endHeight; i++ {
-		roots := edstest.RandomAxisRoots(t, 16)
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
-		randHeader.RawHeader.Height = int64(i + 1)
-
-		sub.Headers[index] = randHeader
-		// also checkpointStore to mock getter for duplicate sampling
-		m.headers[int64(i+1)] = randHeader
-
-		index++
-	}
-}
-
-type mockGetter struct {
-	getterStub
-	doneCh chan struct{} // signals all stored headers have been retrieved
-
-	brokenHeight   int64
-	brokenHeightCh chan struct{}
-
-	head    int64
-	headers map[int64]*header.ExtendedHeader
-}
-
-func (m *mockGetter) generateHeaders(t *testing.T, startHeight, endHeight int) {
-	for i := startHeight; i < endHeight; i++ {
-		roots := edstest.RandomAxisRoots(t, 16)
-
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
-		randHeader.RawHeader.Height = int64(i + 1)
-
-		m.headers[int64(i+1)] = randHeader
-	}
-	// set network head
-	m.head = int64(startHeight + endHeight)
-}
-
-func (m *mockGetter) Head(
-	context.Context,
-	...libhead.HeadOption[*header.ExtendedHeader],
-) (*header.ExtendedHeader, error) {
-	return m.headers[m.head], nil
-}
-
-func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
-	defer func() {
-		switch int64(height) {
-		case m.brokenHeight:
-			select {
-			case <-m.brokenHeightCh:
-			default:
-				close(m.brokenHeightCh)
-			}
-		case m.head:
-			select {
-			case <-m.doneCh:
-			default:
-				close(m.doneCh)
-			}
-		}
-	}()
-
-	if h, ok := m.headers[int64(height)]; ok {
-		return h, nil
-	}
-	return nil, fmt.Errorf("header not found")
+	store := headertest.NewCustomStore(t, hsuite, numGetter)
+	return store, headertest.NewSubscriber(t, store, hsuite, numSub)
 }
 
 type benchGetterStub struct {
@@ -410,6 +312,8 @@ func waitHeight(ctx context.Context, daser *DASer, height uint64) error {
 		if stats.SampledChainHead == height {
 			return nil
 		}
+
+		fmt.Println(stats.SampledChainHead)
 		time.Sleep(time.Millisecond * 100)
 	}
 }

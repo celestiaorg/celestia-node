@@ -118,7 +118,6 @@ func newInitStore[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	cfg Config,
 	ds datastore.Batching,
-	ex libhead.Exchange[H],
 ) (libhead.Store[H], error) {
 	opts := []store.Option{store.WithParams(cfg.Store)}
 	if MetricsEnabled {
