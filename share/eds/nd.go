@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -31,15 +32,38 @@ func NamespaceData(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get row indexes: %w", err)
 	}
+
 	rows := make(shwap.NamespaceData, len(rowIdxs))
+	wg := sync.WaitGroup{}
+	startTime = time.Now()
+	errCh := make(chan error, len(rowIdxs))
+
 	for i, idx := range rowIdxs {
-		startTime = time.Now()
-		rows[i], err = eds.RowNamespaceData(ctx, namespace, idx)
-		fmt.Println("INSIDE NamespaceData: eds.RowNamespaceData took  ", time.Since(startTime).Milliseconds())
-		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
+		wg.Add(1)
+		go func(i, idx int) {
+			defer wg.Done()
+			rows[i], err = eds.RowNamespaceData(ctx, namespace, idx)
+			if err != nil {
+				err = fmt.Errorf("failed to process row %d: %w", idx, err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case errCh <- err:
+			}
+		}(i, idx)
+	}
+	wg.Wait()
+	close(errCh)
+
+	fmt.Println("INSIDE NamespaceData: eds.RowNamespaceData took  ", time.Since(startTime).Milliseconds())
+	var (
+		ok bool
+	)
+	for i := 0; i < len(rowIdxs); i++ {
+		if err, ok = <-errCh; !ok || err != nil {
+			return rows, err
 		}
 	}
-
 	return rows, nil
 }
