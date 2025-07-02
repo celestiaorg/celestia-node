@@ -19,21 +19,17 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/store"
 )
 
 var blackholeIP6 = net.ParseIP("100::")
@@ -59,8 +55,6 @@ type Swamp struct {
 
 	nodesMu sync.Mutex
 	nodes   map[*nodebuilder.Node]struct{}
-
-	genesis *header.ExtendedHeader
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -89,7 +83,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	}
 
 	swp.t.Cleanup(swp.cleanup)
-	swp.setupGenesis()
+	swp.WaitTillHeight(context.Background(), 1)
 	return swp
 }
 
@@ -167,41 +161,6 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 
 	require.NoError(s.t, s.Network.LinkAll())
 	return host
-}
-
-// setupGenesis sets up genesis Header.
-// This is required to initialize and start correctly.
-func (s *Swamp) setupGenesis() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	// ensure core has surpassed genesis block
-	s.WaitTillHeight(ctx, 2)
-
-	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
-	require.NoError(s.t, err)
-
-	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
-	require.NoError(s.t, err)
-	addr := net.JoinHostPort(host, port)
-	con, err := grpc.NewClient(
-		addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	require.NoError(s.t, err)
-	fetcher, err := core.NewBlockFetcher(con)
-	require.NoError(s.t, err)
-
-	ex, err := core.NewExchange(
-		fetcher,
-		store,
-		header.MakeExtendedHeader,
-	)
-	require.NoError(s.t, err)
-
-	h, err := ex.GetByHeight(ctx, 1)
-	require.NoError(s.t, err)
-	s.genesis = h
 }
 
 // DefaultTestConfig creates a test config with the access to the core node for the tp
