@@ -66,6 +66,46 @@ func TestValidate(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		{
+			name: "valid additional endpoints",
+			cfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
+				AdditionalCoreEndpoints: []EndpointConfig{
+					{
+						IP:   "248.249.255.138",
+						Port: "4040",
+					},
+					{
+						IP:   "101.255.7.172",
+						Port: DefaultPort,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "invalid additional endpoints",
+			cfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
+				AdditionalCoreEndpoints: []EndpointConfig{
+					{
+						IP:   "248.249.255.138",
+						Port: "invalid-port",
+					},
+					{
+						IP:   "101.255.7.172",
+						Port: DefaultPort,
+					},
+				},
+			},
+			expectErr: true,
+		},
 	}
 
 	for _, tt := range tests {
