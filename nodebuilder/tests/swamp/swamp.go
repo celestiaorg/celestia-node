@@ -284,9 +284,8 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 		return nil, err
 	}
 
-	// TODO(@Bidon15): If for some reason, we receive one of existing options
-	// like <core, host, hash> from the test case, we need to check them and not use
-	// default that are set here
+	// set port to zero so that OS allocates one
+	// this avoids port collissions between nodes and tests
 	cfg, _ := store.Config()
 	cfg.RPC.Port = "0"
 
