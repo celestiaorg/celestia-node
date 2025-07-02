@@ -28,6 +28,7 @@ Steps:
 5. Check that nodes are connected to bridge
 */
 func TestBridgeNodeAsBootstrapper(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 

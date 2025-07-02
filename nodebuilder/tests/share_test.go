@@ -21,6 +21,7 @@ import (
 )
 
 func TestShareModule(t *testing.T) {
+	t.Parallel()
 	logs.SetDebugLogging()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)

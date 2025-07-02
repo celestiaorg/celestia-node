@@ -41,6 +41,8 @@ import (
 // spin up 3 pruning FNs, connect
 // spin up 1 LN that syncs historic blobs
 func TestArchivalBlobSync(t *testing.T) {
+	t.Parallel()
+
 	const (
 		blocks = 10
 		btime  = time.Millisecond * 300
@@ -189,6 +191,7 @@ func TestArchivalBlobSync(t *testing.T) {
 }
 
 func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
+	t.Parallel()
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
@@ -219,6 +222,7 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 }
 
 func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
+	t.Parallel()
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
@@ -251,6 +255,7 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 }
 
 func TestConvertFromArchivalToPruned(t *testing.T) {
+	t.Parallel()
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)

@@ -26,6 +26,7 @@ import (
 )
 
 func TestShrexNDFromLights(t *testing.T) {
+	t.Parallel()
 	const (
 		blocks = 10
 		btime  = time.Millisecond * 300
