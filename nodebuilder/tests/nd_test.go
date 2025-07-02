@@ -41,7 +41,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 
-	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg := sw.DefaultTestConfig(node.Light)
 	cfg.Share.Discovery.PeersLimit = 1
 	light := sw.NewNodeWithConfig(node.Light, cfg)
 
@@ -112,13 +112,13 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	}
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
-		cfg := nodebuilder.DefaultConfig(node.Full)
+		cfg := sw.DefaultTestConfig(node.Full)
 		setTimeInterval(cfg, testTimeout)
 		full := sw.NewNodeWithConfig(node.Full, cfg, replaceNDServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
-	lnConfig := nodebuilder.DefaultConfig(node.Light)
+	lnConfig := sw.DefaultTestConfig(node.Light)
 	lnConfig.Share.Discovery.PeersLimit = uint(amountOfFulls)
 	light := sw.NewNodeWithConfig(node.Light, lnConfig)
 

@@ -16,7 +16,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -36,20 +36,13 @@ func TestBlobModule(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
+	sw.SetBootstrapper(t, bridge)
 
-	fullCfg := sw.DefaultTestConfig(node.Full)
-	fullCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrs[0].String())
-	fullNode := sw.NewNodeWithConfig(node.Full, fullCfg)
+	fullNode := sw.NewFullNode()
 	require.NoError(t, fullNode.Start(ctx))
+	addrFn := host.InfoFromHost(fullNode.Host)
 
-	addrsFull, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(fullNode.Host))
-	require.NoError(t, err)
-
-	lightCfg := sw.DefaultTestConfig(node.Light)
-	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrsFull[0].String())
-	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
+	lightNode := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addrFn}))
 	require.NoError(t, lightNode.Start(ctx))
 
 	fullClient := getAdminClient(ctx, fullNode, t)

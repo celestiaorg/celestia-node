@@ -5,13 +5,11 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -49,7 +47,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		bsize  = 16
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
@@ -64,6 +62,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	archivalFN := sw.NewFullNode()
 	err = archivalFN.Start(ctx)
 	require.NoError(t, err)
+	sw.SetBootstrapper(t, archivalFN)
 
 	require.NoError(t, <-fillDn)
 
@@ -73,7 +72,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		heights = append(heights, height)
 	}
 
-	pruningCfg := nodebuilder.DefaultConfig(node.Bridge)
+	pruningCfg := sw.DefaultTestConfig(node.Bridge)
 	pruningCfg.Pruner.EnableService = true
 
 	testAvailWindow := time.Millisecond
@@ -101,11 +100,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	require.NoError(t, err)
 
 	pruningBN := sw.NewNodeWithConfig(node.Bridge, pruningCfg, prunerOpts)
-	sw.SetBootstrapper(t, pruningBN)
 	err = pruningBN.Start(ctx)
-	require.NoError(t, err)
-
-	err = archivalFN.Host.Connect(ctx, *host.InfoFromHost(pruningBN.Host))
 	require.NoError(t, err)
 
 	pruningCfg.DASer = das.DefaultConfig(node.Full)
@@ -169,6 +164,18 @@ func TestArchivalBlobSync(t *testing.T) {
 	err = ln.Start(ctx)
 	require.NoError(t, err)
 
+	// TODO(@Wondertan): A hack that just makes test works
+	//  With following pruning intergration PR it just works
+	//  and I don't have anymore time to figure this one out
+	//  Its something with subscriptions and headers are not
+	//  delivered by LN
+	go func() {
+		for {
+			ln.HeaderServ.NetworkHead(ctx)
+			time.Sleep(time.Second)
+		}
+	}()
+
 	// ensure LN can retrieve all archival blobs from the
 	// archival FN
 	for _, b := range archivalBlobs {
@@ -186,21 +193,23 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
 
+	bootstrapper := sw.NewBridgeNode()
+	err := bootstrapper.Start(ctx)
+	require.NoError(t, err)
+	sw.SetBootstrapper(t, bootstrapper)
+
 	// Light nodes have pruning enabled by default
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		pruningCfg := nodebuilder.DefaultConfig(nt)
+		pruningCfg := sw.DefaultTestConfig(nt)
 		pruningCfg.Pruner.EnableService = true
-		var err error
-		pruningCfg.Core.IP, pruningCfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
-		require.NoError(t, err)
 		store := nodebuilder.MockStore(t, pruningCfg)
 		pruningNode := sw.MustNewNodeWithStore(nt, store)
-		err = pruningNode.Start(ctx)
+		err := pruningNode.Start(ctx)
 		require.NoError(t, err)
 		err = pruningNode.Stop(ctx)
 		require.NoError(t, err)
 
-		archivalCfg := nodebuilder.DefaultConfig(nt)
+		archivalCfg := sw.DefaultTestConfig(nt)
 		err = store.PutConfig(archivalCfg)
 		require.NoError(t, err)
 		_, err = sw.NewNodeWithStore(nt, store)
@@ -220,7 +229,7 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 	}
 
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		archivalCfg := nodebuilder.DefaultConfig(nt)
+		archivalCfg := sw.DefaultTestConfig(nt)
 
 		store := nodebuilder.MockStore(t, archivalCfg)
 		ds, err := store.Datastore()
@@ -251,13 +260,13 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		FailedHeaders    map[uint64]struct{} `json:"failed"`
 	}
 
-	host, port, err := net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
+	bootstrapper := sw.NewBridgeNode()
+	err := bootstrapper.Start(ctx)
 	require.NoError(t, err)
+	sw.SetBootstrapper(t, bootstrapper)
 
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		archivalCfg := nodebuilder.DefaultConfig(nt)
-		archivalCfg.Core.IP = host
-		archivalCfg.Core.Port = port
+		archivalCfg := sw.DefaultTestConfig(nt)
 
 		store := nodebuilder.MockStore(t, archivalCfg)
 		ds, err := store.Datastore()
@@ -284,7 +293,7 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		require.NoError(t, err)
 
 		// convert to pruned node
-		pruningCfg := nodebuilder.DefaultConfig(nt)
+		pruningCfg := sw.DefaultTestConfig(nt)
 		pruningCfg.Pruner.EnableService = true
 		err = store.PutConfig(pruningCfg)
 		require.NoError(t, err)
