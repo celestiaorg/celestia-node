@@ -12,7 +12,7 @@ require (
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app/v5 v5.0.1
 	github.com/celestiaorg/go-fraud v0.2.3
-	github.com/celestiaorg/go-header v0.6.7-0.20250613172736-33ab3bb401d4
+	github.com/celestiaorg/go-header v0.6.7-0.20250702113636-0479af359629
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.3.1
@@ -70,7 +70,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/sdk/metric v1.35.0
 	go.opentelemetry.io/otel/trace v1.36.0
+<<<<<<< HEAD
 	go.opentelemetry.io/proto/otlp v1.5.0
+=======
+	go.opentelemetry.io/proto/otlp v1.3.1
+>>>>>>> b9db3c48 (bump go-header)
 	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.39.0
@@ -169,7 +173,10 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/desertbit/timer v1.0.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
+<<<<<<< HEAD
 	github.com/docker/go-connections v0.5.0 // indirect
+=======
+>>>>>>> b9db3c48 (bump go-header)
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
 	github.com/emicklei/dot v1.6.2 // indirect
@@ -291,7 +298,10 @@ require (
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/onsi/ginkgo/v2 v2.23.4 // indirect
+<<<<<<< HEAD
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+=======
+>>>>>>> b9db3c48 (bump go-header)
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
@@ -394,5 +404,3 @@ replace (
 )
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
-
-replace github.com/celestiaorg/go-header => ../go-header
