@@ -14,16 +14,6 @@ var maxHeadersPerLoop = 512
 
 // findPruneableHeaders returns all headers that are eligible for pruning
 // (outside the sampling window).
-// TODO: This has to be significantly refactored to findPrunableHeights, rather then Headers,
-// so I wonder if we can avoid that entirely by simply passing callback to Syncer or Store
-// to be called on any prunned header. It would:
-//   - avoid the need to break storage for LNs (migrating from hashe index to heights)
-//   - ensure only one pruning mechanism exists
-//   - solve potential state synchronization issues amongst pruners.
-//     Instead of merging states of DASer and pruner, merge with Syncer (kind of)
-//   - delete a bunch of code(sorry rene)
-//   - faster to ship pruning in the end
-//     Just need to check if there aren't any usecases that require having both pruners.
 func (s *Service) findPruneableHeaders(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,

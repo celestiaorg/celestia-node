@@ -41,6 +41,13 @@ type Module interface {
 	// NetworkHead provides the Syncer's view of the current network head.
 	NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
 	// Tail reports current tail header of the node.
+	//
+	// Tail header is the lowest height header known by the running node.
+	// Headers with height below Tail are not available to be requested.
+	// Subsequently, Shwap data requests for this height are not available as well.
+	//
+	// NOTE: In future, requests for headers below Tail will be supported by lazily fetching them
+	// from the network.
 	Tail(context.Context) (*header.ExtendedHeader, error)
 	// Subscribe to recent ExtendedHeaders from the network.
 	Subscribe(ctx context.Context) (<-chan *header.ExtendedHeader, error)
