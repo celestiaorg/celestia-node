@@ -54,9 +54,9 @@ func TestService(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 2)
 
+	serv.prune(ctx)
 	lastPruned, err := serv.lastPruned(ctx)
 	require.NoError(t, err)
-	lastPruned = serv.prune(ctx, lastPruned)
 
 	assert.Greater(t, lastPruned.Height(), uint64(2))
 	assert.Greater(t, serv.checkpoint.LastPrunedHeight, uint64(2))
@@ -98,9 +98,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 	time.Sleep(time.Millisecond * 50)
 
 	// trigger a prune job
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
-	_ = serv.prune(ctx, lastPruned)
+	serv.prune(ctx)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 3)
 	for expectedFail := range mp.failHeight {
@@ -110,9 +108,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 
 	// trigger another prune job, which will prioritize retrying
 	// failed blocks
-	lastPruned, err = serv.lastPruned(ctx)
-	require.NoError(t, err)
-	_ = serv.prune(ctx, lastPruned)
+	serv.prune(ctx)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
@@ -190,9 +186,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	time.Sleep(availabilityWindow + time.Millisecond*100)
 
 	// trigger a prune job
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
-	_ = serv.prune(ctx, lastPruned)
+	serv.prune(ctx)
 
 	// ensure all headers have been pruned
 	assert.Equal(t, uint64(maxHeadersPerLoop*5), serv.checkpoint.LastPrunedHeight)
@@ -295,10 +289,11 @@ func TestService_ClearCheckpoint(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
+	hstore := headertest.NewStore(t)
 	serv, err := NewService(
 		&mockPruner{},
 		time.Second, // doesn't matter
-		headertest.NewStore(t),
+		hstore,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		time.Second, // doesn't matter
 	)
@@ -319,7 +314,9 @@ func TestService_ClearCheckpoint(t *testing.T) {
 	err = serv.loadCheckpoint(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, newCheckpoint(), serv.checkpoint)
+	tail, err := hstore.Tail(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, newCheckpoint(tail.Height()), serv.checkpoint)
 }
 
 type mockPruner struct {
