@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
@@ -22,7 +21,6 @@ import (
 
 func TestShareModule(t *testing.T) {
 	t.Parallel()
-	logs.SetDebugLogging()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
