@@ -37,8 +37,8 @@ func extendBlock(data *coretypes.Data, options ...nmt.Option) (*rsmt2d.ExtendedD
 	// Construct the data square from the block's transactions
 	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound,
-		appconsts.SubtreeRootThreshold,
+		512,
+		128,
 	)
 	if err != nil {
 		return nil, err
