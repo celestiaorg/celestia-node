@@ -44,6 +44,8 @@ Full node:
 8. Wait for FN DASer to catch up to network head
 */
 func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
