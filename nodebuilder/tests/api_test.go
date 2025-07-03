@@ -1,4 +1,4 @@
-//go:build api || integration
+////go:build api || integration
 
 package tests
 
@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-jsonrpc/auth"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -21,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/state"
@@ -152,14 +149,10 @@ func TestHeaderSubscription(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
-
-	cfg := nodebuilder.DefaultConfig(node.Light)
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	sw.SetBootstrapper(t, bridge)
 
 	// start a light node that's connected to the bridge node
-	light := sw.NewNodeWithConfig(node.Light, cfg)
+	light := sw.NewLightNode()
 	err = light.Start(ctx)
 	require.NoError(t, err)
 

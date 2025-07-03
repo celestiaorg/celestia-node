@@ -17,15 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	libhead "github.com/celestiaorg/go-header"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	blobapi "github.com/celestiaorg/celestia-node/nodebuilder/blob"
@@ -48,7 +46,6 @@ import (
 	statemod "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	stateMock "github.com/celestiaorg/celestia-node/nodebuilder/state/mocks"
 	"github.com/celestiaorg/celestia-node/state"
-	store2 "github.com/celestiaorg/celestia-node/store"
 )
 
 // TestClientReadOnlyMode tests the client in read-only mode
@@ -326,10 +323,10 @@ func bridgeNode(t *testing.T, ctx context.Context, cctx testnode.Context) (*node
 
 	cfg.Core.IP = ip
 	cfg.Core.Port = port
+	cfg.RPC.Port = "0"
 
 	tempDir := t.TempDir()
 	store := nodebuilder.MockStore(t, cfg)
-	genesis := genesisHeader(t, ctx, cctx)
 	addAuth, adminToken := addAuth(t)
 
 	// generate new keyring for BN to prevent it from signing with client keys
@@ -345,9 +342,7 @@ func bridgeNode(t *testing.T, ctx context.Context, cctx testnode.Context) (*node
 		statemod.WithKeyring(kr),
 		statemod.WithKeyName(statemod.AccountName(keysCfg.KeyName)),
 		fx.Replace(node.StorePath(tempDir)),
-		fx.Invoke(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-			return store.Init(ctx, genesis)
-		}))
+	)
 	require.NoError(t, err)
 
 	err = bn.Start(ctx)
@@ -358,27 +353,5 @@ func bridgeNode(t *testing.T, ctx context.Context, cctx testnode.Context) (*node
 		require.NoError(t, bn.Stop(ctx))
 		cancel()
 	})
-	// wait for node to start
-	_, err = bn.HeaderServ.WaitForHeight(ctx, 2)
-	require.NoError(t, err)
 	return bn, adminToken
-}
-
-func genesisHeader(t *testing.T, ctx context.Context, cctx testnode.Context) *header.ExtendedHeader {
-	tempDir := t.TempDir()
-	fetcher, err := core.NewBlockFetcher(cctx.GRPCClient)
-	require.NoError(t, err)
-
-	store, err := store2.NewStore(store2.DefaultParameters(), tempDir)
-	require.NoError(t, err)
-	ex, err := core.NewExchange(
-		fetcher,
-		store,
-		header.MakeExtendedHeader,
-	)
-	require.NoError(t, err)
-
-	h, err := ex.GetByHeight(ctx, 1)
-	require.NoError(t, err)
-	return h
 }

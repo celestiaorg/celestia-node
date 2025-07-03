@@ -368,6 +368,8 @@ github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFos
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork h1:gvoKagc3npL+ra8pEtgR+SMGGgeGsirJtzWrYQJ+5cs=
 github.com/celestiaorg/boxo v0.29.0-fork/go.mod h1:c3R52nMlgMsN1tADffYcogKoVRsX1RJE1TMYSpJ4uVs=
+github.com/celestiaorg/celestia-app/v4 v4.1.0 h1:IfqasbpEj5btNHfFp6tJQUEJzNz3DJ31111EfhIjKYY=
+github.com/celestiaorg/celestia-app/v4 v4.1.0/go.mod h1:DRlA2tC9cE/Z/oLql0/Cp0NlozpdB7CSlH0Svo2lPNA=
 github.com/celestiaorg/celestia-app/v5 v5.0.1 h1:cxYmIeZadD2BJue0nki+IKaZ63gMBggNwLLKdSAQkRI=
 github.com/celestiaorg/celestia-app/v5 v5.0.1/go.mod h1:mCtKTVfea0y/amWxyvUSKETU3WsZiKfwuS7HE+ZgZXs=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35 h1:FREwqZwPvYsodr1AqqEIyW+VsBnwTzJNtC6NFdZX8rs=
@@ -516,13 +518,8 @@ github.com/dgraph-io/ristretto/v2 v2.1.0/go.mod h1:uejeqfYXpUomfse0+lO+13ATz4Typ
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 h1:fAjc9m62+UWV/WAFKLNi6ZS0675eEUC9y3AlwSbQu1Y=
 github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
-<<<<<<< HEAD
 github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj1Br63c=
 github.com/docker/go-connections v0.5.0/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
-=======
-github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKohAFqRJQ=
-github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
->>>>>>> b9db3c48 (bump go-header)
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
