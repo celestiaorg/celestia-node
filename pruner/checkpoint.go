@@ -24,9 +24,9 @@ type checkpoint struct {
 	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
 
-func newCheckpoint() *checkpoint {
+func newCheckpoint(lastPruned uint64) *checkpoint {
 	return &checkpoint{
-		LastPrunedHeight: 1,
+		LastPrunedHeight: lastPruned,
 		FailedHeaders:    map[uint64]struct{}{},
 	}
 }
@@ -63,16 +63,25 @@ func getCheckpoint(ctx context.Context, ds datastore.Datastore) (*checkpoint, er
 // loadCheckpoint loads the last checkpoint from disk, initializing it if it does not already exist.
 func (s *Service) loadCheckpoint(ctx context.Context) error {
 	cp, err := getCheckpoint(ctx, s.ds)
+	if errors.Is(err, errCheckpointNotFound) {
+		return s.resetCheckpoint(ctx)
+	}
 	if err != nil {
-		if errors.Is(err, errCheckpointNotFound) {
-			s.checkpoint = newCheckpoint()
-			return storeCheckpoint(ctx, s.ds, s.checkpoint)
-		}
 		return err
 	}
 
 	s.checkpoint = cp
 	return nil
+}
+
+func (s *Service) resetCheckpoint(ctx context.Context) error {
+	tail, err := s.hstore.Tail(ctx)
+	if err != nil {
+		return err
+	}
+
+	s.checkpoint = newCheckpoint(tail.Height())
+	return storeCheckpoint(ctx, s.ds, s.checkpoint)
 }
 
 // updateCheckpoint updates the checkpoint with the last pruned header height
@@ -91,5 +100,20 @@ func (s *Service) updateCheckpoint(
 }
 
 func (s *Service) lastPruned(ctx context.Context) (*header.ExtendedHeader, error) {
-	return s.getter.GetByHeight(ctx, s.checkpoint.LastPrunedHeight)
+	tail, err := s.hstore.Tail(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	lastPruned := s.checkpoint.LastPrunedHeight
+	switch {
+	case tail.Height() < lastPruned:
+		return s.hstore.GetByHeight(ctx, lastPruned)
+	case tail.Height() > lastPruned:
+		log.Warnf("BUG: Tail height %d > lastPruned height %d: reseting checkpoint to tail height", tail.Height(), lastPruned)
+		log.Warn("Some block data will not be pruned until full resync!")
+		s.checkpoint.LastPrunedHeight = tail.Height()
+	}
+
+	return tail, nil
 }
