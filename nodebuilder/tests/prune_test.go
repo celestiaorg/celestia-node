@@ -1,4 +1,4 @@
-////go:build pruning || integration
+//go:build pruning || integration
 
 package tests
 
