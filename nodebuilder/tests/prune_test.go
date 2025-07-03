@@ -1,4 +1,4 @@
-//go:build pruning || integration
+////go:build pruning || integration
 
 package tests
 
@@ -163,18 +163,6 @@ func TestArchivalBlobSync(t *testing.T) {
 	ln := sw.NewLightNode(prunerOpts)
 	err = ln.Start(ctx)
 	require.NoError(t, err)
-
-	// TODO(@Wondertan): A hack that just makes test works
-	//  With following pruning intergration PR it just works
-	//  and I don't have anymore time to figure this one out
-	//  Its something with subscriptions and headers are not
-	//  delivered by LN
-	go func() {
-		for {
-			ln.HeaderServ.NetworkHead(ctx)
-			time.Sleep(time.Second)
-		}
-	}()
 
 	// ensure LN can retrieve all archival blobs from the
 	// archival FN
