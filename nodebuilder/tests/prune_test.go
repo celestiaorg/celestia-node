@@ -196,10 +196,15 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 		err = pruningNode.Stop(ctx)
 		require.NoError(t, err)
 
+		archivalCfg := sw.DefaultTestConfig(nt)
+		err = store.PutConfig(archivalCfg)
+		require.NoError(t, err)
 		// fx.Replace simulates the `--archival` flag being passed
-		_, err = sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{EnableService: false}))
+		pruningNode, err = sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{EnableService: false}))
+		require.NoError(t, err)
+		err = pruningNode.Start(ctx)
 		assert.Error(t, err)
-		assert.ErrorIs(t, full_avail.ErrDisallowRevertToArchival, err)
+		assert.ErrorIs(t, err, full_avail.ErrDisallowRevertToArchival)
 	}
 }
 
@@ -208,6 +213,11 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(cancel)
+
+	bootstrapper := sw.NewBridgeNode()
+	err := bootstrapper.Start(ctx)
+	require.NoError(t, err)
+	sw.SetBootstrapper(t, bootstrapper)
 
 	var cp struct {
 		LastPrunedHeight uint64              `json:"last_pruned_height"`
@@ -229,11 +239,13 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 		require.NoError(t, err)
 
 		// fx.Replace simulates the `--archival` flag being passed
-		_, err = sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{
+		nd, err := sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{
 			EnableService: false,
 		}))
-		require.Error(t, err)
-		assert.ErrorIs(t, full_avail.ErrDisallowRevertToArchival, err)
+		require.NoError(t, err)
+		err = nd.Start(ctx)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, full_avail.ErrDisallowRevertToArchival)
 	}
 }
 
@@ -283,14 +295,16 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		// convert to pruned node
 		err = store.PutConfig(nodebuilder.DefaultConfig(nt))
 		require.NoError(t, err)
-		_, err = sw.NewNodeWithStore(nt, store)
-		assert.NoError(t, err)
+		prunedNd, err := sw.NewNodeWithStore(nt, store)
+		require.NoError(t, err)
+		err = prunedNd.Start(ctx)
+		require.NoError(t, err)
 
 		// expect that the checkpoint has been overridden
 		bin, err = prunerStore.Get(ctx, datastore.NewKey("checkpoint"))
 		require.NoError(t, err)
 		err = json.Unmarshal(bin, &cp)
 		require.NoError(t, err)
-		assert.Equal(t, uint64(1), cp.LastPrunedHeight)
+		assert.Equal(t, 1, int(cp.LastPrunedHeight))
 	}
 }
