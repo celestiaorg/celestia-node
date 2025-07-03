@@ -217,7 +217,7 @@ func (s *Service) retryFailed(ctx context.Context) {
 }
 
 // onHeadersPrune is called by the header Syncer whenever it prunes old headers.
-// This guarantess that respective block data for those headers is always pruned on the Pruner side.
+// This guarantees that respective block data for those headers is always pruned on the Pruner side.
 //
 // There is a possible race between Syncer and Pruner, however, it is gracefully resolved.
 // * If Syncer prunes a range of headers first - onHeadersPrune gets called and data is deleted.
