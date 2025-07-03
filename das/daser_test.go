@@ -2,7 +2,6 @@ package das
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -313,7 +312,6 @@ func waitHeight(ctx context.Context, daser *DASer, height uint64) error {
 			return nil
 		}
 
-		fmt.Println(stats.SampledChainHead)
 		time.Sleep(time.Millisecond * 100)
 	}
 }
