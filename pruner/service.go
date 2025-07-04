@@ -208,6 +208,9 @@ func (s *Service) prune(ctx context.Context) {
 }
 
 func (s *Service) retryFailed(ctx context.Context) {
+	if len(s.checkpoint.FailedHeaders) == 0 {
+		return
+	}
 	log.Debugw("retrying failed headers", "amount", len(s.checkpoint.FailedHeaders))
 
 	for failed := range s.checkpoint.FailedHeaders {
