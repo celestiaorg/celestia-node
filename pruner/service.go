@@ -93,10 +93,16 @@ func (s *Service) Stop(ctx context.Context) error {
 
 	select {
 	case <-s.doneCh:
-		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("pruner unable to exit within context deadline")
 	}
+
+	err := storeCheckpoint(ctx, s.ds, s.checkpoint)
+	if err != nil {
+		return fmt.Errorf("pruner: saving checkpoint on stop: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
