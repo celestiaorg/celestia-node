@@ -154,9 +154,10 @@ func (s *Service) prune(ctx context.Context) {
 	s.retryFailed(s.ctx)
 
 	now := time.Now()
+	successful, failed := 0, 0
 	log.Debug("pruning round start")
 	defer func() {
-		log.Debugw("pruning round finished", "took", time.Since(now))
+		log.Debugw("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
 	}()
 
 	for {
@@ -171,7 +172,7 @@ func (s *Service) prune(ctx context.Context) {
 			return
 		}
 
-		failed := make(map[uint64]struct{})
+		failedSet := make(map[uint64]struct{})
 
 		log.Debugw("pruning headers", "from", headers[0].Height(), "to",
 			headers[len(headers)-1].Height())
@@ -182,16 +183,18 @@ func (s *Service) prune(ctx context.Context) {
 			err = s.pruner.Prune(pruneCtx, eh)
 			if err != nil {
 				log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
-				failed[eh.Height()] = struct{}{}
+				failedSet[eh.Height()] = struct{}{}
+				failed++
 			} else {
 				lastPrunedHeader = eh
+				successful++
 			}
 
 			s.metrics.observePrune(pruneCtx, err != nil)
 			cancel()
 		}
 
-		err = s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failed)
+		err = s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failedSet)
 		if err != nil {
 			log.Errorw("failed to update checkpoint", "err", err)
 			return
