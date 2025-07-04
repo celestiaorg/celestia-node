@@ -80,7 +80,6 @@ func (f validation) RowNamespaceData(
 
 func (f validation) RangeNamespaceData(
 	ctx context.Context,
-	ns libshare.Namespace,
 	from, to shwap.SampleCoords,
 ) (shwap.RangeNamespaceData, error) {
 	if from.Row > to.Row {
@@ -105,5 +104,5 @@ func (f validation) RangeNamespaceData(
 			to.Row, to.Col, odsSharesAmount,
 		)
 	}
-	return f.Accessor.RangeNamespaceData(ctx, ns, from, to)
+	return f.Accessor.RangeNamespaceData(ctx, from, to)
 }

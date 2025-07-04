@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestNewRangeNamespaceDataID(t *testing.T) {
@@ -17,7 +15,8 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 		total int
 		valid bool
 	}{
-		{"valid coordinates", SampleCoords{5, 10}, SampleCoords{7, 12}, 16, true},
+		{"valid coordinates", SampleCoords{5, 7}, SampleCoords{7, 7}, 16, true},
+		{"coordinates out of ods", SampleCoords{8, 7}, SampleCoords{12, 15}, 16, false},
 		{"invalid: negative row", SampleCoords{-1, 5}, SampleCoords{7, 12}, 16, false},
 		{"invalid: to before from", SampleCoords{7, 12}, SampleCoords{5, 10}, 16, false},
 		{"invalid: out of bounds row", SampleCoords{0, 0}, SampleCoords{17, 0}, 16, false},
@@ -26,14 +25,11 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ns := libshare.RandomNamespace()
 			rngid, err := NewRangeNamespaceDataID(
 				EdsID{1},
-				ns,
 				tc.from,
 				tc.to,
-				tc.total,
-				true,
+				tc.total/2,
 			)
 			if tc.valid {
 				require.NoError(t, err)
@@ -52,10 +48,9 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 
 func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {
 	edsSize := 32
-	ns := libshare.RandomNamespace()
 	to, err := SampleCoordsFrom1DIndex(10, edsSize)
 	require.NoError(t, err)
-	rngid, err := NewRangeNamespaceDataID(EdsID{1}, ns, SampleCoords{Row: 0, Col: 1}, to, edsSize, false)
+	rngid, err := NewRangeNamespaceDataID(EdsID{1}, SampleCoords{Row: 0, Col: 1}, to, edsSize/2)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)

@@ -37,7 +37,6 @@ type Accessor interface {
 	// from the Accessor. Response might have only proofs.
 	RangeNamespaceData(
 		ctx context.Context,
-		ns libshare.Namespace,
 		from, to shwap.SampleCoords,
 	) (shwap.RangeNamespaceData, error)
 }
