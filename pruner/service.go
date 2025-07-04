@@ -157,7 +157,7 @@ func (s *Service) prune(ctx context.Context) {
 	successful, failed := 0, 0
 	log.Debug("pruning round start")
 	defer func() {
-		log.Debugw("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
+		log.Infow("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
 	}()
 
 	for {
