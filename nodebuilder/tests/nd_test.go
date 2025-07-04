@@ -79,6 +79,8 @@ func TestShrexNDFromLights(t *testing.T) {
 		height := h.Height()
 		expected, err := bridgeClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
+		_, err = lightClient.Header.WaitForHeight(ctx, height) // fixes a flake
+		require.NoError(t, err)
 		got, err := lightClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
 
