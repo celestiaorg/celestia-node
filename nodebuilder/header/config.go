@@ -1,13 +1,11 @@
 package header
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 
-	libhead "github.com/celestiaorg/go-header"
 	p2p_exchange "github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
@@ -85,15 +83,15 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 	return
 }
 
-func (cfg *Config) trustedHash(net p2p.Network) (libhead.Hash, error) {
+func (cfg *Config) trustedHash(net p2p.Network) (string, error) {
 	if cfg.TrustedHash == "" {
 		gen, err := p2p.GenesisFor(net)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		return hex.DecodeString(gen)
+		return gen, nil
 	}
-	return hex.DecodeString(cfg.TrustedHash)
+	return cfg.TrustedHash, nil
 }
 
 // Validate performs basic validation of the config.
