@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -41,6 +42,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				ctx context.Context,
 				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
 			) error {
+				defer time.Sleep(time.Millisecond * 100) // TODO(@Wondertan): temporary flake fix
 				return breaker.Start(ctx)
 			}),
 			fx.OnStop(func(
