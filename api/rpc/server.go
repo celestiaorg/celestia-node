@@ -29,9 +29,14 @@ type Server struct {
 
 	signer   jwt.Signer
 	verifier jwt.Verifier
+
+	// TLS
+	TLSEnabled  bool
+	TLSCertPath string
+	TLSKeyPath  string
 }
 
-func NewServer(address, port string, authDisabled bool, signer jwt.Signer, verifier jwt.Verifier) *Server {
+func NewServer(address, port string, authDisabled bool, signer jwt.Signer, verifier jwt.Verifier, tlsEnabled bool, tlsCertPath, tlsKeyPath string) *Server {
 	rpc := jsonrpc.NewServer()
 	srv := &Server{
 		rpc: rpc,
@@ -43,6 +48,9 @@ func NewServer(address, port string, authDisabled bool, signer jwt.Signer, verif
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
+		TLSEnabled:   tlsEnabled,
+		TLSCertPath:  tlsCertPath,
+		TLSKeyPath:   tlsKeyPath,
 	}
 	srv.srv.Handler = &auth.Handler{
 		Verify: srv.verifyAuth,
@@ -90,8 +98,17 @@ func (s *Server) Start(context.Context) error {
 	}
 	s.listener = listener
 	log.Infow("server started", "listening on", s.srv.Addr)
-	//nolint:errcheck
-	go s.srv.Serve(listener)
+	if s.TLSEnabled && s.TLSCertPath != "" && s.TLSKeyPath != "" {
+		go func() {
+			//nolint:errcheck
+			s.srv.ServeTLS(listener, s.TLSCertPath, s.TLSKeyPath)
+		}()
+	} else {
+		go func() {
+			//nolint:errcheck
+			s.srv.Serve(listener)
+		}()
+	}
 	return nil
 }
 

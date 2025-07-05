@@ -9,28 +9,36 @@ import (
 )
 
 type Config struct {
-	Address  string
-	Port     string
-	SkipAuth bool
+	Address     string
+	Port        string
+	SkipAuth    bool
+	TLSEnabled  bool
+	TLSCertPath string
+	TLSKeyPath  string
 }
 
 func DefaultConfig() Config {
 	return Config{
 		Address: defaultBindAddress,
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		Port:     defaultPort,
-		SkipAuth: false,
+		Port:        defaultPort,
+		SkipAuth:    false,
+		TLSEnabled:  false,
+		TLSCertPath: "",
+		TLSKeyPath:  "",
 	}
 }
 
 func (cfg *Config) RequestURL() string {
-	if strings.HasPrefix(cfg.Address, "://") {
+	protocol := "http"
+	if cfg.TLSEnabled {
+		protocol = "https"
+	}
+	if strings.HasPrefix(cfg.Address, "http://") || strings.HasPrefix(cfg.Address, "https://") {
 		parts := strings.Split(cfg.Address, "://")
 		return fmt.Sprintf("%s://%s:%s", parts[0], parts[1], cfg.Port)
 	}
-
-	// Default to HTTP if no protocol is specified
-	return fmt.Sprintf("http://%s:%s", cfg.Address, cfg.Port)
+	return fmt.Sprintf("%s://%s:%s", protocol, cfg.Address, cfg.Port)
 }
 
 func (cfg *Config) Validate() error {
@@ -43,6 +51,11 @@ func (cfg *Config) Validate() error {
 	_, err = strconv.Atoi(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
+	}
+	if cfg.TLSEnabled {
+		if cfg.TLSCertPath == "" || cfg.TLSKeyPath == "" {
+			return fmt.Errorf("service/rpc: TLS enabled but cert or key path not set")
+		}
 	}
 	return nil
 }

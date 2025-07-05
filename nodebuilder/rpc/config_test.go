@@ -57,3 +57,22 @@ func TestConfigValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestRequestURL(t *testing.T) {
+	t.Run("http default", func(t *testing.T) {
+		cfg := Config{Address: "127.0.0.1", Port: "8080", TLSEnabled: false}
+		assert.Equal(t, "http://127.0.0.1:8080", cfg.RequestURL())
+	})
+	t.Run("https enabled", func(t *testing.T) {
+		cfg := Config{Address: "127.0.0.1", Port: "8080", TLSEnabled: true}
+		assert.Equal(t, "https://127.0.0.1:8080", cfg.RequestURL())
+	})
+	t.Run("address with http prefix", func(t *testing.T) {
+		cfg := Config{Address: "http://myhost", Port: "1234", TLSEnabled: false}
+		assert.Equal(t, "http://myhost:1234", cfg.RequestURL())
+	})
+	t.Run("address with https prefix", func(t *testing.T) {
+		cfg := Config{Address: "https://myhost", Port: "1234", TLSEnabled: true}
+		assert.Equal(t, "https://myhost:1234", cfg.RequestURL())
+	})
+}
