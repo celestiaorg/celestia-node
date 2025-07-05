@@ -54,8 +54,13 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			// so that Syncer registers header validator before PeerManager subscribes to headers
 			_ *sync.Syncer[*header.ExtendedHeader],
 		) (*peers.Manager, *discovery.Discovery, error) {
+			// If any required dependencies are nil (p2p disabled), return nils
+			if host == nil || disc == nil || connGater == nil {
+				return nil, nil, nil
+			}
+			
 			var managerOpts []peers.Option
-			if tp != node.Bridge {
+			if tp != node.Bridge && shrexSub != nil {
 				// BNs do not need the overhead of shrexsub peer pools as
 				// BNs do not sync blocks off the DA network.
 				managerOpts = append(managerOpts, peers.WithShrexSubPools(shrexSub, headerSub))
@@ -112,6 +117,11 @@ func archivalDiscoveryAndPeerManager(cfg *Config) fx.Option {
 			gater *conngater.BasicConnectionGater,
 			discOpt discovery.Option,
 		) (map[string]*peers.Manager, []*discovery.Discovery, error) {
+			// If required dependencies are nil (p2p disabled), return empty collections
+			if fullDisc == nil || fullManager == nil || h == nil || disc == nil || gater == nil {
+				return map[string]*peers.Manager{}, []*discovery.Discovery{}, nil
+			}
+			
 			archivalPeerManager, err := peers.NewManager(
 				*cfg.PeerManagerParams,
 				h,
@@ -149,5 +159,8 @@ func archivalDiscoveryAndPeerManager(cfg *Config) fx.Option {
 }
 
 func routingDiscovery(dht *dht.IpfsDHT) p2pdisc.Discovery {
+	if dht == nil {
+		return nil
+	}
 	return routingdisc.NewRoutingDiscovery(dht)
 }
