@@ -76,7 +76,7 @@ func newSyncer[H libhead.Header[H]](
 	sub libhead.Subscriber[H],
 	cfg Config,
 ) (*sync.Syncer[H], error) {
-	// sync from genesis unless configured differently and not a light not
+	// sync from genesis unless configured differently and not a light node
 	if cfg.Syncer.SyncFromHash == nil && ndtp != node.Light {
 		hash, err := cfg.trustedHash(net)
 		if err != nil {
