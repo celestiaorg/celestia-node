@@ -244,8 +244,13 @@ func (s *Service) onHeadersPrune(ctx context.Context, headers []*header.Extended
 	log.Debugw("pruning headers", "from", headers[0].Height(), "to",
 		headers[len(headers)-1].Height())
 
-	var lastPrunedHeader *header.ExtendedHeader
 	failed := make(map[uint64]struct{})
+	done := 0
+	defer func() {
+		log.Infow("pruning round finished", "done", done, "failed", len(failed))
+	}()
+
+	var lastPrunedHeader *header.ExtendedHeader
 	for _, eh := range headers {
 		if _, ok := s.checkpoint.FailedHeaders[eh.Height()]; ok {
 			log.Warnw("Deleted header for a height previously failed to be pruned", "height", eh.Height())
@@ -257,10 +262,7 @@ func (s *Service) onHeadersPrune(ctx context.Context, headers []*header.Extended
 			continue
 		}
 
-		// TODO(@Wondertan): make it a configurable value
-		pruneCtx, cancel := context.WithTimeout(ctx, time.Second*5)
-
-		err := s.pruner.Prune(pruneCtx, eh)
+		err := s.pruner.Prune(ctx, eh)
 		if err != nil {
 			log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 			failed[eh.Height()] = struct{}{}
@@ -268,8 +270,7 @@ func (s *Service) onHeadersPrune(ctx context.Context, headers []*header.Extended
 			lastPrunedHeader = eh
 		}
 
-		s.metrics.observePrune(pruneCtx, err != nil)
-		cancel()
+		s.metrics.observePrune(ctx, err != nil)
 	}
 
 	err := s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failed)
