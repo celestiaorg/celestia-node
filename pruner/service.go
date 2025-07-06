@@ -237,46 +237,34 @@ func (s *Service) retryFailed(ctx context.Context) {
 //
 // * If Pruner prunes a range first - Syncer only removes headers
 //   - onHeadersPrune ignores the range based on updated checkpoint state
-func (s *Service) onHeadersPrune(ctx context.Context, headers []*header.ExtendedHeader) error {
+//
+// TODO(@Wondertan): update
+func (s *Service) onHeadersPrune(ctx context.Context, height uint64) error {
 	s.pruneMu.Lock()
 	defer s.pruneMu.Unlock()
 
-	log.Debugw("pruning headers", "from", headers[0].Height(), "to",
-		headers[len(headers)-1].Height())
-
-	failed := make(map[uint64]struct{})
-	done := 0
-	defer func() {
-		log.Infow("pruning round finished", "done", done, "failed", len(failed))
-	}()
-
-	var lastPrunedHeader *header.ExtendedHeader
-	for _, eh := range headers {
-		if _, ok := s.checkpoint.FailedHeaders[eh.Height()]; ok {
-			log.Warnw("Deleted header for a height previously failed to be pruned", "height", eh.Height())
-			log.Warn("Stored data for the height may never be pruned unless full resync!")
-			// TODO(@Wondertan): Do we wanna give here an additional retry before removing?
-			delete(s.checkpoint.FailedHeaders, eh.Height())
-		}
-		if eh.Height() <= s.checkpoint.LastPrunedHeight {
-			continue
-		}
-
-		err := s.pruner.Prune(ctx, eh)
-		if err != nil {
-			log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
-			failed[eh.Height()] = struct{}{}
-		} else {
-			lastPrunedHeader = eh
-		}
-
-		s.metrics.observePrune(ctx, err != nil)
+	if _, ok := s.checkpoint.FailedHeaders[height]; ok {
+		log.Warnw("Deleted header for a height previously failed to be pruned", "height", height)
+		log.Warn("Stored data for the height may never be pruned unless full resync!")
+		// TODO(@Wondertan): Do we wanna give here an additional retry before removing?
+		delete(s.checkpoint.FailedHeaders, height)
+	}
+	if height <= s.checkpoint.LastPrunedHeight {
+		return nil
 	}
 
-	err := s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failed)
+	eh, err := s.hstore.GetByHeight(ctx, height)
 	if err != nil {
-		log.Errorw("failed to update checkpoint", "err", err)
+		return err
 	}
 
+	err = s.pruner.Prune(ctx, eh)
+	s.metrics.observePrune(ctx, err != nil)
+	if err != nil {
+		return fmt.Errorf("pruning height %d: %w", height, err)
+	}
+
+	s.checkpoint.LastPrunedHeight = height
+	// no need to persist here, as it will done in pruning routine or Stop
 	return nil
 }
