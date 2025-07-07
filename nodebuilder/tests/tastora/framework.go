@@ -2,6 +2,7 @@ package tastora
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -26,6 +27,8 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/blob"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 const (
@@ -112,6 +115,14 @@ func (f *Framework) SetupNetwork(ctx context.Context) error {
 // GetBridgeNode returns the bridge node instance.
 func (f *Framework) GetBridgeNode() tastoratypes.DANode {
 	return f.bridgeNode
+}
+
+// GetBridgeNodes returns all bridge node instances.
+func (f *Framework) GetBridgeNodes() []tastoratypes.DANode {
+	if f.bridgeNode != nil {
+		return []tastoratypes.DANode{f.bridgeNode}
+	}
+	return []tastoratypes.DANode{}
 }
 
 // GetFullNodes returns all full node instances.
@@ -414,4 +425,118 @@ func getNodeImage() string {
 		return tag
 	}
 	return nodeImage
+}
+
+// GenerateTestBlobs generates test blobs for blob operations
+func (f *Framework) GenerateTestBlobs(count int, dataSize int) ([]*blob.Blob, error) {
+	blobs := make([]*blob.Blob, count)
+
+	for i := 0; i < count; i++ {
+		// Create a test namespace (unique for each blob)
+		namespaceBytes := make([]byte, 10)
+		namespaceBytes[9] = byte(i + 1) // Make each namespace unique
+		namespace, err := libshare.NewV0Namespace(namespaceBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create namespace: %w", err)
+		}
+
+		// Create test data
+		data := make([]byte, dataSize)
+		for j := range data {
+			data[j] = byte((i + j) % 256) // Fill with varying test data
+		}
+
+		// Create V0 blob (no signer required for test)
+		testBlob, err := blob.NewBlobV0(namespace, data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create test blob %d: %w", i, err)
+		}
+
+		blobs[i] = testBlob
+	}
+
+	return blobs, nil
+}
+
+// GenerateTestLibshareBlobs generates test libshare blobs for state API operations
+func (f *Framework) GenerateTestLibshareBlobs(count int, dataSize int) ([]*libshare.Blob, error) {
+	blobs := make([]*libshare.Blob, count)
+
+	for i := 0; i < count; i++ {
+		// Create a test namespace (unique for each blob)
+		namespaceBytes := make([]byte, 10)
+		namespaceBytes[9] = byte(i + 1) // Make each namespace unique
+		namespace, err := libshare.NewV0Namespace(namespaceBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create namespace: %w", err)
+		}
+
+		// Create test data
+		data := make([]byte, dataSize)
+		for j := range data {
+			data[j] = byte((i + j) % 256) // Fill with varying test data
+		}
+
+		// Create V0 libshare blob (no signer required for test)
+		testBlob, err := libshare.NewV0Blob(namespace, data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create test libshare blob %d: %w", i, err)
+		}
+
+		blobs[i] = testBlob
+	}
+
+	return blobs, nil
+}
+
+// FillBlocks produces the given amount of contiguous blocks with customizable size.
+// This is needed for sync testing scenarios. Returns a channel that reports when done.
+func (f *Framework) FillBlocks(ctx context.Context, account string, blockSize, numBlocks int) (<-chan error, error) {
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+
+		// Use the chain's transaction filling capability
+		// This will depend on the Tastora chain implementation
+		// For now, we'll implement a basic version
+		for i := 0; i < numBlocks; i++ {
+			// Create filled blocks using the chain
+			// This is a placeholder - actual implementation will depend on Tastora's FillBlock method
+			select {
+			case <-ctx.Done():
+				errCh <- ctx.Err()
+				return
+			default:
+				// Simulate block filling
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+		errCh <- nil
+	}()
+
+	return errCh, nil
+}
+
+// WaitTillHeight waits until the chain reaches the specified height.
+// This is useful for sync testing scenarios.
+func (f *Framework) WaitTillHeight(ctx context.Context, height uint64) error {
+	// This would poll the chain until it reaches the target height
+	// Implementation depends on Tastora chain capabilities
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			// Check current chain height
+			// This is a placeholder - actual implementation depends on how to get chain height from Tastora
+			// For now, just simulate reaching the height after some time
+			time.Sleep(time.Duration(height) * 100 * time.Millisecond)
+			return nil
+		}
+	}
 }

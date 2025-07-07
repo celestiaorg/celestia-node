@@ -54,14 +54,6 @@ linters:
       - linters:
           - lll
         source: https://
-      - linters:
-          - nolintlint
-        path: share/shwap/p2p/shrex/shrex_getter/
-        text: "directive.*nolint:revive.*is unused for linter.*revive"
-      - linters:
-          - revive
-        path: libs/utils/
-        text: "var-naming: avoid meaningless package names"
     paths:
       - third_party$
       - builtin$

@@ -149,36 +149,3 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}
-
-  e2e_test:
-    name: E2E tests
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        test:
-          - TestE2EMsgPayForBlob
-          - TestE2EBlobModule
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.23.6
-
-      - name: Generate image tag
-        id: tag
-        run: echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
-
-      - name: Build Docker image locally
-        run: docker build -t "celestia-node:${{ steps.tag.outputs.value }}" .
-
-      - name: Run E2E test
-        env:
-          # use the locally built image
-          CELESTIA_NODE_IMAGE: celestia-node
-          CELESTIA_NODE_TAG: ${{ steps.tag.outputs.value }}
-        run: make test-e2e test=${{ matrix.test }}

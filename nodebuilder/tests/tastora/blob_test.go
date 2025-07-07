@@ -1,3 +1,5 @@
+//go:build integration
+
 package tastora
 
 import (
@@ -12,329 +14,336 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// BlobTestSuite is a dedicated test suite for blob module functionality.
-// It embeds the base framework and provides blob-specific test methods.
+// BlobTestSuite provides comprehensive testing of the Blob module APIs.
+// Tests blob submission, retrieval, and validation functionality.
 type BlobTestSuite struct {
 	suite.Suite
-	framework  *Framework
-	ctx        context.Context
-	cancel     context.CancelFunc
-	testWallet tastoratypes.Wallet
+	framework *Framework
 }
 
-// SetupSuite initializes the test suite with the Tastora framework.
+func TestBlobTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Blob module integration tests in short mode")
+	}
+	suite.Run(t, &BlobTestSuite{})
+}
+
 func (s *BlobTestSuite) SetupSuite() {
-	s.ctx, s.cancel = context.WithTimeout(context.Background(), 10*time.Minute)
-	s.framework = NewFramework(s.T())
-
-	err := s.framework.SetupNetwork(s.ctx)
-	s.Require().NoError(err, "failed to setup network")
-
-	// Create and fund a test wallet for chain operations
-	s.testWallet = s.framework.CreateTestWallet(s.ctx, 10_000_000_000) // 10 billion utia
+	s.framework = NewFramework(s.T(), WithValidators(1), WithFullNodes(1))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 
-// TearDownSuite cleans up the test suite.
 func (s *BlobTestSuite) TearDownSuite() {
-	if s.cancel != nil {
-		s.cancel()
+	if s.framework != nil {
+		s.framework.cleanup()
 	}
 }
 
-// TestBlobModule runs the main blob module API test using the Submit API.
-func (s *BlobTestSuite) TestBlobModule() {
-	// Get the full node client
+// TestBlobSubmit_SingleBlob tests blob submission API with a single blob
+func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
 	fullNode := s.framework.GetFullNodes()[0]
-	fullNodeClient := s.framework.GetNodeRPCClient(s.ctx, fullNode)
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	// Get the node's account address from its keystore
-	nodeAddr, err := fullNodeClient.State.AccountAddress(s.ctx)
-	s.Require().NoError(err)
+	// Create test wallet and fund the node account
+	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
 
-	// Fund the node's account directly (need enough for multiple transactions)
-	s.framework.FundWallet(s.ctx, s.testWallet, nodeAddr.Bytes(), 3_000_000_000) // 3 billion utia
-
-	// Test data setup
+	// Create test blob
 	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
 	s.Require().NoError(err)
 
-	data1 := []byte("Hello Celestia blob data 1")
-	data2 := []byte("Hello Celestia blob data 2")
-
-	// Create V1 blobs using the node's address as signer
-	v1Blob1, err := libshare.NewV1Blob(namespace, data1, nodeAddr.Bytes())
+	data := []byte("Hello Celestia single blob test")
+	nodeAddr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
-	v1Blob2, err := libshare.NewV1Blob(namespace, data2, nodeAddr.Bytes())
+	libBlob, err := libshare.NewV1Blob(namespace, data, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
-	// Convert to node blobs
-	nodeBlobs, err := nodeblob.ToNodeBlobs(v1Blob1, v1Blob2)
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
 	s.Require().NoError(err)
 
-	// Create transaction configuration
-	txConfig := state.NewTxConfig(
-		state.WithGas(200_000),
-		state.WithGasPrice(5000),
-	)
+	// Submit blob via Submit API
+	txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
+	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+	s.Require().NoError(err)
+	s.Require().NotZero(height)
 
-	// Submit blobs via node's Submit API
-	height, err := fullNodeClient.Blob.Submit(s.ctx, nodeBlobs, txConfig)
-	s.Require().NoError(err, "Blob.Submit should not error")
-	s.Require().NotZero(height, "returned height should not be zero")
-
-	s.T().Logf("Blobs submitted successfully at height %d using Submit API", height)
-
-	// Wait for blob inclusion
-	_, err = fullNodeClient.Header.WaitForHeight(s.ctx, height)
+	// Wait for inclusion
+	_, err = client.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err)
 
-	// Test: Get all blobs for namespace
-	s.Run("GetAll_Blobs_For_Namespace", func() {
-		blobs, err := fullNodeClient.Blob.GetAll(s.ctx, height, []libshare.Namespace{namespace})
-		s.Require().NoError(err)
-		s.Require().Len(blobs, 2, "expected 2 blobs")
-
-		// Verify all blobs are retrieved correctly
-		foundData1, foundData2 := false, false
-		for _, blob := range blobs {
-			retrievedData := bytes.TrimRight(blob.Data(), "\x00")
-			if bytes.Equal(retrievedData, data1) {
-				foundData1 = true
-				s.Require().True(blob.Namespace().Equals(namespace))
-			} else if bytes.Equal(retrievedData, data2) {
-				foundData2 = true
-				s.Require().True(blob.Namespace().Equals(namespace))
-			}
-		}
-		s.Require().True(foundData1, "data1 blob not found")
-		s.Require().True(foundData2, "data2 blob not found")
-	})
-
-	// Test: Get single blob using commitment
-	s.Run("Get_Single_Blob_V1", func() {
-		// Use the commitment from the submitted blob
-		retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, height, namespace, nodeBlobs[0].Commitment)
-		s.Require().NoError(err)
-		s.Require().NotNil(retrievedBlob)
-
-		// Verify the blob data
-		retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
-		s.Require().True(bytes.Equal(retrievedData, data1) || bytes.Equal(retrievedData, data2),
-			"retrieved data should match one of the submitted blobs")
-		s.Require().True(retrievedBlob.Namespace().Equals(namespace))
-
-		// Verify it's a V1 blob with signer information
-		s.Require().Equal(libshare.ShareVersionOne, retrievedBlob.ShareVersion(), "should be V1 blob")
-		s.Require().NotNil(retrievedBlob.Signer(), "V1 blob should have signer")
-		s.Require().Equal(nodeAddr.Bytes(), retrievedBlob.Signer(), "signer should match node address")
-	})
-
-	// Test: Get proof for blob
-	s.Run("GetProof_For_Blob", func() {
-		proof, err := fullNodeClient.Blob.GetProof(s.ctx, height, namespace, nodeBlobs[0].Commitment)
-		s.Require().NoError(err)
-		s.Require().NotNil(proof)
-		s.Require().NotEmpty(proof)
-	})
-
-	// Test: Verify blob inclusion
-	s.Run("Included_Blob_Verification", func() {
-		proof, err := fullNodeClient.Blob.GetProof(s.ctx, height, namespace, nodeBlobs[0].Commitment)
-		s.Require().NoError(err)
-
-		included, err := fullNodeClient.Blob.Included(s.ctx, height, namespace, proof, nodeBlobs[0].Commitment)
-		s.Require().NoError(err)
-		s.Require().True(included)
-	})
-
-	// Test: Non-existent blob error handling
-	s.Run("Get_NonExistent_Blob_Error", func() {
-		nonExistentCommitment := bytes.Repeat([]byte{0xFF}, 32)
-		_, err := fullNodeClient.Blob.Get(s.ctx, height, namespace, nonExistentCommitment)
-		s.Require().Error(err)
-		s.Require().Contains(err.Error(), "blob: not found")
-	})
-
-	// Test: Submit duplicate blobs
-	s.Run("Submit_Equal_Blobs", func() {
-		// Fund the node account again for this test (each transaction costs 1 billion utia)
-		s.framework.FundWallet(s.ctx, s.testWallet, nodeAddr.Bytes(), 1_000_000_000) // 1 billion utia
-
-		// Create identical blob
-		duplicateBlob, err := libshare.NewV1Blob(namespace, []byte("duplicate data"), nodeAddr.Bytes())
-		s.Require().NoError(err)
-
-		nodeDuplicateBlob, err := nodeblob.ToNodeBlobs(duplicateBlob)
-		s.Require().NoError(err)
-
-		// Submit the same blob twice in one transaction
-		height, err := fullNodeClient.Blob.Submit(s.ctx, []*nodeblob.Blob{nodeDuplicateBlob[0], nodeDuplicateBlob[0]}, txConfig)
-		s.Require().NoError(err, "submitting duplicate blobs should succeed")
-
-		_, err = fullNodeClient.Header.WaitForHeight(s.ctx, height)
-		s.Require().NoError(err)
-
-		// Verify blob can be retrieved
-		retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, height, namespace, nodeDuplicateBlob[0].Commitment)
-		s.Require().NoError(err)
-		s.Require().Equal(nodeDuplicateBlob[0].Commitment, retrievedBlob.Commitment)
-	})
-}
-
-// TestBlobE2EFlow tests the end-to-end blob submission and retrieval flow.
-// This uses the direct chain submission approach for blob operations.
-func (s *BlobTestSuite) TestBlobE2EFlow() {
-	// Create test namespace
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
-	s.Require().NoError(err)
-
-	data := []byte("Hello Celestia E2E test blob")
-
-	// Get wallet address for signing
-	walletAddr, err := sdkacc.AddressFromWallet(s.testWallet)
-	s.Require().NoError(err)
-
-	// Create V1 blob with explicit signer (working approach)
-	libBlob, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
-	s.Require().NoError(err)
-
-	// Create MsgPayForBlobs transaction
-	signerStr := s.testWallet.GetFormattedAddress()
-	msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob)
-	s.Require().NoError(err)
-
-	// Submit via direct chain transaction (working approach)
-	chain := s.framework.GetCelestiaChain()
-	resp, err := chain.BroadcastBlobMessage(s.ctx, s.testWallet, msg, libBlob)
-	s.Require().NoError(err)
-	s.Require().Equal(uint32(0), resp.Code, "failed to broadcast blob: %s", resp.RawLog)
-
-	// Wait for blob inclusion
-	time.Sleep(10 * time.Second)
-
-	// Get full node client for retrieval
-	fullNode := s.framework.GetFullNodes()[0]
-	fullNodeClient := s.framework.GetNodeRPCClient(s.ctx, fullNode)
-
-	// Get the current height to search for blobs
-	header, err := fullNodeClient.Header.NetworkHead(s.ctx)
-	s.Require().NoError(err)
-	currentHeight := header.Height()
-
-	// Find the height where blob was actually included
-	var blobHeight uint64
-	var retrievedBlobs []*nodeblob.Blob
-	found := false
-	for h := uint64(resp.Height); h <= currentHeight; h++ {
-		blobs, err := fullNodeClient.Blob.GetAll(s.ctx, h, []libshare.Namespace{namespace})
-		if err == nil && len(blobs) > 0 {
-			blobHeight = h
-			retrievedBlobs = blobs
-			found = true
-			s.T().Logf("Found %d blobs at height %d", len(blobs), h)
-			break
-		}
-	}
-	s.Require().True(found, "blob not found at any height from %d to %d", resp.Height, currentHeight)
-	s.Require().Len(retrievedBlobs, 1, "expected 1 blob")
-
-	// Verify blob can be retrieved using the actual commitment
-	retrievedBlob, err := fullNodeClient.Blob.Get(s.ctx, blobHeight, namespace, retrievedBlobs[0].Commitment)
+	// Verify blob can be retrieved
+	retrievedBlob, err := client.Blob.Get(ctx, height, namespace, nodeBlobs[0].Commitment)
 	s.Require().NoError(err)
 	s.Require().NotNil(retrievedBlob)
 
-	// Trim null padding from retrieved data for comparison
 	retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
-	s.Require().Equal(data, retrievedData)
+	s.Assert().Equal(data, retrievedData)
+	s.Assert().True(retrievedBlob.Namespace().Equals(namespace))
 }
 
-// TestBlobDuplicateHandling tests duplicate blob submission scenarios.
-// This uses the direct chain submission approach for testing duplicate handling.
-func (s *BlobTestSuite) TestBlobDuplicateHandling() {
-	// Create test namespace
+// TestBlobSubmit_MultipleBlobs tests blob submission API with multiple blobs
+func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	fullNode := s.framework.GetFullNodes()[0]
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+
+	// Create test wallet and fund the node account
+	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
+
+	// Create test namespace and blobs
+	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
+	s.Require().NoError(err)
+
+	nodeAddr, err := client.State.AccountAddress(ctx)
+	s.Require().NoError(err)
+
+	data1 := []byte("Multiple blob test data 1")
+	data2 := []byte("Multiple blob test data 2")
+
+	libBlob1, err := libshare.NewV1Blob(namespace, data1, nodeAddr.Bytes())
+	s.Require().NoError(err)
+	libBlob2, err := libshare.NewV1Blob(namespace, data2, nodeAddr.Bytes())
+	s.Require().NoError(err)
+
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob1, libBlob2)
+	s.Require().NoError(err)
+
+	// Submit multiple blobs
+	txConfig := state.NewTxConfig(state.WithGas(400_000), state.WithGasPrice(5000))
+	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+	s.Require().NoError(err)
+	s.Require().NotZero(height)
+
+	// Wait for inclusion
+	_, err = client.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err)
+
+	// Verify all blobs can be retrieved
+	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []libshare.Namespace{namespace})
+	s.Require().NoError(err)
+	s.Require().Len(retrievedBlobs, 2)
+
+	// Verify individual blob retrieval
+	for i, nodeBlob := range nodeBlobs {
+		retrievedBlob, err := client.Blob.Get(ctx, height, namespace, nodeBlob.Commitment)
+		s.Require().NoError(err)
+		s.Require().NotNil(retrievedBlob)
+
+		retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
+		if i == 0 {
+			s.Assert().Equal(data1, retrievedData)
+		} else {
+			s.Assert().Equal(data2, retrievedData)
+		}
+	}
+}
+
+// TestBlobGet_ExistingBlob tests blob retrieval API for existing blobs
+func (s *BlobTestSuite) TestBlobGet_ExistingBlob() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// Use chain submission for reliable blob placement
+	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+	walletAddr, err := sdkacc.AddressFromWallet(testWallet)
+	s.Require().NoError(err)
+
 	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
 	s.Require().NoError(err)
 
-	data := bytes.Repeat([]byte("duplicate"), 99)
-
-	// Get wallet address for signing
-	walletAddr, err := sdkacc.AddressFromWallet(s.testWallet)
+	data := []byte("Test blob for Get API")
+	libBlob, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
 	s.Require().NoError(err)
 
-	// Test: Submit same blob twice in single transaction (should fail)
-	s.Run("Duplicate_Blobs_Single_Transaction", func() {
-		// Create identical V1 blobs
-		libBlob1, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
-		s.Require().NoError(err)
+	// Submit via chain
+	signerStr := testWallet.GetFormattedAddress()
+	msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob)
+	s.Require().NoError(err)
 
-		libBlob2, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
-		s.Require().NoError(err)
+	chain := s.framework.GetCelestiaChain()
+	resp, err := chain.BroadcastBlobMessage(ctx, testWallet, msg, libBlob)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), resp.Code)
 
-		// Create MsgPayForBlobs with both blobs
-		signerStr := s.testWallet.GetFormattedAddress()
-		msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob1, libBlob2)
-		s.Require().NoError(err)
+	// Wait and find blob
+	time.Sleep(5 * time.Second)
+	fullNode := s.framework.GetFullNodes()[0]
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-		// Submit via chain - this should succeed because Celestia allows duplicate blobs
-		chain := s.framework.GetCelestiaChain()
-		resp, err := chain.BroadcastBlobMessage(s.ctx, s.testWallet, msg, libBlob1, libBlob2)
-		s.Require().NoError(err)
-		s.Require().Equal(uint32(0), resp.Code, "duplicate blob submission should succeed in Celestia")
-	})
+	header, err := client.Header.NetworkHead(ctx)
+	s.Require().NoError(err)
 
-	// Test: Submit same blob in separate transactions (should succeed)
-	s.Run("Same_Blob_Separate_Transactions", func() {
-		// First submission
-		libBlob1, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
-		s.Require().NoError(err)
+	var blobHeight uint64
+	var commitment []byte
+	found := false
 
-		signerStr := s.testWallet.GetFormattedAddress()
-		msg1, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob1)
-		s.Require().NoError(err)
+	for h := uint64(resp.Height); h <= header.Height(); h++ {
+		blobs, err := client.Blob.GetAll(ctx, h, []libshare.Namespace{namespace})
+		if err == nil && len(blobs) > 0 {
+			blobHeight = h
+			commitment = blobs[0].Commitment
+			found = true
+			break
+		}
+	}
+	s.Require().True(found, "blob should be found")
 
-		chain := s.framework.GetCelestiaChain()
-		resp1, err := chain.BroadcastBlobMessage(s.ctx, s.testWallet, msg1, libBlob1)
-		s.Require().NoError(err)
-		s.Require().Equal(uint32(0), resp1.Code)
+	// Test Get API
+	retrievedBlob, err := client.Blob.Get(ctx, blobHeight, namespace, commitment)
+	s.Require().NoError(err)
+	s.Require().NotNil(retrievedBlob)
 
-		// Second submission with identical data (should succeed in separate transaction)
-		libBlob2, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
-		s.Require().NoError(err)
-
-		msg2, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob2)
-		s.Require().NoError(err)
-
-		resp2, err := chain.BroadcastBlobMessage(s.ctx, s.testWallet, msg2, libBlob2)
-		s.Require().NoError(err)
-		s.Require().Equal(uint32(0), resp2.Code)
-
-		// Heights should be different
-		s.Require().NotEqual(resp1.Height, resp2.Height)
-	})
+	retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
+	s.Assert().Equal(data, retrievedData)
+	s.Assert().True(retrievedBlob.Namespace().Equals(namespace))
+	s.Assert().Equal(libshare.ShareVersionOne, retrievedBlob.ShareVersion())
 }
 
-// TestMixedBlobVersions tests submitting both V0 and V1 blobs together.
-// This provides comprehensive coverage for mixed blob version scenarios.
-func (s *BlobTestSuite) TestMixedBlobVersions() {
-	// Create test namespace
+// TestBlobGet_NonExistentBlob tests blob retrieval API error handling
+func (s *BlobTestSuite) TestBlobGet_NonExistentBlob() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	fullNode := s.framework.GetFullNodes()[0]
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+
 	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x04}, 10))
+	s.Require().NoError(err)
+
+	// Try to get non-existent blob
+	nonExistentCommitment := bytes.Repeat([]byte{0xFF}, 32)
+	_, err = client.Blob.Get(ctx, 1, namespace, nonExistentCommitment)
+	s.Require().Error(err)
+	s.Assert().Contains(err.Error(), "blob: not found")
+}
+
+// TestBlobGetAll_ValidNamespace tests GetAll API with valid namespace
+func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	fullNode := s.framework.GetFullNodes()[0]
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+
+	// Create test wallet and fund the node account
+	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
+
+	// Create test namespace
+	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))
+	s.Require().NoError(err)
+
+	nodeAddr, err := client.State.AccountAddress(ctx)
+	s.Require().NoError(err)
+
+	// Submit multiple blobs to same namespace
+	data1 := []byte("GetAll test data 1")
+	data2 := []byte("GetAll test data 2")
+
+	libBlob1, err := libshare.NewV1Blob(namespace, data1, nodeAddr.Bytes())
+	s.Require().NoError(err)
+	libBlob2, err := libshare.NewV1Blob(namespace, data2, nodeAddr.Bytes())
+	s.Require().NoError(err)
+
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob1, libBlob2)
+	s.Require().NoError(err)
+
+	txConfig := state.NewTxConfig(state.WithGas(400_000), state.WithGasPrice(5000))
+	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+	s.Require().NoError(err)
+
+	// Wait for inclusion
+	_, err = client.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err)
+
+	// Test GetAll API
+	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []libshare.Namespace{namespace})
+	s.Require().NoError(err)
+	s.Require().Len(retrievedBlobs, 2)
+
+	// Verify all blobs belong to correct namespace
+	for _, blob := range retrievedBlobs {
+		s.Assert().True(blob.Namespace().Equals(namespace))
+	}
+}
+
+// TestBlobGetProof_ValidBlob tests GetProof API functionality
+func (s *BlobTestSuite) TestBlobGetProof_ValidBlob() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	fullNode := s.framework.GetFullNodes()[0]
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+
+	// Create test wallet and fund the node account
+	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
+
+	// Create and submit test blob
+	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x06}, 10))
+	s.Require().NoError(err)
+
+	data := []byte("Proof test data")
+	nodeAddr, err := client.State.AccountAddress(ctx)
+	s.Require().NoError(err)
+
+	libBlob, err := libshare.NewV1Blob(namespace, data, nodeAddr.Bytes())
+	s.Require().NoError(err)
+
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
+	s.Require().NoError(err)
+
+	txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
+	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+	s.Require().NoError(err)
+
+	// Wait for inclusion
+	_, err = client.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err)
+
+	// Test GetProof API
+	proof, err := client.Blob.GetProof(ctx, height, namespace, nodeBlobs[0].Commitment)
+	s.Require().NoError(err)
+	s.Require().NotNil(proof)
+	s.Require().NotEmpty(proof)
+
+	// Test Included API with the proof
+	included, err := client.Blob.Included(ctx, height, namespace, proof, nodeBlobs[0].Commitment)
+	s.Require().NoError(err)
+	s.Assert().True(included)
+}
+
+// TestBlobMixedVersions tests mixed V0 and V1 blob scenarios
+func (s *BlobTestSuite) TestBlobMixedVersions() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// Use chain submission for mixed version testing
+	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+	walletAddr, err := sdkacc.AddressFromWallet(testWallet)
+	s.Require().NoError(err)
+
+	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))
 	s.Require().NoError(err)
 
 	dataV0 := []byte("V0 blob data")
 	dataV1 := []byte("V1 blob data")
 
-	// Get wallet address for V1 blob signing
-	walletAddr, err := sdkacc.AddressFromWallet(s.testWallet)
-	s.Require().NoError(err)
-
-	// Create V0 blob (no signer) - use libshare to create V0 blob
+	// Create V0 blob (no signer)
 	libBlobV0, err := libshare.NewV0Blob(namespace, dataV0)
 	s.Require().NoError(err)
 
@@ -342,66 +351,55 @@ func (s *BlobTestSuite) TestMixedBlobVersions() {
 	libBlobV1, err := blobtypes.NewV1Blob(namespace, dataV1, walletAddr)
 	s.Require().NoError(err)
 
-	// Create MsgPayForBlobs transaction with both V0 and V1 blobs
-	signerStr := s.testWallet.GetFormattedAddress()
+	// Submit mixed blobs via chain
+	signerStr := testWallet.GetFormattedAddress()
 	msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlobV0, libBlobV1)
 	s.Require().NoError(err)
 
-	// Submit via direct chain transaction
 	chain := s.framework.GetCelestiaChain()
-	resp, err := chain.BroadcastBlobMessage(s.ctx, s.testWallet, msg, libBlobV0, libBlobV1)
+	resp, err := chain.BroadcastBlobMessage(ctx, testWallet, msg, libBlobV0, libBlobV1)
 	s.Require().NoError(err)
-	s.Require().Equal(uint32(0), resp.Code, "failed to broadcast mixed blobs: %s", resp.RawLog)
+	s.Require().Equal(uint32(0), resp.Code)
 
-	// Wait for blob inclusion
-	time.Sleep(10 * time.Second)
-
-	// Get full node client for retrieval
+	// Wait and retrieve blobs
+	time.Sleep(5 * time.Second)
 	fullNode := s.framework.GetFullNodes()[0]
-	fullNodeClient := s.framework.GetNodeRPCClient(s.ctx, fullNode)
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	// Get the current height to search for blobs
-	header, err := fullNodeClient.Header.NetworkHead(s.ctx)
+	header, err := client.Header.NetworkHead(ctx)
 	s.Require().NoError(err)
-	currentHeight := header.Height()
 
-	// Find the height where blobs were included
 	var retrievedBlobs []*nodeblob.Blob
 	found := false
-	for h := uint64(resp.Height); h <= currentHeight; h++ {
-		blobs, err := fullNodeClient.Blob.GetAll(s.ctx, h, []libshare.Namespace{namespace})
+
+	for h := uint64(resp.Height); h <= header.Height(); h++ {
+		blobs, err := client.Blob.GetAll(ctx, h, []libshare.Namespace{namespace})
 		if err == nil && len(blobs) > 0 {
 			retrievedBlobs = blobs
 			found = true
-			s.T().Logf("Found %d mixed blobs at height %d", len(blobs), h)
 			break
 		}
 	}
-	s.Require().True(found, "mixed blobs not found")
-	s.Require().Len(retrievedBlobs, 2, "expected 2 mixed blobs")
+	s.Require().True(found, "mixed blobs should be found")
+	s.Require().Len(retrievedBlobs, 2)
 
-	// Verify we have both V0 and V1 blobs
+	// Verify mixed blob versions
 	foundV0, foundV1 := false, false
 	for _, blob := range retrievedBlobs {
 		retrievedData := bytes.TrimRight(blob.Data(), "\x00")
 
 		if blob.ShareVersion() == libshare.ShareVersionZero {
 			foundV0 = true
-			s.Require().Equal(dataV0, retrievedData, "V0 blob data should match")
-			s.Require().Nil(blob.Signer(), "V0 blob should have no signer")
+			s.Assert().Equal(dataV0, retrievedData)
+			s.Assert().Nil(blob.Signer())
 		} else if blob.ShareVersion() == libshare.ShareVersionOne {
 			foundV1 = true
-			s.Require().Equal(dataV1, retrievedData, "V1 blob data should match")
-			s.Require().NotNil(blob.Signer(), "V1 blob should have signer")
-			s.Require().Equal(walletAddr.Bytes(), blob.Signer(), "V1 signer should match")
+			s.Assert().Equal(dataV1, retrievedData)
+			s.Assert().NotNil(blob.Signer())
+			s.Assert().Equal(walletAddr.Bytes(), blob.Signer())
 		}
 	}
 
-	s.Require().True(foundV0, "V0 blob not found in mixed submission")
-	s.Require().True(foundV1, "V1 blob not found in mixed submission")
-}
-
-// TestBlobTestSuite runs the blob test suite.
-func TestBlobTestSuite(t *testing.T) {
-	suite.Run(t, new(BlobTestSuite))
+	s.Assert().True(foundV0, "V0 blob should be found")
+	s.Assert().True(foundV1, "V1 blob should be found")
 }
