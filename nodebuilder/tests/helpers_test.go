@@ -1,3 +1,6 @@
+// this directive needs to be here and i wanted to remove but couldn't
+// its too long to explain so just trust me or try removing yourself :)
+//
 //nolint:unused
 package tests
 
