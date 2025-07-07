@@ -88,6 +88,9 @@ func TestFetcher_Resubscription(t *testing.T) {
 	// on the same address and listen for the new blocks
 	tn = NewNetwork(t, cfg)
 	require.NoError(t, tn.Start())
+	t.Cleanup(func() {
+		require.NoError(t, tn.Stop())
+	})
 	select {
 	case newBlockFromChan := <-newBlockChan:
 		h := newBlockFromChan.Header.Height
@@ -96,5 +99,4 @@ func TestFetcher_Resubscription(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("timeout waiting for block subscription")
 	}
-	require.NoError(t, tn.Stop())
 }

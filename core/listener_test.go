@@ -109,6 +109,9 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	cfg := DefaultTestConfig()
 	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
 	eds := createEdsPubSub(ctx, t)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -135,7 +138,6 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 		assert.False(t, has)
 	}
 	require.NoError(t, cl.Stop(ctx))
-	require.NoError(t, cctx.Stop())
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
