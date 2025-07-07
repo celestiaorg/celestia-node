@@ -301,4 +301,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-e2e test-blob test-tastora
+.PHONY: test-blob test-tastora
