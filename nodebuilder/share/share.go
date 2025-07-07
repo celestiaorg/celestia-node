@@ -8,7 +8,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	share_types "github.com/celestiaorg/celestia-node/nodebuilder/share/types"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
@@ -72,7 +71,7 @@ type Module interface {
 		ctx context.Context,
 		height uint64,
 		start, end int,
-	) (*share_types.GetRangeResult, error)
+	) (*GetRangeResult, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -107,7 +106,7 @@ type API struct {
 			ctx context.Context,
 			height uint64,
 			start, end int,
-		) (*share_types.GetRangeResult, error) `perm:"read"`
+		) (*GetRangeResult, error) `perm:"read"`
 	}
 }
 
@@ -134,7 +133,7 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 }
 
 func (api *API) GetRange(ctx context.Context, height uint64, from, to int,
-) (*share_types.GetRangeResult, error) {
+) (*GetRangeResult, error) {
 	return api.Internal.GetRange(ctx, height, from, to)
 }
 
@@ -194,7 +193,7 @@ func (m module) GetRange(
 	ctx context.Context,
 	height uint64,
 	start, end int,
-) (*share_types.GetRangeResult, error) {
+) (*GetRangeResult, error) {
 	hdr, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
@@ -215,7 +214,7 @@ func (m module) GetRange(
 	if err != nil {
 		return nil, err
 	}
-	return share_types.NewGetRangeResult(start, end, &rngData, hdr.DAH)
+	return NewGetRangeResult(start, end, &rngData, hdr.DAH)
 }
 
 func (m module) GetNamespaceData(

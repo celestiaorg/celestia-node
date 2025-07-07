@@ -1,4 +1,4 @@
-package share_types //nolint:revive
+package share
 
 import (
 	"bytes"
