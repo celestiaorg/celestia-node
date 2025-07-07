@@ -27,8 +27,6 @@ type Module interface {
 	AuthNew(ctx context.Context, perms []auth.Permission) (string, error)
 	// AuthNewWithExpiry signs and returns a new token with the given permissions and TTL.
 	AuthNewWithExpiry(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error)
-	// NetworkID returns the chain ID / network name of the node.
-	NetworkID(ctx context.Context) (string, error)
 }
 
 var _ Module = (*API)(nil)
@@ -41,7 +39,6 @@ type API struct {
 		AuthVerify        func(ctx context.Context, token string) ([]auth.Permission, error)                    `perm:"admin"`
 		AuthNew           func(ctx context.Context, perms []auth.Permission) (string, error)                    `perm:"admin"`
 		AuthNewWithExpiry func(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error) `perm:"admin"`
-		NetworkID         func(ctx context.Context) (string, error)                                             `perm:"admin"`
 	}
 }
 
@@ -67,8 +64,4 @@ func (api *API) AuthNew(ctx context.Context, perms []auth.Permission) (string, e
 
 func (api *API) AuthNewWithExpiry(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error) {
 	return api.Internal.AuthNewWithExpiry(ctx, perms, ttl)
-}
-
-func (api *API) NetworkID(ctx context.Context) (string, error) {
-	return api.Internal.NetworkID(ctx)
 }
