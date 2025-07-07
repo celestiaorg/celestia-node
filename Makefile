@@ -160,15 +160,6 @@ test-integration-race:
 	@go test -race -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration-race
 
-## test-e2e: Run an end to end test via docker.
-test-e2e:
-	@if [ -z "$(test)" ]; then \
-		echo "ERROR: 'test' variable is required. Usage: make test-e2e test=TestE2EMsgPayForBlob"; \
-		exit 1; \
-	fi
-	@echo "--> Running: $(test)"
-	cd nodebuilder/tests/tastora && go test -v -run ^$(test)$$ ./...
-
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:
 	@echo "--> Running blob module tests"
