@@ -52,7 +52,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fraud.ConstructModule(tp),
 		blob.ConstructModule(),
 		da.ConstructModule(),
-		node.ConstructModule(tp, network.String()),
+		node.ConstructModule(tp),
 		pruner.ConstructModule(tp, &cfg.Pruner),
 		rpc.ConstructModule(tp, &cfg.RPC),
 		blobstream.ConstructModule(),
