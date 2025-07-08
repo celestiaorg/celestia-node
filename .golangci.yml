@@ -54,6 +54,10 @@ linters:
       - linters:
           - lll
         source: https://
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
+        path: "libs/utils"
     paths:
       - third_party$
       - builtin$
