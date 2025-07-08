@@ -255,7 +255,7 @@ func (s *Service) onHeadersPrune(ctx context.Context, height uint64) error {
 
 	eh, err := s.hstore.GetByHeight(ctx, height)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting header %d to prune data with: %w", height, err)
 	}
 
 	err = s.pruner.Prune(ctx, eh)
@@ -266,5 +266,6 @@ func (s *Service) onHeadersPrune(ctx context.Context, height uint64) error {
 
 	s.checkpoint.LastPrunedHeight = height
 	// no need to persist here, as it will done in pruning routine or Stop
+	log.Debugw("data pruned on header delete", "height", height)
 	return nil
 }

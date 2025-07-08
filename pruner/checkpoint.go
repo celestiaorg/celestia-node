@@ -109,11 +109,11 @@ func (s *Service) lastPruned(ctx context.Context) (*header.ExtendedHeader, error
 	switch {
 	case tail.Height() < lastPruned:
 		return s.hstore.GetByHeight(ctx, lastPruned)
-	case tail.Height() > lastPruned:
+	case tail.Height() > lastPruned+1:
 		log.Warnf("BUG: Tail height %d > lastPruned height %d: reseting checkpoint to tail height", tail.Height(), lastPruned)
 		log.Warn("Some block data will not be pruned until full resync!")
-		s.checkpoint.LastPrunedHeight = tail.Height()
 	}
 
+	s.checkpoint.LastPrunedHeight = tail.Height()
 	return tail, nil
 }
