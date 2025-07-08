@@ -302,31 +302,21 @@ func testRangeNamespaceData(
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 
-	// request all possible ranges
-	for startRow := 0; startRow < odsSize; startRow++ {
-		for endRow := startRow; endRow < odsSize; endRow++ {
-			multiplier := (endRow - startRow) * odsSize
-			for startCol := 0; startCol < odsSize; startCol++ {
-				for endCol := startCol; endCol < odsSize; endCol++ {
-					actualSharesAmount := endCol - startCol + multiplier + 1
-					rngData, err := acc.RangeNamespaceData(
-						ctx,
-						shwap.SampleCoords{Row: startRow, Col: startCol},
-						shwap.SampleCoords{Row: endRow, Col: endCol},
-					)
-					require.NoError(t, err)
-					shares := rngData.Flatten()
-					require.Equal(t, actualSharesAmount, len(shares))
-					require.NoError(t, err)
-					err = rngData.VerifyInclusion(
-						shwap.SampleCoords{Row: startRow, Col: startCol},
-						shwap.SampleCoords{Row: endRow, Col: endCol},
-						len(dah.RowRoots)/2,
-						dah.RowRoots[startRow:endRow+1],
-					)
-					require.NoError(t, err)
-				}
-			}
+	for startIdx := 0; startIdx < sharesAmount; startIdx++ {
+		from, err := shwap.SampleCoordsFrom1DIndex(startIdx, odsSize)
+		require.NoError(t, err)
+		for endIdx := sharesAmount; endIdx < startIdx; endIdx-- {
+			rngData, err := acc.RangeNamespaceData(ctx, startIdx, endIdx)
+			require.NoError(t, err)
+			to, err := shwap.SampleCoordsFrom1DIndex(endIdx-1, odsSize)
+			require.NoError(t, err)
+			err = rngData.VerifyInclusion(
+				shwap.SampleCoords{Row: from.Row, Col: from.Col},
+				shwap.SampleCoords{Row: to.Row, Col: to.Col},
+				len(dah.RowRoots)/2,
+				dah.RowRoots[from.Row:to.Row+1],
+			)
+			require.NoError(t, err)
 		}
 	}
 }

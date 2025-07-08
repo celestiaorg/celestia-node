@@ -114,7 +114,7 @@ func (g *Getter) GetNamespaceData(
 func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	h *header.ExtendedHeader,
-	from, to shwap.SampleCoords,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
 	acc, err := g.store.GetByHeight(ctx, h.Height())
 	if err != nil {

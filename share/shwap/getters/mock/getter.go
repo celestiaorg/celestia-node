@@ -69,7 +69,7 @@ func (mr *MockGetterMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{})
 }
 
 // GetRangeNamespaceData mocks base method.
-func (m *MockGetter) GetRangeNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 shwap.SampleCoords) (shwap.RangeNamespaceData, error) {
+func (m *MockGetter) GetRangeNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) (shwap.RangeNamespaceData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRangeNamespaceData", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(shwap.RangeNamespaceData)

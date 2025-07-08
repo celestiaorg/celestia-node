@@ -80,28 +80,31 @@ func (f validation) RowNamespaceData(
 
 func (f validation) RangeNamespaceData(
 	ctx context.Context,
-	from, to shwap.SampleCoords,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
-	if from.Row > to.Row {
+	if from >= to {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
-			"range validation: from row %d is > then to row %d", from.Row, to.Row,
+			"range validation: `from` %d is >= than `to %d", from, to,
 		)
 	}
-	size, err := f.Size(ctx)
+	// Size() always returns EDS size
+	edsSize, err := f.Size(ctx)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, fmt.Errorf("getting size: %w", err)
 	}
-	odsSharesAmount := size/2 - 1
-	if from.Row > odsSharesAmount || from.Col > odsSharesAmount {
+	odsSize := edsSize / 2
+	odsSharesAmount := odsSize * odsSize
+
+	if from > odsSharesAmount {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
-			"range validation: invalid start coordinates of the range:{%d;%d}. ODS shares amount %d",
-			from.Row, from.Col, odsSharesAmount,
+			"range validation: invalid start index of the range:%d. ODS shares amount %d",
+			from, odsSharesAmount,
 		)
 	}
-	if to.Row > odsSharesAmount || to.Col > odsSharesAmount {
+	if to > odsSharesAmount {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
-			"range validation: invalid end coordinates of the range:{%d;%d}. ODS shares amount %d",
-			to.Row, to.Col, odsSharesAmount,
+			"range validation: invalid end coordinates of the range:%d. ODS shares amount %d",
+			to, odsSharesAmount,
 		)
 	}
 	return f.Accessor.RangeNamespaceData(ctx, from, to)

@@ -199,18 +199,7 @@ func (m module) GetRange(
 		return nil, err
 	}
 
-	// build ODS coordinates from the provided indexes
-	from, err := shwap.SampleCoordsFrom1DIndex(start, len(hdr.DAH.RowRoots)/2)
-	if err != nil {
-		return nil, err
-	}
-	// end is exclusive in the API but an inclusive for coords calculation
-	to, err := shwap.SampleCoordsFrom1DIndex(end-1, len(hdr.DAH.RowRoots)/2)
-	if err != nil {
-		return nil, err
-	}
-
-	rngData, err := m.getter.GetRangeNamespaceData(ctx, hdr, from, to)
+	rngData, err := m.getter.GetRangeNamespaceData(ctx, hdr, start, end)
 	if err != nil {
 		return nil, err
 	}

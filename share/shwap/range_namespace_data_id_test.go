@@ -10,17 +10,16 @@ import (
 func TestNewRangeNamespaceDataID(t *testing.T) {
 	tests := []struct {
 		name  string
-		from  SampleCoords
-		to    SampleCoords
+		from  int
+		to    int
 		total int
 		valid bool
 	}{
-		{"valid coordinates", SampleCoords{5, 7}, SampleCoords{7, 7}, 16, true},
-		{"coordinates out of ods", SampleCoords{8, 7}, SampleCoords{12, 15}, 16, false},
-		{"invalid: negative row", SampleCoords{-1, 5}, SampleCoords{7, 12}, 16, false},
-		{"invalid: to before from", SampleCoords{7, 12}, SampleCoords{5, 10}, 16, false},
-		{"invalid: out of bounds row", SampleCoords{0, 0}, SampleCoords{17, 0}, 16, false},
-		{"invalid: out of bounds col", SampleCoords{0, 0}, SampleCoords{15, 17}, 16, false},
+		{"valid indexes", 4, 11, 16, true},
+		{"start index out of ods", 17, 22, 4, false},
+		{"end index out of ods", 1, 22, 4, false},
+		{"invalid: negative index", -1, 6, 16, false},
+		{"invalid: to before from", 6, 3, 16, false},
 	}
 
 	for _, tc := range tests {
@@ -48,9 +47,7 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 
 func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {
 	edsSize := 32
-	to, err := SampleCoordsFrom1DIndex(10, edsSize)
-	require.NoError(t, err)
-	rngid, err := NewRangeNamespaceDataID(EdsID{1}, SampleCoords{Row: 0, Col: 1}, to, edsSize/2)
+	rngid, err := NewRangeNamespaceDataID(EdsID{1}, 1, 10, edsSize/2)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)

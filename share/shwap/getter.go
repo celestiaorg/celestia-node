@@ -79,6 +79,6 @@ type Getter interface {
 	GetRangeNamespaceData(
 		ctx context.Context,
 		header *header.ExtendedHeader,
-		from, to SampleCoords,
+		from, to int,
 	) (RangeNamespaceData, error)
 }

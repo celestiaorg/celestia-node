@@ -207,14 +207,13 @@ func TestShareModule(t *testing.T) {
 				dah := hdr.DAH
 				blobLength, err := sampledBlob.Length()
 				require.NoError(t, err)
-				from, to, err := shwap.RangeCoordsFromIdx(sampledBlob.Index(), blobLength, len(dah.RowRoots))
-				require.NoError(t, err)
-				start, err := shwap.SampleCoordsAs1DIndex(from, len(dah.RowRoots)/2)
-				require.NoError(t, err)
-				end, err := shwap.SampleCoordsAs1DIndex(to, len(dah.RowRoots)/2)
-				require.NoError(t, err)
 				for _, client := range clients {
-					rng, err := client.Share.GetRange(ctx, height, start, end+1) // end is exclusive
+					rng, err := client.Share.GetRange(
+						ctx,
+						height,
+						sampledBlob.Index(),
+						sampledBlob.Index()+blobLength,
+					)
 					require.NoError(t, err)
 					err = rng.Verify(dah.Hash())
 					require.NoError(t, err)

@@ -279,7 +279,7 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 // it uses the inner accessor to build the namespace data
 func (c *proofsCache) RangeNamespaceData(
 	ctx context.Context,
-	from, to shwap.SampleCoords,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
 	return c.inner.RangeNamespaceData(ctx, from, to)
 }

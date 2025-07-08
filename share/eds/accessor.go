@@ -34,10 +34,10 @@ type Accessor interface {
 	// Shares returns data (ODS) shares extracted from the Accessor.
 	Shares(ctx context.Context) ([]libshare.Share, error)
 	// RangeNamespaceData returns data(ODS) shares along with their proofs from the requested range
-	// from the Accessor. Response might have only proofs.
+	// from the Accessor.
 	RangeNamespaceData(
 		ctx context.Context,
-		from, to shwap.SampleCoords,
+		from, to int,
 	) (shwap.RangeNamespaceData, error)
 }
 

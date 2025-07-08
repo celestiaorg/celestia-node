@@ -46,9 +46,7 @@ type RangeNamespaceDataBlock struct {
 // NewEmptyRangeNamespaceDataBlock constructs a new empty RangeNamespaceDataBlock.
 func NewEmptyRangeNamespaceDataBlock(
 	height uint64,
-	from shwap.SampleCoords,
-	to shwap.SampleCoords,
-	odsSize int,
+	from, to, odsSize int,
 ) (*RangeNamespaceDataBlock, error) {
 	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, odsSize)
 	if err != nil {
@@ -133,10 +131,19 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
+		from, err := shwap.SampleCoordsFrom1DIndex(rndid.From, len(root.RowRoots)/2)
+		if err != nil {
+			return fmt.Errorf("converting from index to coordinates for %+v: %w", rndb.ID, err)
+		}
+		to, err := shwap.SampleCoordsFrom1DIndex(rndid.To-1, len(root.RowRoots)/2)
+		if err != nil {
+			return fmt.Errorf("converting to index to coordinates for %+v: %w", rndb.ID, err)
+		}
+
 		if err = rangeNsData.VerifyInclusion(
-			rndid.From, rndid.To,
+			from, to,
 			len(root.RowRoots)/2,
-			root.RowRoots[rndid.From.Row:rndid.To.Row+1],
+			root.RowRoots[from.Row:to.Row+1],
 		); err != nil {
 			return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}

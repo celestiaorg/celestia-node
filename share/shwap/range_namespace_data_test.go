@@ -81,9 +81,7 @@ func TestRangeCoordsFromIdx(t *testing.T) {
 	rngLengths := []int{2, 7, 11, 15}
 	extended := &eds.Rsmt2D{ExtendedDataSquare: square}
 	for _, length := range rngLengths {
-		from, to, err := shwap.RangeCoordsFromIdx(0, length, edsSize)
-		require.NoError(t, err)
-		rngData, err := extended.RangeNamespaceData(ctx, from, to)
+		rngData, err := extended.RangeNamespaceData(ctx, 0, length)
 		require.NoError(t, err)
 		require.Equal(t, length, len(rngData.Flatten()))
 	}
@@ -97,14 +95,14 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 
 	ns := libshare.RandomNamespace()
 	square, root := edstest.RandEDSWithNamespace(t, ns, sharesAmount, odsSize)
-	eds := eds.Rsmt2D{ExtendedDataSquare: square}
-
+	extended := &eds.Rsmt2D{ExtendedDataSquare: square}
+	accessor := eds.WithValidation(extended)
 	from := shwap.SampleCoords{Row: 0, Col: 0}
 	to := shwap.SampleCoords{Row: odsSize - 1, Col: odsSize - 1}
-	rngdata, err := eds.RangeNamespaceData(
+	rngdata, err := accessor.RangeNamespaceData(
 		context.Background(),
-		from,
-		to,
+		0,
+		odsSize*odsSize,
 	)
 	require.NoError(t, err)
 	err = rngdata.VerifyInclusion(from, to, len(root.RowRoots)/2, root.RowRoots[from.Row:to.Row+1])

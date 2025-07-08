@@ -24,57 +24,57 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 	testCases := []struct {
 		name      string
 		ns        libshare.Namespace
-		from      shwap.SampleCoords
-		to        shwap.SampleCoords
+		from      int
+		to        int
 		expectErr bool
 	}{
 		{
 			name:      "range fetch and verify",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 0, Col: 0},
-			to:        shwap.SampleCoords{Row: 2, Col: 2},
+			from:      0,
+			to:        18,
 			expectErr: false,
 		},
 		{
 			name:      "single cell fetch and verify",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 1, Col: 1},
-			to:        shwap.SampleCoords{Row: 1, Col: 1},
+			from:      9,
+			to:        10,
 			expectErr: false,
 		},
 		{
 			name:      "full row fetch and verify",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 0, Col: 0},
-			to:        shwap.SampleCoords{Row: 0, Col: 7},
+			from:      0,
+			to:        8,
 			expectErr: false,
 		},
 		{
-			name:      "full column fetch and verify",
+			name:      "full ods fetch and verify",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 0, Col: 3},
-			to:        shwap.SampleCoords{Row: 7, Col: 3},
+			from:      0,
+			to:        64,
 			expectErr: false,
 		},
 		{
-			name:      "out of bounds row (should fail)",
+			name:      "out of bounds start (should fail)",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 100, Col: 0},
-			to:        shwap.SampleCoords{Row: 101, Col: 2},
+			from:      100,
+			to:        115,
 			expectErr: true,
 		},
 		{
-			name:      "out of bounds col (should fail)",
+			name:      "out of bounds end (should fail)",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 0, Col: 100},
-			to:        shwap.SampleCoords{Row: 2, Col: 101},
+			from:      1,
+			to:        100,
 			expectErr: true,
 		},
 		{
 			name:      "from greater than to (should fail)",
 			ns:        namespace,
-			from:      shwap.SampleCoords{Row: 3, Col: 3},
-			to:        shwap.SampleCoords{Row: 2, Col: 2},
+			from:      12,
+			to:        5,
 			expectErr: true,
 		},
 	}
@@ -91,8 +91,11 @@ func TestRangeNamespaceData_FetchRoundtrip(t *testing.T) {
 
 			err = Fetch(ctx, exchange, root, []Block{blk})
 			require.NoError(t, err)
-
-			err = blk.Container.VerifyInclusion(tc.from, tc.to, len(root.RowRoots)/2, root.RowRoots[tc.from.Row:tc.to.Row+1])
+			from, err := shwap.SampleCoordsFrom1DIndex(tc.from, 8)
+			require.NoError(t, err)
+			to, err := shwap.SampleCoordsFrom1DIndex(tc.to-1, 8)
+			require.NoError(t, err)
+			err = blk.Container.VerifyInclusion(from, to, len(root.RowRoots)/2, root.RowRoots[from.Row:to.Row+1])
 			require.NoError(t, err)
 		})
 	}

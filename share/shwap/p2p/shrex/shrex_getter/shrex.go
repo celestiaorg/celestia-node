@@ -309,7 +309,7 @@ func (sg *Getter) GetNamespaceData(
 func (sg *Getter) GetRangeNamespaceData(
 	_ context.Context,
 	_ *header.ExtendedHeader,
-	_, _ shwap.SampleCoords,
+	_, _ int,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
 }

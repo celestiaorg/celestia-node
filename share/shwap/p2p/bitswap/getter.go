@@ -274,7 +274,7 @@ func (g *Getter) GetNamespaceData(
 func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	from, to shwap.SampleCoords,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
 	ctx, span := tracer.Start(ctx, "get-shares-range")
 	defer span.End()

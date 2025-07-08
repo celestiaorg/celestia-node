@@ -7,40 +7,38 @@ import (
 )
 
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
-// combining EdsIDSize size and 8 additional bytes
-// for the start and end coordinates of share of the range.
-const RangeNamespaceDataIDSize = EdsIDSize + 8
+// combining EdsIDSize size and 4 additional bytes
+// for the start and end ODS indexes of share of the range.
+const RangeNamespaceDataIDSize = EdsIDSize + 4
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within an Original DataSquare (ODS)
-// The range is defined by the coordinates of the first (`From`)
-// and last (`To`) (inclusively) shares in the range. This struct is used to reference and verify a subset of shares
+// The range is defined by the indexes of the first (`From`)
+// and last (`To`) (exclusively) shares in the range. This struct is used to reference and verify a subset of shares
 // (e.g., for a blob or a namespace proof) within the ODS.
 //
 // Fields:
 //   - EdsID: to identify the height
-//   - From: The coordinates (row, col) of the first share in the range.
-//   - To: The coordinates (row, col) of the last share in the range.
+//   - From: The index of the first share in the range.
+//   - To: The index of the last share in the range(exclusively).
 //
 // Example usage:
 //
 //	id := RangeNamespaceDataID{
 //	  EdsID: ...,
-//	  From: shwap.SampleCoords{Row: 0, Col: 0},
-//	  To:   shwap.SampleCoords{Row: 2, Col: 2},
+//	  From: 0,
+//	  To:   4,
 //	}
 type RangeNamespaceDataID struct {
 	EdsID
-	// From specifies the coordinates of the first share in the range.
-	From SampleCoords
-	// To specifies the coordinates of the last share in the range.
-	To SampleCoords
+	// From specifies the index of the first share in the range.
+	From int
+	// To specifies the index of the last share in the range(exclusively).
+	To int
 }
 
 func NewRangeNamespaceDataID(
 	edsID EdsID,
-	from SampleCoords,
-	to SampleCoords,
-	odsSize int,
+	from, to, odsSize int,
 ) (RangeNamespaceDataID, error) {
 	rngid := RangeNamespaceDataID{
 		EdsID: edsID,
@@ -62,17 +60,22 @@ func (rngid RangeNamespaceDataID) Verify(size int) error {
 	if err != nil {
 		return fmt.Errorf("invalid EdsID: %w", err)
 	}
-	fromIdx, err := SampleCoordsAs1DIndex(rngid.From, size)
-	if err != nil {
-		return err
+
+	sharesAmount := size * size
+	if rngid.From < 0 {
+		return fmt.Errorf("from must be greater than or equal to 0: %d", rngid.From)
 	}
-	// verify that to is not exceed that edsSize
-	toIdx, err := SampleCoordsAs1DIndex(rngid.To, size)
-	if err != nil {
-		return err
+	if rngid.To <= 0 {
+		return fmt.Errorf("to must be greater than 0: %d", rngid.To)
 	}
-	if fromIdx > toIdx {
-		return fmt.Errorf("invalid range: from index %d > to index %d", fromIdx, toIdx)
+	if rngid.From >= rngid.To {
+		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
+	}
+	if rngid.From >= sharesAmount {
+		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, size)
+	}
+	if rngid.To > sharesAmount {
+		return fmt.Errorf("invalid end index: to %d > size: %d", rngid.To, size)
 	}
 	return nil
 }
@@ -127,19 +130,10 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 		return RangeNamespaceDataID{}, err
 	}
 
-	fromCoords := SampleCoords{
-		Row: int(binary.BigEndian.Uint16(data[EdsIDSize : EdsIDSize+2])),
-		Col: int(binary.BigEndian.Uint16(data[EdsIDSize+2 : EdsIDSize+4])),
-	}
-	toCoords := SampleCoords{
-		Row: int(binary.BigEndian.Uint16(data[EdsIDSize+4 : EdsIDSize+6])),
-		Col: int(binary.BigEndian.Uint16(data[EdsIDSize+6 : EdsIDSize+8])),
-	}
-
 	rngID := RangeNamespaceDataID{
 		EdsID: edsID,
-		From:  fromCoords,
-		To:    toCoords,
+		From:  int(binary.BigEndian.Uint16(data[EdsIDSize : EdsIDSize+2])),
+		To:    int(binary.BigEndian.Uint16(data[EdsIDSize+2 : EdsIDSize+4])),
 	}
 	return rngID, rngID.Validate()
 }
@@ -157,9 +151,7 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("appending EdsID: %w", err)
 	}
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Row))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Col))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Row))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Col))
+	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From))
+	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To))
 	return data, nil
 }
