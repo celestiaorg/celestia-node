@@ -26,126 +26,105 @@ go test -v -run TestBlobSubmit_SingleBlob ./nodebuilder/tests/tastora/
 | **Header** | 16 | Sync, retrieval, ranges, network head |
 | **Share** | 18 | Data availability, EDS, namespaces |
 | **P2P** | 18 | Connectivity, peers, pubsub, bandwidth |
-| **Node** | 17 | Info, auth, logging, build details |
-| **DAS** | 11 | Sampling, stats, coordination |
+| **Node** | 17 | Info, auth, logging, monitoring |
+| **DAS** | 11 | Sampling stats, coordination |
 | **Sync** | 6 | Node synchronization workflows |
 | **Pruner** | 12 | Storage management, archival |
 
-## 🏗️ Architecture
+## 🏗️ Framework Design
 
 ### Real Infrastructure
+
 - **Docker Containers**: Actual celestia-app blockchain + celestia-node instances
-- **Multi-Node Setup**: Bridge, full, and light nodes with real P2P communication
-- **Live Network**: No mocks - tests real RPC calls and consensus
+- **Multi-Node Setup**: Full nodes, bridge nodes, light nodes working together  
+- **Real Networks**: P2P connections, consensus, data availability sampling
 
 ### Framework Design
-```go
-// Setup test environment
-framework := NewFramework(t,
-    WithValidators(1),    // Blockchain validators
-    WithFullNodes(2),     // DA full nodes
-    WithBridgeNodes(1),   // Bridge nodes
-    WithLightNodes(1),    // Light clients
-)
 
-// Use in tests
-client := framework.GetNodeRPCClient(ctx, framework.GetFullNodes()[0])
-result, err := client.Blob.Submit(ctx, blobs, txConfig)
+```go
+framework := NewFramework(t,
+    WithValidators(1),     // Blockchain validators
+    WithFullNodes(2),      // DA network full nodes
+    WithBridgeNodes(1),    // Bridge to consensus layer
+    WithLightNodes(2),     // Light clients for DAS
+)
 ```
 
-## 🧪 Test Patterns
+### Framework Components
+
+- **`framework.go`** - Docker orchestration, network setup, node management
+- **`config.go`** - Network topology configuration (validators, full nodes, bridge, light)
+- Module test suites - Organized by API functionality with consistent patterns
+- Real RPC clients - No mocks, actual node communication
 
 ### Suite Structure
-Each module follows consistent patterns for maintainability:
 
 ```go
-type ModuleTestSuite struct {
+type BlobTestSuite struct {
     suite.Suite
     framework *Framework
 }
 
-func (s *ModuleTestSuite) TestAPI_HappyPath() {
-    // Success scenario testing
-}
-
-func (s *ModuleTestSuite) TestAPI_ErrorHandling() {
-    // Failure scenario testing
+func (s *BlobTestSuite) SetupSuite() {
+    s.framework = NewFramework(s.T(), WithFullNodes(1))
+    s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 ```
 
 ### Test Categories
-- **✅ Happy Path**: Core functionality works correctly
-- **❌ Error Cases**: Invalid inputs, timeouts, edge cases
-- **🔗 Cross-Node**: Multi-node consistency and communication
-- **⚡ Performance**: Load testing and resource validation
 
-## 🛠️ Development
+- **✅ Happy Path**: Core functionality validation
+- **❌ Error Cases**: Edge cases, timeouts, invalid inputs  
+- **🔗 Integration**: Cross-module workflows
+- **⚡ Performance**: Load testing, concurrency
 
 ### Adding Tests
-1. **Choose module**: Add to existing `*_test.go` file
-2. **Follow naming**: `TestModule_API_Scenario` pattern  
-3. **Use helpers**: Framework provides account funding, test data generation
-4. **Test errors**: Include both success and failure cases
+
+1. **Choose module**: Add to existing test suite or create new `module_test.go`
+2. **Follow patterns**: Use framework helpers, proper cleanup, descriptive names
+3. **Test real scenarios**: Integration over unit tests, actual API calls
 
 ### Example Test
+
 ```go
-func (s *BlobTestSuite) TestSubmit_SingleBlob() {
+func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
     ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
     defer cancel()
-
-    // Setup
-    client := s.framework.GetNodeRPCClient(ctx, s.framework.GetFullNodes()[0])
-    blobs := s.framework.GenerateTestBlobs(1, 1024)
     
-    // Execute
-    height, err := client.Blob.Submit(ctx, blobs, state.NewTxConfig())
+    fullNode := s.framework.GetFullNodes()[0]
+    client := s.framework.GetNodeRPCClient(ctx, fullNode)
     
-    // Validate
+    // Create test data
+    namespace, _ := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
+    data := []byte("Hello Celestia")
+    
+    // Submit via API
+    height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
     s.Require().NoError(err)
-    s.Require().NotZero(height)
+    
+    // Verify retrieval
+    blob, err := client.Blob.Get(ctx, height, namespace, commitment)
+    s.Assert().Equal(data, blob.Data())
 }
 ```
 
 ### Framework Helpers
+
 ```go
-// Account management
-wallet := framework.CreateTestWallet(ctx, 5_000_000_000)
-framework.FundNodeAccount(ctx, wallet, node, 1_000_000_000)
+// Test wallet with funding
+wallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
+s.framework.FundNodeAccount(ctx, wallet, fullNode, 1_000_000_000)
 
-// Test data
-blobs := framework.GenerateTestBlobs(count, sizeBytes)
-libBlobs := framework.GenerateTestLibshareBlobs(count, sizeBytes)
+// Block production for testing
+s.framework.FillBlocks(ctx, signerAddr, blockSize, numBlocks)
+s.framework.WaitTillHeight(ctx, targetHeight)
 
-// Node access
-fullNode := framework.GetFullNodes()[0]
-client := framework.GetNodeRPCClient(ctx, fullNode)
+// Multi-node access
+fullNodes := s.framework.GetFullNodes()
+lightNodes := s.framework.GetLightNodes()
+bridgeNodes := s.framework.GetBridgeNodes()
 ```
-
-## 🔍 Key Improvements Over Legacy Tests
-
-| Aspect | Legacy (Swamp) | Tastora |
-|--------|---------------|---------|
-| **Infrastructure** | Mock network | Real Docker containers |
-| **Organization** | Scattered files | Module-based suites |
-| **Coverage** | Partial APIs | Complete API coverage |
-| **Debugging** | Hard to debug | Clear test isolation |
-| **Maintenance** | Brittle mocks | Stable real infrastructure |
-
-## ⚙️ Requirements
-
-- **Docker**: Container runtime
-- **Go 1.21+**: Test execution
-- **8+ GB RAM**: Multiple node instances
-- **10+ GB Disk**: Docker images and data
-
-## 🎯 Why Tastora?
-
-1. **Real Integration**: Tests actual node behavior, not mocks
-2. **Complete Coverage**: Every major API tested with edge cases
-3. **Maintainable**: Organized by module with consistent patterns
-4. **Reliable**: Docker isolation prevents test interference
-5. **Developer Friendly**: Easy to add new tests and debug failures
 
 ---
 
-**Status**: Production ready with 100% test success rate across all 116 tests.
+**Status**: 🟢 All tests passing | **Coverage**: Complete API surface | **Infrastructure**: Production-ready
