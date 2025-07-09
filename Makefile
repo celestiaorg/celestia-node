@@ -162,13 +162,47 @@ test-integration-race:
 
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:
-	@echo "--> Running blob module tests"
-	cd nodebuilder/tests/tastora && go test -v -run TestBlobTestSuite ./...
+	@echo "Running blob module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestBlobTestSuite" -timeout=15m
+
+test-state:
+	@echo "Running state module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestStateTestSuite" -timeout=15m
+
+## test-header: Run header module tests via Tastora framework.
+test-header:
+	@echo "Running header module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestHeaderTestSuite" -timeout=15m
+
+## test-share: Run share module tests via Tastora framework.
+test-share:
+	@echo "Running share module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestShareTestSuite" -timeout=15m
+
+test-sync:
+	@echo "Running sync module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestSyncTestSuite" -timeout=20m
+
+test-pruner:
+	@echo "Running pruner module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestPrunerTestSuite" -timeout=20m
+
+test-p2p:
+	@echo "Running P2P module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestP2PTestSuite" -timeout=20m
+
+test-node:
+	@echo "Running Node module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestNodeTestSuite" -timeout=15m
+
+test-das:
+	@echo "Running DAS module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestDASTestSuite" -timeout=25m
 
 ## test-tastora: Run all Tastora framework tests.
-test-tastora: test-blob
-	@echo "--> Running all Tastora tests"
-	cd nodebuilder/tests/tastora && go test -v ./...
+test-tastora: test-blob test-state test-header test-share test-sync test-pruner test-p2p test-node test-das
+	@echo "Running all Tastora module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -parallel 2 -race -timeout=45m ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:
@@ -301,4 +335,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-blob test-tastora
+.PHONY: test-blob test-state test-header test-share test-sync test-pruner test-p2p test-node test-das test-tastora
