@@ -3,8 +3,8 @@ package tastora
 // Config represents configuration options for the Tastora testing framework.
 type Config struct {
 	NumValidators   int
-	NumFullNodes    int
-	FullNodeCount   int
+	ChainFullNodes  int // Celestia blockchain full nodes
+	FullNodeCount   int // DA network full nodes (celestia-node instances)
 	BridgeNodeCount int
 	LightNodeCount  int
 }
@@ -16,8 +16,8 @@ type Option func(*Config)
 func defaultConfig() *Config {
 	return &Config{
 		NumValidators:   1,
-		NumFullNodes:    0,
-		FullNodeCount:   1,
+		ChainFullNodes:  0, // Usually no blockchain full nodes needed in tests
+		FullNodeCount:   1, // DA network full nodes
 		BridgeNodeCount: 1,
 		LightNodeCount:  1,
 	}
@@ -30,7 +30,16 @@ func WithValidators(count int) Option {
 	}
 }
 
+// WithChainFullNodes sets the number of full nodes in the Celestia blockchain.
+// These are blockchain full nodes, not DA nodes.
+func WithChainFullNodes(count int) Option {
+	return func(c *Config) {
+		c.ChainFullNodes = count
+	}
+}
+
 // WithFullNodes sets the number of full nodes in the DA network.
+// These are celestia-node instances, not blockchain nodes.
 func WithFullNodes(count int) Option {
 	return func(c *Config) {
 		c.FullNodeCount = count

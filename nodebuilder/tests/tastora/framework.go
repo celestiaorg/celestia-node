@@ -97,16 +97,20 @@ func (f *Framework) SetupNetwork(ctx context.Context) error {
 
 	f.bridgeNode = f.startBridgeNode(ctx, f.celestia)
 
-	// Start one full node by default
+	// Start all configured full nodes
 	if len(f.daNetwork.GetFullNodes()) > 0 {
-		fullNode := f.startFullNode(ctx, f.bridgeNode, f.celestia)
-		f.fullNodes = append(f.fullNodes, fullNode)
+		for i := 0; i < len(f.daNetwork.GetFullNodes()); i++ {
+			fullNode := f.startFullNode(ctx, f.bridgeNode, f.celestia, i)
+			f.fullNodes = append(f.fullNodes, fullNode)
+		}
 	}
 
-	// Start one light node by default
+	// Start all configured light nodes
 	if len(f.daNetwork.GetLightNodes()) > 0 && len(f.fullNodes) > 0 {
-		lightNode := f.startLightNode(ctx, f.fullNodes[0], f.celestia)
-		f.lightNodes = append(f.lightNodes, lightNode)
+		for i := 0; i < len(f.daNetwork.GetLightNodes()); i++ {
+			lightNode := f.startLightNode(ctx, f.fullNodes[0], f.celestia, i)
+			f.lightNodes = append(f.lightNodes, lightNode)
+		}
 	}
 
 	return nil
@@ -221,7 +225,7 @@ func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 // createDockerProvider initializes the Docker provider for creating chains and nodes.
 func (f *Framework) createDockerProvider(cfg *Config) tastoratypes.Provider {
 	numValidators := cfg.NumValidators
-	numFullNodes := cfg.NumFullNodes
+	chainFullNodes := cfg.ChainFullNodes
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
@@ -238,7 +242,7 @@ func (f *Framework) createDockerProvider(cfg *Config) tastoratypes.Provider {
 			Name:          "celestia",
 			Version:       getCelestiaTag(),
 			NumValidators: &numValidators,
-			NumFullNodes:  &numFullNodes,
+			NumFullNodes:  &chainFullNodes,
 			ChainID:       testChainID,
 			Images: []tastoradockertypes.DockerImage{
 				{
@@ -312,7 +316,7 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 }
 
 // startFullNode initializes and starts a full node.
-func (f *Framework) startFullNode(ctx context.Context, bridgeNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
+func (f *Framework) startFullNode(ctx context.Context, bridgeNode tastoratypes.DANode, chain tastoratypes.Chain, index int) tastoratypes.DANode {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
@@ -324,7 +328,7 @@ func (f *Framework) startFullNode(ctx context.Context, bridgeNode tastoratypes.D
 	p2pAddr, err := p2pInfo.GetP2PAddress()
 	require.NoError(f.t, err, "failed to get bridge node p2p address")
 
-	fullNode := f.daNetwork.GetFullNodes()[0]
+	fullNode := f.daNetwork.GetFullNodes()[index]
 	err = fullNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
 		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
@@ -340,7 +344,7 @@ func (f *Framework) startFullNode(ctx context.Context, bridgeNode tastoratypes.D
 }
 
 // startLightNode initializes and starts a light node.
-func (f *Framework) startLightNode(ctx context.Context, fullNode tastoratypes.DANode, chain tastoratypes.Chain) tastoratypes.DANode {
+func (f *Framework) startLightNode(ctx context.Context, fullNode tastoratypes.DANode, chain tastoratypes.Chain, index int) tastoratypes.DANode {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
 	p2pInfo, err := fullNode.GetP2PInfo(ctx)
@@ -349,7 +353,7 @@ func (f *Framework) startLightNode(ctx context.Context, fullNode tastoratypes.DA
 	p2pAddr, err := p2pInfo.GetP2PAddress()
 	require.NoError(f.t, err, "failed to get full node p2p address")
 
-	lightNode := f.daNetwork.GetLightNodes()[0]
+	lightNode := f.daNetwork.GetLightNodes()[index]
 	err = lightNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
 		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--rpc.addr", "0.0.0.0"),
@@ -379,10 +383,88 @@ func (f *Framework) getGenesisHash(ctx context.Context, chain tastoratypes.Chain
 	return genesisHash
 }
 
-// cleanup frees up all resources.
+// cleanup frees up all resources and ensures proper teardown.
 func (f *Framework) cleanup() {
-	f.logger.Info("Cleaning up Tastora framework")
-	// Cleanup is handled by the Tastora framework automatically
+	f.logger.Info("Starting Tastora framework cleanup")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var cleanupErrors []error
+
+	// Stop light nodes
+	for i, lightNode := range f.lightNodes {
+		if lightNode != nil {
+			f.logger.Info("Stopping light node", zap.Int("index", i))
+			if err := lightNode.Stop(ctx); err != nil {
+				f.logger.Error("Failed to stop light node", zap.Int("index", i), zap.Error(err))
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("stop light node %d: %w", i, err))
+			}
+		}
+	}
+
+	// Stop full nodes
+	for i, fullNode := range f.fullNodes {
+		if fullNode != nil {
+			f.logger.Info("Stopping full node", zap.Int("index", i))
+			if err := fullNode.Stop(ctx); err != nil {
+				f.logger.Error("Failed to stop full node", zap.Int("index", i), zap.Error(err))
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("stop full node %d: %w", i, err))
+			}
+		}
+	}
+
+	// Stop bridge node
+	if f.bridgeNode != nil {
+		f.logger.Info("Stopping bridge node")
+		if err := f.bridgeNode.Stop(ctx); err != nil {
+			f.logger.Error("Failed to stop bridge node", zap.Error(err))
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("stop bridge node: %w", err))
+		}
+	}
+
+	// DA network cleanup is handled by stopping individual nodes above
+
+	// Stop celestia chain
+	if f.celestia != nil {
+		f.logger.Info("Stopping Celestia chain")
+		if err := f.celestia.Stop(ctx); err != nil {
+			f.logger.Error("Failed to stop Celestia chain", zap.Error(err))
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("stop celestia chain: %w", err))
+		}
+	}
+
+	// Clean up Docker network
+	if f.network != "" && f.client != nil {
+		f.logger.Info("Removing Docker network", zap.String("network", f.network))
+		if err := f.client.NetworkRemove(ctx, f.network); err != nil {
+			// Don't treat this as a hard error since the network might be shared
+			f.logger.Warn("Failed to remove Docker network", zap.String("network", f.network), zap.Error(err))
+		}
+	}
+
+	// Close Docker client
+	if f.client != nil {
+		f.logger.Info("Closing Docker client")
+		if err := f.client.Close(); err != nil {
+			f.logger.Error("Failed to close Docker client", zap.Error(err))
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("close docker client: %w", err))
+		}
+	}
+
+	// Report cleanup results
+	if len(cleanupErrors) > 0 {
+		f.logger.Error("Cleanup completed with errors",
+			zap.Int("error_count", len(cleanupErrors)),
+			zap.Errors("errors", cleanupErrors))
+
+		// Log to test output as well for visibility
+		if f.t != nil {
+			f.t.Logf("Framework cleanup completed with %d errors: %v", len(cleanupErrors), cleanupErrors)
+		}
+	} else {
+		f.logger.Info("Tastora framework cleanup completed successfully")
+	}
 }
 
 // appOverrides modifies the "app.toml" configuration.
@@ -432,8 +514,12 @@ func (f *Framework) GenerateTestBlobs(count int, dataSize int) ([]*blob.Blob, er
 	blobs := make([]*blob.Blob, count)
 
 	for i := 0; i < count; i++ {
-		// Create a test namespace (unique for each blob)
+		// Create a non-reserved test namespace (avoid zeros which are reserved)
+		// Use pattern like 0x01010101... + unique suffix to avoid reserved IDs
 		namespaceBytes := make([]byte, 10)
+		for j := 0; j < 9; j++ {
+			namespaceBytes[j] = 0x01 // Use 0x01 to avoid reserved namespace (zeros)
+		}
 		namespaceBytes[9] = byte(i + 1) // Make each namespace unique
 		namespace, err := libshare.NewV0Namespace(namespaceBytes)
 		if err != nil {
@@ -463,8 +549,12 @@ func (f *Framework) GenerateTestLibshareBlobs(count int, dataSize int) ([]*libsh
 	blobs := make([]*libshare.Blob, count)
 
 	for i := 0; i < count; i++ {
-		// Create a test namespace (unique for each blob)
+		// Create a non-reserved test namespace (avoid zeros which are reserved)
+		// Use pattern like 0x01010101... + unique suffix to avoid reserved IDs
 		namespaceBytes := make([]byte, 10)
+		for j := 0; j < 9; j++ {
+			namespaceBytes[j] = 0x01 // Use 0x01 to avoid reserved namespace (zeros)
+		}
 		namespaceBytes[9] = byte(i + 1) // Make each namespace unique
 		namespace, err := libshare.NewV0Namespace(namespaceBytes)
 		if err != nil {
