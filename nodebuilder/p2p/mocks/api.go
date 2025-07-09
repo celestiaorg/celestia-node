@@ -218,6 +218,21 @@ func (mr *MockModuleMockRecorder) NATStatus(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NATStatus", reflect.TypeOf((*MockModule)(nil).NATStatus), arg0)
 }
 
+// Network mocks base method.
+func (m *MockModule) Network(arg0 context.Context) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Network", arg0)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Network indicates an expected call of Network.
+func (mr *MockModuleMockRecorder) Network(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Network", reflect.TypeOf((*MockModule)(nil).Network), arg0)
+}
+
 // PeerInfo mocks base method.
 func (m *MockModule) PeerInfo(arg0 context.Context, arg1 peer.ID) (peer.AddrInfo, error) {
 	m.ctrl.T.Helper()
