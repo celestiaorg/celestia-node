@@ -2,13 +2,11 @@ package shrexnd
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	libhost "github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
@@ -55,54 +53,6 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		emptyShares, err := client.RequestND(ctx, height, namespace, server.host.ID())
 		require.NoError(t, err)
 		require.Empty(t, emptyShares.Flatten())
-	})
-}
-
-func TestExchange_RequestND(t *testing.T) {
-	t.Run("ND_concurrency_limit", func(t *testing.T) {
-		net, err := mocknet.FullMeshConnected(2)
-		require.NoError(t, err)
-
-		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
-		require.NoError(t, err)
-		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil)
-		require.NoError(t, err)
-
-		require.NoError(t, server.Start(context.Background()))
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		t.Cleanup(cancel)
-
-		rateLimit := 2
-		wg := sync.WaitGroup{}
-		wg.Add(rateLimit)
-
-		// mockHandler will block requests on server side until test is over
-		lock := make(chan struct{})
-		defer close(lock)
-		mockHandler := func(network.Stream) {
-			wg.Done()
-			select {
-			case <-lock:
-			case <-ctx.Done():
-				t.Fatal("timeout")
-			}
-		}
-		middleware := shrex.NewMiddleware(rateLimit)
-		server.host.SetStreamHandler(server.protocolID,
-			middleware.RateLimitHandler(mockHandler))
-
-		// take server concurrency slots with blocked requests
-		for i := range rateLimit {
-			go func(i int) {
-				client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID()) //nolint:errcheck
-			}(i)
-		}
-
-		// wait until all server slots are taken
-		wg.Wait()
-		_, err = client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID())
-		require.ErrorIs(t, err, shrex.ErrRateLimited)
 	})
 }
 

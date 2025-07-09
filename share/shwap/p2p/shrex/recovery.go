@@ -3,8 +3,11 @@ package shrex
 import (
 	"fmt"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/network"
 )
+
+var log = logging.Logger("shrex/middleware")
 
 // RecoveryMiddleware is a middleware that recovers from panics in the handler.
 func RecoveryMiddleware(handler network.StreamHandler) network.StreamHandler {
