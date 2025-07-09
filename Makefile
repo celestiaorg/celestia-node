@@ -160,6 +160,16 @@ test-integration-race:
 	@go test -race -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration-race
 
+## test-blob: Run blob module tests via Tastora framework.
+test-blob:
+	@echo "--> Running blob module tests"
+	cd nodebuilder/tests/tastora && go test -v -run TestBlobTestSuite ./...
+
+## test-tastora: Run all Tastora framework tests.
+test-tastora: test-blob
+	@echo "--> Running all Tastora tests"
+	cd nodebuilder/tests/tastora && go test -v ./...
+
 ## benchmark: Run all benchmarks.
 benchmark:
 	@echo "--> Running benchmarks"
@@ -290,3 +300,5 @@ jemalloc:
 		rm -rf /tmp/jemalloc-temp ; \
 	fi
 .PHONY: jemalloc
+
+.PHONY: test-blob test-tastora
