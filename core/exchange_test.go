@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -24,7 +23,10 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -75,7 +77,10 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -127,7 +132,10 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -177,18 +185,16 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	}
 }
 
-func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testnode.Context) {
-	cctx := StartTestNodeWithConfig(t, cfg)
+func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {
+	network := NewNetwork(t, cfg)
+	require.NoError(t, network.Start())
 	// wait for height 2 in order to be able to start submitting txs (this prevents
 	// flakiness with accessing account state)
-	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
+	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
-	require.NoError(t, err)
-	return fetcher, cctx
+	return fetcher, network
 }
 
 // fillBlocks fills blocks until the context is canceled.
