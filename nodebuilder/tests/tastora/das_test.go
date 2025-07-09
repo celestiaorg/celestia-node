@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/stretchr/testify/suite"
+
+	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 )
 
 // DASTestSuite provides comprehensive testing of the DAS module APIs.
