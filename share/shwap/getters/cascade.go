@@ -106,30 +106,28 @@ func (cg *CascadeGetter) GetNamespaceData(
 func (cg *CascadeGetter) GetRangeNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
-	namespace libshare.Namespace,
-	from, to shwap.SampleCoords,
-	proofsOnly bool,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
 	ctx, span := tracer.Start(
 		ctx,
 		"cascade/get-shares-range",
 		trace.WithAttributes(
-			attribute.String("namespace", namespace.String()),
-			attribute.Int("from_row", from.Row),
-			attribute.Int("from_col", from.Col),
-			attribute.Int("to_row", to.Row),
-			attribute.Int("to_col", to.Col),
-			attribute.Bool("proofs_only", proofsOnly),
+			attribute.Int("from", from),
+			attribute.Int("to", to),
 		))
 	defer span.End()
 
-	if from.Row > to.Row {
+	if from < 0 || to < 0 {
 		return shwap.RangeNamespaceData{},
-			fmt.Errorf("start row must not be bigger to end row: %d-%d", from.Row, to.Row)
+			fmt.Errorf("negative indexes are not allowed: %d-%d", from, to)
+	}
+	if from >= to {
+		return shwap.RangeNamespaceData{},
+			fmt.Errorf("start must not be bigger or eqaul to end: %d-%d", from, to)
 	}
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
-		return get.GetRangeNamespaceData(ctx, header, namespace, from, to, proofsOnly)
+		return get.GetRangeNamespaceData(ctx, header, from, to)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)

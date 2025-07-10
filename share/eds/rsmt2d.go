@@ -116,28 +116,39 @@ func (eds *Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
 }
 
-// RangeNamespaceData builds a namespace range from the given coordinates and the length of the
-// range.
+// RangeNamespaceData builds a namespace range from the given indexes.
 func (eds *Rsmt2D) RangeNamespaceData(
 	ctx context.Context,
-	ns libshare.Namespace,
-	from, to shwap.SampleCoords,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
-	rawShares := make([][]libshare.Share, 0, to.Row-from.Row+1)
-	for row := from.Row; row <= to.Row; row++ {
+	size, err := eds.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	// get coords based on the odsSize
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// `to` is an exclusive index. Getting inclusive coordinates of the last share.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	rawShares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
 		rawShare := eds.Row(uint(row))
 		sh, err := libshare.FromBytes(rawShare)
 		if err != nil {
 			return shwap.RangeNamespaceData{}, err
 		}
-		rawShares = append(rawShares, sh)
+		rawShares[idx] = sh
+		idx++
 	}
-	roots, err := eds.AxisRoots(ctx)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
-	return shwap.RangeNamespaceDataFromShares(rawShares, ns, roots, from, to)
+	return shwap.RangeNamespaceDataFromShares(rawShares, fromCoords, toCoords)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each

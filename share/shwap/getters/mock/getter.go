@@ -69,18 +69,18 @@ func (mr *MockGetterMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{})
 }
 
 // GetRangeNamespaceData mocks base method.
-func (m *MockGetter) GetRangeNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace, arg3, arg4 shwap.SampleCoords, arg5 bool) (shwap.RangeNamespaceData, error) {
+func (m *MockGetter) GetRangeNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) (shwap.RangeNamespaceData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRangeNamespaceData", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret := m.ctrl.Call(m, "GetRangeNamespaceData", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(shwap.RangeNamespaceData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRangeNamespaceData indicates an expected call of GetRangeNamespaceData.
-func (mr *MockGetterMockRecorder) GetRangeNamespaceData(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetRangeNamespaceData(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRangeNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetRangeNamespaceData), arg0, arg1, arg2, arg3, arg4, arg5)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRangeNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetRangeNamespaceData), arg0, arg1, arg2, arg3)
 }
 
 // GetRow mocks base method.

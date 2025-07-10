@@ -52,6 +52,12 @@ linters:
           - revive
         path: _test\.go
       - linters:
+          - revive
+        path: libs/utils
+      - linters:
+          - nolintlint
+        path: share/shwap/p2p/shrex/shrex_getter/
+      - linters:
           - lll
         source: https://
       - linters:
