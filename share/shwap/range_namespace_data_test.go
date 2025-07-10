@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/store/file"
 )
 
 func TestRangeNamespaceData(t *testing.T) {
@@ -28,8 +31,16 @@ func TestRangeNamespaceData(t *testing.T) {
 	nsRowStart := 0
 	nsColStart := 0
 
+	path := t.TempDir() + "/" + strconv.Itoa(rand.Intn(1000))
+	err := file.CreateODS(path, root, square)
+	require.NoError(t, err)
+	ods, err := file.OpenODS(path)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, ods.Close())
+	})
 	t.Logf("ns started at - row:%d col:%d ", nsRowStart, nsColStart)
-	// 18k test cases
+	// 36k test cases
 	for fromRow := nsRowStart; fromRow < odsSize; fromRow++ {
 		for fromCol := nsColStart; fromCol < odsSize; fromCol++ {
 			for toRow := odsSize - 1; toRow >= fromRow; toRow-- {
@@ -44,16 +55,8 @@ func TestRangeNamespaceData(t *testing.T) {
 						"range with coordinate from [%d;%d] to[%d;%d]. Number of shares:%d",
 						fromRow, fromCol, toRow, toCol, toIndex-fromIndex+1,
 					)
-					rawShares := make([][]libshare.Share, 0, toRow-fromRow+1)
-					for row := fromRow; row <= toRow; row++ {
-						rawShare := extended.Row(uint(row))
-						sh, err := libshare.FromBytes(rawShare)
-						require.NoError(t, err)
-						rawShares = append(rawShares, sh)
-					}
-
-					t.Run(str, func(t *testing.T) {
-						rngdata, err := shwap.RangeNamespaceDataFromShares(rawShares, from, to)
+					t.Run(fmt.Sprintf("EDS:%s", str), func(t *testing.T) {
+						rngdata, err := extended.RangeNamespaceData(context.Background(), fromIndex, toIndex+1)
 						require.NoError(t, err)
 						err = rngdata.VerifyInclusion(
 							from, to,
@@ -61,6 +64,20 @@ func TestRangeNamespaceData(t *testing.T) {
 							root.RowRoots[from.Row:to.Row+1],
 						)
 						require.NoError(t, err)
+						data := rngdata.Flatten()
+						assert.Len(t, data, toIndex-fromIndex+1)
+					})
+					t.Run(fmt.Sprintf("ODS:%s", str), func(t *testing.T) {
+						rngdata, err := ods.RangeNamespaceData(context.Background(), fromIndex, toIndex+1)
+						require.NoError(t, err)
+						err = rngdata.VerifyInclusion(
+							from, to,
+							len(root.RowRoots)/2,
+							root.RowRoots[from.Row:to.Row+1],
+						)
+						require.NoError(t, err)
+						data := rngdata.Flatten()
+						assert.Len(t, data, toIndex-fromIndex+1)
 					})
 				}
 			}
