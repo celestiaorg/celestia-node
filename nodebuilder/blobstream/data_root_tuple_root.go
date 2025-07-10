@@ -17,6 +17,14 @@ import (
 // from a set of data root tuples.
 type DataRootTupleRoot bytes.HexBytes
 
+func (d *DataRootTupleRoot) MarshalJSON() ([]byte, error) {
+	if d == nil {
+		return nil, fmt.Errorf("empty DataRootTupleRoot")
+	}
+	// Delegate to the underlying HexBytes MarshalJSON method
+	return bytes.HexBytes(*d).MarshalJSON()
+}
+
 // DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.
 type DataRootTupleInclusionProof *merkle.Proof
