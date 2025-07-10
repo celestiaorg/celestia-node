@@ -117,13 +117,36 @@ func (c *Client) doRequest(
 		return nil, err
 	}
 
-	nd := shwap.NamespaceData{}
-	_, err = nd.ReadFrom(stream)
+	nd, err := c.readNamespaceData(ctx, stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
+		stream.Reset() //nolint:errcheck
 		return nil, err
 	}
 	return nd, nil
+}
+
+// readNamespaceData reads namespace data with context cancellation support.
+func (c *Client) readNamespaceData(ctx context.Context, stream network.Stream) (shwap.NamespaceData, error) {
+	type result struct {
+		nd  shwap.NamespaceData
+		err error
+	}
+	resultCh := make(chan result, 1)
+
+	go func() {
+		defer close(resultCh)
+		nd := shwap.NamespaceData{}
+		_, err := nd.ReadFrom(stream)
+		resultCh <- result{nd: nd, err: err}
+	}()
+
+	select {
+	case res := <-resultCh:
+		return res.nd, res.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (c *Client) readStatus(ctx context.Context, stream network.Stream) error {

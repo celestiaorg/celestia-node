@@ -260,7 +260,7 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
 // implementation. Implementations should indicate the side in the returned AxisHalf.
-func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (o *ODS) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
 	// axis is a column and from the left half of the square.
 	if axisIdx < o.size()/2 {
@@ -272,7 +272,7 @@ func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (ed
 	}
 
 	// if axis is from the second half of the square, read full ODS and compute the axis half
-	ods, err := o.readODS()
+	ods, err := o.readODS(ctx)
 	if err != nil {
 		return eds.AxisHalf{}, err
 	}
@@ -298,8 +298,8 @@ func (o *ODS) RowNamespaceData(
 }
 
 // Shares returns data shares extracted from the Accessor.
-func (o *ODS) Shares(context.Context) ([]libshare.Share, error) {
-	ods, err := o.readODS()
+func (o *ODS) Shares(ctx context.Context) ([]libshare.Share, error) {
+	ods, err := o.readODS(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +384,7 @@ func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, err
 	}, nil
 }
 
-func (o *ODS) readODS() (square, error) {
+func (o *ODS) readODS(ctx context.Context) (square, error) {
 	if !o.disableCache {
 		o.lock.RLock()
 		ods := o.ods
@@ -403,7 +403,7 @@ func (o *ODS) readODS() (square, error) {
 	odsBytes := o.hdr.SquareSize() / 2
 	odsSizeInBytes := shareSize * odsBytes * odsBytes
 	reader := io.NewSectionReader(o.fl, int64(offset), int64(odsSizeInBytes))
-	ods, err := readSquare(reader, shareSize, o.size())
+	ods, err := readSquare(ctx, reader, shareSize, o.size())
 	if err != nil {
 		return nil, fmt.Errorf("reading ODS: %w", err)
 	}
