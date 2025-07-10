@@ -15,15 +15,7 @@ import (
 
 // DataRootTupleRoot is the root of the merkle tree created
 // from a set of data root tuples.
-type DataRootTupleRoot bytes.HexBytes
-
-func (d *DataRootTupleRoot) MarshalJSON() ([]byte, error) {
-	if d == nil {
-		return nil, fmt.Errorf("empty DataRootTupleRoot")
-	}
-	// Delegate to the underlying HexBytes MarshalJSON method
-	return bytes.HexBytes(*d).MarshalJSON()
-}
+type DataRootTupleRoot = bytes.HexBytes
 
 // DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.
