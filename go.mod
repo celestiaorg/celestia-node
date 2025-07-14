@@ -395,3 +395,5 @@ replace (
 )
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
+
+replace github.com/ipfs/go-ds-badger4 => github.com/celestiaorg/go-ds-badger4 v0.0.0-20250714213917-dc0e7fb4694b
