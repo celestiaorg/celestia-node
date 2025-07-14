@@ -27,6 +27,7 @@ type Service struct {
 	blockTime time.Duration
 	params    Params
 
+	// pruneMu ensures only a single pruning operation is in progress
 	pruneMu    sync.Mutex
 	checkpoint *checkpoint
 
@@ -66,22 +67,21 @@ func NewService(
 	}
 
 	// ensure we set delete handler before all the services start
-	hstore.OnDelete(s.onHeadersPrune)
+	hstore.OnDelete(s.pruneOnHeaderDelete)
 	return s, nil
 }
 
 // Start loads the pruner's last pruned height (1 if pruner is freshly
 // initialized) and runs the prune loop, pruning any blocks older than
 // the given availability window.
-func (s *Service) Start(context.Context) error {
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-
-	err := s.loadCheckpoint(s.ctx)
+func (s *Service) Start(ctx context.Context) error {
+	err := s.loadCheckpoint(ctx)
 	if err != nil {
 		return fmt.Errorf("pruner start: loading checkpoint %w", err)
 	}
 	log.Debugw("loaded checkpoint", "lastPruned", s.checkpoint.LastPrunedHeight)
 
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.run()
 	return nil
 }
@@ -105,6 +105,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	return nil
 }
 
+// TODO: Exposed but accesses checkpoint without synchronization
 func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
 	err := s.loadCheckpoint(ctx)
 	if err != nil {
@@ -113,6 +114,7 @@ func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
 	return s.checkpoint.LastPrunedHeight, nil
 }
 
+// TODO: Exposed but accesses checkpoint without synchronization
 func (s *Service) ResetCheckpoint(ctx context.Context) error {
 	return s.resetCheckpoint(ctx)
 }
@@ -228,21 +230,20 @@ func (s *Service) retryFailed(ctx context.Context) {
 	}
 }
 
-// onHeadersPrune is called by the header Syncer whenever it prunes old headers.
-// This guarantees that respective block data for those headers is always pruned on the Pruner side.
+// pruneOnHeaderDelete is called by the header Syncer whenever it prunes an old header.
+// This guarantees that respective block data is always pruned on the Pruner side.
 //
 // There is a possible race between Syncer and Pruner, however, it is gracefully resolved.
-// * If Syncer prunes a range of headers first - onHeadersPrune gets called and data is deleted.
-//   - Pruner then ignores the range based on updated checkpoint state
+// * If Syncer prunes a header first - pruneOnHeaderDelete gets called and data is deleted.
+//   - Pruner then ignores the header based on updated checkpoint state
 //
-// * If Pruner prunes a range first - Syncer only removes headers
-//   - onHeadersPrune ignores the range based on updated checkpoint state
-//
-// TODO(@Wondertan): update
-func (s *Service) onHeadersPrune(ctx context.Context, height uint64) error {
+// * If Pruner prunes a header first - Syncer only removes the header
+//   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
+func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
 	s.pruneMu.Lock()
 	defer s.pruneMu.Unlock()
 
+	s.loadCheckpoint(ctx)
 	if _, ok := s.checkpoint.FailedHeaders[height]; ok {
 		log.Warnw("Deleted header for a height previously failed to be pruned", "height", height)
 		log.Warn("Stored data for the height may never be pruned unless full resync!")
