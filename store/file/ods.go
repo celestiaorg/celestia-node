@@ -324,12 +324,25 @@ func (o *ODS) Reader() (io.Reader, error) {
 
 func (o *ODS) RangeNamespaceData(
 	ctx context.Context,
-	ns libshare.Namespace,
-	from, to shwap.SampleCoords,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
-	shares := make([][]libshare.Share, to.Row-from.Row+1)
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// to is an exclusive index.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
 
-	for row, idx := from.Row, 0; row <= to.Row; row++ {
+	shares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
 		half, err := o.readAxisHalf(rsmt2d.Row, row)
 		if err != nil {
 			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
@@ -342,13 +355,7 @@ func (o *ODS) RangeNamespaceData(
 		shares[idx] = sh
 		idx++
 	}
-
-	roots, err := o.AxisRoots(ctx)
-	if err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
-	return shwap.RangeNamespaceDataFromShares(shares, ns, roots, from, to)
+	return shwap.RangeNamespaceDataFromShares(shares, fromCoords, toCoords)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

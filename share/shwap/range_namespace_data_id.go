@@ -4,64 +4,49 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
-// combining SampleID size, Namespace size, 4 additional bytes
-// for the end coordinates of share of the range and uint representation of bool flag.
-const RangeNamespaceDataIDSize = EdsIDSize + libshare.NamespaceSize + 10
+// combining EdsIDSize size and 4 additional bytes
+// for the start and end ODS indexes of share of the range.
+const RangeNamespaceDataIDSize = EdsIDSize + 4
 
-// RangeNamespaceDataID uniquely identifies a continuous range of shares within a DataSquare (EDS)
-// that belong to a specific namespace. The range is defined by the coordinates of the first (`From`)
-// and last (`To`) shares in the range. This struct is used to reference and verify a subset of shares
-// (e.g., for a blob or a namespace proof) within the EDS.
+// RangeNamespaceDataID uniquely identifies a continuous range of shares within an Original DataSquare (ODS)
+// The range is defined by the indexes of the first (`From`)
+// and last (`To`) (exclusively) shares in the range. This struct is used to reference and verify a subset of shares
+// (e.g., for a blob or a namespace proof) within the ODS.
 //
 // Fields:
-//   - NamespaceDataID: Embeds the EDS ID and the namespace identifier.
-//   - From: The coordinates (row, col) of the first share in the range.
-//   - To: The coordinates (row, col) of the last share in the range.
-//   - ProofsOnly: If true, indicates that only proofs (not the actual share data) are referenced.
+//   - EdsID: to identify the height
+//   - From: The index of the first share in the range.
+//   - To: The index of the last share in the range(exclusively).
 //
 // Example usage:
 //
 //	id := RangeNamespaceDataID{
-//	  NamespaceDataID: ...,
-//	  From: shwap.SampleCoords{Row: 0, Col: 0},
-//	  To:   shwap.SampleCoords{Row: 2, Col: 2},
-//	  ProofsOnly: false,
+//	  EdsID: ...,
+//	  From: 0,
+//	  To:   4,
 //	}
 type RangeNamespaceDataID struct {
-	NamespaceDataID
-	// From specifies the coordinates of the first share in the range.
-	From SampleCoords
-	// To specifies the coordinates of the last share in the range.
-	To SampleCoords
-
-	// ProofsOnly indicates whether this ID refers only to proofs (not actual share data).
-	ProofsOnly bool
+	EdsID
+	// From specifies the index of the first share in the range.
+	From int
+	// To specifies the index of the last share in the range(exclusively).
+	To int
 }
 
 func NewRangeNamespaceDataID(
 	edsID EdsID,
-	namespace libshare.Namespace,
-	from SampleCoords,
-	to SampleCoords,
-	edsSize int,
-	proofsOnly bool,
+	from, to, odsSize int,
 ) (RangeNamespaceDataID, error) {
 	rngid := RangeNamespaceDataID{
-		NamespaceDataID: NamespaceDataID{
-			EdsID:         edsID,
-			DataNamespace: namespace,
-		},
-		From:       from,
-		To:         to,
-		ProofsOnly: proofsOnly,
+		EdsID: edsID,
+		From:  from,
+		To:    to,
 	}
 
-	err := rngid.Verify(edsSize)
+	err := rngid.Verify(odsSize)
 	if err != nil {
 		return RangeNamespaceDataID{}, fmt.Errorf("verifying range id: %w", err)
 	}
@@ -70,33 +55,34 @@ func NewRangeNamespaceDataID(
 
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
 // does not exceed the number of shares inside the ODS.
-func (rngid RangeNamespaceDataID) Verify(edsSize int) error {
+func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
 	err := rngid.EdsID.Validate()
 	if err != nil {
 		return fmt.Errorf("invalid EdsID: %w", err)
 	}
-	err = rngid.DataNamespace.ValidateForData()
-	if err != nil {
-		return err
+
+	sharesAmount := odsSize * odsSize
+	if rngid.From < 0 {
+		return fmt.Errorf("from must be greater than or equal to 0: %d", rngid.From)
 	}
-	fromIdx, err := SampleCoordsAs1DIndex(rngid.From, edsSize)
-	if err != nil {
-		return err
+	if rngid.To <= 0 {
+		return fmt.Errorf("to must be greater than 0: %d", rngid.To)
 	}
-	// verify that to is not exceed that edsSize
-	toIdx, err := SampleCoordsAs1DIndex(rngid.To, edsSize)
-	if err != nil {
-		return err
+	if rngid.From >= rngid.To {
+		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
 	}
-	if fromIdx > toIdx {
-		return fmt.Errorf("invalid range: from index %d > to index %d", fromIdx, toIdx)
+	if rngid.From >= sharesAmount {
+		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, odsSize)
+	}
+	if rngid.To > sharesAmount {
+		return fmt.Errorf("invalid end index: to %d > size: %d", rngid.To, odsSize)
 	}
 	return nil
 }
 
 // Validate performs basic fields validation.
 func (rngid RangeNamespaceDataID) Validate() error {
-	return rngid.DataNamespace.ValidateForData()
+	return nil
 }
 
 // ReadFrom reads the binary form of RangeNamespaceDataID from the provided reader.
@@ -127,7 +113,7 @@ func (rngid RangeNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
 
 // Equals checks equality of RangeNamespaceDataID.
 func (rngid *RangeNamespaceDataID) Equals(other RangeNamespaceDataID) bool {
-	return rngid.DataNamespace.Equals(other.DataNamespace) && rngid.From == other.From &&
+	return rngid.EdsID.Equals(other.EdsID) && rngid.From == other.From &&
 		rngid.To == other.To
 }
 
@@ -144,33 +130,10 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 		return RangeNamespaceDataID{}, err
 	}
 
-	fromCoords := SampleCoords{
-		Row: int(binary.BigEndian.Uint16(data[EdsIDSize : EdsIDSize+2])),
-		Col: int(binary.BigEndian.Uint16(data[EdsIDSize+2 : EdsIDSize+4])),
-	}
-	toCoords := SampleCoords{
-		Row: int(binary.BigEndian.Uint16(data[EdsIDSize+4 : EdsIDSize+6])),
-		Col: int(binary.BigEndian.Uint16(data[EdsIDSize+6 : EdsIDSize+8])),
-	}
-
-	ns, err := libshare.NewNamespaceFromBytes(data[EdsIDSize+8 : EdsIDSize+8+libshare.NamespaceSize])
-	if err != nil {
-		return RangeNamespaceDataID{}, fmt.Errorf("converting namespace from binary: %w", err)
-	}
-
-	var proofsOnly bool
-	if data[RangeNamespaceDataIDSize-1] == 1 {
-		proofsOnly = true
-	}
-
 	rngID := RangeNamespaceDataID{
-		NamespaceDataID: NamespaceDataID{
-			EdsID:         edsID,
-			DataNamespace: ns,
-		},
-		From:       fromCoords,
-		To:         toCoords,
-		ProofsOnly: proofsOnly,
+		EdsID: edsID,
+		From:  int(binary.BigEndian.Uint16(data[EdsIDSize : EdsIDSize+2])),
+		To:    int(binary.BigEndian.Uint16(data[EdsIDSize+2 : EdsIDSize+4])),
 	}
 	return rngID, rngID.Validate()
 }
@@ -184,19 +147,11 @@ func (rngid RangeNamespaceDataID) MarshalBinary() ([]byte, error) {
 // appendTo helps in constructing the binary representation of RangeNamespaceDataID
 // by appending all encoded fields.
 func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
-	data, err := rngid.EdsID.AppendBinary(data)
+	data, err := rngid.AppendBinary(data)
 	if err != nil {
 		return nil, fmt.Errorf("appending EdsID: %w", err)
 	}
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Row))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From.Col))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Row))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To.Col))
-	data = append(data, rngid.DataNamespace.Bytes()...)
-	if rngid.ProofsOnly {
-		data = binary.BigEndian.AppendUint16(data, 1)
-	} else {
-		data = binary.BigEndian.AppendUint16(data, 0)
-	}
+	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From))
+	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To))
 	return data, nil
 }
