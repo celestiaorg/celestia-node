@@ -113,7 +113,9 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarhaling RangeNamespaceDataID: %w", err)
 		}
 
-		if err = rndid.Verify(len(root.RowRoots) / 2); err != nil {
+		odsSize := len(root.RowRoots) / 2
+
+		if err = rndid.Verify(odsSize); err != nil {
 			return fmt.Errorf("verifying RangeNamespaceDataID: %w", err)
 		}
 
@@ -131,18 +133,18 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
-		from, err := shwap.SampleCoordsFrom1DIndex(rndid.From, len(root.RowRoots)/2)
+		from, err := shwap.SampleCoordsFrom1DIndex(rndid.From, odsSize)
 		if err != nil {
 			return fmt.Errorf("converting from index to coordinates for %+v: %w", rndb.ID, err)
 		}
-		to, err := shwap.SampleCoordsFrom1DIndex(rndid.To-1, len(root.RowRoots)/2)
+		to, err := shwap.SampleCoordsFrom1DIndex(rndid.To-1, odsSize)
 		if err != nil {
 			return fmt.Errorf("converting to index to coordinates for %+v: %w", rndb.ID, err)
 		}
 
 		if err = rangeNsData.VerifyInclusion(
 			from, to,
-			len(root.RowRoots)/2,
+			odsSize,
 			root.RowRoots[from.Row:to.Row+1],
 		); err != nil {
 			return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)

@@ -53,18 +53,21 @@ type RangeNamespaceData struct {
 // Returns:
 //   - A RangeNamespaceData containing the shares and Merkle proofs for the incomplete rows.
 //   - An error if the range is invalid or extraction fails.
-func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoords) (RangeNamespaceData, error) {
-	if len(shares) == 0 || len(shares[0]) == 0 {
+func RangeNamespaceDataFromShares(
+	extendedRowShares [][]libshare.Share,
+	from, to SampleCoords,
+) (RangeNamespaceData, error) {
+	if len(extendedRowShares) == 0 || len(extendedRowShares[0]) == 0 {
 		return RangeNamespaceData{}, errors.New("shares contain no rows or empty row")
 	}
 
 	numRows := to.Row - from.Row + 1
-	if len(shares) != numRows {
-		return RangeNamespaceData{}, fmt.Errorf("mismatched rows: expected %d vs got %d", numRows, len(shares))
+	if len(extendedRowShares) != numRows {
+		return RangeNamespaceData{}, fmt.Errorf("mismatched rows: expected %d vs got %d", numRows, len(extendedRowShares))
 	}
 
-	namespace := shares[0][from.Col].Namespace()
-	odsSize := len(shares[0]) / 2
+	namespace := extendedRowShares[0][from.Col].Namespace()
+	odsSize := len(extendedRowShares[0]) / 2
 	isMultiRow := numRows > 1
 	startsMidRow := from.Col != 0
 	endsMidRow := to.Col != odsSize-1
@@ -95,12 +98,12 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 			from.Col,
 			endCol,
 			odsSize,
-			shares[0],
+			extendedRowShares[0],
 		)
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
-		shares[0] = shares[0][from.Col:endCol]
+		extendedRowShares[0] = extendedRowShares[0][from.Col:endCol]
 	}
 
 	// incomplete to.Col needs a proof for the last row to be computed
@@ -110,18 +113,18 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 			0,
 			to.Col+1,
 			odsSize,
-			shares[len(shares)-1],
+			extendedRowShares[len(extendedRowShares)-1],
 		)
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
-		shares[len(shares)-1] = shares[len(shares)-1][:to.Col+1]
+		extendedRowShares[len(extendedRowShares)-1] = extendedRowShares[len(extendedRowShares)-1][:to.Col+1]
 	}
 
-	for row, rowShares := range shares {
+	for row, rowShares := range extendedRowShares {
 		if len(rowShares) >= odsSize {
 			// keep only original data
-			shares[row] = rowShares[:odsSize]
+			extendedRowShares[row] = rowShares[:odsSize]
 		}
 		for col, shr := range rowShares {
 			if !namespace.Equals(shr.Namespace()) {
@@ -130,7 +133,7 @@ func RangeNamespaceDataFromShares(shares [][]libshare.Share, from, to SampleCoor
 		}
 	}
 	return RangeNamespaceData{
-		Shares:                  shares,
+		Shares:                  extendedRowShares,
 		FirstIncompleteRowProof: firstIncompleteRowProof,
 		LastIncompleteRowProof:  lastIncompleteRowProof,
 	}, nil
@@ -205,18 +208,18 @@ func (rngdata *RangeNamespaceData) verifyShares(
 	}
 
 	computedRoots := make([][]byte, len(shares))
-	firstRoot, err := computeRoot(shares[0], ns, rngdata.FirstIncompleteRowProof, nsCompleteness)
+	firstIncompleteRoot, err := computeRoot(shares[0], ns, rngdata.FirstIncompleteRowProof, nsCompleteness)
 	if err != nil {
 		return err
 	}
-	lastRoot, err := computeRoot(shares[len(shares)-1], ns, rngdata.LastIncompleteRowProof, nsCompleteness)
+	lastIncompleteRoot, err := computeRoot(shares[len(shares)-1], ns, rngdata.LastIncompleteRowProof, nsCompleteness)
 	if err != nil {
 		return err
 	}
 
-	computedRoots[0] = firstRoot
+	computedRoots[0] = firstIncompleteRoot
 	if len(shares) > 1 {
-		computedRoots[len(shares)-1] = lastRoot
+		computedRoots[len(shares)-1] = lastIncompleteRoot
 	}
 
 	// Handle rows that don't have namespace proofs (complete rows)
@@ -359,11 +362,11 @@ func computeRoot(
 	return proof.ComputeRootWithBasicValidation(nth, ns.Bytes(), hashes, nsCompleteness)
 }
 
-func buildTreeRootFromLeaves(shares [][]byte, index uint) ([]byte, error) {
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), index)
-	for _, shr := range shares {
+func buildTreeRootFromLeaves(extendedShares [][]byte, rowIndex uint) ([]byte, error) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(extendedShares)/2), rowIndex)
+	for _, shr := range extendedShares {
 		if err := tree.Push(shr); err != nil {
-			return nil, fmt.Errorf("failed to build tree for row %d: %w", index, err)
+			return nil, fmt.Errorf("failed to build tree for row %d: %w", rowIndex, err)
 		}
 	}
 	return tree.Root()

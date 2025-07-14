@@ -26,7 +26,13 @@ type GetRangeResult struct {
 	Proof *types.ShareProof
 }
 
-func NewGetRangeResult(
+// newGetRangeResult creates a new GetRangeResult containing namespace data shares
+// and their corresponding proofs for a specified range.
+//
+// The function processes a range of shares from a namespace, generates the necessary
+// Merkle proofs and packages everything into a GetRangeResult structure
+// that can be used for share verification.
+func newGetRangeResult(
 	startIndex, endIndex int,
 	rngdata *shwap.RangeNamespaceData,
 	dah *da.DataAvailabilityHeader,

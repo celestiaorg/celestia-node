@@ -55,13 +55,13 @@ func NewRangeNamespaceDataID(
 
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
 // does not exceed the number of shares inside the ODS.
-func (rngid RangeNamespaceDataID) Verify(size int) error {
+func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
 	err := rngid.EdsID.Validate()
 	if err != nil {
 		return fmt.Errorf("invalid EdsID: %w", err)
 	}
 
-	sharesAmount := size * size
+	sharesAmount := odsSize * odsSize
 	if rngid.From < 0 {
 		return fmt.Errorf("from must be greater than or equal to 0: %d", rngid.From)
 	}
@@ -72,10 +72,10 @@ func (rngid RangeNamespaceDataID) Verify(size int) error {
 		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
 	}
 	if rngid.From >= sharesAmount {
-		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, size)
+		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, odsSize)
 	}
 	if rngid.To > sharesAmount {
-		return fmt.Errorf("invalid end index: to %d > size: %d", rngid.To, size)
+		return fmt.Errorf("invalid end index: to %d > size: %d", rngid.To, odsSize)
 	}
 	return nil
 }

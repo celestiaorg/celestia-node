@@ -203,7 +203,7 @@ func (m module) GetRange(
 	if err != nil {
 		return nil, err
 	}
-	return NewGetRangeResult(start, end, &rngData, hdr.DAH)
+	return newGetRangeResult(start, end, &rngData, hdr.DAH)
 }
 
 func (m module) GetNamespaceData(
