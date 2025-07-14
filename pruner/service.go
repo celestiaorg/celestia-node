@@ -56,14 +56,13 @@ func NewService(
 	}
 
 	s := &Service{
-		pruner:     p,
-		window:     window,
-		hstore:     hstore,
-		checkpoint: &checkpoint{FailedHeaders: map[uint64]struct{}{}},
-		ds:         namespace.Wrap(ds, storePrefix),
-		blockTime:  blockTime,
-		doneCh:     make(chan struct{}),
-		params:     params,
+		pruner:    p,
+		window:    window,
+		hstore:    hstore,
+		ds:        namespace.Wrap(ds, storePrefix),
+		blockTime: blockTime,
+		doneCh:    make(chan struct{}),
+		params:    params,
 	}
 
 	// ensure we set delete handler before all the services start
