@@ -283,7 +283,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time
-	opts.GcInterval = time.Minute * 1
+	opts.GcInterval = time.Second * 10
 	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
 
