@@ -312,7 +312,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 	compactors := min(max(runtime.NumCPU()/2, 2), opts.MaxLevels)
 	opts.NumCompactors = compactors
 	// makes sure badger is always compacted on shutdown
-	opts.CompactL0OnClose = true
+	opts.CompactL0OnClose = false
 
 	return &opts
 }
