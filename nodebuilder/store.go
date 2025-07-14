@@ -286,6 +286,10 @@ func constraintBadgerConfig() *dsbadger.Options {
 	opts.GcInterval = time.Second * 10
 	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
+	// removes the pause in between GC rounds
+	// emperically, it doesn't cause any noticeable performance impact
+	// while it significantly speeds up disk space reclaimation for deleted data
+	opts.GcSleep = 0
 
 	// badger stores checksum for every value, but doesn't verify it by default
 	// enabling this option may allow us to see detect corrupted data
@@ -311,7 +315,8 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// Dynamic compactor allocation
 	compactors := min(max(runtime.NumCPU()/2, 2), opts.MaxLevels)
 	opts.NumCompactors = compactors
-	// makes sure badger is always compacted on shutdown
+	// ensure we don't compact on close
+	// otherwise, if we stopping times out abruptly, it may corrupt db state
 	opts.CompactL0OnClose = false
 
 	return &opts
