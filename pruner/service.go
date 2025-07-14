@@ -79,7 +79,6 @@ func (s *Service) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("pruner start: loading checkpoint %w", err)
 	}
-	log.Debugw("loaded checkpoint", "lastPruned", s.checkpoint.LastPrunedHeight)
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.run()

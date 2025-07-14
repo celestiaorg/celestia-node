@@ -75,6 +75,7 @@ func (s *Service) loadCheckpoint(ctx context.Context) error {
 	}
 
 	s.checkpoint = cp
+	log.Infow("loaded checkpoint", "last_pruned_height", cp.LastPrunedHeight, "failed_headers", len(cp.FailedHeaders))
 	return nil
 }
 
@@ -84,7 +85,9 @@ func (s *Service) resetCheckpoint(ctx context.Context) error {
 		return err
 	}
 
-	s.checkpoint = newCheckpoint(tail.Height())
+	cp := newCheckpoint(tail.Height())
+	s.checkpoint = cp
+	log.Infow("loaded checkpoint", "last_pruned_height", cp.LastPrunedHeight, "failed_headers", len(cp.FailedHeaders))
 	return storeCheckpoint(ctx, s.ds, s.checkpoint)
 }
 
