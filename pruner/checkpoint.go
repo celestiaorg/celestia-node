@@ -62,6 +62,10 @@ func getCheckpoint(ctx context.Context, ds datastore.Datastore) (*checkpoint, er
 
 // loadCheckpoint loads the last checkpoint from disk, initializing it if it does not already exist.
 func (s *Service) loadCheckpoint(ctx context.Context) error {
+	if s.checkpoint != nil {
+		return nil
+	}
+
 	cp, err := getCheckpoint(ctx, s.ds)
 	if errors.Is(err, errCheckpointNotFound) {
 		return s.resetCheckpoint(ctx)
