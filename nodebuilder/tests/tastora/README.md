@@ -41,10 +41,34 @@ framework := NewFramework(t,
 err := framework.SetupNetwork(ctx)
 require.NoError(t, err)
 
-// Get clients for different node types
+// Get clients for different node types - all nodes are automatically funded
 bridgeNode := framework.GetBridgeNode()
 fullNodes := framework.GetFullNodes()
 lightNodes := framework.GetLightNodes()
+```
+
+### Automatic Node Funding
+
+**New in this version**: All nodes are automatically funded with a default amount (3 billion utia) when created, eliminating the need for manual funding in most test cases.
+
+```go
+// Nodes are automatically funded and ready for transactions
+fullNode := framework.GetOrCreateFullNode(ctx)
+client := framework.GetNodeRPCClient(ctx, fullNode)
+
+// Submit transactions directly - no manual funding required
+txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
+height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+```
+
+### Custom Funding (When Needed)
+
+For scenarios requiring custom funding amounts, the `FundNodeAccount` method is still available:
+
+```go
+// Create a custom wallet and fund a node with a specific amount
+customWallet := framework.CreateTestWallet(ctx, 10_000_000_000)
+framework.FundNodeAccount(ctx, customWallet, node, 5_000_000_000)
 ```
 
 ### Creating Module-Specific Test Suites
@@ -111,8 +135,12 @@ type YourModuleTestSuite struct {
 }
 
 func (s *YourModuleTestSuite) TestYourModule() {
+    // Nodes are automatically funded, ready for immediate use
     bridge := s.framework.GetBridgeNode()
     fullNodes := s.framework.GetFullNodes()
+    
+    // Get RPC client and start testing
+    client := s.framework.GetNodeRPCClient(ctx, fullNodes[0])
     // ... test implementation
 }
 
@@ -120,6 +148,12 @@ func TestYourModuleTestSuite(t *testing.T) {
     suite.Run(t, new(YourModuleTestSuite))
 }
 ```
+
+### Key Migration Benefits
+
+- **Automatic Funding**: No need to manually fund nodes - they come pre-funded
+- **Simplified API**: Reduced boilerplate compared to swamp
+- **Consistent Pattern**: All node types follow the same usage pattern
 
 ## Test Organization
 
@@ -211,7 +245,7 @@ patterns successfully migrated
 | **Networking** | Mock P2P | Real networking |
 | **Use Case** | Unit/Integration tests | E2E tests |
 | **Resource Usage** | Lower | Higher (Docker overhead) |
-| **Authentication** | Built-in admin signers | Requires setup |
+| **Node Funding** | Manual keyring setup | **Automatic funding** |
 | **WebSocket Support** | Full support | Basic client limitations |
 
 ## Running Tests
@@ -265,13 +299,29 @@ When adding new module tests to this framework:
 The framework provides several key services:
 
 1. **Chain Management**: Manages Celestia chain via Docker
-2. **Node Management**: Handles bridge, full, and light nodes
+2. **Node Management**: Handles bridge, full, and light nodes with automatic funding
 3. **Wallet Operations**: Creates and funds test wallets
 4. **RPC Clients**: Provides access to node APIs
 
-### Wallet and Funding Operations
+### Automatic Node Funding
 
-The framework provides consolidated methods for wallet and account management:
+All nodes created by the framework are automatically funded with 3 billion utia, eliminating the need for manual funding in most test cases:
+
+```go
+// Nodes are automatically funded when created
+bridgeNode := framework.GetOrCreateBridgeNode(ctx)  // Auto-funded
+fullNode := framework.NewFullNode(ctx)              // Auto-funded  
+lightNode := framework.NewLightNode(ctx)            // Auto-funded
+
+// Ready for immediate transaction operations
+client := framework.GetNodeRPCClient(ctx, fullNode)
+txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
+height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+```
+
+### Custom Wallet and Funding Operations
+
+For advanced scenarios, manual wallet operations are still available:
 
 ```go
 // Create a new funded wallet on the chain
@@ -280,15 +330,80 @@ testWallet := framework.CreateTestWallet(ctx, 10_000_000_000) // 10 billion utia
 // Transfer funds between addresses
 framework.FundWallet(ctx, fromWallet, toAddress, amount)
 
-// Fund a node's account (consolidated method for all test modules)
+// Additional funding for nodes (beyond automatic funding)
 nodeAccAddr := framework.FundNodeAccount(ctx, fromWallet, daNode, amount)
 ```
 
-**Key Benefits of Consolidated Funding:**
+**Key Benefits of Automatic Funding:**
 
-- **Reusable**: All test modules (blob, share, da, header) can use the same
-  funding logic
-- **Consistent**: Standardized approach to node account funding across tests
-- **Maintainable**: Single implementation reduces code duplication
-- **Reliable**: Uses proven funding patterns with proper error handling and
-  waiting
+- **Eliminates Boilerplate**: No need to manually fund nodes in every test
+- **Reduces Errors**: Prevents forgetting to fund nodes before operations
+- **Consistent Behavior**: All node types follow the same funding pattern
+- **Backwards Compatible**: Manual funding methods remain available for custom scenarios
+
+## Docker Setup and Troubleshooting
+
+### macOS Docker Desktop Issues
+
+On macOS with Docker Desktop, you may encounter Docker socket connection errors:
+
+```
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+```
+
+This happens because Docker Desktop uses a different socket path. To fix this:
+
+#### Option 1: Use the Helper Script (Recommended)
+
+```bash
+# Run all tests
+./nodebuilder/tests/tastora/run-tests.sh
+
+# Run only blob tests
+./nodebuilder/tests/tastora/run-tests.sh blob
+```
+
+#### Option 2: Set Environment Variable Manually
+
+```bash
+# Set the correct Docker host for Docker Desktop
+export DOCKER_HOST=unix:///Users/$(whoami)/.docker/run/docker.sock
+
+# Then run tests
+make test-tastora
+```
+
+#### Option 3: Create a Symlink (Permanent Fix)
+
+```bash
+# Create symlink to the standard location (requires sudo)
+sudo ln -sf /Users/$(whoami)/.docker/run/docker.sock /var/run/docker.sock
+```
+
+### Docker Requirements
+
+- Docker Desktop must be running
+- Sufficient resources allocated (recommended: 4GB RAM, 2 CPUs)
+- Network access for pulling container images
+
+### Known Issues
+
+- **Container Timing Issues**: Some tests may fail due to container cleanup timing
+- **Resource Constraints**: Tests require significant Docker resources
+- **Network Conflicts**: Ensure no other services are using the same ports
+
+### Troubleshooting Commands
+
+```bash
+# Check Docker status
+docker ps
+
+# Check Docker context
+docker context ls
+
+# Check available resources
+docker system df
+
+# Clean up test containers
+docker system prune -f
+```

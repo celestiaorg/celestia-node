@@ -2,7 +2,6 @@ package tastora
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -15,11 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	libshare "github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/toml"
@@ -28,7 +24,8 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
-	"github.com/celestiaorg/celestia-node/blob"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -38,10 +35,6 @@ const (
 	defaultNodeTag     = "v0.23.2-mocha"
 	testChainID        = "test"
 )
-
-// DefaultTestTimeout should be used as the default timeout on all Tastora tests.
-// It's generously set to 10 minutes to give enough time for CI.
-const DefaultTestTimeout = 10 * time.Minute
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
 // It provides Docker-based chain and node setup, similar to how Swamp provides
@@ -58,14 +51,20 @@ type Framework struct {
 	fullNodes  []tastoratypes.DANode
 	lightNodes []tastoratypes.DANode
 	celestia   tastoratypes.Chain
+
+	// Default wallet for automatic node funding
+	defaultWallet tastoratypes.Wallet
+	// Default funding amount for nodes (3 billion utia)
+	defaultFundingAmount int64
 }
 
 // NewFramework creates a new Tastora testing framework instance.
 // Similar to swamp.NewSwamp(), this sets up the complete testing environment.
 func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
-		t:      t,
-		logger: zaptest.NewLogger(t),
+		t:                    t,
+		logger:               zaptest.NewLogger(t),
+		defaultFundingAmount: 3_000_000_000, // 3 billion utia - default funding amount
 	}
 
 	// Apply configuration options
@@ -78,14 +77,12 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f.client, f.network = tastoradockertypes.DockerSetup(t)
 	f.provider = f.createDockerProvider(cfg)
 
-	// Cleanup function
-	t.Cleanup(f.cleanup)
-
 	return f
 }
 
-// SetupNetwork initializes the complete network infrastructure.
-// This includes starting the Celestia chain and all DA nodes.
+// SetupNetwork initializes the basic network infrastructure.
+// This includes starting the Celestia chain and DA network infrastructure.
+// Nodes are created lazily when requested via GetOrCreate/New methods.
 func (f *Framework) SetupNetwork(ctx context.Context) error {
 	f.celestia = f.createAndStartCelestiaChain(ctx)
 
@@ -95,19 +92,8 @@ func (f *Framework) SetupNetwork(ctx context.Context) error {
 	}
 	f.daNetwork = daNetwork
 
-	f.bridgeNode = f.startBridgeNode(ctx, f.celestia)
-
-	// Start one full node by default
-	if len(f.daNetwork.GetFullNodes()) > 0 {
-		fullNode := f.startFullNode(ctx, f.bridgeNode, f.celestia)
-		f.fullNodes = append(f.fullNodes, fullNode)
-	}
-
-	// Start one light node by default
-	if len(f.daNetwork.GetLightNodes()) > 0 && len(f.fullNodes) > 0 {
-		lightNode := f.startLightNode(ctx, f.fullNodes[0], f.celestia)
-		f.lightNodes = append(f.lightNodes, lightNode)
-	}
+	// Don't create any nodes by default - let tests create them as needed
+	// This provides better resource usage and more flexible testing
 
 	return nil
 }
@@ -117,12 +103,102 @@ func (f *Framework) GetBridgeNode() tastoratypes.DANode {
 	return f.bridgeNode
 }
 
+// GetOrCreateBridgeNode returns the bridge node, creating it if it doesn't exist.
+// The bridge node is automatically funded with the default amount for transaction operations.
+func (f *Framework) GetOrCreateBridgeNode(ctx context.Context) tastoratypes.DANode {
+	if f.bridgeNode == nil {
+		f.bridgeNode = f.startBridgeNode(ctx, f.celestia)
+
+		// Automatically fund the bridge node
+		defaultWallet := f.getOrCreateDefaultWallet(ctx)
+		f.FundNodeAccount(ctx, defaultWallet, f.bridgeNode, f.defaultFundingAmount)
+		f.t.Logf("Bridge node automatically funded with %d utia", f.defaultFundingAmount)
+
+		// Wait a moment to ensure funds are available
+		time.Sleep(2 * time.Second)
+	}
+	return f.bridgeNode
+}
+
+// NewFullNode creates and starts a new full node.
+// The full node is automatically funded with the default amount for transaction operations.
+func (f *Framework) NewFullNode(ctx context.Context) tastoratypes.DANode {
+	// Ensure we have a bridge node to connect to
+	bridgeNode := f.GetOrCreateBridgeNode(ctx)
+
+	// Get the next available full node from the DA network
+	allFullNodes := f.daNetwork.GetFullNodes()
+	if len(f.fullNodes) >= len(allFullNodes) {
+		f.t.Fatalf("Cannot create more full nodes: already have %d, max is %d", len(f.fullNodes), len(allFullNodes))
+	}
+
+	fullNode := f.startFullNode(ctx, bridgeNode, f.celestia)
+
+	// Automatically fund the full node
+	defaultWallet := f.getOrCreateDefaultWallet(ctx)
+	f.FundNodeAccount(ctx, defaultWallet, fullNode, f.defaultFundingAmount)
+	f.t.Logf("Full node automatically funded with %d utia", f.defaultFundingAmount)
+
+	// Wait a moment to ensure funds are available
+	time.Sleep(2 * time.Second)
+
+	f.fullNodes = append(f.fullNodes, fullNode)
+	return fullNode
+}
+
+// NewLightNode creates and starts a new light node.
+// The light node is automatically funded with the default amount for transaction operations.
+func (f *Framework) NewLightNode(ctx context.Context) tastoratypes.DANode {
+	// Ensure we have a full node to connect to
+	var fullNode tastoratypes.DANode
+	if len(f.fullNodes) == 0 {
+		fullNode = f.NewFullNode(ctx)
+	} else {
+		fullNode = f.fullNodes[0]
+	}
+
+	// Get the next available light node from the DA network
+	allLightNodes := f.daNetwork.GetLightNodes()
+	if len(f.lightNodes) >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
+	}
+
+	lightNode := f.startLightNode(ctx, fullNode, f.celestia)
+
+	// Automatically fund the light node
+	defaultWallet := f.getOrCreateDefaultWallet(ctx)
+	f.FundNodeAccount(ctx, defaultWallet, lightNode, f.defaultFundingAmount)
+	f.t.Logf("Light node automatically funded with %d utia", f.defaultFundingAmount)
+
+	// Wait a moment to ensure funds are available
+	time.Sleep(2 * time.Second)
+
+	f.lightNodes = append(f.lightNodes, lightNode)
+	return lightNode
+}
+
 // GetBridgeNodes returns all bridge node instances.
 func (f *Framework) GetBridgeNodes() []tastoratypes.DANode {
 	if f.bridgeNode != nil {
 		return []tastoratypes.DANode{f.bridgeNode}
 	}
 	return []tastoratypes.DANode{}
+}
+
+// GetOrCreateFullNode returns the first full node, creating it if none exist.
+func (f *Framework) GetOrCreateFullNode(ctx context.Context) tastoratypes.DANode {
+	if len(f.fullNodes) == 0 {
+		return f.NewFullNode(ctx)
+	}
+	return f.fullNodes[0]
+}
+
+// GetOrCreateLightNode returns the first light node, creating it if none exist.
+func (f *Framework) GetOrCreateLightNode(ctx context.Context) tastoratypes.DANode {
+	if len(f.lightNodes) == 0 {
+		return f.NewLightNode(ctx)
+	}
+	return f.lightNodes[0]
 }
 
 // GetFullNodes returns all full node instances.
@@ -159,6 +235,31 @@ func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) tastorat
 	return testWallet
 }
 
+// queryBalance fetches the balance of a given address.
+func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
+	grpcAddr := f.celestia.GetGRPCAddress()
+
+	// Use a timeout context for GRPC connection
+	grpcCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	grpcConn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(f.t, err, "failed to connect to gRPC")
+
+	defer grpcConn.Close()
+
+	bankClient := banktypes.NewQueryClient(grpcConn)
+	req := &banktypes.QueryBalanceRequest{
+		Address: addr,
+		Denom:   "utia",
+	}
+
+	// Use the timeout context for the balance query
+	res, err := bankClient.Balance(grpcCtx, req)
+	require.NoError(f.t, err, "failed to query balance")
+	return *res.Balance
+}
+
 // FundWallet sends funds from one wallet to another address.
 func (f *Framework) FundWallet(ctx context.Context, fromWallet tastoratypes.Wallet, toAddr sdk.AccAddress, amount int64) {
 	fromAddr, err := sdkacc.AddressFromWallet(fromWallet)
@@ -171,51 +272,58 @@ func (f *Framework) FundWallet(ctx context.Context, fromWallet tastoratypes.Wall
 	require.NoError(f.t, err)
 	require.Equal(f.t, resp.Code, uint32(0), "resp: %v", resp)
 
-	// wait for blocks to ensure the funds are available
-	require.NoError(f.t, wait.ForBlocks(ctx, 2, f.celestia))
+	// Use a longer timeout context for waiting for blocks
+	waitCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	bal := f.queryBalance(ctx, toAddr.String())
-	require.GreaterOrEqual(f.t, bal.Amount.Int64(), amount, "balance is not sufficient")
+	// wait for blocks to ensure the funds are available with retries
+	maxRetries := 3
+	for retry := 0; retry < maxRetries; retry++ {
+		err = wait.ForBlocks(waitCtx, 3, f.celestia) // Increased from 2 to 3 blocks
+		if err == nil {
+			break
+		}
+		if retry < maxRetries-1 {
+			f.t.Logf("Failed to wait for blocks (attempt %d/%d): %v, retrying...", retry+1, maxRetries, err)
+			time.Sleep(2 * time.Second)
+		}
+	}
+	require.NoError(f.t, err, "failed to wait for blocks after funding transaction")
+
+	// Check balance with retries
+	for attempt := 1; attempt <= 5; attempt++ {
+		bal := f.queryBalance(waitCtx, toAddr.String())
+		if bal.Amount.Int64() >= amount {
+			f.t.Logf("Successfully verified funding: %d utia transferred to %s", bal.Amount.Int64(), toAddr.String())
+			return
+		}
+		if attempt < 5 {
+			f.t.Logf("Balance check attempt %d/5: expected %d utia, got %d utia, retrying...",
+				attempt, amount, bal.Amount.Int64())
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	// Final balance check
+	bal := f.queryBalance(waitCtx, toAddr.String())
+	require.GreaterOrEqual(f.t, bal.Amount.Int64(), amount, "balance is not sufficient after funding")
 }
 
-// FundNodeAccount funds a DA node's account address from the provided wallet.
-// This is a consolidated method that can be used across all test modules.
-func (f *Framework) FundNodeAccount(ctx context.Context, fromWallet tastoratypes.Wallet, daNode tastoratypes.DANode, amount int64) sdk.AccAddress {
-	// Get the node's RPC client
+// FundNodeAccount funds a specific DA node account using the provided wallet.
+func (f *Framework) FundNodeAccount(ctx context.Context, fromWallet tastoratypes.Wallet, daNode tastoratypes.DANode, amount int64) {
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 
 	// Get the node's account address
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get node account address")
 
-	f.t.Logf("Node account address: %s", nodeAddr.String())
+	f.t.Logf("Funding node account %s with %d utia", nodeAddr.String(), amount)
 
 	// Convert state.Address to sdk.AccAddress using Bytes()
 	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
 
-	// Use the existing FundWallet method to send funds
+	// Fund the node account
 	f.FundWallet(ctx, fromWallet, nodeAccAddr, amount)
-
-	f.t.Logf("Successfully funded node account: %s", nodeAddr.String())
-
-	return nodeAccAddr
-}
-
-// queryBalance fetches the balance of a given address.
-func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
-	grpcAddr := f.celestia.GetGRPCAddress()
-	grpcConn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(f.t, err, "failed to connect to gRPC")
-
-	bankClient := banktypes.NewQueryClient(grpcConn)
-	req := &banktypes.QueryBalanceRequest{
-		Address: addr,
-		Denom:   "utia",
-	}
-
-	res, err := bankClient.Balance(ctx, req)
-	require.NoError(f.t, err, "failed to query balance")
-	return *res.Balance
 }
 
 // createDockerProvider initializes the Docker provider for creating chains and nodes.
@@ -292,7 +400,13 @@ func (f *Framework) createAndStartCelestiaChain(ctx context.Context) tastoratype
 // startBridgeNode initializes and starts a bridge node.
 func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chain) tastoratypes.DANode {
 	genesisHash := f.getGenesisHash(ctx, chain)
-	bridgeNode := f.daNetwork.GetBridgeNodes()[0]
+
+	// Get the first available bridge node from the DA network
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	if len(bridgeNodes) == 0 {
+		f.t.Fatalf("No bridge nodes available in DA network")
+	}
+	bridgeNode := bridgeNodes[0]
 
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
 	require.NoError(f.t, err, "failed to get internal hostname")
@@ -379,12 +493,6 @@ func (f *Framework) getGenesisHash(ctx context.Context, chain tastoratypes.Chain
 	return genesisHash
 }
 
-// cleanup frees up all resources.
-func (f *Framework) cleanup() {
-	f.logger.Info("Cleaning up Tastora framework")
-	// Cleanup is handled by the Tastora framework automatically
-}
-
 // appOverrides modifies the "app.toml" configuration.
 func appOverrides() toml.Toml {
 	appTomlOverride := make(toml.Toml)
@@ -427,116 +535,13 @@ func getNodeImage() string {
 	return nodeImage
 }
 
-// GenerateTestBlobs generates test blobs for blob operations
-func (f *Framework) GenerateTestBlobs(count int, dataSize int) ([]*blob.Blob, error) {
-	blobs := make([]*blob.Blob, count)
-
-	for i := 0; i < count; i++ {
-		// Create a test namespace (unique for each blob)
-		namespaceBytes := make([]byte, 10)
-		namespaceBytes[9] = byte(i + 1) // Make each namespace unique
-		namespace, err := libshare.NewV0Namespace(namespaceBytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create namespace: %w", err)
-		}
-
-		// Create test data
-		data := make([]byte, dataSize)
-		for j := range data {
-			data[j] = byte((i + j) % 256) // Fill with varying test data
-		}
-
-		// Create V0 blob (no signer required for test)
-		testBlob, err := blob.NewBlobV0(namespace, data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create test blob %d: %w", i, err)
-		}
-
-		blobs[i] = testBlob
+// getOrCreateDefaultWallet returns the default wallet, creating it if it doesn't exist.
+// This wallet is used for automatic node funding.
+func (f *Framework) getOrCreateDefaultWallet(ctx context.Context) tastoratypes.Wallet {
+	if f.defaultWallet == nil {
+		// Create a wallet with enough funds to fund multiple nodes
+		f.defaultWallet = f.CreateTestWallet(ctx, 50_000_000_000) // 50 billion utia
+		f.t.Logf("Created default wallet for automatic node funding")
 	}
-
-	return blobs, nil
-}
-
-// GenerateTestLibshareBlobs generates test libshare blobs for state API operations
-func (f *Framework) GenerateTestLibshareBlobs(count int, dataSize int) ([]*libshare.Blob, error) {
-	blobs := make([]*libshare.Blob, count)
-
-	for i := 0; i < count; i++ {
-		// Create a test namespace (unique for each blob)
-		namespaceBytes := make([]byte, 10)
-		namespaceBytes[9] = byte(i + 1) // Make each namespace unique
-		namespace, err := libshare.NewV0Namespace(namespaceBytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create namespace: %w", err)
-		}
-
-		// Create test data
-		data := make([]byte, dataSize)
-		for j := range data {
-			data[j] = byte((i + j) % 256) // Fill with varying test data
-		}
-
-		// Create V0 libshare blob (no signer required for test)
-		testBlob, err := libshare.NewV0Blob(namespace, data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create test libshare blob %d: %w", i, err)
-		}
-
-		blobs[i] = testBlob
-	}
-
-	return blobs, nil
-}
-
-// FillBlocks produces the given amount of contiguous blocks with customizable size.
-// This is needed for sync testing scenarios. Returns a channel that reports when done.
-func (f *Framework) FillBlocks(ctx context.Context, account string, blockSize, numBlocks int) (<-chan error, error) {
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer close(errCh)
-
-		// Use the chain's transaction filling capability
-		// This will depend on the Tastora chain implementation
-		// For now, we'll implement a basic version
-		for i := 0; i < numBlocks; i++ {
-			// Create filled blocks using the chain
-			// This is a placeholder - actual implementation will depend on Tastora's FillBlock method
-			select {
-			case <-ctx.Done():
-				errCh <- ctx.Err()
-				return
-			default:
-				// Simulate block filling
-				time.Sleep(100 * time.Millisecond)
-			}
-		}
-		errCh <- nil
-	}()
-
-	return errCh, nil
-}
-
-// WaitTillHeight waits until the chain reaches the specified height.
-// This is useful for sync testing scenarios.
-func (f *Framework) WaitTillHeight(ctx context.Context, height uint64) error {
-	// This would poll the chain until it reaches the target height
-	// Implementation depends on Tastora chain capabilities
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			// Check current chain height
-			// This is a placeholder - actual implementation depends on how to get chain height from Tastora
-			// For now, just simulate reaching the height after some time
-			time.Sleep(time.Duration(height) * 100 * time.Millisecond)
-			return nil
-		}
-	}
+	return f.defaultWallet
 }

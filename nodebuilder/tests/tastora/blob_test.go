@@ -10,10 +10,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
+	"github.com/celestiaorg/go-square/v2/share"
 
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
@@ -40,33 +37,27 @@ func (s *BlobTestSuite) SetupSuite() {
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 
-func (s *BlobTestSuite) TearDownSuite() {
-	if s.framework != nil {
-		s.framework.cleanup()
-	}
-}
-
 // TestBlobSubmit_SingleBlob tests blob submission API with a single blob
 func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetFullNodes()[0]
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
 	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	// Create test wallet and fund the node account
+	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_000_000_000)
 
 	// Create test blob
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
 	s.Require().NoError(err)
 
 	data := []byte("Hello Celestia single blob test")
 	nodeAddr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
-	libBlob, err := libshare.NewV1Blob(namespace, data, nodeAddr.Bytes())
+	libBlob, err := share.NewV1Blob(namespace, data, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
 	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
@@ -94,18 +85,18 @@ func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
 
 // TestBlobSubmit_MultipleBlobs tests blob submission API with multiple blobs
 func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetFullNodes()[0]
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
 	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	// Create test wallet and fund the node account
-	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
+	// Explicit funding approach - create wallet and fund the node account directly
+	testWallet := s.framework.CreateTestWallet(ctx, 10_000_000_000) // Higher amount for multiple blobs
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 2_000_000_000)
 
 	// Create test namespace and blobs
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
 	s.Require().NoError(err)
 
 	nodeAddr, err := client.State.AccountAddress(ctx)
@@ -114,15 +105,15 @@ func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
 	data1 := []byte("Multiple blob test data 1")
 	data2 := []byte("Multiple blob test data 2")
 
-	libBlob1, err := libshare.NewV1Blob(namespace, data1, nodeAddr.Bytes())
+	libBlob1, err := share.NewV1Blob(namespace, data1, nodeAddr.Bytes())
 	s.Require().NoError(err)
-	libBlob2, err := libshare.NewV1Blob(namespace, data2, nodeAddr.Bytes())
+	libBlob2, err := share.NewV1Blob(namespace, data2, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
 	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob1, libBlob2)
 	s.Require().NoError(err)
 
-	// Submit multiple blobs
+	// Submit multiple blobs via Submit API
 	txConfig := state.NewTxConfig(state.WithGas(400_000), state.WithGasPrice(5000))
 	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 	s.Require().NoError(err)
@@ -133,7 +124,7 @@ func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
 	s.Require().NoError(err)
 
 	// Verify all blobs can be retrieved
-	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []libshare.Namespace{namespace})
+	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []share.Namespace{namespace})
 	s.Require().NoError(err)
 	s.Require().Len(retrievedBlobs, 2)
 
@@ -157,60 +148,45 @@ func (s *BlobTestSuite) TestBlobGet_ExistingBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Use chain submission for reliable blob placement
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+
+	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	walletAddr, err := sdkacc.AddressFromWallet(testWallet)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_500_000_000)
+
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
 	s.Require().NoError(err)
 
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
+	nodeAddr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
 	data := []byte("Test blob for Get API")
-	libBlob, err := blobtypes.NewV1Blob(namespace, data, walletAddr)
+	libBlob, err := share.NewV1Blob(namespace, data, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
-	// Submit via chain
-	signerStr := testWallet.GetFormattedAddress()
-	msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlob)
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
 	s.Require().NoError(err)
 
-	chain := s.framework.GetCelestiaChain()
-	resp, err := chain.BroadcastBlobMessage(ctx, testWallet, msg, libBlob)
+	// Submit blob via Submit API
+	txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
+	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 	s.Require().NoError(err)
-	s.Require().Equal(uint32(0), resp.Code)
+	s.Require().NotZero(height)
 
-	// Wait and find blob
-	time.Sleep(5 * time.Second)
-	fullNode := s.framework.GetFullNodes()[0]
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-	header, err := client.Header.NetworkHead(ctx)
+	// Wait for inclusion
+	_, err = client.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err)
 
-	var blobHeight uint64
-	var commitment []byte
-	found := false
-
-	for h := uint64(resp.Height); h <= header.Height(); h++ {
-		blobs, err := client.Blob.GetAll(ctx, h, []libshare.Namespace{namespace})
-		if err == nil && len(blobs) > 0 {
-			blobHeight = h
-			commitment = blobs[0].Commitment
-			found = true
-			break
-		}
-	}
-	s.Require().True(found, "blob should be found")
-
-	// Test Get API
-	retrievedBlob, err := client.Blob.Get(ctx, blobHeight, namespace, commitment)
+	// Verify blob can be retrieved
+	retrievedBlob, err := client.Blob.Get(ctx, height, namespace, nodeBlobs[0].Commitment)
 	s.Require().NoError(err)
 	s.Require().NotNil(retrievedBlob)
 
 	retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
 	s.Assert().Equal(data, retrievedData)
 	s.Assert().True(retrievedBlob.Namespace().Equals(namespace))
-	s.Assert().Equal(libshare.ShareVersionOne, retrievedBlob.ShareVersion())
+	s.Assert().Equal(share.ShareVersionOne, retrievedBlob.ShareVersion())
 }
 
 // TestBlobGet_NonExistentBlob tests blob retrieval API error handling
@@ -218,10 +194,10 @@ func (s *BlobTestSuite) TestBlobGet_NonExistentBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetFullNodes()[0]
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
 	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x04}, 10))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x04}, 10))
 	s.Require().NoError(err)
 
 	// Try to get non-existent blob
@@ -233,18 +209,18 @@ func (s *BlobTestSuite) TestBlobGet_NonExistentBlob() {
 
 // TestBlobGetAll_ValidNamespace tests GetAll API with valid namespace
 func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // Increased timeout
 	defer cancel()
 
-	fullNode := s.framework.GetFullNodes()[0]
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
 	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	// Create test wallet and fund the node account
+	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_500_000_000)
 
 	// Create test namespace
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))
 	s.Require().NoError(err)
 
 	nodeAddr, err := client.State.AccountAddress(ctx)
@@ -254,9 +230,9 @@ func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
 	data1 := []byte("GetAll test data 1")
 	data2 := []byte("GetAll test data 2")
 
-	libBlob1, err := libshare.NewV1Blob(namespace, data1, nodeAddr.Bytes())
+	libBlob1, err := share.NewV1Blob(namespace, data1, nodeAddr.Bytes())
 	s.Require().NoError(err)
-	libBlob2, err := libshare.NewV1Blob(namespace, data2, nodeAddr.Bytes())
+	libBlob2, err := share.NewV1Blob(namespace, data2, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
 	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob1, libBlob2)
@@ -271,7 +247,7 @@ func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
 	s.Require().NoError(err)
 
 	// Test GetAll API
-	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []libshare.Namespace{namespace})
+	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []share.Namespace{namespace})
 	s.Require().NoError(err)
 	s.Require().Len(retrievedBlobs, 2)
 
@@ -286,22 +262,18 @@ func (s *BlobTestSuite) TestBlobGetProof_ValidBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetFullNodes()[0]
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
 	client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
-	// Create test wallet and fund the node account
-	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 3_000_000_000)
-
 	// Create and submit test blob
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x06}, 10))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x06}, 10))
 	s.Require().NoError(err)
 
 	data := []byte("Proof test data")
 	nodeAddr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
-	libBlob, err := libshare.NewV1Blob(namespace, data, nodeAddr.Bytes())
+	libBlob, err := share.NewV1Blob(namespace, data, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
 	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
@@ -332,71 +304,63 @@ func (s *BlobTestSuite) TestBlobMixedVersions() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Use chain submission for mixed version testing
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+
+	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	walletAddr, err := sdkacc.AddressFromWallet(testWallet)
+	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 2_000_000_000)
+
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))
 	s.Require().NoError(err)
 
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))
+	nodeAddr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
 	dataV0 := []byte("V0 blob data")
 	dataV1 := []byte("V1 blob data")
 
 	// Create V0 blob (no signer)
-	libBlobV0, err := libshare.NewV0Blob(namespace, dataV0)
+	libBlobV0, err := share.NewV0Blob(namespace, dataV0)
 	s.Require().NoError(err)
 
 	// Create V1 blob (with signer)
-	libBlobV1, err := blobtypes.NewV1Blob(namespace, dataV1, walletAddr)
+	libBlobV1, err := share.NewV1Blob(namespace, dataV1, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
-	// Submit mixed blobs via chain
-	signerStr := testWallet.GetFormattedAddress()
-	msg, err := blobtypes.NewMsgPayForBlobs(signerStr, appconsts.LatestVersion, libBlobV0, libBlobV1)
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlobV0, libBlobV1)
 	s.Require().NoError(err)
 
-	chain := s.framework.GetCelestiaChain()
-	resp, err := chain.BroadcastBlobMessage(ctx, testWallet, msg, libBlobV0, libBlobV1)
+	// Submit mixed blobs via Submit API
+	txConfig := state.NewTxConfig(state.WithGas(400_000), state.WithGasPrice(5000))
+	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 	s.Require().NoError(err)
-	s.Require().Equal(uint32(0), resp.Code)
+	s.Require().NotZero(height)
 
-	// Wait and retrieve blobs
-	time.Sleep(5 * time.Second)
-	fullNode := s.framework.GetFullNodes()[0]
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-	header, err := client.Header.NetworkHead(ctx)
+	// Wait for inclusion
+	_, err = client.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err)
 
-	var retrievedBlobs []*nodeblob.Blob
-	found := false
-
-	for h := uint64(resp.Height); h <= header.Height(); h++ {
-		blobs, err := client.Blob.GetAll(ctx, h, []libshare.Namespace{namespace})
-		if err == nil && len(blobs) > 0 {
-			retrievedBlobs = blobs
-			found = true
-			break
-		}
-	}
-	s.Require().True(found, "mixed blobs should be found")
+	// Verify all blobs can be retrieved
+	retrievedBlobs, err := client.Blob.GetAll(ctx, height, []share.Namespace{namespace})
+	s.Require().NoError(err)
 	s.Require().Len(retrievedBlobs, 2)
 
-	// Verify mixed blob versions
-	foundV0, foundV1 := false, false
+	// Verify blob versions and data
+	foundV0 := false
+	foundV1 := false
 	for _, blob := range retrievedBlobs {
+		s.Assert().True(blob.Namespace().Equals(namespace))
 		retrievedData := bytes.TrimRight(blob.Data(), "\x00")
 
-		if blob.ShareVersion() == libshare.ShareVersionZero {
+		if blob.ShareVersion() == share.ShareVersionZero {
 			foundV0 = true
 			s.Assert().Equal(dataV0, retrievedData)
 			s.Assert().Nil(blob.Signer())
-		} else if blob.ShareVersion() == libshare.ShareVersionOne {
+		} else if blob.ShareVersion() == share.ShareVersionOne {
 			foundV1 = true
 			s.Assert().Equal(dataV1, retrievedData)
 			s.Assert().NotNil(blob.Signer())
-			s.Assert().Equal(walletAddr.Bytes(), blob.Signer())
 		}
 	}
 

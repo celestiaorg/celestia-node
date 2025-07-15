@@ -50,11 +50,3 @@ func WithLightNodes(count int) Option {
 		c.LightNodeCount = count
 	}
 }
-
-// WithBlockTime sets the block time for the chain (for sync testing).
-func WithBlockTime(blockTime int) Option {
-	return func(c *Config) {
-		// This would be used in chain configuration
-		// Implementation depends on how block time is configured in Tastora
-	}
-}
