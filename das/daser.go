@@ -83,32 +83,15 @@ func (d *DASer) Start(ctx context.Context) error {
 		return errors.New("da: DASer already started")
 	}
 
+	cp, err := d.checkpoint(ctx)
+	if err != nil {
+		return err
+	}
+
 	sub, err := d.hsub.Subscribe()
 	if err != nil {
 		return err
 	}
-
-	tail, err := d.getter.Tail(ctx)
-	if err != nil {
-		return err
-	}
-
-	head, err := d.getter.Head(ctx)
-	if err != nil {
-		return err
-	}
-
-	// load latest DASed checkpoint
-	cp, err := d.store.load(ctx)
-	if err != nil {
-		log.Warnf("checkpoint not found, initializing with Tail (%d) and Head (%d)", tail.Height(), head.Height())
-
-		cp = checkpoint{
-			SampleFrom:  tail.Height(),
-			NetworkHead: head.Height(),
-		}
-	}
-	log.Info("starting DASer from checkpoint: ", cp.String())
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
@@ -118,6 +101,64 @@ func (d *DASer) Start(ctx context.Context) error {
 	go d.store.runBackgroundStore(runCtx, d.params.BackgroundStoreInterval, d.sampler.getCheckpoint)
 
 	return nil
+}
+
+func (d *DASer) checkpoint(ctx context.Context) (checkpoint, error) {
+	tail, err := d.getter.Tail(ctx)
+	if err != nil {
+		return checkpoint{}, err
+	}
+
+	head, err := d.getter.Head(ctx)
+	if err != nil {
+		return checkpoint{}, err
+	}
+
+	// load latest DASed checkpoint
+	cp, err := d.store.load(ctx)
+	switch {
+	case errors.Is(err, datastore.ErrNotFound):
+		log.Warnf("checkpoint not found, initializing with Tail (%d) and Head (%d)", tail.Height(), head.Height())
+
+		cp = checkpoint{
+			SampleFrom:  tail.Height(),
+			NetworkHead: head.Height(),
+		}
+	case err != nil:
+		return checkpoint{}, err
+	default:
+		if cp.SampleFrom < tail.Height() {
+			cp.SampleFrom = tail.Height()
+		}
+		if cp.NetworkHead < head.Height() {
+			cp.NetworkHead = head.Height()
+		}
+
+		for height := range cp.Failed {
+			if height < tail.Height() {
+				// means the sample status is outdated and we don't need to sample it again
+				delete(cp.Failed, height)
+			}
+		}
+
+		if len(cp.Workers) > 0 {
+			wrkrs := make([]workerCheckpoint, 0, len(cp.Workers))
+			for _, wrk := range cp.Workers {
+				if wrk.To >= tail.Height() {
+					if wrk.From < tail.Height() {
+						wrk.From = tail.Height()
+					}
+
+					wrkrs = append(wrkrs, wrk)
+				}
+			}
+
+			cp.Workers = wrkrs
+		}
+	}
+
+	log.Info("starting DASer from checkpoint: ", cp.String())
+	return cp, nil
 }
 
 // Stop stops sampling.
