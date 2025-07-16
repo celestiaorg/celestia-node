@@ -122,5 +122,13 @@ func (s *Service) lastPruned(ctx context.Context) (*header.ExtendedHeader, error
 	}
 
 	s.checkpoint.LastPrunedHeight = tail.Height()
+
+	for height := range s.checkpoint.FailedHeaders {
+		if height < tail.Height() {
+			delete(s.checkpoint.FailedHeaders, height)
+			log.Warnw("unfailing unavailable header; some block data may not be pruned", "height", height)
+		}
+	}
+
 	return tail, nil
 }
