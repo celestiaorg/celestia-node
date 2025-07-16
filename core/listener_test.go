@@ -109,6 +109,9 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	cfg := DefaultTestConfig()
 	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
 	eds := createEdsPubSub(ctx, t)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -118,7 +121,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	opt := WithAvailabilityWindow(time.Nanosecond)
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
 
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	err = cl.Start(ctx)
 	require.NoError(t, err)
