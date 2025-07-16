@@ -25,7 +25,7 @@ func coreAccessor(
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
 	client *grpc.ClientConn,
-	additionalEndpoints core.AdditionalCoreEndpoints,
+	additionalConns core.AdditionalCoreConns,
 ) (
 	*state.CoreAccessor,
 	Module,
@@ -33,8 +33,8 @@ func coreAccessor(
 	error,
 ) {
 	var opts []state.Option
-	if len(additionalEndpoints) > 0 {
-		opts = append(opts, state.WithAdditionalCoreEndpoints(additionalEndpoints))
+	if len(additionalConns) > 0 {
+		opts = append(opts, state.WithAdditionalCoreEndpoints(additionalConns))
 	}
 	if cfg.EstimatorAddress != "" {
 		opts = append(opts, state.WithEstimatorService(cfg.EstimatorAddress))
