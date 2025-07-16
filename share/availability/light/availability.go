@@ -10,7 +10,6 @@ import (
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -42,7 +41,7 @@ type ShareAvailability struct {
 
 	activeHeights *utils.Sessions
 	dsLk          sync.RWMutex
-	ds            *autobatch.Datastore
+	ds            datastore.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
@@ -54,7 +53,7 @@ func NewShareAvailability(
 ) *ShareAvailability {
 	params := *DefaultParameters()
 	ds = namespace.Wrap(ds, samplingResultsPrefix)
-	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
+	//	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 
 	for _, opt := range opts {
 		opt(&params)
@@ -66,7 +65,7 @@ func NewShareAvailability(
 		params:        params,
 		storageWindow: availability.StorageWindow,
 		activeHeights: utils.NewSessions(),
-		ds:            autoDS,
+		ds:            ds,
 	}
 }
 
@@ -248,5 +247,5 @@ func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 func (la *ShareAvailability) Close(ctx context.Context) error {
 	la.dsLk.Lock()
 	defer la.dsLk.Unlock()
-	return la.ds.Flush(ctx)
+	return nil
 }
