@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -24,8 +26,6 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (

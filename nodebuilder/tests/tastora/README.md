@@ -347,7 +347,7 @@ nodeAccAddr := framework.FundNodeAccount(ctx, fromWallet, daNode, amount)
 
 On macOS with Docker Desktop, you may encounter Docker socket connection errors:
 
-```
+```text
 Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
 ```
 
