@@ -368,6 +368,7 @@ github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFos
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork h1:gvoKagc3npL+ra8pEtgR+SMGGgeGsirJtzWrYQJ+5cs=
 github.com/celestiaorg/boxo v0.29.0-fork/go.mod h1:c3R52nMlgMsN1tADffYcogKoVRsX1RJE1TMYSpJ4uVs=
+<<<<<<< HEAD
 github.com/celestiaorg/celestia-app/v4 v4.1.0 h1:IfqasbpEj5btNHfFp6tJQUEJzNz3DJ31111EfhIjKYY=
 github.com/celestiaorg/celestia-app/v4 v4.1.0/go.mod h1:DRlA2tC9cE/Z/oLql0/Cp0NlozpdB7CSlH0Svo2lPNA=
 github.com/celestiaorg/celestia-app/v5 v5.0.1 h1:cxYmIeZadD2BJue0nki+IKaZ63gMBggNwLLKdSAQkRI=
@@ -382,10 +383,24 @@ github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAs
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20250714213917-dc0e7fb4694b h1:htchYBAe7Om2qd+cS/1CFKkDD+F+ly8EQ1R9kqlyej0=
 github.com/celestiaorg/go-ds-badger4 v0.0.0-20250714213917-dc0e7fb4694b/go.mod h1:FdqSLA5TMsyqooENB/Hf4xzYE/iH0z/ErLD6ogtfMrA=
+=======
+github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha h1:OubH8kOj7MY5bD3S5cS4EVhaPzZkNnI9/hw2mXMGhaA=
+github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha/go.mod h1:3di3f2WY3ysxdlBEvQS3BaWhkLMphChzRGQejvISrG8=
+github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35 h1:iU2igosCxYKzEUi85u3YqNslIO+rCXtx4GKAHUzxrDQ=
+github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
+github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17 h1:oNKu7TSENdgBvtdGtIjEfO4jnpupZjQTa2YUxkE/VFM=
+github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17/go.mod h1:vEUPDabqnVPUMBb9EyzI0dkUN6B3If0NI74jKvk+n0Q=
+github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12 h1:Q5Y9mZymbQP9qUr/l5IPcg/yh4hJWlyTEkG+TAyRy1U=
+github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
+github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2 h1:o+cQNLd5GQJdtlD8k7YofVIOJB9wkPX9cIEJz0E3FFg=
+github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2/go.mod h1:GdR2F3YQhICk8j5cEHOoSBdsIkKBDUcznPfjgnDHg5U=
+github.com/celestiaorg/go-ds-badger4 v0.0.0-20250716181942-8af067b9d326 h1:YIxljiJxPkUmIqKOfTaMVFJH2t2d2x6ecicTfEWr6x0=
+github.com/celestiaorg/go-ds-badger4 v0.0.0-20250716181942-8af067b9d326/go.mod h1:FdqSLA5TMsyqooENB/Hf4xzYE/iH0z/ErLD6ogtfMrA=
+>>>>>>> fb0047d1 (batched deletes)
 github.com/celestiaorg/go-fraud v0.2.3 h1:vsGmd5HtGL92q/pvjN0cpDsXn7hGJSbVZwOJl+dNX8E=
 github.com/celestiaorg/go-fraud v0.2.3/go.mod h1:h2Or0jHka/TDlQ3XsJV6OibIiwm49UiGVEu2jHKzybA=
-github.com/celestiaorg/go-header v0.6.7-0.20250714193343-c5a06ea004e1 h1:ak9FzTH18QkhCml1q22M92PSjWVBrTTX8+SYh4Nf8XI=
-github.com/celestiaorg/go-header v0.6.7-0.20250714193343-c5a06ea004e1/go.mod h1:pt20vcM3UpYpbr9Ais09J7iksAe/SwmuuzEMQnruAms=
+github.com/celestiaorg/go-header v0.6.7-0.20250716182552-3368f5797440 h1:uH6Y0JftzIiFji4dsV5Po8PGQVOFlEzUPI6jTXNxNMw=
+github.com/celestiaorg/go-header v0.6.7-0.20250716182552-3368f5797440/go.mod h1:KgYObvXI2Lt53dy2IRxHQI9sQBCRw2e62AvzrU5sk9A=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
