@@ -182,7 +182,7 @@ func shrexServerComponents(cfg *Config) fx.Option {
 				network modp2p.Network,
 			) (*shrex.Server, error) {
 				cfg.ShrexServer.WithNetworkID(network.String())
-				return shrex.NewServer(cfg.ShrexServer, host, store, shrex.SupportedProtocols()...)
+				return shrex.NewServer(cfg.ShrexServer, host, store)
 			},
 			fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
 				return server.Stop(ctx)
