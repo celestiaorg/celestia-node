@@ -73,7 +73,7 @@ func TestExchange_RequestND(t *testing.T) {
 
 		client, err := NewClient(DefaultClientParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(DefaultServerParameters(), net.Hosts()[1], nil, SupportedProtocols()...)
+		server, err := NewServer(DefaultServerParameters(), net.Hosts()[1], nil)
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -96,14 +96,13 @@ func TestExchange_RequestND(t *testing.T) {
 		}
 		middleware, err := NewMiddleware(rateLimit)
 		require.NoError(t, err)
-		protocols := SupportedProtocols()
-		for _, protocol := range protocols {
+		for name := range registry {
 			server.host.SetStreamHandler(
-				ProtocolID(server.params.NetworkID(), protocol.String()),
+				ProtocolID(server.params.NetworkID(), name),
 				middleware.rateLimitHandler(
 					ctx,
 					mockHandler,
-					protocol.String(),
+					name,
 				),
 			)
 		}
@@ -149,7 +148,7 @@ func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 
 	client, err := NewClient(DefaultClientParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(DefaultServerParameters(), hosts[1], s, SupportedProtocols()...)
+	server, err := NewServer(DefaultServerParameters(), hosts[1], s)
 	require.NoError(t, err)
 
 	return s, client, server

@@ -139,7 +139,7 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 	return append(data, ndid.DataNamespace.Bytes()...), nil
 }
 
-func (ndid NamespaceDataID) DataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	roots, err := acc.AxisRoots(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AxisRoots: %w", err)
