@@ -328,9 +328,8 @@ func (m *mockAccessor) RowNamespaceData(context.Context, libshare.Namespace, int
 }
 
 func (m *mockAccessor) RangeNamespaceData(
-	context.Context,
-	libshare.Namespace,
-	shwap.SampleCoords, shwap.SampleCoords,
+	_ context.Context,
+	_, _ int,
 ) (shwap.RangeNamespaceData, error) {
 	panic("implement me")
 }

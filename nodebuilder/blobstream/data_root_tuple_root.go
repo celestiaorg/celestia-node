@@ -15,7 +15,7 @@ import (
 
 // DataRootTupleRoot is the root of the merkle tree created
 // from a set of data root tuples.
-type DataRootTupleRoot bytes.HexBytes
+type DataRootTupleRoot = bytes.HexBytes
 
 // DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.

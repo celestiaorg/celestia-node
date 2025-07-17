@@ -6,8 +6,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
-
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -48,13 +46,9 @@ type RangeNamespaceDataBlock struct {
 // NewEmptyRangeNamespaceDataBlock constructs a new empty RangeNamespaceDataBlock.
 func NewEmptyRangeNamespaceDataBlock(
 	height uint64,
-	namespace libshare.Namespace,
-	from shwap.SampleCoords,
-	to shwap.SampleCoords,
-	edsSize int,
-	proofsOnly bool,
+	from, to, odsSize int,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, namespace, from, to, edsSize, proofsOnly)
+	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, odsSize)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +79,7 @@ func (rndb *RangeNamespaceDataBlock) Height() uint64 {
 }
 
 func (rndb *RangeNamespaceDataBlock) Marshal() ([]byte, error) {
-	if empty := rndb.Container.IsEmpty(); empty {
+	if rndb.Container.IsEmpty() {
 		return nil, fmt.Errorf("cannot marshal empty RangeNamespaceDataBlock")
 	}
 	container := rndb.Container.ToProto()
@@ -99,16 +93,11 @@ func (rndb *RangeNamespaceDataBlock) Marshal() ([]byte, error) {
 func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	rnd, err := eds.RangeNamespaceData(
 		ctx,
-		rndb.ID.DataNamespace,
 		rndb.ID.From,
 		rndb.ID.To,
 	)
 	if err != nil {
 		return fmt.Errorf("accessing RangeNamespaceData: %w", err)
-	}
-
-	if rndb.ID.ProofsOnly {
-		rnd.CleanupData()
 	}
 	rndb.Container = rnd
 	return nil
@@ -116,17 +105,17 @@ func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Acces
 
 func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) UnmarshalFn {
 	return func(cntrData, idData []byte) error {
-		if empty := rndb.Container.IsEmpty(); !empty {
-			log.Warn("unmarshalling RangeNamespaceDataBlock: container is not empty")
+		if !rndb.Container.IsEmpty() {
 			return nil
 		}
-
 		rndid, err := shwap.RangeNamespaceDataIDFromBinary(idData)
 		if err != nil {
 			return fmt.Errorf("unmarhaling RangeNamespaceDataID: %w", err)
 		}
 
-		if err = rndid.Verify(len(root.RowRoots)); err != nil {
+		odsSize := len(root.RowRoots) / 2
+
+		if err = rndid.Verify(odsSize); err != nil {
 			return fmt.Errorf("verifying RangeNamespaceDataID: %w", err)
 		}
 
@@ -143,15 +132,25 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 		if err != nil {
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
-		if len(rangeNsData.Proof) == 0 {
-			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: proof is empty", rndb.ID)
+
+		from, err := shwap.SampleCoordsFrom1DIndex(rndid.From, odsSize)
+		if err != nil {
+			return fmt.Errorf("converting from index to coordinates for %+v: %w", rndb.ID, err)
 		}
-		if !rndb.ID.ProofsOnly {
-			if err := rangeNsData.Verify(rndid.DataNamespace, rndid.From, rndid.To, root.Hash()); err != nil {
-				return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
-			}
+		to, err := shwap.SampleCoordsFrom1DIndex(rndid.To-1, odsSize)
+		if err != nil {
+			return fmt.Errorf("converting to index to coordinates for %+v: %w", rndb.ID, err)
 		}
-		rndb.Container = *rangeNsData
+
+		if err = rangeNsData.VerifyInclusion(
+			from, to,
+			odsSize,
+			root.RowRoots[from.Row:to.Row+1],
+		); err != nil {
+			return fmt.Errorf("validating RangeNamespaceData for %+v: %w", rndb.ID, err)
+		}
+
+		rndb.Container = rangeNsData
 		return nil
 	}
 }

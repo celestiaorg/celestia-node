@@ -52,6 +52,9 @@ linters:
           - revive
         path: _test\.go
       - linters:
+          - revive
+        path: libs/utils
+      - linters:
           - lll
         source: https://
       - linters:
