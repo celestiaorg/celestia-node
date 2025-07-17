@@ -99,12 +99,18 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 	opts := fx.Options(
 		fx.Provide(
-			func(ctx context.Context, h host.Host, network modp2p.Network) (*shrexsub.PubSub, error) {
+			func(ctx context.Context, h host.Host, network modp2p.Network, p2pCfg *modp2p.Config) (*shrexsub.PubSub, error) {
+				if p2pCfg.DisableP2P {
+					return nil, nil
+				}
 				return shrexsub.NewPubSub(ctx, h, network.String())
 			}),
 		// shrex-nd client
 		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
+			func(host host.Host, network modp2p.Network, p2pCfg *modp2p.Config) (*shrexnd.Client, error) {
+				if p2pCfg.DisableP2P {
+					return nil, nil
+				}
 				cfg.ShrExNDParams.WithNetworkID(network.String())
 				return shrexnd.NewClient(cfg.ShrExNDParams, host)
 			},
@@ -112,7 +118,10 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 
 		// shrex-eds client
 		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
+			func(host host.Host, network modp2p.Network, p2pCfg *modp2p.Config) (*shrexeds.Client, error) {
+				if p2pCfg.DisableP2P {
+					return nil, nil
+				}
 				cfg.ShrExEDSParams.WithNetworkID(network.String())
 				return shrexeds.NewClient(cfg.ShrExEDSParams, host)
 			},
@@ -124,7 +133,11 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				edsClient *shrexeds.Client,
 				ndClient *shrexnd.Client,
 				managers map[string]*peers.Manager,
+				p2pCfg *modp2p.Config,
 			) *shrex_getter.Getter {
+				if p2pCfg.DisableP2P || edsClient == nil || ndClient == nil {
+					return nil
+				}
 				return shrex_getter.NewGetter(
 					edsClient,
 					ndClient,
@@ -134,9 +147,15 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *shrex_getter.Getter) error {
+				if getter == nil {
+					return nil
+				}
 				return getter.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, getter *shrex_getter.Getter) error {
+				if getter == nil {
+					return nil
+				}
 				return getter.Stop(ctx)
 			}),
 		)),
@@ -158,7 +177,12 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 			opts,
 			shrexServerComponents(cfg),
 			fx.Provide(store.NewGetter),
-			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
+			fx.Provide(func(shrexSub *shrexsub.PubSub, p2pCfg *modp2p.Config) shrexsub.BroadcastFn {
+				if p2pCfg.DisableP2P || shrexSub == nil {
+					return func(context.Context, shrexsub.Notification) error {
+						return nil
+					}
+				}
 				return shrexSub.Broadcast
 			}),
 		)
@@ -167,10 +191,18 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 			opts,
 			shrexServerComponents(cfg),
 			fx.Provide(store.NewGetter),
-			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
+			fx.Provide(func(shrexSub *shrexsub.PubSub, p2pCfg *modp2p.Config) shrexsub.BroadcastFn {
+				if p2pCfg.DisableP2P || shrexSub == nil {
+					return func(context.Context, shrexsub.Notification) error {
+						return nil
+					}
+				}
 				return shrexSub.Broadcast
 			}),
-			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub) error {
+			fx.Invoke(func(lc fx.Lifecycle, sub *shrexsub.PubSub, p2pCfg *modp2p.Config) error {
+				if p2pCfg.DisableP2P || sub == nil {
+					return nil
+				}
 				lc.Append(fx.Hook{
 					OnStart: sub.Start,
 					OnStop:  sub.Stop,
@@ -187,14 +219,23 @@ func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(_ *shrexeds.Server, _ *shrexnd.Server) {}),
 		fx.Provide(fx.Annotate(
-			func(host host.Host, store *store.Store, network modp2p.Network) (*shrexeds.Server, error) {
+			func(host host.Host, store *store.Store, network modp2p.Network, p2pCfg *modp2p.Config) (*shrexeds.Server, error) {
+				if p2pCfg.DisableP2P {
+					return nil, nil
+				}
 				cfg.ShrExEDSParams.WithNetworkID(network.String())
 				return shrexeds.NewServer(cfg.ShrExEDSParams, host, store)
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
+				if server == nil {
+					return nil
+				}
 				return server.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, server *shrexeds.Server) error {
+				if server == nil {
+					return nil
+				}
 				return server.Stop(ctx)
 			}),
 		)),
@@ -203,14 +244,24 @@ func shrexServerComponents(cfg *Config) fx.Option {
 				host host.Host,
 				store *store.Store,
 				network modp2p.Network,
+				p2pCfg *modp2p.Config,
 			) (*shrexnd.Server, error) {
+				if p2pCfg.DisableP2P {
+					return nil, nil
+				}
 				cfg.ShrExNDParams.WithNetworkID(network.String())
 				return shrexnd.NewServer(cfg.ShrExNDParams, host, store)
 			},
 			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
+				if server == nil {
+					return nil
+				}
 				return server.Start(ctx)
 			}),
 			fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
+				if server == nil {
+					return nil
+				}
 				return server.Stop(ctx)
 			})),
 		),
