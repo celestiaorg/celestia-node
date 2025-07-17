@@ -65,7 +65,7 @@ jobs:
         run: make lint-imports
 
   go_mod_tidy_check:
-    needs: [setup]
+    needs: [ setup ]
     name: Go Mod Tidy Check
     runs-on: ubuntu-latest
 
@@ -76,9 +76,13 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - run: go mod tidy
+      # Run go mod tidy for all modules
+      - name: Run go mod tidy for all modules
+        run: |
+          find . -name 'go.mod' -execdir go mod tidy \;
 
-      - name: check for diff
+      # Fail if go.mod/go.sum changed
+      - name: Check for diff
         run: git diff --exit-code
 
   test_coverage:
