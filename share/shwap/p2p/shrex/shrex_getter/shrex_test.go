@@ -314,7 +314,7 @@ func newShrexClientServer(
 	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
 ) (*shrex.Client, *shrex.Server) {
 	// create server and register handler
-	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore, shrex.SupportedProtocols()...)
+	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore)
 	require.NoError(t, err)
 	require.NoError(t, server.WithMetrics())
 	t.Cleanup(func() {

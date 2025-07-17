@@ -93,8 +93,8 @@ var outdatedConfig = `
   UseShareExchange = true
   UseBitswap = true
   [Share.ShrexClient]
-    ReadTimeout = "5s"
-    WriteTimeout = "1m0s"
+    ReadTimeout = "1m0s"
+    WriteTimeout = "5s"
   [Share.ShrexServer]   
     ReadTimeout = "5s"
     WriteTimeout = "1m0s"

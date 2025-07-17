@@ -64,6 +64,7 @@ func (c *Client) Get(
 		logger.Warnw("requesting data from peer failed", "error", err)
 	}
 	c.metrics.observeRequests(ctx, 1, req.Name(), status, time.Since(requestTime))
+	logger.Debugw("requested data", "status", status, "duration", time.Since(requestTime))
 	return err
 }
 
@@ -81,9 +82,8 @@ func (c *Client) doRequest(
 
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
-		err = c.convertToTimeoutError(ctx, err)
-		if errors.Is(err, context.DeadlineExceeded) {
-			return statusTimeout, err
+		if timeoutErr := asTimeoutError(ctx, err); timeoutErr != nil {
+			return statusTimeout, timeoutErr
 		}
 		return statusSendReqErr, err
 	}
@@ -106,6 +106,9 @@ func (c *Client) doRequest(
 		if errors.Is(err, io.EOF) {
 			return statusRateLimited, fmt.Errorf("reading a response: %w", ErrRateLimited)
 		}
+		if timeoutErr := asTimeoutError(ctx, err); timeoutErr != nil {
+			return statusTimeout, timeoutErr
+		}
 		return statusReadRespErr, fmt.Errorf("unexpected error during reading from stream: %w", err)
 	}
 
@@ -124,12 +127,8 @@ func (c *Client) doRequest(
 		return statusSuccess, nil
 	}
 
-	err = c.convertToTimeoutError(ctx, err)
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return statusTimeout, err
-	}
-	if !errors.Is(err, ErrNotFound) && errors.Is(err, ErrRateLimited) {
-		return statusRateLimited, err
+	if timeoutErr := asTimeoutError(ctx, err); timeoutErr != nil {
+		return statusTimeout, timeoutErr
 	}
 	return statusReadRespErr, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 }
@@ -162,14 +161,24 @@ func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogg
 	}
 }
 
-func (c *Client) convertToTimeoutError(ctx context.Context, err error) error {
+func asTimeoutError(ctx context.Context, err error) error {
+	if errors.Is(err, context.Canceled) {
+		return err
+	}
+	if errors.Is(err, context.DeadlineExceeded) || isNetTimeoutError(ctx, err) {
+		return err
+	}
+	return nil
+}
+
+func isNetTimeoutError(ctx context.Context, err error) bool {
 	// some net.Errors also mean the context deadline was exceeded, but yamux/mocknet do not
 	// unwrap to a ctx err
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
 		if deadline, _ := ctx.Deadline(); deadline.Before(time.Now()) {
-			return context.DeadlineExceeded
+			return true
 		}
 	}
-	return err
+	return false
 }

@@ -27,7 +27,7 @@ type Server struct {
 
 	host host.Host
 	// list of protocol names that is supported by the server
-	enabledProtocols []SupportedProtocolName
+	protocols []protocol.ID
 
 	store *store.Store
 
@@ -44,7 +44,6 @@ func NewServer(
 	params *ServerParams,
 	host host.Host,
 	store *store.Store,
-	enabledProtocols ...SupportedProtocolName,
 ) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)
@@ -57,31 +56,24 @@ func NewServer(
 
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
-		ctx:              ctx,
-		cancel:           cancel,
-		store:            store,
-		host:             host,
-		params:           params,
-		enabledProtocols: SupportedProtocols(),
-		middleware:       middleware,
-	}
-	if enabledProtocols != nil {
-		// overwrite the default protocols if they were provided by the user
-		srv.enabledProtocols = enabledProtocols
+		ctx:        ctx,
+		cancel:     cancel,
+		store:      store,
+		host:       host,
+		params:     params,
+		middleware: middleware,
 	}
 
-	initID := newRequestID()
-	for _, protocolName := range enabledProtocols {
-		id, ok := initID[protocolName.String()]
-		if !ok {
-			return nil, fmt.Errorf("shrex/server: %w: %s", ErrUnsupportedProtocol,
-				ProtocolID(params.NetworkID(), protocolName.String()),
-			)
-		}
+	protocols := make([]protocol.ID, len(registry))
+	index := 0
+	for protocolName, id := range registry {
 		handler := srv.streamHandler(srv.ctx, id)
 		withRateLimit := srv.middleware.rateLimitHandler(ctx, handler, id().Name())
 		withRecovery := RecoveryMiddleware(withRateLimit)
-		srv.SetHandler(ProtocolID(srv.params.NetworkID(), protocolName.String()), withRecovery)
+
+		protocols[index] = ProtocolID(srv.params.NetworkID(), protocolName)
+		srv.SetHandler(protocols[index], withRecovery)
+		index++
 	}
 	return srv, nil
 }
@@ -93,10 +85,14 @@ func (srv *Server) SetHandler(p protocol.ID, h network.StreamHandler) {
 // Stop stops the Server
 func (srv *Server) Stop(_ context.Context) error {
 	srv.cancel()
-	for _, id := range srv.enabledProtocols {
-		srv.host.RemoveStreamHandler(ProtocolID(srv.params.NetworkID(), id.String()))
+	for _, protocol := range srv.protocols {
+		srv.host.RemoveStreamHandler(protocol)
 	}
 	return nil
+}
+
+func (srv *Server) Protocols() []protocol.ID {
+	return srv.protocols
 }
 
 func (srv *Server) WithMetrics() error {
@@ -108,12 +104,17 @@ func (srv *Server) WithMetrics() error {
 	return nil
 }
 
-func (srv *Server) streamHandler(ctx context.Context, id newRequest) network.StreamHandler {
+func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.StreamHandler {
 	return func(s network.Stream) {
 		requestID := id()
 		handleTime := time.Now()
 		status := srv.handleDataRequest(ctx, requestID, s)
 		srv.metrics.observeRequests(ctx, 1, requestID.Name(), status, time.Since(handleTime))
+		log.Debugw("server: handling request",
+			"name", requestID.Name(),
+			"status", status,
+			"duration", time.Since(handleTime),
+		)
 		// reset because we will not send anything back
 		if status == statusBadRequest || status == statusReadReqErr {
 			s.Reset() //nolint:errcheck
@@ -165,7 +166,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	file, err := srv.store.GetByHeight(ctx, requestID.Height())
 	if err == nil {
 		defer utils.CloseAndLog(log, "file", file)
-		r, err = requestID.DataReader(ctx, file)
+		r, err = requestID.ResponseReader(ctx, file)
 	}
 
 	deadlineErr := stream.SetWriteDeadline(time.Now().Add(srv.params.WriteTimeout))
