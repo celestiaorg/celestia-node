@@ -29,7 +29,7 @@ jobs:
           fi
 
   lint:
-    needs: [setup]
+    needs: [ setup ]
     name: Lint
     runs-on: ubuntu-latest
 
@@ -47,7 +47,7 @@ jobs:
           version: latest
 
   lint-imports:
-    needs: [setup]
+    needs: [ setup ]
     name: Lint Imports
     runs-on: ubuntu-latest
 
@@ -86,12 +86,12 @@ jobs:
         run: git diff --exit-code
 
   test_coverage:
-    needs: [setup]
+    needs: [ setup ]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-14]
+        os: [ ubuntu-latest, macos-14 ]
     runs-on: ${{ matrix.os }}
     env:
       OS: ${{ matrix.os }}
@@ -149,7 +149,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [go_mod_tidy_check, lint, lint-imports, test_coverage]
+    needs: [ go_mod_tidy_check, lint, lint-imports, test_coverage ]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}
