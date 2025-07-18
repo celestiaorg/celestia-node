@@ -94,15 +94,15 @@ func TestExchange_RequestND(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
-		middleware, err := NewMiddleware(rateLimit)
+		middleware, err := newMiddleware(rateLimit)
 		require.NoError(t, err)
-		for name := range registry {
+		for _, reqID := range registry {
 			server.host.SetStreamHandler(
-				ProtocolID(server.params.NetworkID(), name),
+				ProtocolID(server.params.NetworkID(), reqID().Name()),
 				middleware.rateLimitHandler(
 					ctx,
 					mockHandler,
-					name,
+					reqID().Name(),
 				),
 			)
 		}
@@ -150,6 +150,8 @@ func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 	require.NoError(t, err)
 	server, err := NewServer(DefaultServerParameters(), hosts[1], s)
 	require.NoError(t, err)
-
+	err = server.WithMetrics()
+	require.NoError(t, err)
+	require.NoError(t, server.Start(context.Background()))
 	return s, client, server
 }

@@ -7,25 +7,21 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+// newRequestID is an alias to the function type that creates new request instances.
 type newRequestID func() request
 
-func init() {
-	nsDataInitID := func() request {
+// registry contains factory functions for creating different types of request IDs.
+// Each function returns a new instance of a specific request type that implements
+// the request interface. The registry is used to instantiate the appropriate
+// request type based on its type identifier
+var registry = []newRequestID{
+	func() request {
 		return &shwap.NamespaceDataID{}
-	}
-	edsInitID := func() request {
+	},
+	func() request {
 		return &shwap.EdsID{}
-	}
-
-	registry = make(map[string]newRequestID)
-	registry[nsDataInitID().Name()] = nsDataInitID
-	registry[edsInitID().Name()] = edsInitID
+	},
 }
-
-// registry maps protocol names to their corresponding request factory functions.
-// It provides a centralized lookup for creating request instances of supported
-// protocol types at runtime.
-var registry map[string]newRequestID
 
 // request represents compatible generalised interface for requests.
 type request interface {
@@ -42,7 +38,7 @@ type request interface {
 	ResponseReader(ctx context.Context, acc shwap.Accessor) (io.Reader, error)
 }
 
-// response compatible generalised interface type for responses
+// response compatible generalised interface type for responses.
 type response interface {
 	io.ReaderFrom
 }
