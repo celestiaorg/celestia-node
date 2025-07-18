@@ -56,6 +56,7 @@ func (c *Client) Get(
 	logger := log.With(
 		"source", "client",
 		"name", req.Name(),
+		"height", req.Height(),
 		"peer", peer.String(),
 	)
 	requestTime := time.Now()

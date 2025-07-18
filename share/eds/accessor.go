@@ -11,8 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-var _ shwap.Accessor = (AccessorStreamer)(nil)
-
 // EmptyAccessor is an accessor of an empty EDS block.
 var EmptyAccessor = &Rsmt2D{ExtendedDataSquare: share.EmptyEDS()}
 

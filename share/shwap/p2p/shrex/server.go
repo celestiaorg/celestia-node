@@ -26,8 +26,6 @@ type Server struct {
 	cancel context.CancelFunc
 
 	host host.Host
-	// list of protocol names that is supported by the server
-	protocols []protocol.ID
 
 	store *store.Store
 
@@ -49,31 +47,13 @@ func NewServer(
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)
 	}
 
-	middleware, err := NewMiddleware(params.ConcurrencyLimit)
-	if err != nil {
-		return nil, fmt.Errorf("shrex/server: could not initialize middleware: %w", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
-		ctx:        ctx,
-		cancel:     cancel,
-		store:      store,
-		host:       host,
-		params:     params,
-		middleware: middleware,
-	}
-
-	protocols := make([]protocol.ID, len(registry))
-	index := 0
-	for protocolName, id := range registry {
-		handler := srv.streamHandler(srv.ctx, id)
-		withRateLimit := srv.middleware.rateLimitHandler(ctx, handler, id().Name())
-		withRecovery := RecoveryMiddleware(withRateLimit)
-
-		protocols[index] = ProtocolID(srv.params.NetworkID(), protocolName)
-		srv.SetHandler(protocols[index], withRecovery)
-		index++
+		ctx:    ctx,
+		cancel: cancel,
+		store:  store,
+		host:   host,
+		params: params,
 	}
 	return srv, nil
 }
@@ -82,17 +62,24 @@ func (srv *Server) SetHandler(p protocol.ID, h network.StreamHandler) {
 	srv.host.SetStreamHandler(p, h)
 }
 
-// Stop stops the Server
-func (srv *Server) Stop(_ context.Context) error {
-	srv.cancel()
-	for _, protocol := range srv.protocols {
-		srv.host.RemoveStreamHandler(protocol)
+func (srv *Server) Start(_ context.Context) error {
+	for _, reqID := range registry {
+		id := reqID()
+		handler := srv.streamHandler(srv.ctx, reqID)
+		withRateLimit := srv.middleware.rateLimitHandler(srv.ctx, handler, id.Name())
+		withRecovery := RecoveryMiddleware(withRateLimit)
+		srv.SetHandler(ProtocolID(srv.params.NetworkID(), id.Name()), withRecovery)
 	}
 	return nil
 }
 
-func (srv *Server) Protocols() []protocol.ID {
-	return srv.protocols
+// Stop stops the Server
+func (srv *Server) Stop(_ context.Context) error {
+	srv.cancel()
+	for _, reqID := range registry {
+		srv.host.RemoveStreamHandler(ProtocolID(srv.params.NetworkID(), reqID().Name()))
+	}
+	return nil
 }
 
 func (srv *Server) WithMetrics() error {
@@ -101,6 +88,12 @@ func (srv *Server) WithMetrics() error {
 		return fmt.Errorf("shrex/server: init Metrics: %w", err)
 	}
 	srv.metrics = metrics
+
+	middleware, err := newMiddleware(srv.params.ConcurrencyLimit)
+	if err != nil {
+		return fmt.Errorf("shrex/server: could not initialize middleware: %w", err)
+	}
+	srv.middleware = middleware
 	return nil
 }
 
@@ -131,6 +124,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	logger := log.With(
 		"source", "server",
 		"name", requestID.Name(),
+		"height", requestID.Height(),
 		"peer", stream.Conn().RemotePeer().String(),
 	)
 
@@ -147,6 +141,8 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return statusReadReqErr
 	}
 
+	logger.Debug("new request")
+
 	err = stream.CloseRead()
 	if err != nil {
 		logger.Warnw("closing read side of the stream", "err", err)
@@ -162,28 +158,31 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
-	var r io.Reader
 	file, err := srv.store.GetByHeight(ctx, requestID.Height())
-	if err == nil {
-		defer utils.CloseAndLog(log, "file", file)
-		r, err = requestID.ResponseReader(ctx, file)
-	}
 
 	deadlineErr := stream.SetWriteDeadline(time.Now().Add(srv.params.WriteTimeout))
 	if deadlineErr != nil {
 		logger.Debugw("setting write deadline", "err", err)
 	}
 
-	switch {
-	case errors.Is(err, store.ErrNotFound):
-		logger.Errorf("file not found")
-		return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream)
-	case err != nil:
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			logger.Errorf("file not found")
+			return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream)
+		}
+		logger.Errorf("getting header %w", err)
+		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
+	}
+
+	defer utils.CloseAndLog(log, "file", file)
+	r, err := requestID.ResponseReader(ctx, file)
+	if err != nil {
 		logger.Errorf("getting the data %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
 	status := respondStatus(logger, shrexpb.Status_OK, stream)
+	logger.Debugw("sending status", "status", status)
 	if status != statusSuccess {
 		return status
 	}
@@ -193,6 +192,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		logger.Errorw("send data", "err", err)
 		return statusSendRespErr
 	}
+	logger.Debugw("sent the data to the client")
 	return statusSuccess
 }
 
