@@ -98,7 +98,7 @@ var outdatedConfig = `
   AdvertiseInterval = "30s"
   UseShareExchange = true
  [Share.ShrexClient]
-    ReadTimeout = "1m0s"
+    ReadTimeout = "2m0s"
     WriteTimeout = "5s"
   [Share.ShrexServer]   
     ReadTimeout = "5s"

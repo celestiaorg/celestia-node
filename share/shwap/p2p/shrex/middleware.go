@@ -18,7 +18,7 @@ type Middleware struct {
 	rateLimiterCounter metric.Int64Counter
 }
 
-func NewMiddleware(concurrencyLimit int) (*Middleware, error) {
+func newMiddleware(concurrencyLimit int) (*Middleware, error) {
 	rateLimiter, err := meter.Int64Counter("shrex_rate_limit_counter",
 		metric.WithDescription("concurrency limit of the shrex server"),
 	)

@@ -53,7 +53,7 @@ func DefaultServerParameters() *ServerParams {
 
 func defaultClientParameters() *Parameters {
 	return &Parameters{
-		ReadTimeout:  time.Minute, // based on max observed sample time for 256 blocks (~50s)
+		ReadTimeout:  time.Minute * 2, // server.WriteTimeout + server.HandleRequestTimeout
 		WriteTimeout: 5 * time.Second,
 	}
 }

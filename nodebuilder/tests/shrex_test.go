@@ -218,11 +218,9 @@ func replaceShrexServer(cfg *nodebuilder.Config, handler network.StreamHandler) 
 			cfg.Share.ShrexServer.WithNetworkID(network.String())
 			return shrex.NewServer(cfg.Share.ShrexServer, host, store)
 		},
-		fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
-			for _, protocol := range server.Protocols() {
-				// replace handler for server
-				server.SetHandler(protocol, handler)
-			}
+		fx.OnStart(func(ctx context.Context, server *shrex.Server, network p2p.Network) error {
+			server.SetHandler(shrex.ProtocolID(network.String(), "eds_v0"), handler)
+			server.SetHandler(shrex.ProtocolID(network.String(), "nd_v0"), handler)
 			return nil
 		}),
 		fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
