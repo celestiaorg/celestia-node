@@ -8,6 +8,6 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		EnableService: false,
+		EnableService: true,
 	}
 }
