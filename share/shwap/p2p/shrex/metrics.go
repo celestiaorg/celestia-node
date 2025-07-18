@@ -16,16 +16,21 @@ var meter = otel.Meter("shrex")
 type status string
 
 const (
-	statusBadRequest  status = "bad_request"
-	statusSendRespErr status = "send_resp_err"
+	// statuses used by the client
 	statusSendReqErr  status = "send_req_err"
 	statusReadRespErr status = "read_resp_err"
-	statusReadReqErr  status = "read_req_err"
-	statusInternalErr status = "internal_err"
-	statusNotFound    status = "not_found"
-	statusTimeout     status = "timeout"
-	statusSuccess     status = "success"
 	statusRateLimited status = "rate_limited"
+	statusTimeout     status = "timeout"
+
+	// statuses used by the server
+	statusReadReqErr  status = "read_req_err"
+	statusBadRequest  status = "bad_request"
+	statusSendRespErr status = "send_resp_err"
+
+	// general statusese that is applied to both the client and the server
+	statusSuccess     status = "success"
+	statusNotFound    status = "not_found"
+	statusInternalErr status = "internal_err"
 )
 
 type Metrics struct {

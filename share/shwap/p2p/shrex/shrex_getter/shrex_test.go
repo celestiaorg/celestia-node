@@ -317,6 +317,7 @@ func newShrexClientServer(
 	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore)
 	require.NoError(t, err)
 	require.NoError(t, server.WithMetrics())
+	require.NoError(t, server.Start(ctx))
 	t.Cleanup(func() {
 		_ = server.Stop(ctx)
 	})
