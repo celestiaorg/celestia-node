@@ -29,15 +29,28 @@ func registerEndpoints(
 	daMod da.Module,
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
+	cfg *Config,
 ) {
 	serv.RegisterService("fraud", fraudMod, &fraud.API{})
 	serv.RegisterService("das", daserMod, &das.API{})
 	serv.RegisterService("header", headerMod, &header.API{})
+
+	// Apply state module wrapper if disabled
+	if cfg.DisableStateModule {
+		stateMod = &disabledStateModule{stateMod}
+	}
 	serv.RegisterService("state", stateMod, &state.API{})
+
 	serv.RegisterService("share", shareMod, &share.API{})
 	serv.RegisterService("p2p", p2pMod, &p2p.API{})
 	serv.RegisterService("node", nodeMod, &node.API{})
+
+	// Apply blob module wrapper if submit is disabled
+	if cfg.DisableBlobSubmit {
+		blobMod = &readOnlyBlobModule{blobMod}
+	}
 	serv.RegisterService("blob", blobMod, &blob.API{})
+
 	serv.RegisterService("da", daMod, &da.API{})
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
 }
