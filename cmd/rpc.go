@@ -83,8 +83,9 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 	}
 
 	if timeoutFlag > 0 {
-		// we don't cancel, because we want to keep this context alive outside the InitClient Function
-		ctx, _ := context.WithTimeout(cmd.Context(), timeoutFlag) //nolint:govet
+		// Use defer cancel to prevent context leak when timeout is set
+		ctx, cancel := context.WithTimeout(cmd.Context(), timeoutFlag)
+		defer cancel()
 		cmd.SetContext(ctx)
 	}
 
