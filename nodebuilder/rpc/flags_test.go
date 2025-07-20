@@ -254,3 +254,93 @@ func TestParseFlagsErrors(t *testing.T) {
 	err := ParseFlags(cmd, cfg)
 	assert.Error(t, err)
 }
+
+func TestDisableFlags(t *testing.T) {
+	tests := []struct {
+		name                  string
+		disableStateFlag      bool
+		disableBlobSubmitFlag bool
+		expected              *Config
+		expectError           bool
+	}{
+		{
+			name:                  "No disable flags",
+			disableStateFlag:      false,
+			disableBlobSubmitFlag: false,
+			expected: &Config{
+				Address:            "",
+				Port:               "",
+				DisableStateModule: false,
+				DisableBlobSubmit:  false,
+				CORS:               CORSConfig{},
+			},
+			expectError: false,
+		},
+		{
+			name:                  "Disable state module",
+			disableStateFlag:      true,
+			disableBlobSubmitFlag: false,
+			expected: &Config{
+				Address:            "",
+				Port:               "",
+				DisableStateModule: true,
+				DisableBlobSubmit:  false,
+				CORS:               CORSConfig{},
+			},
+			expectError: false,
+		},
+		{
+			name:                  "Disable blob submit",
+			disableStateFlag:      false,
+			disableBlobSubmitFlag: true,
+			expected: &Config{
+				Address:            "",
+				Port:               "",
+				DisableStateModule: false,
+				DisableBlobSubmit:  true,
+				CORS:               CORSConfig{},
+			},
+			expectError: false,
+		},
+		{
+			name:                  "Disable both",
+			disableStateFlag:      true,
+			disableBlobSubmitFlag: true,
+			expected: &Config{
+				Address:            "",
+				Port:               "",
+				DisableStateModule: true,
+				DisableBlobSubmit:  true,
+				CORS:               CORSConfig{},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cfg := &Config{
+				CORS: CORSConfig{},
+			}
+			cmd.Flags().AddFlagSet(Flags())
+
+			// Set flags
+			err := cmd.Flags().Set(disableStateFlag, fmt.Sprintf("%t", tt.disableStateFlag))
+			require.NoError(t, err)
+
+			err = cmd.Flags().Set(disableBlobSubmitFlag, fmt.Sprintf("%t", tt.disableBlobSubmitFlag))
+			require.NoError(t, err)
+
+			err = ParseFlags(cmd, cfg)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected.DisableStateModule, cfg.DisableStateModule)
+				assert.Equal(t, tt.expected.DisableBlobSubmit, cfg.DisableBlobSubmit)
+			}
+		})
+	}
+}
