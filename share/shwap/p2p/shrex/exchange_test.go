@@ -102,6 +102,7 @@ func TestExchange_RequestND(t *testing.T) {
 				middleware.rateLimitHandler(
 					ctx,
 					mockHandler,
+					nil,
 					reqID().Name(),
 				),
 			)
