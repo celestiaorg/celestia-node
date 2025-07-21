@@ -14,27 +14,18 @@ type Middleware struct {
 	concurrencyLimit int64
 	// parallelRequests is the number of requests currently being processed.
 	parallelRequests atomic.Int64
-
-	rateLimiterCounter metric.Int64Counter
 }
 
 func newMiddleware(concurrencyLimit int) (*Middleware, error) {
-	rateLimiter, err := meter.Int64Counter("shrex_rate_limit_counter",
-		metric.WithDescription("concurrency limit of the shrex server"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Middleware{
-		concurrencyLimit:   int64(concurrencyLimit),
-		rateLimiterCounter: rateLimiter,
+		concurrencyLimit: int64(concurrencyLimit),
 	}, nil
 }
 
 func (m *Middleware) rateLimitHandler(
 	ctx context.Context,
 	handler network.StreamHandler,
+	metrics *Metrics,
 	requestName string,
 ) network.StreamHandler {
 	return func(stream network.Stream) {
@@ -42,14 +33,18 @@ func (m *Middleware) rateLimitHandler(
 		defer m.parallelRequests.Add(-1)
 
 		if current > m.concurrencyLimit {
-			m.rateLimiterCounter.Add(ctx, 1,
-				metric.WithAttributes(attribute.String("request.name", requestName)),
-			)
 			log.Debug("concurrency limit reached")
 			err := stream.Close()
 			if err != nil {
 				log.Debugw("server: closing stream", "err", err)
 			}
+
+			if metrics == nil {
+				return
+			}
+			metrics.rateLimiterCounter.Add(ctx, 1,
+				metric.WithAttributes(attribute.String("request.name", requestName)),
+			)
 			return
 		}
 		handler(stream)
