@@ -162,13 +162,18 @@ test-integration-race:
 
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:
-	@echo "--> Running blob module tests"
-	cd nodebuilder/tests/tastora && go test -v -tags integration -run TestBlobTestSuite ./...
+	@echo "Running blob module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestBlobTestSuite" -timeout=15m
+
+## test-share: Run share module tests via Tastora framework.
+test-share:
+	@echo "Running share module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -run="TestShareTestSuite" -timeout=15m
 
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
-	@echo "--> Running all Tastora tests"
-	cd nodebuilder/tests/tastora && go test -v -tags integration ./...
+	@echo "Running all Tastora module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -parallel 2 -race -timeout=45m ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:
@@ -301,4 +306,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-blob test-tastora
+.PHONY: test-blob test-state test-header test-share test-sync test-pruner test-p2p test-node test-das test-tastora
