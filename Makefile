@@ -306,4 +306,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-blob test-state test-header test-share test-sync test-pruner test-p2p test-node test-das test-tastora
+.PHONY: test-blob test-share
