@@ -792,27 +792,27 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	subCh2, err := service.Subscribe(ctx, ns2)
 	require.NoError(t, err)
 
-	for i := uint64(0); i < uint64(len(allBlobs)); i++ {
+	var i uint64
+	for i = uint64(0); i < uint64(len(blobs1)); i++ {
 		select {
 		case resp := <-subCh1:
 			assert.Equal(t, i+1, resp.Height)
-			if i < uint64(len(blobs1)) {
-				assert.NotEmpty(t, resp.Blobs)
-				for _, b := range resp.Blobs {
-					assert.Equal(t, ns1, b.Namespace())
-				}
-			} else {
-				assert.Empty(t, resp.Blobs)
+			assert.NotEmpty(t, resp.Blobs)
+			for _, b := range resp.Blobs {
+				assert.Equal(t, ns1, b.Namespace())
 			}
+		case <-time.After(time.Second * 2):
+			t.Fatalf("timeout waiting for subscription responses %d", i)
+		}
+	}
+
+	for i := i; i < uint64(len(blobs2)); i++ {
+		select {
 		case resp := <-subCh2:
 			assert.Equal(t, i+1, resp.Height)
-			if i >= uint64(len(blobs1)) {
-				assert.NotEmpty(t, resp.Blobs)
-				for _, b := range resp.Blobs {
-					assert.Equal(t, ns2, b.Namespace())
-				}
-			} else {
-				assert.Empty(t, resp.Blobs)
+			assert.NotEmpty(t, resp.Blobs)
+			for _, b := range resp.Blobs {
+				assert.Equal(t, ns2, b.Namespace())
 			}
 		case <-time.After(time.Second * 2):
 			t.Fatalf("timeout waiting for subscription responses %d", i)
