@@ -54,12 +54,12 @@ func (m *Metrics) observeRequests(
 	ctx = utils.ResetContextOnError(ctx)
 	m.totalRequestCounter.Add(ctx, count,
 		metric.WithAttributes(
-			attribute.String("request.name", requestName),
+			attribute.String("protocol", requestName),
 			attribute.String("status", string(status)),
 		))
 	m.requestDuration.Record(ctx, duration.Seconds(),
 		metric.WithAttributes(
-			attribute.String("request.name", requestName),
+			attribute.String("protocol", requestName),
 		))
 }
 
