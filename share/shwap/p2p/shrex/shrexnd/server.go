@@ -32,10 +32,8 @@ type Server struct {
 	handler network.StreamHandler
 	store   *store.Store
 
-	params *Parameters
-	// TODO: decouple middleware metrics from shrex and remove middleware from Server
-	middleware *shrex.Middleware
-	metrics    *shrex.Metrics
+	params  *Parameters
+	metrics *shrex.Metrics
 }
 
 // NewServer creates new Server
@@ -49,15 +47,13 @@ func NewServer(params *Parameters, host host.Host, store *store.Store) (*Server,
 		host:       host,
 		params:     params,
 		protocolID: shrex.ProtocolID(params.NetworkID(), protocolString),
-		middleware: shrex.NewMiddleware(params.ConcurrencyLimit),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
 
 	handler := srv.streamHandler(ctx)
-	withRateLimit := srv.middleware.RateLimitHandler(handler)
-	withRecovery := shrex.RecoveryMiddleware(withRateLimit)
+	withRecovery := shrex.RecoveryMiddleware(handler)
 	srv.handler = withRecovery
 	return srv, nil
 }
@@ -93,18 +89,10 @@ func (srv *Server) SetHandler(handler network.StreamHandler) {
 	srv.handler = handler
 }
 
-func (srv *Server) observeRateLimitedRequests() {
-	numRateLimited := srv.middleware.DrainCounter()
-	if numRateLimited > 0 {
-		srv.metrics.ObserveRequests(context.Background(), numRateLimited, shrex.StatusRateLimited)
-	}
-}
-
 func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Stream) error {
 	logger := log.With("source", "server", "peer", stream.Conn().RemotePeer().String())
 	logger.Debug("handling nd request")
 
-	srv.observeRateLimitedRequests()
 	ndid, err := srv.readRequest(logger, stream)
 	if err != nil {
 		logger.Warnw("read request", "err", err)
