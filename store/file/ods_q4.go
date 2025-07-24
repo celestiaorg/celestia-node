@@ -110,7 +110,7 @@ func (odsq4 *ODSQ4) tryLoadQ4() *q4 {
 	return q4
 }
 
-func (odsq4 *ODSQ4) Size(ctx context.Context) int {
+func (odsq4 *ODSQ4) Size(ctx context.Context) (int, error) {
 	return odsq4.ods.Size(ctx)
 }
 
@@ -122,9 +122,9 @@ func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return odsq4.ods.AxisRoots(ctx)
 }
 
-func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	// use native AxisHalf implementation, to read axis from q4 quadrant when possible
-	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, rowIdx)
+	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, idx.Row)
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
@@ -132,11 +132,15 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sampl
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("extending shares: %w", err)
 	}
-	return shwap.SampleFromShares(shares, rsmt2d.Row, rowIdx, colIdx)
+
+	return shwap.SampleFromShares(shares, rsmt2d.Row, idx)
 }
 
 func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
-	size := odsq4.Size(ctx) // TODO(@Wondertan): Should return error.
+	size, err := odsq4.Size(ctx)
+	if err != nil {
+		return eds.AxisHalf{}, fmt.Errorf("getting size: %w", err)
+	}
 
 	if axisIdx >= size/2 {
 		// lazy load Q4 file and read axis from it if loaded
@@ -187,4 +191,11 @@ func (odsq4 *ODSQ4) Close() error {
 		}
 	}
 	return err
+}
+
+func (odsq4 *ODSQ4) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	return odsq4.ods.RangeNamespaceData(ctx, from, to)
 }

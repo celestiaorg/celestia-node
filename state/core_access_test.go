@@ -5,20 +5,18 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
@@ -31,6 +29,9 @@ func TestSubmitPayForBlob(t *testing.T) {
 	t.Cleanup(func() {
 		_ = ca.Stop(ctx)
 	})
+	// explicitly reset client to nil to ensure
+	// that retry mechanism works.
+	ca.client = nil
 
 	ns, err := libshare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
@@ -102,10 +103,6 @@ func TestTransfer(t *testing.T) {
 		_ = ca.Stop(ctx)
 	})
 
-	minGas, err := ca.queryMinimumGasPrice(ctx)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
-
 	testcases := []struct {
 		name     string
 		gasPrice float64
@@ -121,9 +118,16 @@ func TestTransfer(t *testing.T) {
 			expErr:   nil,
 		},
 		{
-			name:     "transfer with options",
+			name:     "transfer with gasPrice set",
 			gasPrice: 0.005,
 			gasLim:   0,
+			account:  accounts[2],
+			expErr:   nil,
+		},
+		{
+			name:     "transfer with gas set",
+			gasPrice: DefaultGasPrice,
+			gasLim:   84617,
 			account:  accounts[2],
 			expErr:   nil,
 		},
@@ -141,7 +145,7 @@ func TestTransfer(t *testing.T) {
 			addr, err := key.GetAddress()
 			require.NoError(t, err)
 
-			resp, err := ca.Transfer(ctx, addr, sdktypes.NewInt(10_000), opts)
+			resp, err := ca.Transfer(ctx, addr, math.NewInt(10_000), opts)
 			require.Equal(t, tc.expErr, err)
 			if err == nil {
 				require.EqualValues(t, 0, resp.Code)
@@ -168,10 +172,6 @@ func TestDelegate(t *testing.T) {
 	t.Cleanup(func() {
 		_ = ca.Stop(ctx)
 	})
-
-	minGas, err := ca.queryMinimumGasPrice(ctx)
-	require.NoError(t, err)
-	require.Equal(t, appconsts.DefaultMinGasPrice, minGas)
 
 	valRec, err := ca.keyring.Key("validator")
 	require.NoError(t, err)
@@ -205,23 +205,24 @@ func TestDelegate(t *testing.T) {
 				WithGasPrice(tc.gasPrice),
 				WithKeyName(accounts[2]),
 			)
-			resp, err := ca.Delegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
+			resp, err := ca.Delegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 
-			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), sdktypes.NewInt(100_000), opts)
+			opts = NewTxConfig(
+				WithGas(tc.gasLim),
+				WithGasPrice(tc.gasPrice),
+				WithKeyName(accounts[2]),
+			)
+
+			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 		})
 	}
 }
 
-func extractPort(addr string) string {
-	splitStr := strings.Split(addr, ":")
-	return splitStr[len(splitStr)-1]
-}
-
-func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
+func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	chainID := "private"
 
 	t.Helper()
@@ -249,8 +250,6 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 	appConf := testnode.DefaultAppConfig()
 	appConf.API.Enable = true
 
-	appCreator := testnode.CustomAppCreator(fmt.Sprintf("0.002%s", app.BondDenom))
-
 	g := genesis.NewDefaultGenesis().
 		WithChainID(chainID).
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
@@ -260,11 +259,13 @@ func buildAccessor(t *testing.T) (*CoreAccessor, []string) {
 		WithChainID(chainID).
 		WithTendermintConfig(tmCfg).
 		WithAppConfig(appConf).
-		WithGenesis(g).
-		WithAppCreator(appCreator) // needed until https://github.com/celestiaorg/celestia-app/pull/3680 merges
+		WithGenesis(g)
+
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, "127.0.0.1", extractPort(grpcAddr), chainID)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, opts...)
 	require.NoError(t, err)
 	return ca, getNames(accounts)
 }

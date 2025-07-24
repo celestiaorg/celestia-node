@@ -14,7 +14,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -23,7 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
-func PrintOutput(data interface{}, err error, formatData func(interface{}) interface{}) error {
+func PrintOutput(data any, err error, formatData func(any) any) error {
 	switch {
 	case err != nil:
 		data = err.Error()
@@ -32,7 +31,7 @@ func PrintOutput(data interface{}, err error, formatData func(interface{}) inter
 	}
 
 	resp := struct {
-		Result interface{} `json:"result"`
+		Result any `json:"result"`
 	}{
 		Result: data,
 	}
@@ -113,8 +112,9 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	}
 
 	state.ParseFlags(cmd, &cfg.State)
-	rpc_cfg.ParseFlags(cmd, &cfg.RPC)
-	gateway.ParseFlags(cmd, &cfg.Gateway)
+	if err = rpc_cfg.ParseFlags(cmd, &cfg.RPC); err != nil {
+		return err
+	}
 
 	pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
 	switch nodeType {

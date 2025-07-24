@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"google.golang.org/grpc"
 
 	libfraud "github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-header/sync"
@@ -17,27 +18,38 @@ import (
 // coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
 func coreAccessor(
-	corecfg core.Config,
+	cfg Config,
 	keyring keyring.Keyring,
 	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	fraudServ libfraud.Service[*header.ExtendedHeader],
 	network p2p.Network,
-	opts []state.Option,
+	client *grpc.ClientConn,
+	additionalConns core.AdditionalCoreConns,
 ) (
 	*state.CoreAccessor,
 	Module,
 	*modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
 	error,
 ) {
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, corecfg.IP, corecfg.GRPCPort,
-		network.String(), opts...)
+	var opts []state.Option
+	if len(additionalConns) > 0 {
+		opts = append(opts, state.WithAdditionalCoreEndpoints(additionalConns))
+	}
+	if cfg.EstimatorAddress != "" {
+		opts = append(opts, state.WithEstimatorService(cfg.EstimatorAddress))
+
+		if cfg.EnableEstimatorTLS {
+			opts = append(opts, state.WithEstimatorServiceTLS())
+		}
+	}
+
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), opts...)
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
 		FraudType: byzantine.BadEncoding,
 		FraudServ: fraudServ,
 	}
-
 	return ca, ca, sBreaker, err
 }

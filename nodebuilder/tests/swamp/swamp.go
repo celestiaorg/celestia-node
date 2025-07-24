@@ -4,22 +4,25 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/privval"
+	"github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/privval"
-	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
-	"golang.org/x/exp/maps"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -27,7 +30,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -152,7 +154,7 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	// IPv6 will be starting with 100:0
 	token := make([]byte, 12)
 	_, _ = rand.Read(token)
-	ip := append(net.IP{}, blackholeIP6...)
+	ip := slices.Clone(blackholeIP6)
 	copy(ip[net.IPv6len-len(token):], token)
 
 	// reference to GenPeer func in libp2p/p2p/net/mock/mock_net.go
@@ -179,8 +181,19 @@ func (s *Swamp) setupGenesis() {
 	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
 	require.NoError(s.t, err)
 
+	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
+	require.NoError(s.t, err)
+	addr := net.JoinHostPort(host, port)
+	con, err := grpc.NewClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(s.t, err)
+	fetcher, err := core.NewBlockFetcher(con)
+	require.NoError(s.t, err)
+
 	ex, err := core.NewExchange(
-		core.NewBlockFetcher(s.ClientContext.Client),
+		fetcher,
 		store,
 		header.MakeExtendedHeader,
 	)
@@ -199,7 +212,11 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	require.NoError(s.t, err)
 
 	cfg.Core.IP = ip
-	cfg.Core.GRPCPort = port
+	cfg.Core.Port = port
+
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	return cfg
 }
 
@@ -207,50 +224,25 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Bridge, store, options...)
+	return s.NewNodeWithConfig(node.Bridge, cfg, options...)
 }
 
 // NewFullNode creates a new instance of a FullNode providing a default config
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Full)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Full, store, options...)
+	return s.NewNodeWithConfig(node.Full, cfg, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Light)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
-
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Light, store, options...)
+	return s.NewNodeWithConfig(node.Light, cfg, options...)
 }
 
 func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, options ...fx.Option) *nodebuilder.Node {
 	store := nodebuilder.MockStore(s.t, cfg)
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
 	return s.MustNewNodeWithStore(nodeType, store, options...)
 }
 
@@ -276,14 +268,6 @@ func (s *Swamp) NewNodeWithStore(
 		state.WithKeyName(state.AccountName(s.Accounts[0])),
 	)
 
-	switch tp {
-	case node.Bridge:
-		options = append(options,
-			coremodule.WithClient(s.ClientContext.Client),
-		)
-	default:
-	}
-
 	nd, err := s.newNode(tp, store, options...)
 	if err != nil {
 		return nil, err
@@ -300,9 +284,8 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 		return nil, err
 	}
 
-	// TODO(@Bidon15): If for some reason, we receive one of existing options
-	// like <core, host, hash> from the test case, we need to check them and not use
-	// default that are set here
+	// set port to zero so that OS allocates one
+	// this avoids port collissions between nodes and tests
 	cfg, _ := store.Config()
 	cfg.RPC.Port = "0"
 

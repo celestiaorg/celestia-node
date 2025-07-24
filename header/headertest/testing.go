@@ -8,16 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/tmhash"
+	"github.com/cometbft/cometbft/libs/bytes"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/tmhash"
-	"github.com/tendermint/tendermint/libs/bytes"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
-	"github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
@@ -40,6 +39,7 @@ type TestSuite struct {
 	// blockTime is optional - if set, the test suite will generate
 	// blocks timestamped at the specified interval
 	blockTime time.Duration
+	startTime time.Time
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
@@ -62,6 +62,18 @@ func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *Tes
 		vals:      vals,
 		valSet:    valSet,
 		blockTime: blockTime,
+		startTime: time.Now(),
+	}
+}
+
+func NewTestSuiteWithGenesisTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
+	valSet, vals := RandValidatorSet(3, 1)
+	return &TestSuite{
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: blockTime,
+		startTime: startTime,
 	}
 }
 
@@ -74,10 +86,11 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 	gen.ValidatorsHash = s.valSet.Hash()
 	gen.NextValidatorsHash = s.valSet.Hash()
 	gen.Height = 1
+	gen.Time = s.startTime
 	voteSet := types.NewVoteSet(gen.ChainID, gen.Height, 0, tmproto.PrecommitType, s.valSet)
 	blockID := RandBlockID(s.t)
 	blockID.Hash = gen.Hash()
-	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, time.Now())
+	commit, err := MakeCommit(blockID, gen.Height, 0, voteSet, s.vals, s.startTime)
 	require.NoError(s.t, err)
 
 	eh := &header.ExtendedHeader{
@@ -91,11 +104,15 @@ func (s *TestSuite) genesis() *header.ExtendedHeader {
 }
 
 func MakeCommit(
-	blockID types.BlockID, height int64, round int32,
-	voteSet *types.VoteSet, validators []types.PrivValidator, now time.Time,
+	blockID types.BlockID,
+	height int64,
+	round int32,
+	voteSet *types.VoteSet,
+	validators []types.PrivValidator,
+	now time.Time,
 ) (*types.Commit, error) {
 	// all sign
-	for i := 0; i < len(validators); i++ {
+	for i := range validators {
 		pubKey, err := validators[i].GetPubKey()
 		if err != nil {
 			return nil, fmt.Errorf("can't get pubkey: %w", err)
@@ -112,11 +129,11 @@ func MakeCommit(
 
 		_, err = signAddVote(validators[i], vote, voteSet)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error signing vote: %w", err)
 		}
 	}
 
-	return voteSet.MakeCommit(), nil
+	return voteSet.MakeExtendedCommit(types.DefaultABCIParams()).ToCommit(), nil
 }
 
 func signAddVote(privVal types.PrivValidator, vote *types.Vote, voteSet *types.VoteSet) (signed bool, err error) {
@@ -192,24 +209,43 @@ func (s *TestSuite) Commit(h *header.RawHeader) *types.Commit {
 		PartSetHeader: types.PartSetHeader{Total: 1, Hash: tmrand.Bytes(32)},
 	}
 	round := int32(0)
-	comms := make([]types.CommitSig, len(s.vals))
+
+	sigs := make([]tmproto.CommitSig, len(s.vals))
 	for i, val := range s.vals {
 		v := &types.Vote{
 			ValidatorAddress: s.valSet.Validators[i].Address,
 			ValidatorIndex:   int32(i),
 			Height:           h.Height,
 			Round:            round,
-			Timestamp:        tmtime.Now().UTC(),
+			Timestamp:        h.Time,
 			Type:             tmproto.PrecommitType,
 			BlockID:          bid,
 		}
 		sgntr, err := val.(types.MockPV).PrivKey.Sign(types.VoteSignBytes(h.ChainID, v.ToProto()))
 		require.Nil(s.t, err)
 		v.Signature = sgntr
-		comms[i] = v.CommitSig()
+		commitSig := v.CommitSig()
+		sigs[i] = tmproto.CommitSig{
+			BlockIdFlag:      tmproto.BlockIDFlag(commitSig.BlockIDFlag),
+			ValidatorAddress: commitSig.ValidatorAddress,
+			Timestamp:        commitSig.Timestamp,
+			Signature:        commitSig.Signature,
+		}
 	}
 
-	return types.NewCommit(h.Height, round, bid, comms)
+	// Create a proto.Commit manually
+	protoCommit := &tmproto.Commit{
+		Height:     h.Height,
+		Round:      round,
+		BlockID:    bid.ToProto(),
+		Signatures: sigs,
+	}
+
+	// Convert to types.Commit
+	commit, err := types.CommitFromProto(protoCommit)
+	require.NoError(s.t, err)
+
+	return commit
 }
 
 func (s *TestSuite) nextProposer() *types.Validator {
@@ -263,7 +299,7 @@ func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet
 		privValidators = make([]types.PrivValidator, numValidators)
 	)
 
-	for i := 0; i < numValidators; i++ {
+	for i := range numValidators {
 		val, privValidator := RandValidator(false, votingPower)
 		valz[i] = val
 		privValidators[i] = privValidator

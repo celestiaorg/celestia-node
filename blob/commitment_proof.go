@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	tmjson "github.com/tendermint/tendermint/libs/json"
+  tmjson "github.com/cometbft/cometbft/libs/json"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -105,7 +105,7 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 	}
 
 	if subtreeRootThreshold <= 0 {
-		return false, errors.New("subtreeRootThreshould must be > 0")
+		return false, errors.New("subtreeRootThreshold must be > 0")
 	}
 
 	// use the computed total number of shares to calculate the subtree roots

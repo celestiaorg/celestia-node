@@ -56,7 +56,8 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		retryStrategy: newRetryStrategy(exponentialBackoff(
 			defaultBackoffInitialInterval,
 			defaultBackoffMultiplier,
-			defaultBackoffMaxRetryCount)),
+			defaultBackoffMaxRetryCount,
+		)),
 		failed:        make(map[uint64]retryAttempt),
 		inRetry:       make(map[uint64]retryAttempt),
 		nextJobID:     0,
@@ -119,14 +120,16 @@ func (s *coordinatorState) handleRetryResult(res result) {
 		// height will be retried after backoff
 		nextRetry, retryExceeded := s.retryStrategy.nextRetry(lastRetry, time.Now())
 		if retryExceeded {
-			log.Warnw("header exceeded maximum amount of sampling attempts",
+			log.Warnw(
+				"header exceeded maximum amount of sampling attempts",
 				"height", h,
-				"attempts", nextRetry.count)
+				"attempts", nextRetry.count,
+			)
 		}
 		s.failed[h] = nextRetry
 	}
 
-	// processed height are either already moved to failed map or succeeded, cleanup inRetry
+	// processed heights are either already moved to failed map or succeeded, cleanup inRetry
 	for h := res.from; h <= res.to; h++ {
 		delete(s.inRetry, h)
 	}
@@ -135,7 +138,11 @@ func (s *coordinatorState) handleRetryResult(res result) {
 func (s *coordinatorState) isNewHead(newHead uint64) bool {
 	// seen this header before
 	if newHead <= s.networkHead {
-		log.Warnf("received head height: %v, which is lower or the same as previously known: %v", newHead, s.networkHead)
+		log.Warnf(
+			"received head height: %v, which is lower or the same as previously known: %v",
+			newHead,
+			s.networkHead,
+		)
 		return false
 	}
 	return true
@@ -146,8 +153,10 @@ func (s *coordinatorState) updateHead(newHead uint64) {
 		log.Infow("found first header, starting sampling")
 	}
 
+	oldHead := s.networkHead
 	s.networkHead = newHead
-	log.Debugw("updated head", "from_height", s.networkHead, "to_height", newHead)
+
+	log.Debugw("updated head", "from_height", oldHead, "to_height", newHead)
 	s.checkDone()
 }
 
@@ -184,10 +193,7 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 		return job{}, false
 	}
 
-	to := s.next + s.samplingRange - 1
-	if to > s.networkHead {
-		to = s.networkHead
-	}
+	to := min(s.next+s.samplingRange-1, s.networkHead)
 	j := s.newJob(catchupJob, s.next, to)
 	s.next = to + 1
 	return j, true
@@ -239,7 +245,7 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 			errMsg = wstats.err.Error()
 		}
 		workers = append(workers, WorkerStats{
-			JobType: wstats.job.jobType,
+			JobType: wstats.jobType,
 			Curr:    wstats.curr,
 			From:    wstats.from,
 			To:      wstats.to,

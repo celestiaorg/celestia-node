@@ -19,7 +19,7 @@ func ShareFromProto(s *pb.Share) (libshare.Share, error) {
 	if err != nil {
 		return libshare.Share{}, err
 	}
-	return *sh, err
+	return *sh, nil
 }
 
 // SharesToProto converts a slice of Shares from the application's internal representation to a

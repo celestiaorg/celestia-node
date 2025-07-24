@@ -20,7 +20,7 @@ func TestWithClosedOnce(t *testing.T) {
 	stub := &stubEdsAccessorCloser{}
 	closedOnce := WithClosedOnce(stub)
 
-	_, err := closedOnce.Sample(ctx, 0, 0)
+	_, err := closedOnce.Sample(ctx, shwap.SampleCoords{})
 	require.NoError(t, err)
 	_, err = closedOnce.AxisHalf(ctx, rsmt2d.Row, 0)
 	require.NoError(t, err)
@@ -33,7 +33,7 @@ func TestWithClosedOnce(t *testing.T) {
 	require.True(t, stub.closed)
 
 	// Ensure that the underlying file is not accessible after closing
-	_, err = closedOnce.Sample(ctx, 0, 0)
+	_, err = closedOnce.Sample(ctx, shwap.SampleCoords{})
 	require.ErrorIs(t, err, errAccessorClosed)
 	_, err = closedOnce.AxisHalf(ctx, rsmt2d.Row, 0)
 	require.ErrorIs(t, err, errAccessorClosed)
@@ -47,8 +47,8 @@ type stubEdsAccessorCloser struct {
 	closed bool
 }
 
-func (s *stubEdsAccessorCloser) Size(context.Context) int {
-	return 0
+func (s *stubEdsAccessorCloser) Size(context.Context) (int, error) {
+	return 0, nil
 }
 
 func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {
@@ -59,7 +59,7 @@ func (s *stubEdsAccessorCloser) AxisRoots(context.Context) (*share.AxisRoots, er
 	return &share.AxisRoots{}, nil
 }
 
-func (s *stubEdsAccessorCloser) Sample(context.Context, int, int) (shwap.Sample, error) {
+func (s *stubEdsAccessorCloser) Sample(context.Context, shwap.SampleCoords) (shwap.Sample, error) {
 	return shwap.Sample{}, nil
 }
 
@@ -73,6 +73,13 @@ func (s *stubEdsAccessorCloser) RowNamespaceData(
 	int,
 ) (shwap.RowNamespaceData, error) {
 	return shwap.RowNamespaceData{}, nil
+}
+
+func (s *stubEdsAccessorCloser) RangeNamespaceData(
+	_ context.Context,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, nil
 }
 
 func (s *stubEdsAccessorCloser) Shares(context.Context) ([]libshare.Share, error) {

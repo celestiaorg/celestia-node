@@ -44,10 +44,10 @@ var getCmd = &cobra.Command{
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+			args[1] = "0x" + args[1]
 		}
 		if !strings.HasPrefix(args[2], "0x") {
-			return fmt.Errorf("only hex commitment is supported")
+			args[2] = "0x" + args[2]
 		}
 		return nil
 	},
@@ -85,7 +85,7 @@ var getAllCmd = &cobra.Command{
 		"Note:\n* Namespace input parameter is expected to be in its hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+			args[1] = "0x" + args[1]
 		}
 		return nil
 	},
@@ -136,7 +136,10 @@ var submitCmd = &cobra.Command{
 	},
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[0], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+			args[0] = "0x" + args[0]
+		}
+		if !strings.HasPrefix(args[1], "0x") {
+			args[1] = "0x" + args[1]
 		}
 		return nil
 	},
@@ -144,7 +147,7 @@ var submitCmd = &cobra.Command{
 		"returns the header height in which the blob(s) was/were include + the respective commitment(s).\n" +
 		"User can use namespace and blobData as argument for single blob submission \n" +
 		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
-		`where the json file contains: 
+		`where the json file contains:
 
 		{
 			"Blobs": [
@@ -236,10 +239,10 @@ var getProofCmd = &cobra.Command{
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
 	PreRunE: func(_ *cobra.Command, args []string) error {
 		if !strings.HasPrefix(args[1], "0x") {
-			return fmt.Errorf("only hex namespace is supported")
+			args[1] = "0x" + args[1]
 		}
 		if !strings.HasPrefix(args[2], "0x") {
-			return fmt.Errorf("only hex commitment is supported")
+			args[2] = "0x" + args[2]
 		}
 		return nil
 	},
@@ -270,8 +273,8 @@ var getProofCmd = &cobra.Command{
 	},
 }
 
-func formatData(ns string) func(interface{}) interface{} {
-	return func(data interface{}) interface{} {
+func formatData(ns string) func(any) any {
+	return func(data any) any {
 		type tempBlob struct {
 			Namespace    string `json:"namespace"`
 			Data         string `json:"data"`

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -188,7 +188,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			log.Debugf("%s: %s at index %d", invalidProofPrefix, errIncorrectShare, index)
 			return errIncorrectShare
 		}
-		shares[index] = shr.Share.ToBytes()
+		shares[index] = shr.ToBytes()
 	}
 
 	codec := share.DefaultRSMT2DCodec()

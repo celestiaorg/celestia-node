@@ -1,10 +1,11 @@
 package shwap
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
@@ -31,8 +32,8 @@ type Sample struct {
 
 // SampleFromShares creates a Sample from a list of shares, using the specified proof type and
 // the share index to be included in the sample.
-func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, axisIdx, shrIdx int) (Sample, error) {
-	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(axisIdx))
+func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, idx SampleCoords) (Sample, error) {
+	tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(shares)/2), uint(idx.Row))
 	for _, shr := range shares {
 		err := tree.Push(shr.ToBytes())
 		if err != nil {
@@ -40,13 +41,13 @@ func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, axisIdx, s
 		}
 	}
 
-	proof, err := tree.ProveRange(shrIdx, shrIdx+1)
+	proof, err := tree.ProveRange(idx.Col, idx.Col+1)
 	if err != nil {
 		return Sample{}, err
 	}
 
 	return Sample{
-		Share:     shares[shrIdx],
+		Share:     shares[idx.Col],
 		Proof:     &proof,
 		ProofType: proofType,
 	}, nil
@@ -76,7 +77,7 @@ func SampleFromProto(s *pb.Sample) (Sample, error) {
 // ToProto converts a Sample into its protobuf representation for serialization purposes.
 func (s Sample) ToProto() *pb.Sample {
 	return &pb.Sample{
-		Share: &pb.Share{Data: s.Share.ToBytes()},
+		Share: &pb.Share{Data: s.ToBytes()},
 		Proof: &nmt_pb.Proof{
 			Start:                 int64(s.Proof.Start()),
 			End:                   int64(s.Proof.End()),
@@ -86,6 +87,28 @@ func (s Sample) ToProto() *pb.Sample {
 		},
 		ProofType: pb.AxisType(s.ProofType),
 	}
+}
+
+// MarshalJSON encodes sample to the json encoded bytes.
+func (s Sample) MarshalJSON() ([]byte, error) {
+	pbSample := s.ToProto()
+	return json.Marshal(*pbSample)
+}
+
+// UnmarshalJSON decodes bytes to the Sample.
+func (s *Sample) UnmarshalJSON(data []byte) error {
+	var ss pb.Sample
+	err := json.Unmarshal(data, &ss)
+	if err != nil {
+		return err
+	}
+
+	sample, err := SampleFromProto(&ss)
+	if err != nil {
+		return err
+	}
+	*s = sample
+	return nil
 }
 
 // IsEmpty reports whether the Sample is empty, i.e. doesn't contain a proof.
@@ -116,7 +139,7 @@ func (s Sample) verifyInclusion(roots *share.AxisRoots, rowIdx, colIdx int) bool
 	return s.Proof.VerifyInclusion(
 		share.NewSHA256Hasher(),
 		namespace.Bytes(),
-		[][]byte{s.Share.ToBytes()},
+		[][]byte{s.ToBytes()},
 		rootHash,
 	)
 }

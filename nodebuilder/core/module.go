@@ -24,7 +24,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
+		fx.Supply(cfg.EndpointConfig),
 		fx.Error(cfgErr),
+		fx.Provide(grpcClient),
+		fx.Provide(additionalCoreEndpointGrpcClients),
 		fx.Options(options...),
 	)
 
@@ -72,15 +75,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				}),
 				fx.OnStop(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Stop(ctx)
-				}),
-			)),
-			fx.Provide(fx.Annotate(
-				remote,
-				fx.OnStart(func(_ context.Context, client core.Client) error {
-					return client.Start()
-				}),
-				fx.OnStop(func(_ context.Context, client core.Client) error {
-					return client.Stop()
 				}),
 			)),
 		)
