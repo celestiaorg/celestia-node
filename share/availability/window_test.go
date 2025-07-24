@@ -11,5 +11,5 @@ import (
 // are deliberate.
 func TestConsts(t *testing.T) {
 	assert.Equal(t, RequestWindow, 7*24*time.Hour)
-	assert.Equal(t, StorageWindow, (7*24*time.Hour)+time.Hour)
+	assert.Equal(t, StorageWindow, (30*24*time.Hour)+time.Hour)
 }
