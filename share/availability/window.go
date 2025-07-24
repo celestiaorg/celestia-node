@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	RequestWindow = 7 * 24 * time.Hour
-	// StorageWindow TODO @renaynay: point it back to RequestWindow in following release
+	SamplingWindow = 7 * 24 * time.Hour // Ref: CIP-036
+	RequestWindow  = SamplingWindow
+	// StorageWindow TODO @renaynay: point it back to RequestWindow + 1 hr in following release
 	StorageWindow = (30 * 24 * time.Hour) + time.Hour
 )
 
