@@ -35,9 +35,9 @@ message RowShares {
 }
 
 message RangeNamespaceData {
-    int32 start = 1;
-    repeated RowShares shares = 2;
-    repeated Proof proofs = 3;
+    repeated RowShares shares = 1;
+    proof.pb.Proof firstIncompleteRowProof = 2;
+    proof.pb.Proof lastIncompleteRowProof = 3;
 }
 
 message Share {
@@ -49,14 +49,3 @@ enum AxisType {
     COL = 1;
 }
 
-message RowRootProof {
-    int64 total = 1;
-    int64 index = 2;
-    bytes leafHash = 3;
-    repeated bytes aunts = 4;
-}
-
-message Proof {
-    proof.pb.Proof sharesProof = 1;
-    RowRootProof rowRootProof = 2;
-}
