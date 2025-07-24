@@ -60,13 +60,13 @@ type Node struct {
 	EDSStore *store.Store `optional:"true"`
 
 	// p2p components
-	Host         host.Host
-	ConnGater    *conngater.BasicConnectionGater
-	Routing      routing.PeerRouting
-	DataExchange exchange.SessionExchange
-	BlockService blockservice.BlockService
+	Host         host.Host                        `optional:"true"`
+	ConnGater    *conngater.BasicConnectionGater `optional:"true"`
+	Routing      routing.PeerRouting             `optional:"true"`
+	DataExchange exchange.SessionExchange        `optional:"true"`
+	BlockService blockservice.BlockService       `optional:"true"`
 	// p2p protocols
-	PubSub *pubsub.PubSub
+	PubSub *pubsub.PubSub `optional:"true"`
 	// services
 	ShareServ     share.Module  // not optional
 	HeaderServ    header.Module // not optional
@@ -122,16 +122,18 @@ func (n *Node) Start(ctx context.Context) error {
 		strings.ToLower(n.Type.String()),
 		n.Network)
 
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
-	if err != nil {
-		log.Errorw("Retrieving multiaddress information", "err", err)
-		return err
+	if n.Host != nil {
+		addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(n.Host))
+		if err != nil {
+			log.Errorw("Retrieving multiaddress information", "err", err)
+			return err
+		}
+		fmt.Println("The p2p host is listening on:")
+		for _, addr := range addrs {
+			fmt.Println("* ", addr.String())
+		}
+		fmt.Println()
 	}
-	fmt.Println("The p2p host is listening on:")
-	for _, addr := range addrs {
-		fmt.Println("* ", addr.String())
-	}
-	fmt.Println()
 	return nil
 }
 
