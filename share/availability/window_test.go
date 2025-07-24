@@ -10,6 +10,6 @@ import (
 // TestConsts exists to ensure that any changes to the sampling windows
 // are deliberate.
 func TestConsts(t *testing.T) {
-	assert.Equal(t, RequestWindow, 30*24*time.Hour)
-	assert.Equal(t, StorageWindow, (30*24*time.Hour)+time.Hour)
+	assert.Equal(t, RequestWindow, 7*24*time.Hour)
+	assert.Equal(t, StorageWindow, (7*24*time.Hour)+time.Hour)
 }
