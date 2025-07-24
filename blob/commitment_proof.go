@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-  tmjson "github.com/cometbft/cometbft/libs/json"
+	tmjson "github.com/cometbft/cometbft/libs/json"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
