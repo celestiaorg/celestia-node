@@ -11,12 +11,12 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner"
-	lightprune "github.com/celestiaorg/celestia-node/pruner/light"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
@@ -39,7 +39,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
 		bitswapComponents(tp, cfg),
-		peerComponents(tp, cfg),
+		peerManagementComponents(tp, cfg),
 	)
 
 	switch tp {
@@ -70,14 +70,26 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 	case node.Light:
 		return fx.Options(
 			opts,
-			fx.Provide(blockstoreFromDatastore),
+			fx.Provide(
+				fx.Annotate(
+					blockstoreFromDatastore,
+					fx.As(fx.Self()),
+					fx.As(new(blockstore.Blockstore)),
+				),
+			),
 		)
 	case node.Full, node.Bridge:
 		return fx.Options(
 			opts,
-			fx.Provide(func(store *store.Store) (blockstore.Blockstore, error) {
-				return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
-			}),
+			fx.Provide(
+				fx.Annotate(
+					func(store *store.Store) (*bitswap.BlockstoreWithMetrics, error) {
+						return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
+					},
+					fx.As(fx.Self()),
+					fx.As(new(blockstore.Blockstore)),
+				),
+			),
 		)
 	default:
 		panic("invalid node type")
@@ -118,7 +130,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 					ndClient,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
-					lightprune.Window,
+					availability.RequestWindow,
 				)
 			},
 			fx.OnStart(func(ctx context.Context, getter *shrex_getter.Getter) error {
@@ -233,7 +245,6 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				},
 				fx.As(fx.Self()),
 				fx.As(new(share.Availability)),
-				fx.As(new(pruner.Pruner)), // TODO(@walldiss): remove conversion after Availability and Pruner interfaces are merged
 				fx.OnStop(func(ctx context.Context, la *light.ShareAvailability) error {
 					return la.Close(ctx)
 				}),
@@ -241,7 +252,13 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 		)
 	case node.Bridge, node.Full:
 		return fx.Options(
-			fx.Provide(full.NewShareAvailability),
+			fx.Provide(func(
+				s *store.Store,
+				getter shwap.Getter,
+				opts []full.Option,
+			) *full.ShareAvailability {
+				return full.NewShareAvailability(s, getter, opts...)
+			}),
 			fx.Provide(func(avail *full.ShareAvailability) share.Availability {
 				return avail
 			}),

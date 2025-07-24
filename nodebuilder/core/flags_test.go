@@ -20,9 +20,10 @@ func TestParseFlags(t *testing.T) {
 			args:     []string{},
 			inputCfg: Config{},
 			expectedCfg: Config{
-				IP:       "",
-				RPCPort:  "",
-				GRPCPort: "",
+				EndpointConfig: EndpointConfig{
+					IP:   "",
+					Port: "",
+				},
 			},
 			expectError: false,
 		},
@@ -30,13 +31,15 @@ func TestParseFlags(t *testing.T) {
 			name: "only core.ip",
 			args: []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					Port: DefaultPort,
+				},
 			},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
 			},
 			expectError: false,
 		},
@@ -45,9 +48,10 @@ func TestParseFlags(t *testing.T) {
 			args:     []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
 			},
 			expectError: true,
 		},
@@ -55,14 +59,16 @@ func TestParseFlags(t *testing.T) {
 			name: "no flags, values from input config.toml ",
 			args: []string{},
 			inputCfg: Config{
-				IP:       "127.162.36.1",
-				RPCPort:  "1234",
-				GRPCPort: "5678",
+				EndpointConfig: EndpointConfig{
+					IP:   "127.162.36.1",
+					Port: "5678",
+				},
 			},
 			expectedCfg: Config{
-				IP:       "127.162.36.1",
-				RPCPort:  "1234",
-				GRPCPort: "5678",
+				EndpointConfig: EndpointConfig{
+					IP:   "127.162.36.1",
+					Port: "5678",
+				},
 			},
 			expectError: false,
 		},
@@ -70,63 +76,37 @@ func TestParseFlags(t *testing.T) {
 			name: "only core.ip, with config.toml overridden defaults for ports",
 			args: []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{
-				RPCPort:  "1234",
-				GRPCPort: "5678",
+				EndpointConfig: EndpointConfig{
+					Port: "5678",
+				},
 			},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  "1234",
-				GRPCPort: "5678",
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: "5678",
+				},
 			},
 			expectError: false,
 		},
 		{
-			name: "core.ip and core.rpc.port",
-			args: []string{"--core.ip=127.0.0.1", "--core.rpc.port=12345"},
+			name: "core.ip and core.port",
+			args: []string{"--core.ip=127.0.0.1", "--core.port=54321"},
 			inputCfg: Config{
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					Port: DefaultPort,
+				},
 			},
 			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  "12345",
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: "54321",
+				},
 			},
 			expectError: false,
 		},
 		{
-			name: "core.ip and core.grpc.port",
-			args: []string{"--core.ip=127.0.0.1", "--core.grpc.port=54321"},
-			inputCfg: Config{
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
-			},
-			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: "54321",
-			},
-			expectError: false,
-		},
-		{
-			name: "core.ip, core.rpc.port, and core.grpc.port",
-			args: []string{"--core.ip=127.0.0.1", "--core.rpc.port=12345", "--core.grpc.port=54321"},
-			expectedCfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  "12345",
-				GRPCPort: "54321",
-			},
-			expectError: false,
-		},
-		{
-			name:        "core.rpc.port without core.ip",
-			args:        []string{"--core.rpc.port=12345"},
-			expectedCfg: Config{},
-			expectError: true,
-		},
-		{
-			name:        "core.grpc.port without core.ip",
-			args:        []string{"--core.grpc.port=54321"},
+			name:        "core.port without core.ip",
+			args:        []string{"--core.port=54321"},
 			expectedCfg: Config{},
 			expectError: true,
 		},

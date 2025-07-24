@@ -8,26 +8,40 @@ import (
 )
 
 const (
-	DefaultRPCPort  = "26657"
-	DefaultGRPCPort = "9090"
+	DefaultPort = "9090"
 )
 
 var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
-	IP       string
-	RPCPort  string
-	GRPCPort string
+	EndpointConfig
+	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints to be used for
+	// transaction submission. Must be provided as `host:port` pairs.
+	AdditionalCoreEndpoints []EndpointConfig
+}
+
+type EndpointConfig struct {
+	IP   string
+	Port string
+	// TLSEnabled specifies whether the connection is secure or not.
+	// PLEASE NOTE: it should be set to true in order to handle XTokenPath.
+	TLSEnabled bool
+	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
+	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
+	// If left empty, the client will not include the X-Token in its requests.
+	XTokenPath string
 }
 
 // DefaultConfig returns default configuration for managing the
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		IP:       "",
-		RPCPort:  DefaultRPCPort,
-		GRPCPort: DefaultGRPCPort,
+		EndpointConfig: EndpointConfig{
+			IP:   "",
+			Port: DefaultPort,
+		},
+		AdditionalCoreEndpoints: make([]EndpointConfig, 0),
 	}
 }
 
@@ -37,10 +51,21 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
-	if cfg.RPCPort == "" {
-		return fmt.Errorf("nodebuilder/core: rpc port is not set")
+	if err := cfg.validate(); err != nil {
+		return err
 	}
-	if cfg.GRPCPort == "" {
+
+	for _, additionalCfg := range cfg.AdditionalCoreEndpoints {
+		if err := additionalCfg.validate(); err != nil {
+			return fmt.Errorf("nodebuilder/core: invalid additional core endpoint configuration: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *EndpointConfig) validate() error {
+	if cfg.Port == "" {
 		return fmt.Errorf("nodebuilder/core: grpc port is not set")
 	}
 
@@ -49,14 +74,11 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 	cfg.IP = ip
-	_, err = strconv.Atoi(cfg.RPCPort)
-	if err != nil {
-		return fmt.Errorf("nodebuilder/core: invalid rpc port: %s", err.Error())
-	}
-	_, err = strconv.Atoi(cfg.GRPCPort)
+	_, err = strconv.Atoi(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
+
 	return nil
 }
 

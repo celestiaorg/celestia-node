@@ -81,7 +81,7 @@ func ParseCommentsFromNodebuilderModules(moduleNames ...string) (Comments, Comme
 
 		module := reflect.TypeOf(client.Modules[moduleName]).Elem()
 		var meth reflect.StructField
-		for i := 0; i < module.NumField(); i++ {
+		for i := range module.NumField() {
 			meth = module.Field(i)
 			perms := meth.Tag.Get("perm")
 			permComments[meth.Name] = perms
@@ -185,7 +185,7 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 	}
 
 	appReflector.FnSchemaExamples = func(ty reflect.Type) (examples *meta_schema.Examples, err error) {
-		v, err := ExampleValue(ty, ty) // This isn't ideal, but seems to work well enough.
+		v, err := exampleValue(ty, ty) // This isn't ideal, but seems to work well enough.
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -214,7 +214,7 @@ func OpenRPCSchemaTypeMapper(ty reflect.Type) *jsonschema.Type {
 		ty = ty.Elem()
 	}
 
-	if ty == reflect.TypeOf((*interface{})(nil)).Elem() {
+	if ty == reflect.TypeOf((*any)(nil)).Elem() {
 		return &jsonschema.Type{Type: "object", AdditionalProperties: []byte("true")}
 	}
 

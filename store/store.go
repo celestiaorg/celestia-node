@@ -432,6 +432,15 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 	return exists(pathODS)
 }
 
+func (s *Store) HasQ4ByHash(_ context.Context, datahash share.DataHash) (bool, error) {
+	lock := s.stripLock.byHash(datahash)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	pathQ4File := s.hashToPath(datahash, q4FileExt)
+	return exists(pathQ4File)
+}
+
 func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
 	lock := s.stripLock.byHashAndHeight(datahash, height)
 	lock.lock()

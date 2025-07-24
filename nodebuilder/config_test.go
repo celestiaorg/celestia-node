@@ -54,15 +54,13 @@ func TestUpdateConfig(t *testing.T) {
 	// ensure old custom values were not changed
 	require.Equal(t, "thisshouldnthavechanged", cfg.State.DefaultKeyName)
 	require.Equal(t, "7979", cfg.RPC.Port)
-	require.True(t, cfg.Gateway.Enabled)
 }
 
 // outdatedConfig is an outdated config from a light node
 var outdatedConfig = `
 [Core]
   IP = "0.0.0.0"
-  RPCPort = "0"
-  GRPCPort = "0"
+  Port = "0"
 
 [State]
   DefaultKeyName = "thisshouldnthavechanged"
@@ -87,11 +85,6 @@ var outdatedConfig = `
 [RPC]
   Address = "0.0.0.0"
   Port = "7979"
-
-[Gateway]
-  Address = "0.0.0.0"
-  Port = "26659"
-  Enabled = true
 
 [Share]
   PeersLimit = 5

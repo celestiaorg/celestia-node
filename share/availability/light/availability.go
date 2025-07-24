@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
@@ -36,6 +37,8 @@ type ShareAvailability struct {
 	getter shwap.Getter
 	bs     blockstore.Blockstore
 	params Parameters
+
+	storageWindow time.Duration
 
 	activeHeights *utils.Sessions
 	dsLk          sync.RWMutex
@@ -61,6 +64,7 @@ func NewShareAvailability(
 		getter:        getter,
 		bs:            bs,
 		params:        params,
+		storageWindow: availability.StorageWindow,
 		activeHeights: utils.NewSessions(),
 		ds:            autoDS,
 	}
@@ -74,6 +78,11 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	// short-circuit if the given root is an empty data square
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
 		return nil
+	}
+
+	// short-circuit if outside sampling window
+	if !availability.IsWithinWindow(header.Time(), la.storageWindow) {
+		return availability.ErrOutsideSamplingWindow
 	}
 
 	// Prevent multiple sampling and pruning sessions for the same header height
@@ -103,7 +112,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		}
 		// Verify total samples count.
 		totalSamples := len(samples.Remaining) + len(samples.Available)
-		if totalSamples != int(la.params.SampleAmount) {
+		if (totalSamples != int(la.params.SampleAmount)) && (totalSamples != len(dah.RowRoots)*len(dah.RowRoots)) {
 			return fmt.Errorf("invalid sampling result:"+
 				" expected %d samples, got %d", la.params.SampleAmount, totalSamples)
 		}
@@ -114,13 +123,12 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return nil
 	}
 
-	var (
-		mutex         sync.Mutex
-		failedSamples []Sample
-		wg            sync.WaitGroup
-	)
+	log.Debugw("starting sampling session", "root", dah.String())
 
-	log.Debugw("starting sampling session", "height", header.Height())
+	idxs := make([]shwap.SampleCoords, len(samples.Remaining))
+	for i, s := range samples.Remaining {
+		idxs[i] = shwap.SampleCoords{Row: s.Row, Col: s.Col}
+	}
 
 	// remove one second from the deadline to ensure we have enough time to process the results
 	samplingCtx, cancel := context.WithCancel(ctx)
@@ -129,25 +137,21 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 	defer cancel()
 
-	// Concurrently sample shares
-	for _, s := range samples.Remaining {
-		wg.Add(1)
-		go func(s Sample) {
-			defer wg.Done()
-			_, err := la.getter.GetShare(samplingCtx, header, s.Row, s.Col)
-			mutex.Lock()
-			defer mutex.Unlock()
-			if err != nil {
-				log.Debugw("error fetching share", "height", header.Height(), "row", s.Row, "col", s.Col)
-				failedSamples = append(failedSamples, s)
-			} else {
-				samples.Available = append(samples.Available, s)
-			}
-		}(s)
+	smpls, errGetSamples := la.getter.GetSamples(samplingCtx, header, idxs)
+	if len(smpls) == 0 {
+		return share.ErrNotAvailable
 	}
-	wg.Wait()
 
-	// Update remaining samples with failed ones
+	var failedSamples []shwap.SampleCoords
+
+	for i, smpl := range smpls {
+		if smpl.IsEmpty() {
+			failedSamples = append(failedSamples, shwap.SampleCoords{Row: idxs[i].Row, Col: idxs[i].Col})
+		} else {
+			samples.Available = append(samples.Available, shwap.SampleCoords{Row: idxs[i].Row, Col: idxs[i].Col})
+		}
+	}
+
 	samples.Remaining = failedSamples
 
 	// Store the updated sampling result
@@ -162,16 +166,17 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return fmt.Errorf("store sampling result: %w", err)
 	}
 
-	if errors.Is(ctx.Err(), context.Canceled) {
+	if errors.Is(errGetSamples, context.Canceled) {
 		// Availability did not complete due to context cancellation, return context error instead of
 		// share.ErrNotAvailable
-		return ctx.Err()
+		return context.Canceled
 	}
 
 	// if any of the samples failed, return an error
 	if len(failedSamples) > 0 {
 		return share.ErrNotAvailable
 	}
+
 	return nil
 }
 
@@ -210,7 +215,9 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 
 	// delete stored samples
 	for _, sample := range result.Available {
-		blk, err := bitswap.NewEmptySampleBlock(h.Height(), sample.Row, sample.Col, len(h.DAH.RowRoots))
+		idx := shwap.SampleCoords{Row: sample.Row, Col: sample.Col}
+
+		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
 		if err != nil {
 			return fmt.Errorf("marshal sample ID: %w", err)
 		}
@@ -224,7 +231,9 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	}
 
 	// delete the sampling result
+	la.dsLk.Lock()
 	err = la.ds.Delete(ctx, key)
+	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("delete sampling result: %w", err)
 	}
@@ -237,5 +246,7 @@ func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 
 // Close flushes all queued writes to disk.
 func (la *ShareAvailability) Close(ctx context.Context) error {
+	la.dsLk.Lock()
+	defer la.dsLk.Unlock()
 	return la.ds.Flush(ctx)
 }

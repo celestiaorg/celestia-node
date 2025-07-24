@@ -74,7 +74,7 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error
 
 	// construct half column from row ordered square
 	col := make([]libshare.Share, s.size())
-	for i := 0; i < s.size(); i++ {
+	for i := range s.size() {
 		col[i] = s[i][axisIdx]
 	}
 	return eds.AxisHalf{
@@ -92,7 +92,7 @@ func (s square) computeAxisHalf(
 	// extend opposite half of the square while collecting Shares for the first half of required axis
 	g := errgroup.Group{}
 	opposite := oppositeAxis(axisType)
-	for i := 0; i < s.size(); i++ {
+	for i := range s.size() {
 		g.Go(func() error {
 			half, err := s.axisHalf(opposite, i)
 			if err != nil {

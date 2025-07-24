@@ -129,7 +129,7 @@ func writeAxisRoots(w io.Writer, roots *share.AxisRoots) error {
 
 	for _, root := range roots.ColumnRoots {
 		if _, err := w.Write(root); err != nil {
-			return fmt.Errorf("writing columm roots: %w", err)
+			return fmt.Errorf("writing column roots: %w", err)
 		}
 	}
 
@@ -183,8 +183,8 @@ func OpenODS(path string) (*ODS, error) {
 }
 
 // Size returns EDS size stored in file's header.
-func (o *ODS) Size(context.Context) int {
-	return o.size()
+func (o *ODS) Size(context.Context) (int, error) {
+	return o.size(), nil
 }
 
 func (o *ODS) size() int {
@@ -209,7 +209,7 @@ func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	}
 	rowRoots := make([][]byte, o.size())
 	colRoots := make([][]byte, o.size())
-	for i := 0; i < o.size(); i++ {
+	for i := range o.size() {
 		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
 		colRoots[i] = roots[(o.size()+i)*share.AxisRootSize : (o.size()+i+1)*share.AxisRootSize]
 	}
@@ -228,7 +228,7 @@ func (o *ODS) Close() error {
 // Sample returns share and corresponding proof for row and column indices. Implementation can
 // choose which axis to use for proof. Chosen axis for proof should be indicated in the returned
 // Sample.
-func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	// Sample proof axis is selected to optimize read performance.
 	// - For the first and second quadrants, we read the row axis because it is more efficient to read
 	//   single row than reading full ODS to calculate single column
@@ -236,8 +236,15 @@ func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, err
 	//   column than reading full ODS to calculate single row
 	// - For the fourth quadrant, it does not matter which axis we read because we need to read full ODS
 	//   to calculate the sample
+	rowIdx, colIdx := idx.Row, idx.Col
+
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("getting size: %w", err)
+	}
+
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
-	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
+	if colIdx < size/2 && rowIdx >= size/2 {
 		axisType, axisIdx, shrIdx = rsmt2d.Col, colIdx, rowIdx
 	}
 
@@ -246,7 +253,9 @@ func (o *ODS) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, err
 		return shwap.Sample{}, fmt.Errorf("reading axis: %w", err)
 	}
 
-	return shwap.SampleFromShares(axis, axisType, axisIdx, shrIdx)
+	idxNew := shwap.SampleCoords{Row: axisIdx, Col: shrIdx}
+
+	return shwap.SampleFromShares(axis, axisType, idxNew)
 }
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
@@ -311,6 +320,42 @@ func (o *ODS) Reader() (io.Reader, error) {
 	total := int64(o.hdr.shareSize) * int64(o.size()*o.size()/4)
 	reader := io.NewSectionReader(o.fl, int64(offset), total)
 	return reader, nil
+}
+
+func (o *ODS) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// to is an exclusive index.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	shares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
+		half, err := o.readAxisHalf(rsmt2d.Row, row)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
+		}
+
+		sh, err := half.Extended()
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("extending the data: %w", err)
+		}
+		shares[idx] = sh
+		idx++
+	}
+	return shwap.RangeNamespaceDataFromShares(shares, fromCoords, toCoords)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

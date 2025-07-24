@@ -3,37 +3,42 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libsquare "github.com/celestiaorg/go-square/v2"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/store"
 )
+
+// isEmptyBlockRef returns true if the application considers the given block data
+// empty at a given version.
+func isEmptyBlockRef(data *coretypes.Data) bool {
+	return len(data.Txs) == 0
+}
 
 // extendBlock extends the given block data, returning the resulting
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
-func extendBlock(data types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
-	if app.IsEmptyBlock(data, appVersion) {
+func extendBlock(data *coretypes.Data, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
+	if isEmptyBlockRef(data) {
 		return share.EmptyEDS(), nil
 	}
 
 	// Construct the data square from the block's transactions
 	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appVersion),
-		appconsts.SubtreeRootThreshold(appVersion),
+		appconsts.SquareSizeUpperBound,
+		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
 		return nil, err
@@ -61,16 +66,17 @@ func storeEDS(
 	eh *header.ExtendedHeader,
 	eds *rsmt2d.ExtendedDataSquare,
 	store *store.Store,
-	window pruner.AvailabilityWindow,
+	window time.Duration,
+	archival bool,
 ) error {
-	if !pruner.IsWithinAvailabilityWindow(eh.Time(), window) {
+	if !archival && !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
 		return nil
 	}
 
 	var err error
 	// archival nodes should not store Q4 outside the availability window.
-	if pruner.IsWithinAvailabilityWindow(eh.Time(), full.Window) {
+	if availability.IsWithinWindow(eh.Time(), window) {
 		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
 	} else {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)

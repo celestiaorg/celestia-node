@@ -40,7 +40,7 @@ func TestService(t *testing.T) {
 
 	serv, err := NewService(
 		mp,
-		AvailabilityWindow(time.Millisecond*2),
+		time.Millisecond*2,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
@@ -82,7 +82,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 
 	serv, err := NewService(
 		mp,
-		AvailabilityWindow(time.Millisecond*20),
+		time.Millisecond*20,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		blockTime,
@@ -127,7 +127,7 @@ func TestServiceCheckpointing(t *testing.T) {
 
 	serv, err := NewService(
 		mp,
-		AvailabilityWindow(time.Second),
+		time.Second,
 		store,
 		sync.MutexWrap(datastore.NewMapDatastore()),
 		time.Millisecond,
@@ -164,7 +164,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	t.Cleanup(func() { maxHeadersPerLoop = maxHeadersPerLoopOld })
 
 	blockTime := time.Nanosecond
-	availabilityWindow := AvailabilityWindow(blockTime * 10)
+	availabilityWindow := blockTime * 10
 
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window
@@ -187,7 +187,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensures availability window has passed
-	time.Sleep(availabilityWindow.Duration() + time.Millisecond*100)
+	time.Sleep(availabilityWindow + time.Millisecond*100)
 
 	// trigger a prune job
 	lastPruned, err := serv.lastPruned(ctx)
@@ -202,7 +202,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 func TestFindPruneableHeaders(t *testing.T) {
 	testCases := []struct {
 		name           string
-		availWindow    AvailabilityWindow
+		availWindow    time.Duration
 		blockTime      time.Duration
 		startTime      time.Time
 		headerAmount   int
@@ -211,7 +211,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 		{
 			name: "Estimated range matches expected",
 			// Availability window is one week
-			availWindow: AvailabilityWindow(time.Hour * 24 * 7),
+			availWindow: time.Hour * 24 * 7,
 			blockTime:   time.Hour,
 			// Make two weeks of headers
 			headerAmount: 2 * (24 * 7),
@@ -222,7 +222,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 		{
 			name: "Estimated range not sufficient but finds the correct tail",
 			// Availability window is one week
-			availWindow: AvailabilityWindow(time.Hour * 24 * 7),
+			availWindow: time.Hour * 24 * 7,
 			blockTime:   time.Hour,
 			// Make three weeks of headers
 			headerAmount: 3 * (24 * 7),
@@ -233,7 +233,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 		{
 			name: "No pruneable headers",
 			// Availability window is two weeks
-			availWindow: AvailabilityWindow(2 * time.Hour * 24 * 7),
+			availWindow: 2 * time.Hour * 24 * 7,
 			blockTime:   time.Hour,
 			// Make one week of headers
 			headerAmount: 24 * 7,
@@ -248,8 +248,8 @@ func TestFindPruneableHeaders(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 
-			headerGenerator := NewSpacedHeaderGenerator(t, tc.startTime, tc.blockTime)
-			store := headertest.NewCustomStore(t, headerGenerator, tc.headerAmount)
+			suite := headertest.NewTestSuiteWithGenesisTime(t, tc.startTime, tc.blockTime)
+			store := headertest.NewCustomStore(t, suite, tc.headerAmount)
 
 			mp := &mockPruner{}
 
@@ -272,7 +272,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, pruneable, tc.expectedLength)
 
-			pruneableCutoff := time.Now().Add(-tc.availWindow.Duration())
+			pruneableCutoff := time.Now().Add(-tc.availWindow)
 			// All returned headers are older than the availability window
 			for _, h := range pruneable {
 				require.WithinRange(t, h.Time(), tc.startTime, pruneableCutoff)
@@ -289,6 +289,37 @@ func TestFindPruneableHeaders(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestService_ClearCheckpoint(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	serv, err := NewService(
+		&mockPruner{},
+		time.Second, // doesn't matter
+		headertest.NewStore(t),
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		time.Second, // doesn't matter
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+
+	oldCp := &checkpoint{LastPrunedHeight: 500, FailedHeaders: map[uint64]struct{}{4: {}}}
+	err = storeCheckpoint(ctx, serv.ds, oldCp)
+	require.NoError(t, err)
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, oldCp, serv.checkpoint)
+
+	err = serv.ResetCheckpoint(ctx)
+	require.NoError(t, err)
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	assert.Equal(t, newCheckpoint(), serv.checkpoint)
 }
 
 type mockPruner struct {
@@ -316,33 +347,4 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
-}
-
-// TODO @renaynay @distractedm1nd: Deduplicate via headertest utility.
-// https://github.com/celestiaorg/celestia-node/issues/3278.
-type SpacedHeaderGenerator struct {
-	t                  *testing.T
-	TimeBetweenHeaders time.Duration
-	currentTime        time.Time
-	currentHeight      int64
-}
-
-func NewSpacedHeaderGenerator(
-	t *testing.T, startTime time.Time, timeBetweenHeaders time.Duration,
-) *SpacedHeaderGenerator {
-	return &SpacedHeaderGenerator{
-		t:                  t,
-		TimeBetweenHeaders: timeBetweenHeaders,
-		currentTime:        startTime,
-		currentHeight:      1,
-	}
-}
-
-func (shg *SpacedHeaderGenerator) NextHeader() *header.ExtendedHeader {
-	h := headertest.RandExtendedHeaderAtTimestamp(shg.t, shg.currentTime)
-	h.RawHeader.Height = shg.currentHeight
-	h.RawHeader.Time = shg.currentTime
-	shg.currentHeight++
-	shg.currentTime = shg.currentTime.Add(shg.TimeBetweenHeaders)
-	return h
 }

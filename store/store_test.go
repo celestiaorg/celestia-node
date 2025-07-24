@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -267,6 +268,33 @@ func TestEDSStore(t *testing.T) {
 			require.Equal(t, expected, libshare.ToBytes(fromFile))
 		})
 	}
+
+	t.Run("HasQ4", func(t *testing.T) {
+		dir := t.TempDir()
+		edsStore, err := NewStore(paramsNoCache(), dir)
+		require.NoError(t, err)
+
+		square, roots := randomEDS(t)
+		randHeight := uint64(8)
+
+		has, err := edsStore.HasQ4ByHash(ctx, roots.Hash())
+		require.NoError(t, err)
+		assert.False(t, has)
+
+		err = edsStore.PutODSQ4(ctx, roots, randHeight, square)
+		require.NoError(t, err)
+
+		has, err = edsStore.HasQ4ByHash(ctx, roots.Hash())
+		require.NoError(t, err)
+		assert.True(t, has)
+
+		err = edsStore.RemoveQ4(ctx, randHeight, roots.Hash())
+		require.NoError(t, err)
+
+		has, err = edsStore.HasQ4ByHash(ctx, roots.Hash())
+		require.NoError(t, err)
+		assert.False(t, has)
+	})
 
 	t.Run("Does not exist", func(t *testing.T) {
 		dir := t.TempDir()
