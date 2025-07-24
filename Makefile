@@ -168,7 +168,7 @@ test-blob:
 ## test-share: Run share module tests via Tastora framework.
 test-share:
 	@echo "Running share module tests..."
-	@cd nodebuilder/tests/tastora && go test -v -run="TestShareTestSuite" -timeout=15m
+	@cd nodebuilder/tests/tastora && go test -v -tags=integration -run="TestShareTestSuite" -timeout=15m
 
 ## test-header: Run header module tests via Tastora framework.
 test-header:
