@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/tendermint/tendermint/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -156,10 +156,6 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 					"hash", b.Header.Hash().String(),
 					"err", err)
 			}
-
-			if !timeout.Stop() {
-				<-timeout.C
-			}
 		case <-timeout.C:
 			cl.metrics.subscriptionStuck(ctx)
 			log.Error("underlying subscription is stuck")
@@ -177,7 +173,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		attribute.Int64("height", b.Header.Height),
 	)
 
-	eds, err := extendBlock(&b.Data, b.Header.Version.App)
+	eds, err := extendBlock(&b.Data)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}

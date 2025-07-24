@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -21,8 +21,8 @@ type Rsmt2D struct {
 }
 
 // Size returns the size of the Extended Data Square.
-func (eds *Rsmt2D) Size(context.Context) int {
-	return int(eds.Width())
+func (eds *Rsmt2D) Size(context.Context) (int, error) {
+	return int(eds.Width()), nil
 }
 
 // DataHash returns data hash of the Accessor.
@@ -116,10 +116,45 @@ func (eds *Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
 }
 
+// RangeNamespaceData builds a namespace range from the given indexes.
+func (eds *Rsmt2D) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	size, err := eds.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	// get coords based on the odsSize
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// `to` is an exclusive index. Getting inclusive coordinates of the last share.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	rawShares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
+		rawShare := eds.Row(uint(row))
+		sh, err := libshare.FromBytes(rawShare)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		rawShares[idx] = sh
+		idx++
+	}
+	return shwap.RangeNamespaceDataFromShares(rawShares, fromCoords, toCoords)
+}
+
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
 func (eds *Rsmt2D) Shares(_ context.Context) ([]libshare.Share, error) {
-	return libshare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
+	return libshare.FromBytes(eds.FlattenedODS())
 }
 
 func (eds *Rsmt2D) Close() error {

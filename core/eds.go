@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	libsquare "github.com/celestiaorg/go-square/v2"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -21,19 +20,25 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
+// isEmptyBlockRef returns true if the application considers the given block data
+// empty at a given version.
+func isEmptyBlockRef(data *coretypes.Data) bool {
+	return len(data.Txs) == 0
+}
+
 // extendBlock extends the given block data, returning the resulting
 // ExtendedDataSquare (EDS). If there are no transactions in the block,
 // nil is returned in place of the eds.
-func extendBlock(data *types.Data, appVersion uint64, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
-	if app.IsEmptyBlockRef(data, appVersion) {
+func extendBlock(data *coretypes.Data, options ...nmt.Option) (*rsmt2d.ExtendedDataSquare, error) {
+	if isEmptyBlockRef(data) {
 		return share.EmptyEDS(), nil
 	}
 
 	// Construct the data square from the block's transactions
 	square, err := libsquare.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appVersion),
-		appconsts.SubtreeRootThreshold(appVersion),
+		appconsts.SquareSizeUpperBound,
+		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
 		return nil, err
@@ -71,7 +76,7 @@ func storeEDS(
 
 	var err error
 	// archival nodes should not store Q4 outside the availability window.
-	if availability.IsWithinWindow(eh.Time(), availability.StorageWindow) {
+	if availability.IsWithinWindow(eh.Time(), window) {
 		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
 	} else {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)

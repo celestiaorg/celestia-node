@@ -4,13 +4,12 @@ package core
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
 
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
@@ -19,11 +18,13 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	node := StartTestNode(t)
-	host, port, err := net.SplitHostPort(node.GRPCClient.Target())
-	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	network := NewNetwork(t, DefaultTestConfig())
+	require.NoError(t, network.Start())
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
+
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
 	require.NoError(t, err)
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)

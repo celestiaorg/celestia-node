@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 	"github.com/cristalhq/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -66,7 +66,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	var (
 		rpcClient *client.Client
 	)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		time.Sleep(time.Second * 1)
 		rpcClient, err = client.NewClient(ctx, "http://"+url, string(adminToken))
 		if err == nil {
@@ -78,7 +78,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedBalance := &state.Balance{
-		Amount: sdk.NewInt(100),
+		Amount: math.NewInt(100),
 		Denom:  "utia",
 	}
 
@@ -110,7 +110,7 @@ func TestRPCCallsTokenExpired(t *testing.T) {
 
 	// we need to run this a few times to prevent the race where the server is not yet started
 	var rpcClient *client.Client
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		time.Sleep(time.Second * 1)
 		rpcClient, err = client.NewClient(ctx, "http://"+url, string(adminToken))
 		if err == nil {
@@ -143,7 +143,7 @@ type api struct {
 func TestModulesImplementFullAPI(t *testing.T) {
 	api := reflect.TypeOf(new(api)).Elem()
 	client := reflect.TypeOf(new(client.Client)).Elem()
-	for i := 0; i < client.NumField(); i++ {
+	for i := range client.NumField() {
 		module := client.Field(i)
 		switch module.Name {
 		case "closer":
@@ -152,7 +152,7 @@ func TestModulesImplementFullAPI(t *testing.T) {
 		default:
 			internal, ok := module.Type.FieldByName("Internal")
 			require.True(t, ok, "module %s's API does not have an Internal field", module.Name)
-			for j := 0; j < internal.Type.NumField(); j++ {
+			for j := range internal.Type.NumField() {
 				impl := internal.Type.Field(j)
 				field, _ := api.FieldByName(module.Name)
 				method, _ := field.Type.MethodByName(impl.Name)
@@ -203,7 +203,7 @@ func TestAuthedRPC(t *testing.T) {
 			// we need to run this a few times to prevent the race where the server is not yet started
 			var rpcClient *client.Client
 			require.NoError(t, err)
-			for i := 0; i < 3; i++ {
+			for range 3 {
 				time.Sleep(time.Second * 1)
 				rpcClient, err = client.NewClient(ctx, "http://"+url, tt.token)
 				if err == nil {
@@ -271,17 +271,17 @@ func TestAuthedRPC(t *testing.T) {
 
 func TestAllReturnValuesAreMarshalable(t *testing.T) {
 	ra := reflect.TypeOf(new(api)).Elem()
-	for i := 0; i < ra.NumMethod(); i++ {
+	for i := range ra.NumMethod() {
 		m := ra.Method(i)
-		for j := 0; j < m.Type.NumOut(); j++ {
+		for j := range m.Type.NumOut() {
 			implementsMarshaler(t, m.Type.Out(j))
 		}
 	}
 	// NOTE: see comment above api interface definition.
 	na := reflect.TypeOf(new(node.Module)).Elem()
-	for i := 0; i < na.NumMethod(); i++ {
+	for i := range na.NumMethod() {
 		m := na.Method(i)
-		for j := 0; j < m.Type.NumOut(); j++ {
+		for j := range m.Type.NumOut() {
 			implementsMarshaler(t, m.Type.Out(j))
 		}
 	}
@@ -303,7 +303,7 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 		}
 		// struct doesn't implement the interface itself, check all individual fields
 		reflect.New(typ).Pointer()
-		for i := 0; i < typ.NumField(); i++ {
+		for i := range typ.NumField() {
 			implementsMarshaler(t, typ.Field(i).Type)
 		}
 		return
@@ -319,7 +319,7 @@ func implementsMarshaler(t *testing.T, typ reflect.Type) {
 	case reflect.Chan:
 		implementsMarshaler(t, typ.Elem())
 	case reflect.Interface:
-		if typ != reflect.TypeOf(new(interface{})).Elem() && typ != reflect.TypeOf(new(error)).Elem() {
+		if typ != reflect.TypeOf(new(any)).Elem() && typ != reflect.TypeOf(new(error)).Elem() {
 			require.True(
 				t,
 				typ.Implements(reflect.TypeOf(new(json.Marshaler)).Elem()),
