@@ -46,11 +46,12 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	bridge := sw.NewBridgeNode()
 	err := bridge.Start(ctx)
 	require.NoError(t, err)
+	sw.SetBootstrapper(t, bridge)
 	bridgeClient := getAdminClient(ctx, bridge, t)
 
 	// TODO: This is required to avoid flakes coming from unfinished retry
@@ -58,9 +59,8 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	_, err = bridgeClient.Header.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
-	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg := sw.DefaultTestConfig(node.Full)
 	cfg.Share.UseShareExchange = false
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, getMultiAddr(t, bridge.Host))
 	full := sw.NewNodeWithConfig(node.Full, cfg)
 	err = full.Start(ctx)
 	require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
 	bridge := sw.NewBridgeNode()
@@ -123,9 +123,8 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	subs := make([]event.Subscription, lnodes)
 	errg, errCtx := errgroup.WithContext(ctx)
 	for i := 0; i < lnodes/2; i++ {
-		i := i
 		errg.Go(func() error {
-			lnConfig := nodebuilder.DefaultConfig(node.Light)
+			lnConfig := sw.DefaultTestConfig(node.Light)
 			setTimeInterval(lnConfig, defaultTimeInterval)
 			light := sw.NewNodeWithConfig(node.Light, lnConfig)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
@@ -137,7 +136,7 @@ func TestFullReconstructFromFulls(t *testing.T) {
 			return light.Start(errCtx)
 		})
 		errg.Go(func() error {
-			lnConfig := nodebuilder.DefaultConfig(node.Light)
+			lnConfig := sw.DefaultTestConfig(node.Light)
 			setTimeInterval(lnConfig, defaultTimeInterval)
 			light := sw.NewNodeWithConfig(node.Light, lnConfig)
 			sub, err := light.Host.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
@@ -276,7 +275,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
 	cfg := nodebuilder.DefaultConfig(node.Full)
@@ -314,7 +313,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 	subs := make([]event.Subscription, lnodes)
 	errg, errCtx := errgroup.WithContext(ctx)
 	for i := 0; i < lnodes; i++ {
-		i := i
 		errg.Go(func() error {
 			lnConfig := nodebuilder.DefaultConfig(node.Light)
 			setTimeInterval(lnConfig, defaultTimeInterval)
@@ -345,7 +343,6 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}
 	errg, bctx := errgroup.WithContext(ctx)
 	for i := 1; i <= blocks+1; i++ {
-		i := i
 		errg.Go(func() error {
 			h, err := fullClient.Header.WaitForHeight(bctx, uint64(i))
 			if err != nil {
@@ -357,10 +354,4 @@ func TestFullReconstructFromLights(t *testing.T) {
 	}
 	require.NoError(t, <-fillDn)
 	require.NoError(t, errg.Wait())
-}
-
-func getMultiAddr(t *testing.T, h host.Host) string {
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(h))
-	require.NoError(t, err)
-	return addrs[0].String()
 }

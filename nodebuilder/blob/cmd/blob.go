@@ -277,8 +277,8 @@ var getProofCmd = &cobra.Command{
 	},
 }
 
-func formatData(ns string) func(interface{}) interface{} {
-	return func(data interface{}) interface{} {
+func formatData(ns string) func(any) any {
+	return func(data any) any {
 		type tempBlob struct {
 			Namespace    string `json:"namespace"`
 			Data         string `json:"data"`

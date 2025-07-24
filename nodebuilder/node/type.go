@@ -1,6 +1,7 @@
 package node
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -67,5 +68,5 @@ var orderedTypes = []Type{Bridge, Full, Light}
 
 // GetTypes returns a list of all known types in order of priority.
 func GetTypes() []Type {
-	return append([]Type(nil), orderedTypes...)
+	return slices.Clone(orderedTypes)
 }

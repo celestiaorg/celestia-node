@@ -1,82 +1,98 @@
+version: "2"
 run:
   timeout: 5m
-
 linters:
   enable:
+    - asciicheck
     - bidichk
     - bodyclose
-     # - depguard as of v1.54.2, the default config throws errors on our repo
+    - copyloopvar
     - dogsled
     - dupl
-    - errcheck
+    - dupword
     - errorlint
-    # - funlen
-    # - gochecknoglobals
-    # - gochecknoinits
-    - copyloopvar
     - gocheckcompilerdirectives
     - goconst
     - gocritic
-    # - gocyclo
-    # - godox
-    - gofmt
-    - gofumpt
-    - goimports
-    # - golint - deprecated since v1.41. revive will be used instead
-    - revive
     - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    # - interfacer
     - lll
     - loggercheck
     - misspell
-    # - maligned
     - nakedret
     - nilerr
     - nilnil
     - nolintlint
     - prealloc
     - protogetter
-    # - scopelint - deprecated since v1.39. exportloopref will be used instead
+    - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
-    # - unparam
-    - unused
-    # - whitespace
-    # - wsl
-    # - gocognit
     - wastedassign
     - whitespace
-    - nolintlint
-    - asciicheck
-    - dupword
-
+  settings:
+    dogsled:
+      max-blank-identifiers: 3
+    dupl:
+      threshold: 200
+    gosec:
+      excludes:
+        - G115
+    misspell:
+      locale: US
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - gosec
+          - revive
+        path: _test\.go
+      - linters:
+          - revive
+        path: libs/utils
+      - linters:
+          - lll
+        source: https://
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
+        path: "libs/utils"
+      - linters:
+          - revive
+        text: "var-naming: don't use an underscore in package name"
+        path: "share/shwap/p2p/shrex/shrex_getter"
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec
-        - revive
-    - linters:
-        - lll
-      source: "https://"
   max-same-issues: 50
-
-linters-settings:
-  gosec:
-    excludes:
-      - G115 # integer overflow conversion
-  dogsled:
-    max-blank-identifiers: 3
-  misspell:
-    locale: US
-  goimports:
-    local-prefixes: github.com/celestiaorg/celestia-node
-  dupl:
-    threshold: 200
-  gofumpt:
-    extra-rules: true
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+  settings:
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/celestiaorg/celestia-node
+    golines:
+      # Target maximum line length.
+      # Default: 100
+      max-len: 200
+      # Shorten single-line comments.
+      # Default: false
+      shorten-comments: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

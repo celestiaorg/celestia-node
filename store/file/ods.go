@@ -183,8 +183,8 @@ func OpenODS(path string) (*ODS, error) {
 }
 
 // Size returns EDS size stored in file's header.
-func (o *ODS) Size(context.Context) int {
-	return o.size()
+func (o *ODS) Size(context.Context) (int, error) {
+	return o.size(), nil
 }
 
 func (o *ODS) size() int {
@@ -209,7 +209,7 @@ func (o *ODS) AxisRoots(context.Context) (*share.AxisRoots, error) {
 	}
 	rowRoots := make([][]byte, o.size())
 	colRoots := make([][]byte, o.size())
-	for i := 0; i < o.size(); i++ {
+	for i := range o.size() {
 		rowRoots[i] = roots[i*share.AxisRootSize : (i+1)*share.AxisRootSize]
 		colRoots[i] = roots[(o.size()+i)*share.AxisRootSize : (o.size()+i+1)*share.AxisRootSize]
 	}
@@ -238,8 +238,13 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 	//   to calculate the sample
 	rowIdx, colIdx := idx.Row, idx.Col
 
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("getting size: %w", err)
+	}
+
 	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
-	if colIdx < o.size()/2 && rowIdx >= o.size()/2 {
+	if colIdx < size/2 && rowIdx >= size/2 {
 		axisType, axisIdx, shrIdx = rsmt2d.Col, colIdx, rowIdx
 	}
 
@@ -315,6 +320,42 @@ func (o *ODS) Reader() (io.Reader, error) {
 	total := int64(o.hdr.shareSize) * int64(o.size()*o.size()/4)
 	reader := io.NewSectionReader(o.fl, int64(offset), total)
 	return reader, nil
+}
+
+func (o *ODS) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// to is an exclusive index.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	shares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
+		half, err := o.readAxisHalf(rsmt2d.Row, row)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
+		}
+
+		sh, err := half.Extended()
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("extending the data: %w", err)
+		}
+		shares[idx] = sh
+		idx++
+	}
+	return shwap.RangeNamespaceDataFromShares(shares, fromCoords, toCoords)
 }
 
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {

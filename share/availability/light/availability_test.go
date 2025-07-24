@@ -239,7 +239,7 @@ func TestParallelAvailability(t *testing.T) {
 	var wg sync.WaitGroup
 	const iters = 100
 	wg.Add(iters)
-	for i := 0; i < iters; i++ {
+	for range iters {
 		go func() {
 			defer wg.Done()
 			err := avail.SharesAvailable(ctx, eh)
@@ -318,6 +318,14 @@ func (g successGetter) GetNamespaceData(
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
 ) (shwap.NamespaceData, error) {
+	panic("not implemented")
+}
+
+func (g successGetter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
 	panic("not implemented")
 }
 
@@ -470,7 +478,7 @@ func (hse *halfSessionExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (
 			continue
 		}
 
-		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		blk, err := hse.GetBlock(ctx, cid)
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +506,7 @@ func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-ch
 	defer close(out)
 
 	for _, cid := range cids {
-		blk, err := hse.SessionExchange.GetBlock(ctx, cid)
+		blk, err := hse.GetBlock(ctx, cid)
 		if err != nil {
 			break
 		}

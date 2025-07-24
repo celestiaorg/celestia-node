@@ -12,8 +12,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 )
 
 var encodingConfig = encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -25,11 +25,11 @@ var initClientCtx = client.Context{}.
 	WithLegacyAmino(encodingConfig.Amino).
 	WithInput(os.Stdin).
 	WithAccountRetriever(types.AccountRetriever{}).
-	WithBroadcastMode(flags.BroadcastBlock).
-	WithHomeDir(app.DefaultNodeHome).
+	WithBroadcastMode(flags.BroadcastSync).
+	WithHomeDir(app.NodeHome).
 	WithViper("CELESTIA")
 
-var rootCmd = keys.Commands("~")
+var rootCmd = keys.Commands()
 
 func init() {
 	rootCmd.PersistentFlags().AddFlagSet(DirectoryFlags())

@@ -3,14 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
-	"net"
 	"testing"
 
+	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -21,10 +20,13 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
-	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	network := NewNetwork(t, DefaultTestConfig())
+	require.NoError(t, network.Start())
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
+
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
 	require.NoError(t, err)
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
@@ -37,7 +39,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, height)
 	require.NoError(t, err)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := extendBlock(b.Data)
 	require.NoError(t, err)
 
 	headerExt, err := header.MakeExtendedHeader(b.Header, comm, val, eds)
@@ -57,9 +59,9 @@ func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 
 func TestBadAppVersion(t *testing.T) {
 	header := headertest.RandExtendedHeader(t)
-	header.RawHeader.Version.App = appconsts.LatestVersion + 1
+	header.Version.App = appconsts.LatestVersion + 1
 
 	err := header.Validate()
 	assert.Contains(t, err.Error(), fmt.Sprintf("has version %d, this node supports up to version %d. Please "+
-		"upgrade to support new version", header.RawHeader.Version.App, appconsts.LatestVersion))
+		"upgrade to support new version", header.Version.App, appconsts.LatestVersion))
 }
