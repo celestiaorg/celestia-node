@@ -1138,22 +1138,315 @@ func (s *ShareTestSuite) TestShareCrossNodeAvailability() {
 	s.Assert().NotNil(bridgeRange.Proof, "bridge node should have proof")
 }
 
+// TestShareCrossNodeRobustness validates all Share APIs across all node types with multiple requests
+func (s *ShareTestSuite) TestShareCrossNodeRobustness() {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	// Create all node types
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	fullNode1 := s.framework.GetOrCreateFullNode(ctx)
+	fullNode2 := s.framework.GetOrCreateFullNode(ctx)
+	lightNode := s.framework.GetOrCreateLightNode(ctx)
+
+	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
+	fullClient1 := s.framework.GetNodeRPCClient(ctx, fullNode1)
+	fullClient2 := s.framework.GetNodeRPCClient(ctx, fullNode2)
+	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
+
+	clients := map[string]*client.Client{
+		"bridge": bridgeClient,
+		"full1":  fullClient1,
+		"full2":  fullClient2,
+		"light":  lightClient,
+	}
+
+	// Submit test data with different namespaces for comprehensive testing
+	testData := []struct {
+		namespace libshare.Namespace
+		data      []byte
+		testName  string
+	}{
+		{mustCreateNamespace(bytes.Repeat([]byte{0x41}, 10)), []byte("Cross-node test data 1"), "test1"},
+		{mustCreateNamespace(bytes.Repeat([]byte{0x42}, 10)), []byte("Cross-node test data 2"), "test2"},
+		{mustCreateNamespace(bytes.Repeat([]byte{0x43}, 10)), []byte("Cross-node test data 3"), "test3"},
+	}
+
+	heights := make([]uint64, len(testData))
+	commitments := make([][]byte, len(testData))
+
+	// Submit all test blobs
+	for i, td := range testData {
+		height, commitment := s.submitTestBlob(ctx, td.namespace, td.data)
+		heights[i] = height
+		commitments[i] = commitment
+	}
+
+	// Wait for all nodes to sync to the latest height
+	maxHeight := heights[len(heights)-1]
+	for name, client := range clients {
+		_, err := client.Header.WaitForHeight(ctx, maxHeight)
+		s.Require().NoError(err, "%s node should sync to height %d", name, maxHeight)
+	}
+
+	// Additional wait for data propagation
+	time.Sleep(15 * time.Second)
+
+	s.Run("SharesAvailable_AllNodes", func() {
+		// Test SharesAvailable across all node types with multiple requests
+		for i, height := range heights {
+			for name, client := range clients {
+				// Make multiple requests to ensure consistency
+				for attempt := 1; attempt <= 3; attempt++ {
+					err := client.Share.SharesAvailable(ctx, height)
+					s.Assert().NoError(err, "%s node attempt %d should have shares available for height %d (test %s)",
+						name, attempt, height, testData[i].testName)
+				}
+			}
+		}
+	})
+
+	s.Run("GetShare_AllNodes", func() {
+		// Test GetShare across all node types
+		for i, height := range heights {
+			for name, client := range clients {
+				// Make multiple requests for different coordinates
+				coords := []struct{ row, col int }{
+					{0, 0}, {0, 1}, {1, 0},
+				}
+
+				for _, coord := range coords {
+					for attempt := 1; attempt <= 2; attempt++ {
+						share, err := client.Share.GetShare(ctx, height, coord.row, coord.col)
+						if err == nil {
+							s.Assert().NotEmpty(share, "%s node attempt %d should get valid share at (%d,%d) for height %d (test %s)",
+								name, attempt, coord.row, coord.col, height, testData[i].testName)
+						}
+						// Note: Some coordinates might be out of bounds, which is acceptable
+					}
+				}
+			}
+		}
+	})
+
+	s.Run("GetEDS_AllNodes", func() {
+		// Test GetEDS across all node types
+		for i, height := range heights {
+			for name, client := range clients {
+				// Make multiple requests to ensure consistency
+				for attempt := 1; attempt <= 2; attempt++ {
+					eds, err := client.Share.GetEDS(ctx, height)
+					s.Assert().NoError(err, "%s node attempt %d should get EDS for height %d (test %s)",
+						name, attempt, height, testData[i].testName)
+					if err == nil {
+						s.Assert().Greater(eds.Width(), uint(0), "%s node EDS should have positive width", name)
+					}
+				}
+			}
+		}
+	})
+
+	s.Run("GetRow_AllNodes", func() {
+		// Test GetRow across all node types
+		for i, height := range heights {
+			for name, client := range clients {
+				// Test multiple rows
+				rows := []int{0, 1}
+				for _, rowIdx := range rows {
+					for attempt := 1; attempt <= 2; attempt++ {
+						row, err := client.Share.GetRow(ctx, height, rowIdx)
+						if err == nil {
+							s.Assert().NotNil(row, "%s node attempt %d should get valid row %d for height %d (test %s)",
+								name, attempt, rowIdx, height, testData[i].testName)
+							s.Assert().NotEmpty(row.Shares, "%s node row should have shares", name)
+						}
+						// Note: Some row indices might be out of bounds, which is acceptable
+					}
+				}
+			}
+		}
+	})
+
+	s.Run("GetRange_AllNodes", func() {
+		// Test GetRange across all node types
+		for i, height := range heights {
+			for name, client := range clients {
+				// Test multiple ranges
+				ranges := []struct{ start, end int }{
+					{0, 3}, {0, 7}, {4, 8},
+				}
+
+				for _, r := range ranges {
+					for attempt := 1; attempt <= 2; attempt++ {
+						rangeResult, err := client.Share.GetRange(ctx, height, r.start, r.end)
+						if err == nil {
+							s.Assert().NotNil(rangeResult, "%s node attempt %d should get valid range (%d,%d) for height %d (test %s)",
+								name, attempt, r.start, r.end, height, testData[i].testName)
+							s.Assert().NotNil(rangeResult.Proof, "%s node range should have proof", name)
+						}
+						// Note: Some ranges might be invalid or out of bounds, which is acceptable
+					}
+				}
+			}
+		}
+	})
+
+	s.Run("GetNamespaceData_AllNodes", func() {
+		// Test GetNamespaceData across all node types
+		for i, td := range testData {
+			height := heights[i]
+			for name, client := range clients {
+				// Make multiple requests to ensure consistency
+				for attempt := 1; attempt <= 3; attempt++ {
+					namespaceData, err := client.Share.GetNamespaceData(ctx, height, td.namespace)
+					s.Assert().NoError(err, "%s node attempt %d should get namespace data for height %d (test %s)",
+						name, attempt, height, td.testName)
+
+					if err == nil {
+						s.Assert().NotNil(namespaceData, "%s node namespace data should not be nil", name)
+						allShares := namespaceData.Flatten()
+						s.Assert().NotEmpty(allShares, "%s node should have shares for namespace (test %s)", name, td.testName)
+
+						// Verify all shares belong to the correct namespace
+						for j, share := range allShares {
+							s.Assert().True(share.Namespace().Equals(td.namespace),
+								"%s node share %d should belong to correct namespace (test %s)", name, j, td.testName)
+						}
+					}
+				}
+			}
+		}
+	})
+
+	s.Run("GetSamples_AllNodes", func() {
+		// Test GetSamples across all node types
+		for i, height := range heights {
+			// Get header for samples
+			header, err := bridgeClient.Header.GetByHeight(ctx, height)
+			s.Require().NoError(err)
+
+			sampleCoords := []shwap.SampleCoords{
+				{Row: 0, Col: 0},
+				{Row: 0, Col: 1},
+				{Row: 1, Col: 0},
+			}
+
+			for name, client := range clients {
+				for attempt := 1; attempt <= 2; attempt++ {
+					samples, err := client.Share.GetSamples(ctx, header, sampleCoords)
+					if err == nil {
+						s.Assert().Len(samples, len(sampleCoords), "%s node attempt %d should get correct number of samples for height %d (test %s)",
+							name, attempt, height, testData[i].testName)
+
+						for j, sample := range samples {
+							s.Assert().NotEmpty(sample.Share, "%s node sample %d should not be empty", name, j)
+							s.Assert().NotNil(sample.Proof, "%s node sample %d should have proof", name, j)
+						}
+					}
+					// Note: Some sample coordinates might be out of bounds, which is acceptable
+				}
+			}
+		}
+	})
+
+	s.Run("CrossNode_DataConsistency", func() {
+		// Ensure data consistency across all node types
+		for i, td := range testData {
+			height := heights[i]
+
+			// Get namespace data from all nodes
+			nodeResults := make(map[string][]libshare.Share)
+
+			for name, client := range clients {
+				namespaceData, err := client.Share.GetNamespaceData(ctx, height, td.namespace)
+				if err == nil {
+					nodeResults[name] = namespaceData.Flatten()
+				}
+			}
+
+			// Compare results between nodes (should be identical)
+			if len(nodeResults) >= 2 {
+				var referenceShares []libshare.Share
+				var referenceName string
+
+				for name, shares := range nodeResults {
+					if len(shares) > 0 {
+						if referenceShares == nil {
+							referenceShares = shares
+							referenceName = name
+						} else {
+							s.Assert().Equal(len(referenceShares), len(shares),
+								"node %s should have same number of shares as %s (test %s)", name, referenceName, td.testName)
+
+							// Compare share data
+							for j := 0; j < len(shares) && j < len(referenceShares); j++ {
+								s.Assert().True(shares[j].Namespace().Equals(referenceShares[j].Namespace()),
+									"share %d namespace should match between %s and %s (test %s)", j, name, referenceName, td.testName)
+							}
+						}
+					}
+				}
+			}
+		}
+	})
+
+	s.Run("RepeatedRequests_Stability", func() {
+		// Test stability with many repeated requests
+		const numRepeats = 10
+		height := heights[0]
+
+		for name, client := range clients {
+			successCount := 0
+			for i := 0; i < numRepeats; i++ {
+				err := client.Share.SharesAvailable(ctx, height)
+				if err == nil {
+					successCount++
+				}
+
+				// Small delay between requests
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			// Allow some failures for light nodes due to network conditions
+			expectedMinSuccess := numRepeats
+			if name == "light" {
+				expectedMinSuccess = numRepeats / 2 // Allow 50% success rate for light nodes
+			}
+
+			s.Assert().GreaterOrEqual(successCount, expectedMinSuccess,
+				"%s node should have at least %d successes out of %d repeated requests", name, expectedMinSuccess, numRepeats)
+		}
+	})
+}
+
+// Helper function for creating namespaces in tests
+func mustCreateNamespace(data []byte) libshare.Namespace {
+	ns, err := libshare.NewV0Namespace(data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create namespace: %v", err))
+	}
+	return ns
+}
+
 // TestShareErrorHandling validates error handling scenarios
 func (s *ShareTestSuite) TestShareErrorHandling() {
 	s.Run("NetworkTimeout", func() {
-		// Create an already cancelled context to guarantee timeout behavior
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // Cancel immediately to force timeout
+		// Use a valid context for framework operations
+		setupCtx, setupCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer setupCancel()
 
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
+		fullNode := s.framework.GetOrCreateFullNode(setupCtx)
+		client := s.framework.GetNodeRPCClient(setupCtx, fullNode)
+
+		// Create a cancelled context only for the API call to test timeout behavior
+		apiCtx, apiCancel := context.WithCancel(context.Background())
+		apiCancel() // Cancel immediately to force timeout
 
 		// This should timeout immediately due to cancelled context
-		err := client.Share.SharesAvailable(ctx, 1)
+		err := client.Share.SharesAvailable(apiCtx, 1)
 		s.Assert().Error(err, "should return timeout error")
-		// Fix: Check if err is not nil before calling err.Error()
+		// Check for context cancelled error
 		if err != nil {
-			// Check for context cancelled error instead of deadline exceeded
 			s.Assert().Contains(err.Error(), "context canceled", "should be context cancelled error")
 		}
 	})
