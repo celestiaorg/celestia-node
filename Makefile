@@ -173,7 +173,7 @@ test-share:
 ## test-header: Run header module tests via Tastora framework.
 test-header:
 	@echo "Running header module tests..."
-	@cd nodebuilder/tests/tastora && go test -v -run="TestHeaderTestSuite" -timeout=15m
+	@cd nodebuilder/tests/tastora && go test -v -tags=integration -run="TestHeaderTestSuite" -timeout=15m
 
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
