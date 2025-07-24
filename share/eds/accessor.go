@@ -33,6 +33,12 @@ type Accessor interface {
 	RowNamespaceData(ctx context.Context, namespace libshare.Namespace, rowIdx int) (shwap.RowNamespaceData, error)
 	// Shares returns data (ODS) shares extracted from the Accessor.
 	Shares(ctx context.Context) ([]libshare.Share, error)
+	// RangeNamespaceData returns data(ODS) shares along with their proofs from the requested range
+	// from the Accessor.
+	RangeNamespaceData(
+		ctx context.Context,
+		from, to int,
+	) (shwap.RangeNamespaceData, error)
 }
 
 // AccessorStreamer is an interface that groups Accessor and Streamer interfaces.

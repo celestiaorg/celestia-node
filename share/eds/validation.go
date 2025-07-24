@@ -77,3 +77,35 @@ func (f validation) RowNamespaceData(
 	}
 	return f.Accessor.RowNamespaceData(ctx, namespace, rowIdx)
 }
+
+func (f validation) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	if from >= to {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: `from` %d is >= than `to %d", from, to,
+		)
+	}
+	// Size() always returns EDS size
+	edsSize, err := f.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := edsSize / 2
+	odsSharesAmount := odsSize * odsSize
+
+	if from > odsSharesAmount {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: invalid start index of the range:%d. ODS shares amount %d",
+			from, odsSharesAmount,
+		)
+	}
+	if to > odsSharesAmount {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: invalid end coordinates of the range:%d. ODS shares amount %d",
+			to, odsSharesAmount,
+		)
+	}
+	return f.Accessor.RangeNamespaceData(ctx, from, to)
+}

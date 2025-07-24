@@ -71,6 +71,13 @@ func (n NoopFile) RowNamespaceData(context.Context, libshare.Namespace, int) (sh
 	return shwap.RowNamespaceData{}, nil
 }
 
+func (n NoopFile) RangeNamespaceData(
+	_ context.Context,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, nil
+}
+
 func (n NoopFile) Shares(context.Context) ([]libshare.Share, error) {
 	return []libshare.Share{}, nil
 }

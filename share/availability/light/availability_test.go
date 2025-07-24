@@ -321,6 +321,14 @@ func (g successGetter) GetNamespaceData(
 	panic("not implemented")
 }
 
+func (g successGetter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	panic("not implemented")
+}
+
 func TestPruneAll(t *testing.T) {
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)

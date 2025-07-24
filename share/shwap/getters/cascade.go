@@ -3,6 +3,7 @@ package getters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -97,6 +98,36 @@ func (cg *CascadeGetter) GetNamespaceData(
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.NamespaceData, error) {
 		return get.GetNamespaceData(ctx, header, namespace)
+	}
+
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
+func (cg *CascadeGetter) GetRangeNamespaceData(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	ctx, span := tracer.Start(
+		ctx,
+		"cascade/get-shares-range",
+		trace.WithAttributes(
+			attribute.Int("from", from),
+			attribute.Int("to", to),
+		))
+	defer span.End()
+
+	if from < 0 || to < 0 {
+		return shwap.RangeNamespaceData{},
+			fmt.Errorf("negative indexes are not allowed: %d-%d", from, to)
+	}
+	if from >= to {
+		return shwap.RangeNamespaceData{},
+			fmt.Errorf("start must not be bigger or eqaul to end: %d-%d", from, to)
+	}
+
+	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
+		return get.GetRangeNamespaceData(ctx, header, from, to)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)
