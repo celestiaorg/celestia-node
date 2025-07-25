@@ -18,6 +18,8 @@ var (
 	corsAllowedOriginsFlag = "rpc.cors-allowed-origins"
 	corsAllowedMethodsFlag = "rpc.cors-allowed-methods"
 	corsAllowedHeadersFlag = "rpc.cors-allowed-headers"
+	disableStateFlag       = "rpc.disable-state"
+	disableBlobSubmitFlag  = "rpc.disable-blob-submit"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -64,6 +66,16 @@ func Flags() *flag.FlagSet {
 			"Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)",
 			defaultAllowedHeaders,
 		),
+	)
+	flags.Bool(
+		disableStateFlag,
+		false,
+		"Disables the state module API for read-only mode",
+	)
+	flags.Bool(
+		disableBlobSubmitFlag,
+		false,
+		"Disables the blob.Submit API for read-only mode",
 	)
 
 	return flags
@@ -137,5 +149,21 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	if !cfg.SkipAuth && corsSettingsProvided {
 		log.Warn("CORS settings provided but authentication is enabled. CORS settings may not work as expected.")
 	}
+
+	// Parse disable flags
+	if val, err := cmd.Flags().GetBool(disableStateFlag); err != nil {
+		return err
+	} else if val {
+		log.Info("State module API disabled (--rpc.disable-state)")
+		cfg.DisableStateModule = true
+	}
+
+	if val, err := cmd.Flags().GetBool(disableBlobSubmitFlag); err != nil {
+		return err
+	} else if val {
+		log.Info("Blob.Submit API disabled (--rpc.disable-blob-submit)")
+		cfg.DisableBlobSubmit = true
+	}
+
 	return nil
 }
