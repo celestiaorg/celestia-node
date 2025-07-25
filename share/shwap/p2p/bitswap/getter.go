@@ -271,6 +271,38 @@ func (g *Getter) GetNamespaceData(
 	return nsShrs, nil
 }
 
+func (g *Getter) GetRangeNamespaceData(
+	ctx context.Context,
+	hdr *header.ExtendedHeader,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	ctx, span := tracer.Start(ctx, "get-shares-range")
+	defer span.End()
+
+	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
+		hdr.Height(), from, to, len(hdr.DAH.RowRoots)/2,
+	)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
+	blks := []Block{rangeDataBlock}
+
+	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Fetch")
+		return shwap.RangeNamespaceData{}, err
+	}
+	return blks[0].(*RangeNamespaceDataBlock).Container, nil
+}
+
 // isArchival reports whether the header is for archival data
 func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)

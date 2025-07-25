@@ -52,8 +52,19 @@ linters:
           - revive
         path: _test\.go
       - linters:
+          - revive
+        path: libs/utils
+      - linters:
           - lll
         source: https://
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
+        path: "libs/utils"
+      - linters:
+          - revive
+        text: "var-naming: don't use an underscore in package name"
+        path: "share/shwap/p2p/shrex/shrex_getter"
     paths:
       - third_party$
       - builtin$

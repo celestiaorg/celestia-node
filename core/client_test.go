@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	cmthttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )
@@ -12,9 +13,14 @@ import (
 func TestRemoteClient_Status(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
+	cfg := DefaultTestConfig()
+	network := NewNetwork(t, cfg)
+	require.NoError(t, network.Start())
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 
-	client := StartTestNode(t).Client
-	status, err := client.Status(ctx)
+	status, err := network.Client.Status(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 }
@@ -23,10 +29,17 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	node, wsClient := StartTestNodeWithConfigAndClient(t)
-	client := node.Client
+	cfg := DefaultTestConfig()
+	network := NewNetwork(t, cfg)
+	require.NoError(t, network.Start())
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 
-	err := wsClient.Start()
+	wsClient, err := cmthttp.New(cfg.TmConfig.RPC.ListenAddress, "/websocket")
+	require.NoError(t, err)
+
+	err = wsClient.Start()
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, wsClient.Stop())
@@ -39,7 +52,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 		select {
 		case evt := <-eventChan:
 			h := evt.Data.(types.EventDataSignedBlock).Header.Height
-			block, err := client.Block(ctx, &h)
+			block, err := network.Client.Block(ctx, &h)
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, block.Block.Height, int64(i))
 		case <-ctx.Done():

@@ -93,6 +93,16 @@ func (c *closeOnce) Shares(ctx context.Context) ([]libshare.Share, error) {
 	return c.f.Shares(ctx)
 }
 
+func (c *closeOnce) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	if c.closed.Load() {
+		return shwap.RangeNamespaceData{}, errAccessorClosed
+	}
+	return c.f.RangeNamespaceData(ctx, from, to)
+}
+
 func (c *closeOnce) Reader() (io.Reader, error) {
 	if c.closed.Load() {
 		return nil, errAccessorClosed

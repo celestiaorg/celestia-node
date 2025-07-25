@@ -8,10 +8,18 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+type CORSConfig struct {
+	Enabled        bool
+	AllowedOrigins []string
+	AllowedHeaders []string
+	AllowedMethods []string
+}
+
 type Config struct {
 	Address  string
 	Port     string
 	SkipAuth bool
+	CORS     CORSConfig
 }
 
 func DefaultConfig() Config {
@@ -20,6 +28,16 @@ func DefaultConfig() Config {
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
 		Port:     defaultPort,
 		SkipAuth: false,
+		CORS:     DefaultCORSConfig(),
+	}
+}
+
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
+		Enabled:        false,
+		AllowedOrigins: []string{},
+		AllowedHeaders: []string{},
+		AllowedMethods: []string{},
 	}
 }
 
@@ -44,5 +62,6 @@ func (cfg *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
 	}
+
 	return nil
 }

@@ -26,6 +26,7 @@ import (
 )
 
 func TestShrexNDFromLights(t *testing.T) {
+	t.Parallel()
 	const (
 		blocks = 10
 		btime  = time.Millisecond * 300
@@ -41,7 +42,7 @@ func TestShrexNDFromLights(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 
-	cfg := nodebuilder.DefaultConfig(node.Light)
+	cfg := sw.DefaultTestConfig(node.Light)
 	cfg.Share.Discovery.PeersLimit = 1
 	light := sw.NewNodeWithConfig(node.Light, cfg)
 
@@ -78,6 +79,8 @@ func TestShrexNDFromLights(t *testing.T) {
 		height := h.Height()
 		expected, err := bridgeClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
+		_, err = lightClient.Header.WaitForHeight(ctx, height) // fixes a flake
+		require.NoError(t, err)
 		got, err := lightClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
 
@@ -112,13 +115,13 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	}
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
-		cfg := nodebuilder.DefaultConfig(node.Full)
+		cfg := sw.DefaultTestConfig(node.Full)
 		setTimeInterval(cfg, testTimeout)
 		full := sw.NewNodeWithConfig(node.Full, cfg, replaceNDServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
-	lnConfig := nodebuilder.DefaultConfig(node.Light)
+	lnConfig := sw.DefaultTestConfig(node.Light)
 	lnConfig.Share.Discovery.PeersLimit = uint(amountOfFulls)
 	light := sw.NewNodeWithConfig(node.Light, lnConfig)
 
@@ -161,10 +164,14 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 		// choose a random full to test
 		fN := fulls[len(fulls)/2]
 		fnClient := getAdminClient(ctx, fN, t)
+		_, err = fnClient.Header.WaitForHeight(ctx, height) // fixes a flake
+		require.NoError(t, err)
 		gotFull, err := fnClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotFull[0].Shares) > 0)
 
+		_, err = lightClient.Header.WaitForHeight(ctx, height) // fixes a flake
+		require.NoError(t, err)
 		gotLight, err := lightClient.Share.GetNamespaceData(ctx, height, ns)
 		require.NoError(t, err)
 		require.True(t, len(gotLight[0].Shares) > 0)

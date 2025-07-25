@@ -242,7 +242,6 @@ func (c *proofsCache) RowNamespaceData(
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
-
 	return shwap.RowNamespaceData{
 		Shares: row,
 		Proof:  proof,
@@ -274,6 +273,15 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 		shares = append(shares, half...)
 	}
 	return shares, nil
+}
+
+// RangeNamespaceData tries to find all complete rows in cache. For all incomplete rows,
+// it uses the inner accessor to build the namespace data
+func (c *proofsCache) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	return c.inner.RangeNamespaceData(ctx, from, to)
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {

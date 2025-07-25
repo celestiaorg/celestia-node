@@ -75,6 +75,13 @@ func (s *stubEdsAccessorCloser) RowNamespaceData(
 	return shwap.RowNamespaceData{}, nil
 }
 
+func (s *stubEdsAccessorCloser) RangeNamespaceData(
+	_ context.Context,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, nil
+}
+
 func (s *stubEdsAccessorCloser) Shares(context.Context) ([]libshare.Share, error) {
 	return nil, nil
 }

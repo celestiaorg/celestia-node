@@ -1,4 +1,4 @@
-package shrex_getter //nolint:revive,stylecheck // underscore in pkg name will be fixed with shrex refactoring
+package shrex_getter
 
 import (
 	"context"
@@ -304,6 +304,14 @@ func (sg *Getter) GetNamespaceData(
 			"err", getErr,
 			"finished (s)", time.Since(reqStart))
 	}
+}
+
+func (sg *Getter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
 }
 
 func (sg *Getter) getPeer(

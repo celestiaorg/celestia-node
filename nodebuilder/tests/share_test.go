@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,13 +14,14 @@ import (
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
 func TestShareModule(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second*1))
@@ -35,20 +34,12 @@ func TestShareModule(t *testing.T) {
 
 	bridge := sw.NewBridgeNode()
 	require.NoError(t, bridge.Start(ctx))
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
+	sw.SetBootstrapper(t, bridge)
 
-	fullCfg := sw.DefaultTestConfig(node.Full)
-	fullCfg.Header.TrustedPeers = append(fullCfg.Header.TrustedPeers, addrs[0].String())
-	fullNode := sw.NewNodeWithConfig(node.Full, fullCfg)
+	fullNode := sw.NewFullNode()
 	require.NoError(t, fullNode.Start(ctx))
 
-	addrsFull, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(fullNode.Host))
-	require.NoError(t, err)
-
-	lightCfg := sw.DefaultTestConfig(node.Light)
-	lightCfg.Header.TrustedPeers = append(lightCfg.Header.TrustedPeers, addrsFull[0].String())
-	lightNode := sw.NewNodeWithConfig(node.Light, lightCfg)
+	lightNode := sw.NewLightNode()
 	require.NoError(t, lightNode.Start(ctx))
 
 	bridgeClient := getAdminClient(ctx, bridge, t)
@@ -207,7 +198,33 @@ func TestShareModule(t *testing.T) {
 					require.NoError(t, err)
 					// compare commitments
 					require.Equal(t, nodeBlob[0].Commitment, blb[0].Commitment)
+				}
+			},
+		},
+		{
+			name: "GetRangeNamespaceData",
+			doFn: func(t *testing.T) {
+				dah := hdr.DAH
+				blobLength, err := sampledBlob.Length()
+				require.NoError(t, err)
+				for _, client := range clients {
+					rng, err := client.Share.GetRange(
+						ctx,
+						height,
+						sampledBlob.Index(),
+						sampledBlob.Index()+blobLength,
+					)
+					require.NoError(t, err)
+					err = rng.Verify(dah.Hash())
+					require.NoError(t, err)
 
+					shrs := rng.Shares
+					blbs, err := libshare.ParseBlobs(shrs)
+					require.NoError(t, err)
+
+					parsedBlob, err := blob.ToNodeBlobs(blbs...)
+					require.NoError(t, err)
+					require.Equal(t, nodeBlob[0].Commitment, parsedBlob[0].Commitment)
 				}
 			},
 		},
