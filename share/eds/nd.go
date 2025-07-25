@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/sync/errgroup"
+
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -26,12 +28,25 @@ func NamespaceData(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get row indexes: %w", err)
 	}
+
+	// we parallelize retrieval here as it is time-consuming if
+	// nd spans multiple rows
 	rows := make(shwap.NamespaceData, len(rowIdxs))
+
+	errGroup, ctx := errgroup.WithContext(ctx)
 	for i, idx := range rowIdxs {
-		rows[i], err = eds.RowNamespaceData(ctx, namespace, idx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
-		}
+		errGroup.Go(func() error {
+			rowData, err := eds.RowNamespaceData(ctx, namespace, idx)
+			if err != nil {
+				return fmt.Errorf("failed to process row %d: %w", idx, err)
+			}
+			rows[i] = rowData
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to process rows: %w", err)
 	}
 
 	return rows, nil

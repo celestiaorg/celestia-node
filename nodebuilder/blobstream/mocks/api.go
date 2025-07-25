@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	blobstream "github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
+	bytes "github.com/cometbft/cometbft/libs/bytes"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -51,10 +52,10 @@ func (mr *MockModuleMockRecorder) GetDataRootTupleInclusionProof(arg0, arg1, arg
 }
 
 // GetDataRootTupleRoot mocks base method.
-func (m *MockModule) GetDataRootTupleRoot(arg0 context.Context, arg1, arg2 uint64) (*blobstream.DataRootTupleRoot, error) {
+func (m *MockModule) GetDataRootTupleRoot(arg0 context.Context, arg1, arg2 uint64) (*bytes.HexBytes, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDataRootTupleRoot", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*blobstream.DataRootTupleRoot)
+	ret0, _ := ret[0].(*bytes.HexBytes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

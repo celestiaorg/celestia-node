@@ -76,6 +76,5 @@ func (s *Service) GetDataRootTupleInclusionProof(
 	if err != nil {
 		return nil, err
 	}
-	dataRootTupleInclusionProof := DataRootTupleInclusionProof(proof)
-	return &dataRootTupleInclusionProof, nil
+	return (*DataRootTupleInclusionProof)(proof), nil
 }

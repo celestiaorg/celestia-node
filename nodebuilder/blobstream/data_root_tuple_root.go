@@ -19,7 +19,7 @@ type DataRootTupleRoot = bytes.HexBytes
 
 // DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.
-type DataRootTupleInclusionProof *merkle.Proof
+type DataRootTupleInclusionProof merkle.Proof
 
 // padBytes Pad bytes to given length
 func padBytes(byt []byte, length int) ([]byte, error) {
