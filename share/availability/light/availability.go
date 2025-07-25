@@ -64,7 +64,7 @@ func NewShareAvailability(
 		getter:        getter,
 		bs:            bs,
 		params:        params,
-		storageWindow: availability.StorageWindow,
+		storageWindow: availability.RequestWindow,
 		activeHeights: utils.NewSessions(),
 		ds:            autoDS,
 	}
