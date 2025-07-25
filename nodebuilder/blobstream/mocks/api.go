@@ -52,10 +52,10 @@ func (mr *MockModuleMockRecorder) GetDataRootTupleInclusionProof(arg0, arg1, arg
 }
 
 // GetDataRootTupleRoot mocks base method.
-func (m *MockModule) GetDataRootTupleRoot(arg0 context.Context, arg1, arg2 uint64) (*bytes.HexBytes, error) {
+func (m *MockModule) GetDataRootTupleRoot(arg0 context.Context, arg1, arg2 uint64) (bytes.HexBytes, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDataRootTupleRoot", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*bytes.HexBytes)
+	ret0, _ := ret[0].(bytes.HexBytes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

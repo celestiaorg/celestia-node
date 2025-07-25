@@ -2,10 +2,12 @@ package blobstream
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -136,6 +138,15 @@ func TestHashDataRootTuples(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedHash, result)
+
+				res := bytes.HexBytes(result)
+				hash, err := json.Marshal(res)
+				require.NoError(t, err)
+
+				var data bytes.HexBytes
+				err = json.Unmarshal(hash, &data)
+				require.NoError(t, err)
+				assert.Equal(t, result, data.Bytes())
 			}
 		})
 	}
@@ -181,6 +192,14 @@ func TestProveDataRootTuples(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedProof, *result)
+				dtProof := (DataRootTupleInclusionProof)(*result)
+				data, err := json.Marshal(dtProof)
+				require.NoError(t, err)
+
+				var newDtProof DataRootTupleInclusionProof
+				err = json.Unmarshal(data, &newDtProof)
+				require.NoError(t, err)
+				assert.Equal(t, dtProof, newDtProof)
 			}
 		})
 	}
