@@ -99,22 +99,17 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	la.dsLk.RLock()
 	data, err := la.ds.Get(ctx, key)
 	la.dsLk.RUnlock()
-	if err != nil {
-		if !errors.Is(err, datastore.ErrNotFound) {
-			return err
-		}
-		// No previous results; create new samples
-		samples = NewSamplingResult(len(dah.RowRoots), int(la.params.SampleAmount))
-	} else {
+	if err == nil {
 		err = json.Unmarshal(data, samples)
 		if err != nil {
 			return err
 		}
-		// Verify total samples count.
-		totalSamples := len(samples.Remaining) + len(samples.Available)
-		if (totalSamples != int(la.params.SampleAmount)) && (totalSamples != len(dah.RowRoots)*len(dah.RowRoots)) {
-			return fmt.Errorf("invalid sampling result:"+
-				" expected %d samples, got %d", la.params.SampleAmount, totalSamples)
+		}
+	// Verify total samples count.
+	totalSamples := len(samples.Remaining) + len(samples.Available)
+	if (totalSamples != int(la.params.SampleAmount)) && (totalSamples != len(dah.RowRoots)*len(dah.RowRoots)) {
+		return fmt.Errorf("invalid sampling result:"+
+			" expected %d samples, got %d", la.params.SampleAmount, totalSamples)
 		}
 	}
 
