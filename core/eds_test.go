@@ -1,13 +1,18 @@
 package core
 
 import (
+	_ "embed"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -46,7 +51,7 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 	rawEmptyShares := libshare.ToBytes(emptyShares)
 
 	// extend the empty shares
-	manualEds, err := da.ExtendShares(rawEmptyShares)
+	manualEds, err := extendShares(rawEmptyShares)
 	require.NoError(t, err)
 
 	// verify the manually extended EDS equals the empty EDS
@@ -56,4 +61,75 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 	manualRoots, err := share.NewAxisRoots(manualEds)
 	require.NoError(t, err)
 	require.Equal(t, share.EmptyEDSRoots().Hash(), manualRoots.Hash())
+}
+
+//go:embed testdata/test_block_1035.json
+var testBlock1035Data []byte
+
+//go:embed testdata/test_block_2800000.json
+var testBlock2800000Data []byte
+
+//go:embed testdata/test_block_4000000.json
+var testBlock4000000Data []byte
+
+func TestExtendBlock_MainnetBlocks(t *testing.T) {
+	type testBlockData struct {
+		BlockHeight int64    `json:"block_height"`
+		AppVersion  uint32   `json:"app_version"`
+		Txs         []string `json:"txs"`
+		SquareSize  uint64   `json:"square_size"`
+		MainNetDah  string   `json:"main_net_dah"`
+	}
+
+	testCases := []struct {
+		name     string
+		testData []byte
+	}{
+		{
+			name:     "Block_1035_AppV1",
+			testData: testBlock1035Data,
+		},
+		{
+			name:     "Block_2800000_AppV2",
+			testData: testBlock2800000Data,
+		},
+		{
+			name:     "Block_4000000_AppV3",
+			testData: testBlock4000000Data,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var blockData testBlockData
+			err := json.Unmarshal(tc.testData, &blockData)
+			require.NoError(t, err)
+
+			allTxs := make([]types.Tx, len(blockData.Txs))
+			for i, txBase64 := range blockData.Txs {
+				tx, err := base64.StdEncoding.DecodeString(txBase64)
+				require.NoError(t, err, "Failed to decode transaction %d", i)
+				allTxs[i] = tx
+			}
+
+			nmtOptions := []nmt.Option{
+				nmt.NamespaceIDSize(8),
+				nmt.IgnoreMaxNamespace(true),
+			}
+
+			data := &types.Data{
+				Txs:        allTxs,
+				SquareSize: blockData.SquareSize,
+			}
+
+			eds, err := extendBlock(data, nmtOptions...)
+			require.NoError(t, err)
+
+			roots, err := share.NewAxisRoots(eds)
+			require.NoError(t, err)
+			dah := strings.ToUpper(hex.EncodeToString(roots.Hash()))
+			require.NotEmpty(t, dah, "DAH should not be empty")
+			require.Equal(t, blockData.MainNetDah, dah)
+		})
+	}
 }
