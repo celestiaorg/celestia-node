@@ -74,14 +74,32 @@ func (s *ShareTestSuite) submitTestBlob(ctx context.Context, namespace libshare.
 	return height, nodeBlobs[0].Commitment
 }
 
+// Helper function to test Share APIs across different node types
+func (s *ShareTestSuite) testWithAllNodeTypes(ctx context.Context, testName string, testFunc func(context.Context, *client.Client, string)) {
+	// Get all node types
+	fullNode := s.framework.GetOrCreateFullNode(ctx)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	lightNode := s.framework.GetOrCreateLightNode(ctx)
+
+	clients := map[string]*client.Client{
+		"full":   s.framework.GetNodeRPCClient(ctx, fullNode),
+		"bridge": s.framework.GetNodeRPCClient(ctx, bridgeNode),
+		"light":  s.framework.GetNodeRPCClient(ctx, lightNode),
+	}
+
+	// Test with each node type
+	for nodeType, client := range clients {
+		s.Run(fmt.Sprintf("%s_%s", testName, nodeType), func() {
+			testFunc(ctx, client, nodeType)
+		})
+	}
+}
+
 // TestShareSharesAvailable tests SharesAvailable API with various scenarios
 func (s *ShareTestSuite) TestShareSharesAvailable() {
-	s.Run("ValidHeight", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.Run("ValidHeight_AllNodeTypes", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
 
 		// Submit a test blob to ensure we have data
 		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
@@ -89,9 +107,20 @@ func (s *ShareTestSuite) TestShareSharesAvailable() {
 		data := []byte("SharesAvailable test data")
 		height, _ := s.submitTestBlob(ctx, namespace, data)
 
-		// Test SharesAvailable API
-		err = client.Share.SharesAvailable(ctx, height)
-		s.Require().NoError(err, "shares should be available")
+		// Test SharesAvailable across all node types
+		s.testWithAllNodeTypes(ctx, "ValidHeight", func(ctx context.Context, client *client.Client, nodeType string) {
+			// Wait for light nodes to sync
+			if nodeType == "light" {
+				_, err := client.Header.WaitForHeight(ctx, height)
+				s.Require().NoError(err, "light node should sync to height %d", height)
+				// Additional wait for light node data propagation
+				time.Sleep(5 * time.Second)
+			}
+
+			// Test SharesAvailable API
+			err := client.Share.SharesAvailable(ctx, height)
+			s.Require().NoError(err, "shares should be available on %s node", nodeType)
+		})
 	})
 
 	s.Run("InvalidHeight", func() {
@@ -1487,6 +1516,148 @@ func (s *ShareTestSuite) TestSharePerformance() {
 			case <-time.After(30 * time.Second):
 				s.Fail("concurrent request timed out")
 			}
+		}
+	})
+}
+
+// TestShareGetNamespaceData_AllNodeTypes demonstrates testing across all node types
+func (s *ShareTestSuite) TestShareGetNamespaceData_AllNodeTypes() {
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	// Submit test blob with specific namespace
+	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x50}, 10))
+	s.Require().NoError(err)
+	data := []byte("GetNamespaceData all nodes test data")
+	height, commitment := s.submitTestBlob(ctx, namespace, data)
+
+	// Store expected results from bridge node for comparison
+	var expectedShares []libshare.Share
+	var expectedBlobs []*nodeblob.Blob
+
+	s.testWithAllNodeTypes(ctx, "GetNamespaceData", func(ctx context.Context, client *client.Client, nodeType string) {
+		// Wait for node to sync and data to propagate
+		_, err := client.Header.WaitForHeight(ctx, height)
+		s.Require().NoError(err, "%s node should sync to height %d", nodeType, height)
+
+		if nodeType == "light" {
+			// Extra wait for light node data propagation via ShrexND
+			time.Sleep(10 * time.Second)
+		}
+
+		// Get namespace data
+		namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
+		s.Require().NoError(err, "%s node should get namespace data", nodeType)
+		s.Require().NotNil(namespaceData, "%s node namespace data should not be nil", nodeType)
+
+		// Validate namespace data structure
+		allShares := namespaceData.Flatten()
+		s.Assert().NotEmpty(allShares, "%s node namespace data should have shares", nodeType)
+
+		// Verify that all shares belong to the correct namespace
+		for i, share := range allShares {
+			s.Assert().True(share.Namespace().Equals(namespace),
+				"%s node share %d should belong to correct namespace", nodeType, i)
+		}
+
+		// Parse blobs from namespace data
+		blobs, err := libshare.ParseBlobs(allShares)
+		s.Require().NoError(err, "%s node should parse blobs from namespace data", nodeType)
+		s.Require().NotEmpty(blobs, "%s node should have at least one blob", nodeType)
+
+		// Convert to node blobs and verify
+		nodeBlobs, err := nodeblob.ToNodeBlobs(blobs...)
+		s.Require().NoError(err, "%s node should convert to node blobs", nodeType)
+		s.Require().NotEmpty(nodeBlobs, "%s node should have node blobs", nodeType)
+
+		if nodeType == "bridge" {
+			// Store bridge results as reference
+			expectedShares = allShares
+			expectedBlobs = nodeBlobs
+		} else if len(expectedShares) > 0 {
+			// Compare with bridge results for consistency
+			s.Assert().Equal(len(expectedShares), len(allShares),
+				"%s node should have same number of shares as bridge", nodeType)
+			s.Assert().Equal(len(expectedBlobs), len(nodeBlobs),
+				"%s node should have same number of blobs as bridge", nodeType)
+		}
+
+		// Find our specific blob by commitment
+		found := false
+		for _, blob := range nodeBlobs {
+			if bytes.Equal(blob.Commitment, commitment) {
+				found = true
+				s.Assert().Equal(data, blob.Data, "%s node blob data should match", nodeType)
+				break
+			}
+		}
+		s.Assert().True(found, "%s node should find our blob in namespace data", nodeType)
+
+		// Additional verification for light nodes (they use ShrexND protocol)
+		if nodeType == "light" {
+			s.T().Logf("Light node successfully retrieved namespace data via ShrexND for height %d", height)
+
+			// Verify proof validation works
+			header, err := client.Header.GetByHeight(ctx, height)
+			s.Require().NoError(err, "light node should get header")
+
+			err = namespaceData.Verify(header.DAH, namespace)
+			s.Assert().NoError(err, "light node namespace data proof should verify")
+		}
+	})
+}
+
+// TestShareGetRange_AllNodeTypes demonstrates GetRange testing across all node types
+func (s *ShareTestSuite) TestShareGetRange_AllNodeTypes() {
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+
+	// Submit test blob
+	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x51}, 10))
+	s.Require().NoError(err)
+	data := []byte("GetRange all nodes test data")
+	height, _ := s.submitTestBlob(ctx, namespace, data)
+
+	var expectedShares []libshare.Share
+
+	s.testWithAllNodeTypes(ctx, "GetRange", func(ctx context.Context, client *client.Client, nodeType string) {
+		// Wait for node to sync
+		_, err := client.Header.WaitForHeight(ctx, height)
+		s.Require().NoError(err, "%s node should sync to height %d", nodeType, height)
+
+		if nodeType == "light" {
+			// Extra wait for light node data propagation
+			time.Sleep(10 * time.Second)
+		}
+
+		// Get range data (retrieve shares 0-7 for example)
+		rangeResult, err := client.Share.GetRange(ctx, height, 0, 7)
+		s.Require().NoError(err, "%s node should get range data", nodeType)
+		s.Require().NotNil(rangeResult, "%s node range result should not be nil", nodeType)
+
+		// Validate range result
+		s.Assert().NotEmpty(rangeResult.Shares, "%s node range result should have shares", nodeType)
+		s.Assert().NotNil(rangeResult.Proof, "%s node range result should have proof", nodeType)
+
+		if nodeType == "bridge" {
+			expectedShares = rangeResult.Shares
+		} else if len(expectedShares) > 0 {
+			// Compare with bridge results for consistency
+			s.Assert().Equal(expectedShares, rangeResult.Shares,
+				"%s node should get same range data as bridge", nodeType)
+		}
+
+		// Additional verification for light nodes (they use ShrexND protocol)
+		if nodeType == "light" {
+			s.T().Logf("Light node successfully retrieved range data via ShrexND for height %d", height)
+
+			// Verify proof validation
+			header, err := client.Header.GetByHeight(ctx, height)
+			s.Require().NoError(err, "light node should get header")
+
+			dataRoot := header.DAH.Hash()
+			err = rangeResult.Verify(dataRoot)
+			s.Assert().NoError(err, "light node range proof should verify")
 		}
 	})
 }
