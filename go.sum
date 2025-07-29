@@ -399,10 +399,12 @@ github.com/celestiaorg/go-ds-badger4 v0.0.0-20250716181942-8af067b9d326/go.mod h
 >>>>>>> fb0047d1 (batched deletes)
 github.com/celestiaorg/go-fraud v0.2.3 h1:vsGmd5HtGL92q/pvjN0cpDsXn7hGJSbVZwOJl+dNX8E=
 github.com/celestiaorg/go-fraud v0.2.3/go.mod h1:h2Or0jHka/TDlQ3XsJV6OibIiwm49UiGVEu2jHKzybA=
-github.com/celestiaorg/go-header v0.6.7-0.20250717170324-62b30c0ffe33 h1:USuk1/A/sc2HVNRojxLeioRZNTpZFEvS3ECKBWUPAv0=
-github.com/celestiaorg/go-header v0.6.7-0.20250717170324-62b30c0ffe33/go.mod h1:KgYObvXI2Lt53dy2IRxHQI9sQBCRw2e62AvzrU5sk9A=
-github.com/celestiaorg/go-header v0.6.7-0.20250729173109-b0ab9e3795a6 h1:UjqyWJ9OrSTt9hLJRpU4uGCTyDIO+pZjAQ9dSnUBfO0=
-github.com/celestiaorg/go-header v0.6.7-0.20250729173109-b0ab9e3795a6/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
+github.com/celestiaorg/go-header v0.6.7-0.20250729182254-5a51be418919 h1:smZkM44Y2xJd73cVIOLADF5yNE75NNH18MSu5MthjsU=
+github.com/celestiaorg/go-header v0.6.7-0.20250729182254-5a51be418919/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
+github.com/celestiaorg/go-header v0.6.7-0.20250729185426-921f86b87727 h1:EdfkWjuyfe0/4qTYnUfByZjXb5d9rZhyU8lwCV6eqEw=
+github.com/celestiaorg/go-header v0.6.7-0.20250729185426-921f86b87727/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
+github.com/celestiaorg/go-header v0.6.7-0.20250729202301-b8dc9d6982f9 h1:pOfc4rrLeba9i8q6O7VBRHyIOAlhrF++9vCxlkZ4evs=
+github.com/celestiaorg/go-header v0.6.7-0.20250729202301-b8dc9d6982f9/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
