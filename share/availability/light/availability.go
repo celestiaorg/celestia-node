@@ -38,7 +38,7 @@ type ShareAvailability struct {
 	bs     blockstore.Blockstore
 	params Parameters
 
-	storageWindow time.Duration
+	samplingWindow time.Duration
 
 	activeHeights *utils.Sessions
 	dsLk          sync.RWMutex
@@ -61,12 +61,12 @@ func NewShareAvailability(
 	}
 
 	return &ShareAvailability{
-		getter:        getter,
-		bs:            bs,
-		params:        params,
-		storageWindow: availability.RequestWindow,
-		activeHeights: utils.NewSessions(),
-		ds:            autoDS,
+		getter:         getter,
+		bs:             bs,
+		params:         params,
+		samplingWindow: availability.SamplingWindow,
+		activeHeights:  utils.NewSessions(),
+		ds:             autoDS,
 	}
 }
 
@@ -81,7 +81,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	}
 
 	// short-circuit if outside sampling window
-	if !availability.IsWithinWindow(header.Time(), la.storageWindow) {
+	if !availability.IsWithinWindow(header.Time(), la.samplingWindow) {
 		return availability.ErrOutsideSamplingWindow
 	}
 
