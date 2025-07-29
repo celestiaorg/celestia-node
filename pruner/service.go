@@ -21,7 +21,7 @@ var log = logging.Logger("pruner/service")
 type Service struct {
 	pruner Pruner
 	hstore libhead.Store[*header.ExtendedHeader]
-	ds     datastore.Datastore
+	ds     datastore.Batching
 
 	window    time.Duration
 	blockTime time.Duration
@@ -159,6 +159,17 @@ func (s *Service) prune(ctx context.Context) {
 	defer func() {
 		log.Infow("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
 	}()
+
+	// batch, err := s.ds.Batch(ctx)
+	// if err != nil {
+	// 	return
+	// }
+	// ctx = badger4.WithBatch(ctx, batch)
+	// defer func() {
+	// 	if err := batch.Commit(ctx); err != nil {
+	// 		log.Errorw("failed to commit batch", "err", err)
+	// 	}
+	// }()
 
 	for {
 		select {
