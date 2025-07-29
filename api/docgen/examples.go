@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/filecoin-project/go-jsonrpc/auth"
@@ -31,7 +30,6 @@ import (
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
@@ -190,13 +188,7 @@ func init() {
 	))
 
 	add(network.DirUnknown)
-
-	_, merkleProof := merkle.ProofsFromByteSlices(append(extendedHeader.DAH.RowRoots, extendedHeader.DAH.ColumnRoots...))
-	dataRootTupleInclusionProof := blobstream.DataRootTupleInclusionProof(merkleProof[0])
-	add(&dataRootTupleInclusionProof)
-
-	hexBytes := bytes.HexBytes(hash)
-	add(&hexBytes)
+	add(bytes.HexBytes(hash))
 }
 
 func exampleValue(t, parent reflect.Type) (any, error) {
