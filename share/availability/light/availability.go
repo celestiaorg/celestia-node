@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/ipfs/boxo/blockstore"
@@ -40,7 +39,6 @@ type ShareAvailability struct {
 	storageWindow time.Duration
 
 	activeHeights *utils.Sessions
-	dsLk          sync.RWMutex
 	ds            datastore.Datastore
 }
 
@@ -95,9 +93,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	samples := &SamplingResult{}
 
 	// Attempt to load previous sampling results
-	la.dsLk.RLock()
 	data, err := la.ds.Get(ctx, key)
-	la.dsLk.RUnlock()
 	if err != nil {
 		if !errors.Is(err, datastore.ErrNotFound) {
 			return err
@@ -158,9 +154,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	if err != nil {
 		return err
 	}
-	la.dsLk.Lock()
+
 	err = la.ds.Put(ctx, key, updatedData)
-	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("store sampling result: %w", err)
 	}
@@ -195,9 +190,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	defer release()
 
 	key := datastoreKeyForRoot(dah)
-	la.dsLk.RLock()
 	data, err := la.ds.Get(ctx, key)
-	la.dsLk.RUnlock()
 	if errors.Is(err, datastore.ErrNotFound) {
 		// nothing to prune
 		return nil
@@ -230,9 +223,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	}
 
 	// delete the sampling result
-	la.dsLk.Lock()
 	err = la.ds.Delete(ctx, key)
-	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("delete sampling result: %w", err)
 	}
@@ -245,7 +236,5 @@ func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 
 // Close flushes all queued writes to disk.
 func (la *ShareAvailability) Close(ctx context.Context) error {
-	la.dsLk.Lock()
-	defer la.dsLk.Unlock()
 	return nil
 }

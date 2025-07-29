@@ -13,7 +13,7 @@ require (
 	github.com/celestiaorg/celestia-app/v4 v4.1.0
 	github.com/celestiaorg/celestia-app/v5 v5.0.1
 	github.com/celestiaorg/go-fraud v0.2.3
-	github.com/celestiaorg/go-header v0.6.7-0.20250729202301-b8dc9d6982f9
+	github.com/celestiaorg/go-header v0.6.7-0.20250801000510-4062a7ad6335
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.3.1
@@ -65,23 +65,13 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.45.0
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.27.0
-<<<<<<< HEAD
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0
-	go.opentelemetry.io/otel/metric v1.36.0
-	go.opentelemetry.io/otel/sdk v1.35.0
-	go.opentelemetry.io/otel/sdk/metric v1.35.0
-	go.opentelemetry.io/otel/trace v1.36.0
-	go.opentelemetry.io/proto/otlp v1.5.0
-=======
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.31.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.31.0
 	go.opentelemetry.io/otel/metric v1.37.0
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/sdk/metric v1.35.0
 	go.opentelemetry.io/otel/trace v1.37.0
-	go.opentelemetry.io/proto/otlp v1.3.1
->>>>>>> cf441f85 (bump badger)
+	go.opentelemetry.io/proto/otlp v1.5.0
 	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.39.0
@@ -179,12 +169,8 @@ require (
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/desertbit/timer v1.0.1 // indirect
-<<<<<<< HEAD
-	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
-=======
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
->>>>>>> cf441f85 (bump badger)
+	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
 	github.com/emicklei/dot v1.6.2 // indirect
@@ -410,4 +396,4 @@ replace (
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
 
-replace github.com/ipfs/go-ds-badger4 => github.com/celestiaorg/go-ds-badger4 v0.0.0-20250716181942-8af067b9d326
+replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250731232240-3ef1f76b29f8

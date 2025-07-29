@@ -368,7 +368,6 @@ github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFos
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork h1:gvoKagc3npL+ra8pEtgR+SMGGgeGsirJtzWrYQJ+5cs=
 github.com/celestiaorg/boxo v0.29.0-fork/go.mod h1:c3R52nMlgMsN1tADffYcogKoVRsX1RJE1TMYSpJ4uVs=
-<<<<<<< HEAD
 github.com/celestiaorg/celestia-app/v4 v4.1.0 h1:IfqasbpEj5btNHfFp6tJQUEJzNz3DJ31111EfhIjKYY=
 github.com/celestiaorg/celestia-app/v4 v4.1.0/go.mod h1:DRlA2tC9cE/Z/oLql0/Cp0NlozpdB7CSlH0Svo2lPNA=
 github.com/celestiaorg/celestia-app/v5 v5.0.1 h1:cxYmIeZadD2BJue0nki+IKaZ63gMBggNwLLKdSAQkRI=
@@ -381,30 +380,12 @@ github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14 h1:MBVJBZuJqZLyRgYkF4ONvt
 github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
-github.com/celestiaorg/go-ds-badger4 v0.0.0-20250714213917-dc0e7fb4694b h1:htchYBAe7Om2qd+cS/1CFKkDD+F+ly8EQ1R9kqlyej0=
-github.com/celestiaorg/go-ds-badger4 v0.0.0-20250714213917-dc0e7fb4694b/go.mod h1:FdqSLA5TMsyqooENB/Hf4xzYE/iH0z/ErLD6ogtfMrA=
-=======
-github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha h1:OubH8kOj7MY5bD3S5cS4EVhaPzZkNnI9/hw2mXMGhaA=
-github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha/go.mod h1:3di3f2WY3ysxdlBEvQS3BaWhkLMphChzRGQejvISrG8=
-github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35 h1:iU2igosCxYKzEUi85u3YqNslIO+rCXtx4GKAHUzxrDQ=
-github.com/celestiaorg/celestia-core v1.52.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
-github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17 h1:oNKu7TSENdgBvtdGtIjEfO4jnpupZjQTa2YUxkE/VFM=
-github.com/celestiaorg/celestia-core v1.54.1-tm-v0.38.17/go.mod h1:vEUPDabqnVPUMBb9EyzI0dkUN6B3If0NI74jKvk+n0Q=
-github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12 h1:Q5Y9mZymbQP9qUr/l5IPcg/yh4hJWlyTEkG+TAyRy1U=
-github.com/celestiaorg/cosmos-sdk v1.29.2-sdk-v0.50.12/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
-github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2 h1:o+cQNLd5GQJdtlD8k7YofVIOJB9wkPX9cIEJz0E3FFg=
-github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2/go.mod h1:GdR2F3YQhICk8j5cEHOoSBdsIkKBDUcznPfjgnDHg5U=
-github.com/celestiaorg/go-ds-badger4 v0.0.0-20250716181942-8af067b9d326 h1:YIxljiJxPkUmIqKOfTaMVFJH2t2d2x6ecicTfEWr6x0=
-github.com/celestiaorg/go-ds-badger4 v0.0.0-20250716181942-8af067b9d326/go.mod h1:FdqSLA5TMsyqooENB/Hf4xzYE/iH0z/ErLD6ogtfMrA=
->>>>>>> fb0047d1 (batched deletes)
+github.com/celestiaorg/go-datastore v0.0.0-20250731232240-3ef1f76b29f8 h1:QqHzcBcROncxYA+ktErLxhWp5VjYJo8rNGCSWwmFiq8=
+github.com/celestiaorg/go-datastore v0.0.0-20250731232240-3ef1f76b29f8/go.mod h1:W+pI1NsUsz3tcsAACMtfC+IZdnQTnC/7VfPoJBQuts0=
 github.com/celestiaorg/go-fraud v0.2.3 h1:vsGmd5HtGL92q/pvjN0cpDsXn7hGJSbVZwOJl+dNX8E=
 github.com/celestiaorg/go-fraud v0.2.3/go.mod h1:h2Or0jHka/TDlQ3XsJV6OibIiwm49UiGVEu2jHKzybA=
-github.com/celestiaorg/go-header v0.6.7-0.20250729182254-5a51be418919 h1:smZkM44Y2xJd73cVIOLADF5yNE75NNH18MSu5MthjsU=
-github.com/celestiaorg/go-header v0.6.7-0.20250729182254-5a51be418919/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
-github.com/celestiaorg/go-header v0.6.7-0.20250729185426-921f86b87727 h1:EdfkWjuyfe0/4qTYnUfByZjXb5d9rZhyU8lwCV6eqEw=
-github.com/celestiaorg/go-header v0.6.7-0.20250729185426-921f86b87727/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
-github.com/celestiaorg/go-header v0.6.7-0.20250729202301-b8dc9d6982f9 h1:pOfc4rrLeba9i8q6O7VBRHyIOAlhrF++9vCxlkZ4evs=
-github.com/celestiaorg/go-header v0.6.7-0.20250729202301-b8dc9d6982f9/go.mod h1:/QZKfu+K3oqikqsQxVgCcFcu37Tm5UYcS/rmyWg3f2k=
+github.com/celestiaorg/go-header v0.6.7-0.20250801000510-4062a7ad6335 h1:N7D4aE9OqmCovwwjayjTFW8Zj1Ncmuy/CTnyXn7N7ho=
+github.com/celestiaorg/go-header v0.6.7-0.20250801000510-4062a7ad6335/go.mod h1:y4c+MPMjmPVLc4jz4PWoHqaH4KKkTzkOTyHXK8J5F14=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
@@ -537,17 +518,10 @@ github.com/dgraph-io/badger/v4 v4.6.0/go.mod h1:KSJ5VTuZNC3Sd+YhvVjk2nYua9UZnnTr
 github.com/dgraph-io/ristretto/v2 v2.2.0 h1:bkY3XzJcXoMuELV8F+vS8kzNgicwQFAaGINAEJdWGOM=
 github.com/dgraph-io/ristretto/v2 v2.2.0/go.mod h1:RZrm63UmcBAaYWC1DotLYBmTvgkrs0+XhBd7Npn7/zI=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
-<<<<<<< HEAD
-github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 h1:fAjc9m62+UWV/WAFKLNi6ZS0675eEUC9y3AlwSbQu1Y=
-github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
-github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj1Br63c=
-github.com/docker/go-connections v0.5.0/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
-=======
 github.com/dgryski/go-farm v0.0.0-20240924180020-3414d57e47da h1:aIftn67I1fkbMa512G+w+Pxci9hJPB8oMnkcP3iZF38=
 github.com/dgryski/go-farm v0.0.0-20240924180020-3414d57e47da/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
-github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKohAFqRJQ=
-github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
->>>>>>> cf441f85 (bump badger)
+github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj1Br63c=
+github.com/docker/go-connections v0.5.0/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
@@ -940,10 +914,10 @@ github.com/ipfs/go-block-format v0.2.0 h1:ZqrkxBA2ICbDRbK8KJs/u0O3dlp6gmAuuXUJNi
 github.com/ipfs/go-block-format v0.2.0/go.mod h1:+jpL11nFx5A/SPpsoBn6Bzkra/zaArfSmsknbPMYgzM=
 github.com/ipfs/go-cid v0.5.0 h1:goEKKhaGm0ul11IHA7I6p1GmKz8kEYniqFopaB5Otwg=
 github.com/ipfs/go-cid v0.5.0/go.mod h1:0L7vmeNXpQpUS9vt+yEARkJ8rOg43DF3iPgn4GIN0mk=
-github.com/ipfs/go-datastore v0.8.2 h1:Jy3wjqQR6sg/LhyY0NIePZC3Vux19nLtg7dx0TVqr6U=
-github.com/ipfs/go-datastore v0.8.2/go.mod h1:W+pI1NsUsz3tcsAACMtfC+IZdnQTnC/7VfPoJBQuts0=
 github.com/ipfs/go-detect-race v0.0.1 h1:qX/xay2W3E4Q1U7d9lNs1sU9nvguX0a7319XbyQ6cOk=
 github.com/ipfs/go-detect-race v0.0.1/go.mod h1:8BNT7shDZPo99Q74BpGMK+4D8Mn4j46UU0LZ723meps=
+github.com/ipfs/go-ds-badger4 v0.1.8 h1:frNczf5CjCVm62RJ5mW5tD/oLQY/9IKAUpKviRV9QAI=
+github.com/ipfs/go-ds-badger4 v0.1.8/go.mod h1:FdqSLA5TMsyqooENB/Hf4xzYE/iH0z/ErLD6ogtfMrA=
 github.com/ipfs/go-ipfs-delay v0.0.1 h1:r/UXYyRcddO6thwOnhiznIAiSvxMECGgtv35Xs1IeRQ=
 github.com/ipfs/go-ipfs-delay v0.0.1/go.mod h1:8SP1YXK1M1kXuc4KJZINY3TQQ03J2rwBG9QfXmbRPrw=
 github.com/ipfs/go-ipfs-pq v0.0.3 h1:YpoHVJB+jzK15mr/xsWC574tyDLkezVrDNeaalQBsTE=

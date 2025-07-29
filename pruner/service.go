@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	contextds "github.com/ipfs/go-datastore/context"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -160,16 +161,16 @@ func (s *Service) prune(ctx context.Context) {
 		log.Infow("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
 	}()
 
-	// batch, err := s.ds.Batch(ctx)
-	// if err != nil {
-	// 	return
-	// }
-	// ctx = badger4.WithBatch(ctx, batch)
-	// defer func() {
-	// 	if err := batch.Commit(ctx); err != nil {
-	// 		log.Errorw("failed to commit batch", "err", err)
-	// 	}
-	// }()
+	batch, err := s.ds.Batch(ctx)
+	if err != nil {
+		return
+	}
+	ctx = contextds.WithWrite(ctx, batch)
+	defer func() {
+		if err := batch.Commit(ctx); err != nil {
+			log.Errorw("failed to commit batch", "err", err)
+		}
+	}()
 
 	for {
 		select {

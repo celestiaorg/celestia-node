@@ -14,6 +14,7 @@ import (
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/gofrs/flock"
 	"github.com/ipfs/go-datastore"
+	contextds "github.com/ipfs/go-datastore/context"
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
@@ -134,8 +135,8 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
 
-	f.data = ds
-	return ds, nil
+	f.data = contextds.WrapDatastore(ds).(datastore.Batching)
+	return f.data, nil
 }
 
 func (f *fsStore) Close() (err error) {
