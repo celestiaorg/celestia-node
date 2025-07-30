@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v4 v4.0.10
+	github.com/celestiaorg/celestia-app/v5 v5.0.1-mocha
 	github.com/celestiaorg/celestia-node v0.23.2-mocha
 	github.com/celestiaorg/go-square/v2 v2.3.1
 	github.com/celestiaorg/tastora v0.0.4
@@ -106,7 +106,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/gogoproto v1.7.0 // indirect
-	github.com/cosmos/iavl v1.2.4 // indirect
+	github.com/cosmos/iavl v1.2.6 // indirect
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.1 // indirect
 	github.com/cosmos/ibc-go/v8 v8.7.0 // indirect
