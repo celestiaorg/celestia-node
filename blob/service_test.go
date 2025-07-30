@@ -19,9 +19,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v4/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v5/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -59,9 +59,9 @@ func TestMismatchedDataHash_ComputedRoot(t *testing.T) {
 
 func TestBadAppVersion(t *testing.T) {
 	header := headertest.RandExtendedHeader(t)
-	header.Version.App = appconsts.LatestVersion + 1
+	header.Version.App = appconsts.Version + 1
 
 	err := header.Validate()
 	assert.Contains(t, err.Error(), fmt.Sprintf("has version %d, this node supports up to version %d. Please "+
-		"upgrade to support new version", header.Version.App, appconsts.LatestVersion))
+		"upgrade to support new version", header.Version.App, appconsts.Version))
 }
