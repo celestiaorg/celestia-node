@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -274,19 +274,13 @@ func (g *Getter) GetNamespaceData(
 func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-	ns libshare.Namespace,
-	from, to shwap.SampleCoords,
-	proofsOnly bool,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
-	if err := ns.ValidateForData(); err != nil {
-		return shwap.RangeNamespaceData{}, err
-	}
-
 	ctx, span := tracer.Start(ctx, "get-shares-range")
 	defer span.End()
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
-		hdr.Height(), ns, from, to, len(hdr.DAH.RowRoots), proofsOnly,
+		hdr.Height(), from, to, len(hdr.DAH.RowRoots)/2,
 	)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err

@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -30,7 +30,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -214,6 +213,10 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 
 	cfg.Core.IP = ip
 	cfg.Core.Port = port
+
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	return cfg
 }
 
@@ -221,53 +224,25 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
-	var err error
-	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(s.ClientContext.GRPCClient.Target())
-	require.NoError(s.t, err)
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Bridge, store, options...)
+	return s.NewNodeWithConfig(node.Bridge, cfg, options...)
 }
 
 // NewFullNode creates a new instance of a FullNode providing a default config
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Full)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Full, store, options...)
+	return s.NewNodeWithConfig(node.Full, cfg, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Light)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
-
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Light, store, options...)
+	return s.NewNodeWithConfig(node.Light, cfg, options...)
 }
 
 func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, options ...fx.Option) *nodebuilder.Node {
 	store := nodebuilder.MockStore(s.t, cfg)
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
 	return s.MustNewNodeWithStore(nodeType, store, options...)
 }
 
@@ -293,24 +268,6 @@ func (s *Swamp) NewNodeWithStore(
 		state.WithKeyName(state.AccountName(s.Accounts[0])),
 	)
 
-	switch tp {
-	case node.Bridge:
-		host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
-		if err != nil {
-			return nil, err
-		}
-		addr := net.JoinHostPort(host, port)
-		con, err := grpc.NewClient(
-			addr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		require.NoError(s.t, err)
-		options = append(options,
-			coremodule.WithConnection(con),
-		)
-	default:
-	}
-
 	nd, err := s.newNode(tp, store, options...)
 	if err != nil {
 		return nil, err
@@ -327,9 +284,8 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 		return nil, err
 	}
 
-	// TODO(@Bidon15): If for some reason, we receive one of existing options
-	// like <core, host, hash> from the test case, we need to check them and not use
-	// default that are set here
+	// set port to zero so that OS allocates one
+	// this avoids port collissions between nodes and tests
 	cfg, _ := store.Config()
 	cfg.RPC.Port = "0"
 

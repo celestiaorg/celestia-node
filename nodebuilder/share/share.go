@@ -64,17 +64,14 @@ type Module interface {
 		namespace libshare.Namespace,
 	) (shwap.NamespaceData, error)
 
-	// GetRange retrieves a range of shares and their corresponding proofs within a specific
+	// GetRange retrieves a range of the *original* shares and their corresponding proofs within a specific
 	// namespace in the Extended Data Square (EDS) at the given height. The range is defined
-	// by from and to coordinates. If proofsOnly is true, only the proofs are returned without
-	// the actual share data. Returns the range data with proofs or an error if retrieval fails.
+	// by start and end indexes. Returns the range data with proof to the data root or an error if retrieval fails.
 	GetRange(
 		ctx context.Context,
-		namespace libshare.Namespace,
 		height uint64,
-		fromCoords, toCoords shwap.SampleCoords,
-		proofsOnly bool,
-	) (shwap.RangeNamespaceData, error)
+		start, end int,
+	) (*GetRangeResult, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -107,11 +104,9 @@ type API struct {
 		) (shwap.NamespaceData, error) `perm:"read"`
 		GetRange func(
 			ctx context.Context,
-			ns libshare.Namespace,
 			height uint64,
-			from, to shwap.SampleCoords,
-			proofsOnly bool,
-		) (shwap.RangeNamespaceData, error) `perm:"read"`
+			start, end int,
+		) (*GetRangeResult, error) `perm:"read"`
 	}
 }
 
@@ -137,10 +132,9 @@ func (api *API) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 	return api.Internal.GetRow(ctx, height, rowIdx)
 }
 
-func (api *API) GetRange(
-	ctx context.Context, ns libshare.Namespace, height uint64, from, to shwap.SampleCoords, proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
-	return api.Internal.GetRange(ctx, ns, height, from, to, proofsOnly)
+func (api *API) GetRange(ctx context.Context, height uint64, from, to int,
+) (*GetRangeResult, error) {
+	return api.Internal.GetRange(ctx, height, from, to)
 }
 
 func (api *API) GetNamespaceData(
@@ -197,16 +191,19 @@ func (m module) SharesAvailable(ctx context.Context, height uint64) error {
 
 func (m module) GetRange(
 	ctx context.Context,
-	ns libshare.Namespace,
 	height uint64,
-	from, to shwap.SampleCoords,
-	proofsOnly bool,
-) (shwap.RangeNamespaceData, error) {
-	header, err := m.hs.GetByHeight(ctx, height)
+	start, end int,
+) (*GetRangeResult, error) {
+	hdr, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
-		return shwap.RangeNamespaceData{}, err
+		return nil, err
 	}
-	return m.getter.GetRangeNamespaceData(ctx, header, ns, from, to, proofsOnly)
+
+	rngData, err := m.getter.GetRangeNamespaceData(ctx, hdr, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return newGetRangeResult(start, end, &rngData, hdr.DAH)
 }
 
 func (m module) GetNamespaceData(

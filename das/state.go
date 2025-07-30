@@ -56,7 +56,8 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		retryStrategy: newRetryStrategy(exponentialBackoff(
 			defaultBackoffInitialInterval,
 			defaultBackoffMultiplier,
-			defaultBackoffMaxRetryCount)),
+			defaultBackoffMaxRetryCount,
+		)),
 		failed:        make(map[uint64]retryAttempt),
 		inRetry:       make(map[uint64]retryAttempt),
 		nextJobID:     0,
@@ -119,9 +120,11 @@ func (s *coordinatorState) handleRetryResult(res result) {
 		// height will be retried after backoff
 		nextRetry, retryExceeded := s.retryStrategy.nextRetry(lastRetry, time.Now())
 		if retryExceeded {
-			log.Warnw("header exceeded maximum amount of sampling attempts",
+			log.Warnw(
+				"header exceeded maximum amount of sampling attempts",
 				"height", h,
-				"attempts", nextRetry.count)
+				"attempts", nextRetry.count,
+			)
 		}
 		s.failed[h] = nextRetry
 	}
@@ -135,7 +138,11 @@ func (s *coordinatorState) handleRetryResult(res result) {
 func (s *coordinatorState) isNewHead(newHead uint64) bool {
 	// seen this header before
 	if newHead <= s.networkHead {
-		log.Warnf("received head height: %v, which is lower or the same as previously known: %v", newHead, s.networkHead)
+		log.Warnf(
+			"received head height: %v, which is lower or the same as previously known: %v",
+			newHead,
+			s.networkHead,
+		)
 		return false
 	}
 	return true
@@ -146,8 +153,10 @@ func (s *coordinatorState) updateHead(newHead uint64) {
 		log.Infow("found first header, starting sampling")
 	}
 
+	oldHead := s.networkHead
 	s.networkHead = newHead
-	log.Debugw("updated head", "from_height", s.networkHead, "to_height", newHead)
+
+	log.Debugw("updated head", "from_height", oldHead, "to_height", newHead)
 	s.checkDone()
 }
 
