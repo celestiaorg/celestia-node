@@ -20,6 +20,7 @@ type Config struct {
 	Port     string
 	SkipAuth bool
 	CORS     CORSConfig
+	ReadOnly bool
 }
 
 func DefaultConfig() Config {
@@ -29,6 +30,7 @@ func DefaultConfig() Config {
 		Port:     defaultPort,
 		SkipAuth: false,
 		CORS:     DefaultCORSConfig(),
+		ReadOnly: false,
 	}
 }
 
