@@ -13,8 +13,7 @@ import (
 )
 
 var (
-	ErrStateDisabled      = errors.New("state module is disabled")
-	ErrBlobSubmitDisabled = errors.New("blob.Submit is disabled")
+	ErrReadOnlyMode = errors.New("node is running in read-only mode")
 )
 
 // disabledStateModule is a wrapper that disables all write operations of the state module
@@ -28,7 +27,7 @@ func (s *disabledStateModule) Transfer(
 	_ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) SubmitPayForBlob(
@@ -36,7 +35,7 @@ func (s *disabledStateModule) SubmitPayForBlob(
 	_ []*libshare.Blob,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) CancelUnbondingDelegation(
@@ -45,7 +44,7 @@ func (s *disabledStateModule) CancelUnbondingDelegation(
 	_, _ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) BeginRedelegate(
@@ -54,7 +53,7 @@ func (s *disabledStateModule) BeginRedelegate(
 	_ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) Undelegate(
@@ -63,7 +62,7 @@ func (s *disabledStateModule) Undelegate(
 	_ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) Delegate(
@@ -72,7 +71,7 @@ func (s *disabledStateModule) Delegate(
 	_ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) GrantFee(
@@ -81,7 +80,7 @@ func (s *disabledStateModule) GrantFee(
 	_ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 func (s *disabledStateModule) RevokeGrantFee(
@@ -89,7 +88,7 @@ func (s *disabledStateModule) RevokeGrantFee(
 	_ state.AccAddress,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
-	return nil, ErrStateDisabled
+	return nil, ErrReadOnlyMode
 }
 
 // readOnlyBlobModule is a wrapper that disables the Submit operation of the blob module
@@ -102,5 +101,5 @@ func (b *readOnlyBlobModule) Submit(
 	_ []*blob.Blob,
 	_ *blob.SubmitOptions,
 ) (uint64, error) {
-	return 0, ErrBlobSubmitDisabled
+	return 0, ErrReadOnlyMode
 }
