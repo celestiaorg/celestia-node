@@ -1,4 +1,4 @@
-package shrex_getter //nolint:revive
+package shrex_getter
 
 import (
 	"context"
