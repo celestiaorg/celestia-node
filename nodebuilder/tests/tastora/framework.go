@@ -48,7 +48,6 @@ type Framework struct {
 	provider   tastoratypes.Provider
 	daNetwork  tastoratypes.DataAvailabilityNetwork
 	bridgeNode *tastoradockertypes.DANode
-	fullNodes  []*tastoradockertypes.DANode
 	lightNodes []*tastoradockertypes.DANode
 	celestia   tastoratypes.Chain
 
@@ -120,42 +119,11 @@ func (f *Framework) GetOrCreateBridgeNode(ctx context.Context) *tastoradockertyp
 	return f.bridgeNode
 }
 
-// NewFullNode creates and starts a new full node.
-// The full node is automatically funded with the default amount for transaction operations.
-func (f *Framework) NewFullNode(ctx context.Context) *tastoradockertypes.DANode {
-	// Ensure we have a bridge node to connect to
-	bridgeNode := f.GetOrCreateBridgeNode(ctx)
-
-	// Get the next available full node from the DA network
-	allFullNodes := f.daNetwork.GetFullNodes()
-	if len(f.fullNodes) >= len(allFullNodes) {
-		f.t.Fatalf("Cannot create more full nodes: already have %d, max is %d", len(f.fullNodes), len(allFullNodes))
-	}
-
-	fullNode := f.startFullNode(ctx, bridgeNode, f.celestia)
-
-	// Automatically fund the full node
-	defaultWallet := f.getOrCreateDefaultWallet(ctx)
-	f.FundNodeAccount(ctx, defaultWallet, fullNode, f.defaultFundingAmount)
-	f.t.Logf("Full node automatically funded with %d utia", f.defaultFundingAmount)
-
-	// Wait a moment to ensure funds are available
-	time.Sleep(2 * time.Second)
-
-	f.fullNodes = append(f.fullNodes, fullNode)
-	return fullNode
-}
-
 // NewLightNode creates and starts a new light node.
 // The light node is automatically funded with the default amount for transaction operations.
 func (f *Framework) NewLightNode(ctx context.Context) *tastoradockertypes.DANode {
-	// Ensure we have a full node to connect to
-	var fullNode *tastoradockertypes.DANode
-	if len(f.fullNodes) == 0 {
-		fullNode = f.NewFullNode(ctx)
-	} else {
-		fullNode = f.fullNodes[0]
-	}
+	// Ensure we have a bridge node to connect to
+	bridgeNode := f.GetOrCreateBridgeNode(ctx)
 
 	// Get the next available light node from the DA network
 	allLightNodes := f.daNetwork.GetLightNodes()
@@ -163,7 +131,7 @@ func (f *Framework) NewLightNode(ctx context.Context) *tastoradockertypes.DANode
 		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
 	}
 
-	lightNode := f.startLightNode(ctx, fullNode, f.celestia)
+	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia)
 
 	// Automatically fund the light node
 	defaultWallet := f.getOrCreateDefaultWallet(ctx)
@@ -185,25 +153,12 @@ func (f *Framework) GetBridgeNodes() []*tastoradockertypes.DANode {
 	return []*tastoradockertypes.DANode{}
 }
 
-// GetOrCreateFullNode returns the first full node, creating it if none exist.
-func (f *Framework) GetOrCreateFullNode(ctx context.Context) *tastoradockertypes.DANode {
-	if len(f.fullNodes) == 0 {
-		return f.NewFullNode(ctx)
-	}
-	return f.fullNodes[0]
-}
-
 // GetOrCreateLightNode returns the first light node, creating it if none exist.
 func (f *Framework) GetOrCreateLightNode(ctx context.Context) *tastoradockertypes.DANode {
 	if len(f.lightNodes) == 0 {
 		return f.NewLightNode(ctx)
 	}
 	return f.lightNodes[0]
-}
-
-// GetFullNodes returns all full node instances.
-func (f *Framework) GetFullNodes() []*tastoradockertypes.DANode {
-	return f.fullNodes
 }
 
 // GetLightNodes returns all light node instances.
@@ -329,7 +284,6 @@ func (f *Framework) FundNodeAccount(ctx context.Context, fromWallet tastoratypes
 // createDockerProvider initializes the Docker provider for creating chains and nodes.
 func (f *Framework) createDockerProvider(cfg *Config) tastoratypes.Provider {
 	numValidators := cfg.NumValidators
-	numFullNodes := cfg.NumFullNodes
 
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
@@ -346,7 +300,6 @@ func (f *Framework) createDockerProvider(cfg *Config) tastoratypes.Provider {
 			Name:          "celestia",
 			Version:       getCelestiaTag(),
 			NumValidators: &numValidators,
-			NumFullNodes:  &numFullNodes,
 			ChainID:       testChainID,
 			Images: []tastoradockertypes.DockerImage{
 				{
@@ -371,7 +324,6 @@ func (f *Framework) createDockerProvider(cfg *Config) tastoratypes.Provider {
 			},
 		},
 		DataAvailabilityNetworkConfig: &tastoradockertypes.DataAvailabilityNetworkConfig{
-			FullNodeCount:   cfg.FullNodeCount,
 			BridgeNodeCount: cfg.BridgeNodeCount,
 			LightNodeCount:  cfg.LightNodeCount,
 			Image: tastoradockertypes.DockerImage{
@@ -425,43 +377,15 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 	return bridgeNode
 }
 
-// startFullNode initializes and starts a full node.
-func (f *Framework) startFullNode(ctx context.Context, bridgeNode *tastoradockertypes.DANode, chain tastoratypes.Chain) *tastoradockertypes.DANode {
+// startLightNode initializes and starts a light node.
+func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradockertypes.DANode, chain tastoratypes.Chain) *tastoradockertypes.DANode {
 	genesisHash := f.getGenesisHash(ctx, chain)
-
-	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
-	require.NoError(f.t, err, "failed to get internal hostname")
 
 	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
 	require.NoError(f.t, err, "failed to get bridge node p2p info")
 
 	p2pAddr, err := p2pInfo.GetP2PAddress()
 	require.NoError(f.t, err, "failed to get bridge node p2p address")
-
-	fullNode := f.daNetwork.GetFullNodes()[0].(*tastoradockertypes.DANode)
-	err = fullNode.Start(ctx,
-		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
-		tastoratypes.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-				"P2P_NETWORK":     testChainID,
-			},
-		),
-	)
-	require.NoError(f.t, err, "failed to start full node")
-	return fullNode
-}
-
-// startLightNode initializes and starts a light node.
-func (f *Framework) startLightNode(ctx context.Context, fullNode *tastoradockertypes.DANode, chain tastoratypes.Chain) *tastoradockertypes.DANode {
-	genesisHash := f.getGenesisHash(ctx, chain)
-
-	p2pInfo, err := fullNode.GetP2PInfo(ctx)
-	require.NoError(f.t, err, "failed to get full node p2p info")
-
-	p2pAddr, err := p2pInfo.GetP2PAddress()
-	require.NoError(f.t, err, "failed to get full node p2p address")
 
 	lightNode := f.daNetwork.GetLightNodes()[0].(*tastoradockertypes.DANode)
 	err = lightNode.Start(ctx,
