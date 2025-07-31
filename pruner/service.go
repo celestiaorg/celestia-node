@@ -19,7 +19,7 @@ var log = logging.Logger("pruner/service")
 // Service handles running the pruning cycle for the node.
 type Service struct {
 	pruner Pruner
-	window AvailabilityWindow
+	window time.Duration
 
 	getter libhead.Getter[*header.ExtendedHeader]
 
@@ -38,7 +38,7 @@ type Service struct {
 
 func NewService(
 	p Pruner,
-	window AvailabilityWindow,
+	window time.Duration,
 	getter libhead.Getter[*header.ExtendedHeader],
 	ds datastore.Datastore,
 	blockTime time.Duration,
@@ -92,6 +92,19 @@ func (s *Service) Stop(ctx context.Context) error {
 	case <-ctx.Done():
 		return fmt.Errorf("pruner unable to exit within context deadline")
 	}
+}
+
+func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
+	err := s.loadCheckpoint(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.checkpoint.LastPrunedHeight, nil
+}
+
+func (s *Service) ResetCheckpoint(ctx context.Context) error {
+	s.checkpoint = newCheckpoint()
+	return storeCheckpoint(ctx, s.ds, s.checkpoint)
 }
 
 // run prunes blocks older than the availability wiindow periodically until the

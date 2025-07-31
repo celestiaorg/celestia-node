@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -9,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 type peerInfo struct {
@@ -35,6 +38,8 @@ func init() {
 		bandwidthForProtocolCmd,
 		pubsubPeersCmd,
 		pubsubTopicsCmd,
+		connectionInfoCmd,
+		pingCmd,
 	)
 }
 
@@ -58,7 +63,7 @@ var infoCmd = &cobra.Command{
 
 		info, err := client.P2P.Info(cmd.Context())
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			peerAdd := data.(peer.AddrInfo)
 			ma := make([]string, len(info.Addrs))
 			for i := range peerAdd.Addrs {
@@ -91,7 +96,7 @@ var peersCmd = &cobra.Command{
 			peers[i] = peer.String()
 		}
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			conPeers := data.([]string)
 			return struct {
 				Peers []string `json:"peers"`
@@ -119,7 +124,7 @@ var peerInfoCmd = &cobra.Command{
 			return err
 		}
 		info, err := client.P2P.PeerInfo(cmd.Context(), pid)
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			peerAdd := data.(peer.AddrInfo)
 			ma := make([]string, len(info.Addrs))
 			for i := range peerAdd.Addrs {
@@ -211,7 +216,7 @@ var connectednessCmd = &cobra.Command{
 
 		con, err := client.P2P.Connectedness(cmd.Context(), pid)
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			conn := data.(network.Connectedness)
 			return struct {
 				ConnectionState string `json:"connection_state"`
@@ -236,7 +241,7 @@ var natStatusCmd = &cobra.Command{
 
 		r, err := client.P2P.NATStatus(cmd.Context())
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			rr := data.(network.Reachability)
 			return struct {
 				Reachability string `json:"reachability"`
@@ -266,12 +271,10 @@ var blockPeerCmd = &cobra.Command{
 
 		err = client.P2P.BlockPeer(cmd.Context(), pid)
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			err, ok := data.(error)
-			blocked := false
-			if !ok {
-				blocked = true
-			}
+			blocked := !ok
+
 			return struct {
 				Blocked bool   `json:"blocked"`
 				Peer    string `json:"peer"`
@@ -304,12 +307,9 @@ var unblockPeerCmd = &cobra.Command{
 
 		err = client.P2P.UnblockPeer(cmd.Context(), pid)
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			err, ok := data.(error)
-			unblocked := false
-			if !ok {
-				unblocked = true
-			}
+			unblocked := !ok
 
 			return struct {
 				Unblocked bool   `json:"unblocked"`
@@ -343,7 +343,7 @@ var blockedPeersCmd = &cobra.Command{
 			pids[i] = peer.String()
 		}
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			peers := data.([]string)
 			return struct {
 				Peers []string `json:"peers"`
@@ -373,12 +373,10 @@ var protectCmd = &cobra.Command{
 
 		err = client.P2P.Protect(cmd.Context(), pid, args[1])
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			err, ok := data.(error)
-			protected := false
-			if !ok {
-				protected = true
-			}
+			protected := !ok
+
 			return struct {
 				Protected bool   `json:"protected"`
 				Peer      string `json:"peer"`
@@ -413,12 +411,10 @@ var unprotectCmd = &cobra.Command{
 
 		_, err = client.P2P.Unprotect(cmd.Context(), pid, args[1])
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			err, ok := data.(error)
-			unprotected := false
-			if !ok {
-				unprotected = true
-			}
+			unprotected := !ok
+
 			return struct {
 				Unprotected bool   `json:"unprotected"`
 				Peer        string `json:"peer"`
@@ -476,7 +472,7 @@ var bandwidthStatsCmd = &cobra.Command{
 
 		result, err := client.P2P.BandwidthStats(cmd.Context())
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			stats := data.(metrics.Stats)
 			return bandwidthStats{
 				TotalIn:  stats.TotalIn,
@@ -507,7 +503,7 @@ var peerBandwidthCmd = &cobra.Command{
 
 		result, err := client.P2P.BandwidthForPeer(cmd.Context(), pid)
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			stats := data.(metrics.Stats)
 			return bandwidthStats{
 				TotalIn:  stats.TotalIn,
@@ -533,7 +529,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 
 		result, err := client.P2P.BandwidthForProtocol(cmd.Context(), protocol.ID(args[0]))
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			stats := data.(metrics.Stats)
 			return bandwidthStats{
 				TotalIn:  stats.TotalIn,
@@ -564,7 +560,7 @@ var pubsubPeersCmd = &cobra.Command{
 			peers[i] = peer.String()
 		}
 
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			conPeers := data.([]string)
 			return struct {
 				Peers []string `json:"peers"`
@@ -588,7 +584,7 @@ var pubsubTopicsCmd = &cobra.Command{
 		defer client.Close()
 
 		topics, err := client.P2P.PubSubTopics(cmd.Context())
-		formatter := func(data interface{}) interface{} {
+		formatter := func(data any) any {
 			conPeers := data.([]string)
 			return struct {
 				Topics []string `json:"topics"`
@@ -597,5 +593,74 @@ var pubsubTopicsCmd = &cobra.Command{
 			}
 		}
 		return cmdnode.PrintOutput(topics, err, formatter)
+	},
+}
+
+var connectionInfoCmd = &cobra.Command{
+	Use:   "connection-state [peerID]",
+	Short: "Gets connection info for a given peer ID",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		pid, err := peer.Decode(args[0])
+		if err != nil {
+			return err
+		}
+
+		infos, err := client.P2P.ConnectionState(cmd.Context(), pid)
+		return cmdnode.PrintOutput(infos, err, func(i any) any {
+			type state struct {
+				Info       network.ConnectionState
+				NumStreams int
+				Direction  string
+				Opened     string
+				Limited    bool
+			}
+
+			states := i.([]p2p.ConnectionState)
+			infos := make([]state, len(states))
+			for i, s := range states {
+				infos[i] = state{
+					Info:       s.Info,
+					NumStreams: s.NumStreams,
+					Direction:  s.Direction.String(),
+					Opened:     s.Opened.Format(time.DateTime),
+					Limited:    s.Limited,
+				}
+			}
+
+			if len(infos) == 1 {
+				return infos[0]
+			}
+			return infos
+		})
+	},
+}
+
+var pingCmd = &cobra.Command{
+	Use:   "ping [peerID]",
+	Short: "Pings given peer and tell how much time that took or errors",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		pid, err := peer.Decode(args[0])
+		if err != nil {
+			return err
+		}
+
+		pingDuration, err := client.P2P.Ping(cmd.Context(), pid)
+		return cmdnode.PrintOutput(pingDuration, err, func(i any) any {
+			return i.(time.Duration).String()
+		})
 	},
 }

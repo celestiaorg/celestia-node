@@ -12,7 +12,7 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -75,13 +75,18 @@ func WithProofsCache(ac AccessorStreamer) AccessorStreamer {
 	}
 }
 
-func (c *proofsCache) Size(ctx context.Context) int {
+func (c *proofsCache) Size(ctx context.Context) (int, error) {
 	size := c.size.Load()
-	if size == 0 {
-		size = int32(c.inner.Size(ctx))
-		c.size.Store(size)
+	if size != 0 {
+		return int(size), nil
 	}
-	return int(size)
+
+	loaded, err := c.inner.Size(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("loading size from inner accessor: %w", err)
+	}
+	c.size.Store(int32(loaded))
+	return loaded, nil
 }
 
 func (c *proofsCache) DataHash(ctx context.Context) (share.DataHash, error) {
@@ -112,8 +117,8 @@ func (c *proofsCache) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return roots, nil
 }
 
-func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
-	axisType, axisIdx, shrIdx := rsmt2d.Row, rowIdx, colIdx
+func (c *proofsCache) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
+	axisType, axisIdx, shrIdx := rsmt2d.Row, idx.Row, idx.Col
 	ax, err := c.axisWithProofs(ctx, axisType, axisIdx)
 	if err != nil {
 		return shwap.Sample{}, err
@@ -121,7 +126,11 @@ func (c *proofsCache) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sam
 
 	// build share proof from proofs cached for given axis
 	share := ax.shares[shrIdx]
-	proofs, err := ipld.GetProof(ctx, ax.proofs, ax.root, shrIdx, c.Size(ctx))
+	size, err := c.Size(ctx)
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("getting size: %w", err)
+	}
+	proofs, err := ipld.GetProof(ctx, ax.proofs, ax.root, shrIdx, size)
 	if err != nil {
 		return shwap.Sample{}, fmt.Errorf("building proof from cache: %w", err)
 	}
@@ -159,9 +168,13 @@ func (c *proofsCache) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, 
 	}
 
 	// build proofs from Shares and cache them
-	adder := ipld.NewProofsAdder(c.Size(ctx), true)
+	size, err := c.Size(ctx)
+	if err != nil {
+		return axisWithProofs{}, fmt.Errorf("getting size: %w", err)
+	}
+	adder := ipld.NewProofsAdder(size, true)
 	tree := wrapper.NewErasuredNamespacedMerkleTree(
-		uint64(c.Size(ctx)/2),
+		uint64(size/2),
 		uint(axisIdx),
 		nmt.NodeVisitor(adder.VisitFn()),
 	)
@@ -221,11 +234,14 @@ func (c *proofsCache) RowNamespaceData(
 		return shwap.RowNamespaceData{}, err
 	}
 
-	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, c.Size(ctx))
+	size, err := c.Size(ctx)
+	if err != nil {
+		return shwap.RowNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	row, proof, err := ipld.GetSharesByNamespace(ctx, ax.proofs, ax.root, namespace, size)
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
-
 	return shwap.RowNamespaceData{
 		Shares: row,
 		Proof:  proof,
@@ -233,9 +249,13 @@ func (c *proofsCache) RowNamespaceData(
 }
 
 func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
-	odsSize := c.Size(ctx) / 2
+	size, err := c.Size(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
 	shares := make([]libshare.Share, 0, odsSize*odsSize)
-	for i := 0; i < c.Size(ctx)/2; i++ {
+	for i := range odsSize {
 		ax, err := c.AxisHalf(ctx, rsmt2d.Row, i)
 		if err != nil {
 			return nil, err
@@ -255,8 +275,21 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 	return shares, nil
 }
 
+// RangeNamespaceData tries to find all complete rows in cache. For all incomplete rows,
+// it uses the inner accessor to build the namespace data
+func (c *proofsCache) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	return c.inner.RangeNamespaceData(ctx, from, to)
+}
+
 func (c *proofsCache) Reader() (io.Reader, error) {
-	odsSize := c.Size(context.TODO()) / 2
+	size, err := c.Size(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
 	reader := NewShareReader(odsSize, c.getShare)
 	return reader, nil
 }
@@ -307,7 +340,11 @@ func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisW
 
 func (c *proofsCache) getShare(rowIdx, colIdx int) (libshare.Share, error) {
 	ctx := context.TODO()
-	odsSize := c.Size(ctx) / 2
+	size, err := c.Size(ctx)
+	if err != nil {
+		return libshare.Share{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := size / 2
 	half, err := c.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return libshare.Share{}, fmt.Errorf("reading axis half: %w", err)

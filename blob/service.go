@@ -16,8 +16,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v5/pkg/proof"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -653,7 +653,7 @@ func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset
 		return nil, fmt.Errorf("cannot compute subtree roots for an empty ranges list")
 	}
 	if offset < 0 {
-		return nil, fmt.Errorf("the offset %d cannot be stricly negative", offset)
+		return nil, fmt.Errorf("the offset %d cannot be strictly negative", offset)
 	}
 
 	// create a tree containing the shares to generate their subtree roots

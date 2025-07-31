@@ -10,6 +10,35 @@ import (
 // bytes for the ShareIndex.
 const SampleIDSize = RowIDSize + 2
 
+type SampleCoords struct {
+	Row int `json:"row"`
+	Col int `json:"col"`
+}
+
+func (s SampleCoords) String() string {
+	return fmt.Sprintf("(%d:%d)", s.Row, s.Col)
+}
+
+func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {
+	if idx.Row < 0 || idx.Col < 0 {
+		return 0, fmt.Errorf("negative row or col index: %w", ErrInvalidID)
+	}
+	if idx.Row >= edsSize || idx.Col >= edsSize {
+		return 0, fmt.Errorf("SampleCoords %d || %d > %d: %w", idx.Row, idx.Col, edsSize, ErrOutOfBounds)
+	}
+	return idx.Row*edsSize + idx.Col, nil
+}
+
+func SampleCoordsFrom1DIndex(idx, squareSize int) (SampleCoords, error) {
+	if idx > squareSize*squareSize {
+		return SampleCoords{}, fmt.Errorf("SampleCoords %d > %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
+	}
+
+	rowIdx := idx / squareSize
+	colIdx := idx % squareSize
+	return SampleCoords{Row: rowIdx, Col: colIdx}, nil
+}
+
 // SampleID uniquely identifies a specific sample within a row of an Extended Data Square (EDS).
 type SampleID struct {
 	RowID          // Embeds RowID to incorporate block height and row index.
@@ -18,15 +47,15 @@ type SampleID struct {
 
 // NewSampleID constructs a new SampleID using the provided block height, sample index, and EDS
 // size. It calculates the row and share index based on the sample index and EDS size.
-func NewSampleID(height uint64, rowIdx, colIdx, edsSize int) (SampleID, error) {
+func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error) {
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
 				Height: height,
 			},
-			RowIndex: rowIdx,
+			RowIndex: idx.Row,
 		},
-		ShareIndex: colIdx,
+		ShareIndex: idx.Col,
 	}
 
 	if err := sid.Verify(edsSize); err != nil {
@@ -87,7 +116,11 @@ func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (sid SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
-	return sid.appendTo(data), nil
+	data, err := sid.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteTo writes the binary form of SampleID to the provided writer.
@@ -120,9 +153,12 @@ func (sid SampleID) Validate() error {
 	return sid.RowID.Validate()
 }
 
-// appendTo helps in constructing the binary representation by appending the encoded ShareIndex to
+// AppendBinary helps in constructing the binary representation by appending the encoded ShareIndex to
 // the serialized RowID.
-func (sid SampleID) appendTo(data []byte) []byte {
-	data = sid.RowID.appendTo(data)
-	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex))
+func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
+	data, err := sid.RowID.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex)), nil
 }

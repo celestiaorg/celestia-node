@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	nodep2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -45,8 +44,7 @@ func TestListener(t *testing.T) {
 	t.Cleanup(subs.Cancel)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	cfg := DefaultTestConfig()
-	cfg.Genesis.ChainID = testChainID
+	cfg := DefaultTestConfig().WithChainID(testChainID)
 	fetcher, _ := createCoreFetcher(t, cfg)
 
 	eds := createEdsPubSub(ctx, t)
@@ -63,7 +61,7 @@ func TestListener(t *testing.T) {
 	t.Cleanup(edsSubs.Cancel)
 
 	// ensure headers and dataHash are getting broadcasted to the relevant topics
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := subs.NextHeader(ctx)
 		require.NoError(t, err)
 	}
@@ -94,8 +92,7 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 
-	err = cl.listen(ctx, sub)
-	assert.ErrorIs(t, err, errInvalidSubscription)
+	assert.Panics(t, func() { cl.listen(ctx, sub) })
 }
 
 // TestListener_DoesNotStoreHistoric tests the (unlikely) case that
@@ -112,26 +109,35 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	cfg := DefaultTestConfig()
 	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
 	eds := createEdsPubSub(ctx, t)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
 
 	// create Listener and start listening
-	opt := WithAvailabilityWindow(pruner.AvailabilityWindow(time.Nanosecond))
+	opt := WithAvailabilityWindow(time.Nanosecond)
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
 
-	dataRoots := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	err = cl.Start(ctx)
 	require.NoError(t, err)
 
 	// ensure none of the EDSes were stored
-	for _, hash := range dataRoots {
-		has, err := store.HasByHash(ctx, hash)
+	for _, block := range nonEmptyBlocks {
+		has, err := store.HasByHash(ctx, block.datahash)
+		require.NoError(t, err)
+		assert.False(t, has)
+
+		// ensure .q4 file was not stored
+		has, err = store.HasQ4ByHash(ctx, block.datahash)
 		require.NoError(t, err)
 		assert.False(t, has)
 	}
+	require.NoError(t, cl.Stop(ctx))
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
@@ -157,7 +163,7 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 	require.NoError(t, err)
 
 	// wait on both peer identification events
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		select {
 		case <-sub0.Out():
 		case <-sub1.Out():

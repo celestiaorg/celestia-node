@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -229,7 +229,7 @@ func TestCoordinator(t *testing.T) {
 		failedLastRun := map[uint64]int{4: 1, 8: 2, 15: 1, 16: 1, 23: 1, 42: 1, testParams.sampleFrom - 1: 1}
 
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
-		sampler.checkpoint.Failed = failedLastRun
+		sampler.Failed = failedLastRun
 
 		coordinator := newSamplingCoordinator(
 			testParams.dasParams,
@@ -380,7 +380,7 @@ func (m *mockSampler) sample(ctx context.Context, h *header.ExtendedHeader) erro
 	}
 
 	if height > m.NetworkHead || height < m.SampleFrom {
-		if _, ok := m.checkpoint.Failed[height]; !ok {
+		if _, ok := m.Failed[height]; !ok {
 			return fmt.Errorf("header: %v out of range: %v-%v", h, m.SampleFrom, m.NetworkHead)
 		}
 	}
@@ -421,8 +421,8 @@ func (m *mockSampler) finalState() checkpoint {
 func (m *mockSampler) discover(ctx context.Context, newHeight uint64, emit listenFn) {
 	m.lock.Lock()
 
-	if newHeight > m.checkpoint.NetworkHead {
-		m.checkpoint.NetworkHead = newHeight
+	if newHeight > m.NetworkHead {
+		m.NetworkHead = newHeight
 		if m.isFinished {
 			m.finishedCh = make(chan struct{})
 			m.isFinished = false

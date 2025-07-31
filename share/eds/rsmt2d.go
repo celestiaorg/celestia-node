@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -21,8 +21,8 @@ type Rsmt2D struct {
 }
 
 // Size returns the size of the Extended Data Square.
-func (eds *Rsmt2D) Size(context.Context) int {
-	return int(eds.Width())
+func (eds *Rsmt2D) Size(context.Context) (int, error) {
+	return int(eds.Width()), nil
 }
 
 // DataHash returns data hash of the Accessor.
@@ -46,18 +46,18 @@ func (eds *Rsmt2D) AxisRoots(context.Context) (*share.AxisRoots, error) {
 // Sample returns share and corresponding proof for row and column indices.
 func (eds *Rsmt2D) Sample(
 	_ context.Context,
-	rowIdx, colIdx int,
+	idx shwap.SampleCoords,
 ) (shwap.Sample, error) {
-	return eds.SampleForProofAxis(rowIdx, colIdx, rsmt2d.Row)
+	return eds.SampleForProofAxis(idx, rsmt2d.Row)
 }
 
 // SampleForProofAxis samples a share from an Extended Data Square based on the provided
 // row and column indices and proof axis. It returns a sample with the share and proof.
 func (eds *Rsmt2D) SampleForProofAxis(
-	rowIdx, colIdx int,
+	idx shwap.SampleCoords,
 	proofType rsmt2d.Axis,
 ) (shwap.Sample, error) {
-	axisIdx, shrIdx := relativeIndexes(rowIdx, colIdx, proofType)
+	axisIdx, shrIdx := relativeIndexes(idx.Row, idx.Col, proofType)
 	shares, err := getAxis(eds.ExtendedDataSquare, proofType, axisIdx)
 	if err != nil {
 		return shwap.Sample{}, err
@@ -99,12 +99,7 @@ func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int
 // HalfRow constructs a new shwap.Row from an Extended Data Square based on the specified index and
 // side.
 func (eds *Rsmt2D) HalfRow(idx int, side shwap.RowSide) (shwap.Row, error) {
-	shares := eds.ExtendedDataSquare.Row(uint(idx))
-	sh, err := libshare.FromBytes(shares)
-	if err != nil {
-		return shwap.Row{}, fmt.Errorf("while converting shares from bytes: %w", err)
-	}
-	return shwap.RowFromShares(sh, side), nil
+	return shwap.RowFromEDS(eds.ExtendedDataSquare, idx, side)
 }
 
 // RowNamespaceData returns data for the given namespace and row index.
@@ -121,10 +116,45 @@ func (eds *Rsmt2D) RowNamespaceData(
 	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
 }
 
+// RangeNamespaceData builds a namespace range from the given indexes.
+func (eds *Rsmt2D) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	size, err := eds.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	// get coords based on the odsSize
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// `to` is an exclusive index. Getting inclusive coordinates of the last share.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	rawShares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
+		rawShare := eds.Row(uint(row))
+		sh, err := libshare.FromBytes(rawShare)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		rawShares[idx] = sh
+		idx++
+	}
+	return shwap.RangeNamespaceDataFromShares(rawShares, fromCoords, toCoords)
+}
+
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each
 // time.
 func (eds *Rsmt2D) Shares(_ context.Context) ([]libshare.Share, error) {
-	return libshare.FromBytes(eds.ExtendedDataSquare.FlattenedODS())
+	return libshare.FromBytes(eds.FlattenedODS())
 }
 
 func (eds *Rsmt2D) Close() error {

@@ -28,7 +28,7 @@ Using multiple coordinated workers running in parallel drastically improves the 
 To achieve parallelization, the DASer was split into the following core components:
 
 1. The `Coordinator` holds the current state of sampled headers and defines what headers should be sampled next.
-2. `Workers` perform sampling over a range of headers and communicate the results back to the coordinator. Workers are created on demand, when `Jobs` are available. The amount of concurrently running workers is limited by the const `concurrencyLimit`.  Length of the sampling range is defined by DASer configuration param `samplingRange`.
+2. `Workers` perform sampling over a range of headers and communicate the results back to the coordinator. Workers are created on demand, when `Jobs` are available. The amount of concurrently running workers is limited by the const `concurrencyLimit`. Length of the sampling range is defined by DASer configuration param `samplingRange`.
 3. The `Subscriber` subscribes to network head updates. When new headers are found, it will notify the `Coordinator`. Recent network head blocks will be prioritized for sampling to increase the availability of the most demanded blocks.
 4. The `CheckpointStore` stores/loads the `Coordinator` state as a checkpoint to allow for seamless resuming upon restart. The `Coordinator` stores the state as a checkpoint on exit and resumes sampling from the latest state.
 It also periodically stores checkpoints to storage to avoid the situation when no checkpoint is stored upon a hard shutdown of the node.

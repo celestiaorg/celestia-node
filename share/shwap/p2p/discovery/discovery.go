@@ -189,24 +189,16 @@ func (d *Discovery) Advertise(ctx context.Context) {
 
 			// we don't want retry indefinitely in busy loop
 			// internal discovery mechanism may need some time before attempts
-			errTimer := time.NewTimer(retryTimeout)
+			errTimer := time.After(retryTimeout)
 			select {
-			case <-errTimer.C:
-				errTimer.Stop()
-				if !timer.Stop() {
-					<-timer.C
-				}
+			case <-errTimer:
 				continue
 			case <-ctx.Done():
-				errTimer.Stop()
 				return
 			}
 		}
 
 		log.Infof("successfully advertised to topic %s", d.topic)
-		if !timer.Stop() {
-			<-timer.C
-		}
 		timer.Reset(d.params.AdvertiseInterval)
 		select {
 		case <-timer.C:

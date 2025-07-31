@@ -3,23 +3,21 @@ package das
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/go-fraud/fraudtest"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -240,45 +238,6 @@ func TestDASerSampleTimeout(t *testing.T) {
 	case <-doneCh:
 	case <-ctx.Done():
 		t.Fatal("call context didn't timeout in time")
-	}
-}
-
-// TestDASer_SamplingWindow tests the sampling window determination
-// for headers.
-func TestDASer_SamplingWindow(t *testing.T) {
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	sub := new(headertest.Subscriber)
-	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
-	getter := getterStub{}
-	avail := mocks.NewMockAvailability(gomock.NewController(t))
-
-	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
-		WithSamplingWindow(pruner.AvailabilityWindow(time.Second)))
-	require.NoError(t, err)
-
-	tests := []struct {
-		timestamp    time.Time
-		withinWindow bool
-	}{
-		{timestamp: time.Now().Add(-(time.Second * 5)), withinWindow: false},
-		{timestamp: time.Now().Add(-(time.Millisecond * 800)), withinWindow: true},
-		{timestamp: time.Now().Add(-(time.Hour)), withinWindow: false},
-		{timestamp: time.Now().Add(-(time.Hour * 24 * 30)), withinWindow: false},
-		{timestamp: time.Now(), withinWindow: true},
-	}
-
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			eh := headertest.RandExtendedHeader(t)
-			eh.RawHeader.Time = tt.timestamp
-
-			assert.Equal(
-				t,
-				tt.withinWindow,
-				pruner.IsWithinAvailabilityWindow(eh.Time(), daser.params.samplingWindow),
-			)
-		})
 	}
 }
 

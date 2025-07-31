@@ -36,9 +36,9 @@ func (c *closeOnce) Close() error {
 	return err
 }
 
-func (c *closeOnce) Size(ctx context.Context) int {
+func (c *closeOnce) Size(ctx context.Context) (int, error) {
 	if c.closed.Load() {
-		return 0
+		return 0, errAccessorClosed
 	}
 	return c.f.Size(ctx)
 }
@@ -57,11 +57,11 @@ func (c *closeOnce) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 	return c.f.AxisRoots(ctx)
 }
 
-func (c *closeOnce) Sample(ctx context.Context, rowIdx, colIdx int) (shwap.Sample, error) {
+func (c *closeOnce) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
 	if c.closed.Load() {
 		return shwap.Sample{}, errAccessorClosed
 	}
-	return c.f.Sample(ctx, rowIdx, colIdx)
+	return c.f.Sample(ctx, idx)
 }
 
 func (c *closeOnce) AxisHalf(
@@ -91,6 +91,16 @@ func (c *closeOnce) Shares(ctx context.Context) ([]libshare.Share, error) {
 		return nil, errAccessorClosed
 	}
 	return c.f.Shares(ctx)
+}
+
+func (c *closeOnce) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	if c.closed.Load() {
+		return shwap.RangeNamespaceData{}, errAccessorClosed
+	}
+	return c.f.RangeNamespaceData(ctx, from, to)
 }
 
 func (c *closeOnce) Reader() (io.Reader, error) {

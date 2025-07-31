@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestSample_FetchRoundtrip(t *testing.T) {
@@ -22,9 +23,11 @@ func TestSample_FetchRoundtrip(t *testing.T) {
 
 	width := int(eds.Width())
 	blks := make([]Block, 0, width*width)
-	for x := 0; x < width; x++ {
-		for y := 0; y < width; y++ {
-			blk, err := NewEmptySampleBlock(1, x, y, len(root.RowRoots))
+	for x := range width {
+		for y := range width {
+			idx := shwap.SampleCoords{Row: x, Col: y}
+
+			blk, err := NewEmptySampleBlock(1, idx, len(root.RowRoots))
 			require.NoError(t, err)
 			blks = append(blks, blk)
 		}

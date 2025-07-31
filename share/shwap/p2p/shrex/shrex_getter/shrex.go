@@ -1,4 +1,4 @@
-package shrex_getter //nolint:revive,stylecheck // underscore in pkg name will be fixed with shrex refactoring
+package shrex_getter
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
@@ -105,7 +105,7 @@ type Getter struct {
 	// attempt multiple peers in scope of one request before context timeout is reached
 	minAttemptsCount int
 
-	availabilityWindow pruner.AvailabilityWindow
+	availabilityWindow time.Duration
 
 	metrics *metrics
 }
@@ -115,7 +115,7 @@ func NewGetter(
 	ndClient *shrexnd.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
-	availWindow pruner.AvailabilityWindow,
+	availWindow time.Duration,
 ) *Getter {
 	s := &Getter{
 		edsClient:           edsClient,
@@ -146,8 +146,12 @@ func (sg *Getter) Stop(ctx context.Context) error {
 	return sg.archivalPeerManager.Stop(ctx)
 }
 
-func (sg *Getter) GetShare(context.Context, *header.ExtendedHeader, int, int) (libshare.Share, error) {
-	return libshare.Share{}, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+func (sg *Getter) GetSamples(context.Context, *header.ExtendedHeader, []shwap.SampleCoords) ([]shwap.Sample, error) {
+	return nil, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+}
+
+func (sg *Getter) GetRow(_ context.Context, _ *header.ExtendedHeader, _ int) (shwap.Row, error) {
+	return shwap.Row{}, fmt.Errorf("getter/shrex: GetRow %w", shwap.ErrOperationNotSupported)
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
@@ -302,11 +306,19 @@ func (sg *Getter) GetNamespaceData(
 	}
 }
 
+func (sg *Getter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
+}
+
 func (sg *Getter) getPeer(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 ) (libpeer.ID, peers.DoneFunc, error) {
-	if !pruner.IsWithinAvailabilityWindow(header.Time(), sg.availabilityWindow) {
+	if !availability.IsWithinWindow(header.Time(), sg.availabilityWindow) {
 		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 		return p, df, err
 	}

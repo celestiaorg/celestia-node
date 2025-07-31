@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
 
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
@@ -18,10 +18,14 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	client := StartTestNode(t).Client
-	fetcher := NewBlockFetcher(client)
+	network := NewNetwork(t, DefaultTestConfig())
+	require.NoError(t, network.Start())
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 
-	// generate some blocks
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
+	require.NoError(t, err)
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	// read once from channel to generate next block
@@ -33,10 +37,10 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 		require.NoError(t, ctx.Err())
 	}
 	// get Commit from current height
-	commit, err := fetcher.Commit(ctx, &h)
+	commit, err := fetcher.Commit(ctx, h)
 	require.NoError(t, err)
 	// get ValidatorSet from current height
-	valSet, err := fetcher.ValidatorSet(ctx, &h)
+	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
 	var nextBlock types.EventDataSignedBlock
@@ -51,5 +55,4 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	// compare ValidatorSet hash to the ValidatorsHash from first block height
 	hexBytes := valSet.Hash()
 	assert.Equal(t, nextBlock.ValidatorSet.Hash(), hexBytes)
-	require.NoError(t, fetcher.UnsubscribeNewBlockEvent(ctx))
 }

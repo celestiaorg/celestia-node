@@ -71,3 +71,4 @@ release:
   mode: keep-existing
 git:
   prerelease_suffix: "-rc*"
+  tag_sort: -version:creatordate
