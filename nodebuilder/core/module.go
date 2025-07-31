@@ -24,8 +24,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
+		fx.Supply(cfg.EndpointConfig),
 		fx.Error(cfgErr),
 		fx.Provide(grpcClient),
+		fx.Provide(additionalCoreEndpointGrpcClients),
 		fx.Options(options...),
 	)
 

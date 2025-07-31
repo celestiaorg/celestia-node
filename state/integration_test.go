@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -68,11 +68,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 }
 
 func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
-	ca.coreConn = conn
+	ca.coreConns = []*grpc.ClientConn{conn}
 	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
 
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {
