@@ -25,30 +25,30 @@ func TestDisabledStateModule(t *testing.T) {
 	var testValAddr state.ValAddress
 	var testConfig *state.TxConfig
 
-	// Test that all write operations return the disabled error
+	// Test that all write operations return the read-only mode error
 	_, err := disabled.Transfer(ctx, testAddr, testInt, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.SubmitPayForBlob(ctx, nil, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.CancelUnbondingDelegation(ctx, testValAddr, testInt, testInt, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.BeginRedelegate(ctx, testValAddr, testValAddr, testInt, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.Undelegate(ctx, testValAddr, testInt, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.Delegate(ctx, testValAddr, testInt, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.GrantFee(ctx, testAddr, testInt, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 
 	_, err = disabled.RevokeGrantFee(ctx, testAddr, testConfig)
-	assert.ErrorIs(t, err, ErrStateDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 }
 
 func TestReadOnlyBlobModule(t *testing.T) {
@@ -58,12 +58,11 @@ func TestReadOnlyBlobModule(t *testing.T) {
 	readOnly := &readOnlyBlobModule{mockBlob}
 	ctx := context.Background()
 
-	// Test that Submit operation returns the disabled error
+	// Test that Submit operation returns the read-only mode error
 	_, err := readOnly.Submit(ctx, nil, nil)
-	assert.ErrorIs(t, err, ErrBlobSubmitDisabled)
+	assert.ErrorIs(t, err, ErrReadOnlyMode)
 }
 
 func TestErrorMessages(t *testing.T) {
-	require.Equal(t, "state module is disabled", ErrStateDisabled.Error())
-	require.Equal(t, "blob.Submit is disabled", ErrBlobSubmitDisabled.Error())
+	require.Equal(t, "node is running in read-only mode", ErrReadOnlyMode.Error())
 }
