@@ -3,8 +3,6 @@ package tastora
 // Config represents configuration options for the Tastora testing framework.
 type Config struct {
 	NumValidators   int
-	NumFullNodes    int
-	FullNodeCount   int
 	BridgeNodeCount int
 	LightNodeCount  int
 }
@@ -16,8 +14,6 @@ type Option func(*Config)
 func defaultConfig() *Config {
 	return &Config{
 		NumValidators:   1,
-		NumFullNodes:    0,
-		FullNodeCount:   1,
 		BridgeNodeCount: 1,
 		LightNodeCount:  1,
 	}
@@ -27,13 +23,6 @@ func defaultConfig() *Config {
 func WithValidators(count int) Option {
 	return func(c *Config) {
 		c.NumValidators = count
-	}
-}
-
-// WithFullNodes sets the number of full nodes in the DA network.
-func WithFullNodes(count int) Option {
-	return func(c *Config) {
-		c.FullNodeCount = count
 	}
 }
 

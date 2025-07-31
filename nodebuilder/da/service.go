@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/go-da"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -64,22 +66,43 @@ func (s *Service) MaxBlobSize(context.Context) (uint64, error) {
 
 // Get returns Blob for each given ID, or an error.
 func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.Blob, error) {
-	blobs := make([]da.Blob, 0, len(ids))
-	for _, id := range ids {
-		height, commitment := SplitID(id)
-		namespace, err := libshare.NewNamespaceFromBytes(ns)
-		if err != nil {
-			return nil, err
-		}
-		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", namespace)
-		currentBlob, err := s.blobServ.Get(ctx, height, namespace, commitment)
-		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", namespace)
-		if err != nil {
-			return nil, err
-		}
-		blobs = append(blobs, currentBlob.Data())
+	if len(ids) == 0 {
+		return nil, errors.New("empty IDs list provided")
 	}
-	return blobs, nil
+
+	height, _ := SplitID(ids[0])
+	for _, id := range ids {
+		h, _ := SplitID(id)
+		if h != height {
+			return nil, errors.New("all IDs must be from the same height")
+		}
+	}
+
+	namespace, err := libshare.NewNamespaceFromBytes(ns)
+	if err != nil {
+		return nil, err
+	}
+	blobs, err := s.blobServ.GetAll(ctx, height, []libshare.Namespace{namespace})
+	if err != nil {
+		return nil, err
+	}
+
+	blobsByCommitment := make(map[string]*blob.Blob, len(blobs))
+	for _, b := range blobs {
+		blobsByCommitment[string(b.Commitment)] = b
+	}
+
+	dablobs := make([]da.Blob, 0, len(ids))
+	for _, id := range ids {
+		_, commitment := SplitID(id)
+		blob := blobsByCommitment[string(commitment)]
+		if blob == nil {
+			return nil, fmt.Errorf("blob with commitment %s not found at height %d", commitment, height)
+		}
+		dablobs = append(dablobs, blob.Data())
+	}
+
+	return dablobs, nil
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
