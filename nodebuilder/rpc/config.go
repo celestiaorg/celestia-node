@@ -16,23 +16,21 @@ type CORSConfig struct {
 }
 
 type Config struct {
-	Address            string
-	Port               string
-	SkipAuth           bool
-	CORS               CORSConfig
-	DisableStateModule bool
-	DisableBlobSubmit  bool
+	Address  string
+	Port     string
+	SkipAuth bool
+	CORS     CORSConfig
+	ReadOnly bool
 }
 
 func DefaultConfig() Config {
 	return Config{
 		Address: defaultBindAddress,
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		Port:               defaultPort,
-		SkipAuth:           false,
-		CORS:               DefaultCORSConfig(),
-		DisableStateModule: false,
-		DisableBlobSubmit:  false,
+		Port:     defaultPort,
+		SkipAuth: false,
+		CORS:     DefaultCORSConfig(),
+		ReadOnly: false,
 	}
 }
 
