@@ -10,7 +10,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v4 v4.0.10
+	github.com/celestiaorg/celestia-app/v5 v5.0.1
 	github.com/celestiaorg/go-fraud v0.2.3
 	github.com/celestiaorg/go-header v0.6.6
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
@@ -156,7 +156,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/gogoproto v1.7.0 // indirect
-	github.com/cosmos/iavl v1.2.4 // indirect
+	github.com/cosmos/iavl v1.2.6 // indirect
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.1 // indirect
 	github.com/cosmos/ibc-go/v8 v8.7.0 // indirect
@@ -384,8 +384,8 @@ require (
 )
 
 replace (
-	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.0.0-20250320145042-6d8b2a52fbb2
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.0-tm-v0.38.17
+	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.2-tm-v0.38.17
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app

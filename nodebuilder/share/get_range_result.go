@@ -9,7 +9,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 

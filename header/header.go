@@ -10,8 +10,8 @@ import (
 	"github.com/cometbft/cometbft/light"
 	core "github.com/cometbft/cometbft/types"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -113,10 +113,10 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
-	if eh.Version.App == 0 || eh.Version.App > appconsts.LatestVersion {
+	if eh.Version.App == 0 || eh.Version.App > appconsts.Version {
 		return fmt.Errorf("header received at height %d has version %d, this node supports up "+
 			"to version %d. Please upgrade to support new version. Note, 0 is not a valid version",
-			eh.RawHeader.Height, eh.Version.App, appconsts.LatestVersion)
+			eh.RawHeader.Height, eh.Version.App, appconsts.Version)
 	}
 
 	err = eh.Commit.ValidateBasic()
