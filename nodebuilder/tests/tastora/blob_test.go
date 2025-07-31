@@ -31,7 +31,7 @@ func TestBlobTestSuite(t *testing.T) {
 }
 
 func (s *BlobTestSuite) SetupSuite() {
-	s.framework = NewFramework(s.T(), WithValidators(1), WithFullNodes(1))
+	s.framework = NewFramework(s.T(), WithValidators(1))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
@@ -42,12 +42,12 @@ func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 1_000_000_000)
 
 	// Create test blob
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
@@ -88,12 +88,12 @@ func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 10_000_000_000) // Higher amount for multiple blobs
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 2_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 2_000_000_000)
 
 	// Create test namespace and blobs
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
@@ -148,12 +148,12 @@ func (s *BlobTestSuite) TestBlobGet_ExistingBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_500_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 1_500_000_000)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
 	s.Require().NoError(err)
@@ -194,8 +194,8 @@ func (s *BlobTestSuite) TestBlobGet_NonExistentBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x04}, 10))
 	s.Require().NoError(err)
@@ -212,12 +212,12 @@ func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // Increased timeout
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_500_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 1_500_000_000)
 
 	// Create test namespace
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))
@@ -262,8 +262,8 @@ func (s *BlobTestSuite) TestBlobGetProof_ValidBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Create and submit test blob
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x06}, 10))
@@ -304,12 +304,12 @@ func (s *BlobTestSuite) TestBlobMixedVersions() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Explicit funding approach - create wallet and fund the node account directly
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 2_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 2_000_000_000)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))
 	s.Require().NoError(err)
