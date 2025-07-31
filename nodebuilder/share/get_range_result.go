@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"errors"
 
-	tmjson "github.com/cometbft/cometbft/libs/json"
-
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
