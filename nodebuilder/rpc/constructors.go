@@ -35,9 +35,10 @@ func registerEndpoints(
 	serv.RegisterService("das", daserMod, &das.API{})
 	serv.RegisterService("header", headerMod, &header.API{})
 
-	// Apply state module wrapper if disabled
-	if cfg.DisableStateModule {
+	// Apply read-only wrappers if read-only mode is enabled
+	if cfg.ReadOnly {
 		stateMod = &disabledStateModule{stateMod}
+		blobMod = &readOnlyBlobModule{blobMod}
 	}
 	serv.RegisterService("state", stateMod, &state.API{})
 
@@ -45,10 +46,6 @@ func registerEndpoints(
 	serv.RegisterService("p2p", p2pMod, &p2p.API{})
 	serv.RegisterService("node", nodeMod, &node.API{})
 
-	// Apply blob module wrapper if submit is disabled
-	if cfg.DisableBlobSubmit {
-		blobMod = &readOnlyBlobModule{blobMod}
-	}
 	serv.RegisterService("blob", blobMod, &blob.API{})
 
 	serv.RegisterService("da", daMod, &da.API{})
