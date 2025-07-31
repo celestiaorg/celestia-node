@@ -239,7 +239,7 @@ func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
 // Uses tendermint decoder for tendermint compatibility.
 func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
 	// alias the type to avoid going into recursion loop
-	// because tmjson.Unmarshal invokes custom json unmarshaling
+	// because tmjson.Unmarshal invokes custom json unmarshalling
 	type Alias ExtendedHeader
 	return tmjson.Unmarshal(data, (*Alias)(eh))
 }
