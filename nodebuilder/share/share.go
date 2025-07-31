@@ -3,8 +3,6 @@ package share
 import (
 	"context"
 
-	tmjson "github.com/tendermint/tendermint/libs/json"
-
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
