@@ -16,7 +16,7 @@ import (
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/headertest"
 	"github.com/celestiaorg/rsmt2d"
