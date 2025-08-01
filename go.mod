@@ -13,7 +13,7 @@ require (
 	github.com/celestiaorg/celestia-app/v4 v4.1.0
 	github.com/celestiaorg/celestia-app/v5 v5.0.1
 	github.com/celestiaorg/go-fraud v0.2.3
-	github.com/celestiaorg/go-header v0.6.7-0.20250801000510-4062a7ad6335
+	github.com/celestiaorg/go-header v0.6.7-0.20250801201043-9b03087e89de
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.3.1
@@ -396,4 +396,4 @@ replace (
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
 
-replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250731232240-3ef1f76b29f8
+replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4
