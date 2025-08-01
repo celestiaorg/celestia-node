@@ -251,8 +251,6 @@ func (s *Service) retryFailed(ctx context.Context) {
 //   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
 func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
 	s.pruneMu.Lock()
-	defer s.pruneMu.Unlock()
-
 	s.loadCheckpoint(ctx)
 	if _, ok := s.checkpoint.FailedHeaders[height]; ok {
 		log.Warnw("Deleted header for a height previously failed to be pruned", "height", height)
@@ -261,8 +259,10 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 		delete(s.checkpoint.FailedHeaders, height)
 	}
 	if height <= s.checkpoint.LastPrunedHeight {
+		s.pruneMu.Unlock()
 		return nil
 	}
+	s.pruneMu.Unlock()
 
 	eh, err := s.hstore.GetByHeight(ctx, height)
 	if err != nil {
@@ -275,6 +275,11 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 		return fmt.Errorf("pruning height %d: %w", height, err)
 	}
 
+	s.pruneMu.Lock()
+	defer s.pruneMu.Unlock()
+	if height <= s.checkpoint.LastPrunedHeight {
+		return nil
+	}
 	s.checkpoint.LastPrunedHeight = height
 	// no need to persist here, as it will done in pruning routine or Stop
 	log.Debugw("data pruned on header delete", "height", height)
