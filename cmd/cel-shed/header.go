@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-header/store"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
