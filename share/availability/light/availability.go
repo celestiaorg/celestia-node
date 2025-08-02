@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -26,7 +24,6 @@ import (
 var (
 	log                   = logging.Logger("share/light")
 	samplingResultsPrefix = datastore.NewKey("sampling_result")
-	writeBatchSize        = 2048
 )
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
@@ -41,8 +38,7 @@ type ShareAvailability struct {
 	storageWindow time.Duration
 
 	activeHeights *utils.Sessions
-	dsLk          sync.RWMutex
-	ds            *autobatch.Datastore
+	ds            datastore.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.
@@ -54,7 +50,7 @@ func NewShareAvailability(
 ) *ShareAvailability {
 	params := *DefaultParameters()
 	ds = namespace.Wrap(ds, samplingResultsPrefix)
-	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
+	//	autoDS := autobatch.NewAutoBatching(ds, writeBatchSize)
 
 	for _, opt := range opts {
 		opt(&params)
@@ -66,7 +62,7 @@ func NewShareAvailability(
 		params:        params,
 		storageWindow: availability.StorageWindow,
 		activeHeights: utils.NewSessions(),
-		ds:            autoDS,
+		ds:            ds,
 	}
 }
 
@@ -96,9 +92,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	samples := &SamplingResult{}
 
 	// Attempt to load previous sampling results
-	la.dsLk.RLock()
 	data, err := la.ds.Get(ctx, key)
-	la.dsLk.RUnlock()
 	if err != nil {
 		if !errors.Is(err, datastore.ErrNotFound) {
 			return err
@@ -159,9 +153,8 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	if err != nil {
 		return err
 	}
-	la.dsLk.Lock()
+
 	err = la.ds.Put(ctx, key, updatedData)
-	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("store sampling result: %w", err)
 	}
@@ -196,9 +189,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	defer release()
 
 	key := datastoreKeyForRoot(dah)
-	la.dsLk.RLock()
 	data, err := la.ds.Get(ctx, key)
-	la.dsLk.RUnlock()
 	if errors.Is(err, datastore.ErrNotFound) {
 		// nothing to prune
 		return nil
@@ -231,9 +222,7 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	}
 
 	// delete the sampling result
-	la.dsLk.Lock()
 	err = la.ds.Delete(ctx, key)
-	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("delete sampling result: %w", err)
 	}
@@ -245,8 +234,6 @@ func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 }
 
 // Close flushes all queued writes to disk.
-func (la *ShareAvailability) Close(ctx context.Context) error {
-	la.dsLk.Lock()
-	defer la.dsLk.Unlock()
-	return la.ds.Flush(ctx)
+func (la *ShareAvailability) Close(_ context.Context) error {
+	return nil
 }

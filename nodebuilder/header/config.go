@@ -1,13 +1,11 @@
 package header
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 
-	libhead "github.com/celestiaorg/go-header"
 	p2p_exchange "github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
@@ -23,6 +21,9 @@ var MetricsEnabled = false
 type Config struct {
 	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
 	// Only affects the node once on initial sync.
+	//  TODO: Deprecate or break?
+	//   Also depends on whether we want to make pruning a default behavior from the start and for which nodes.
+	//   I guess we want to make it default for LNs and the opposite for FNs
 	TrustedHash string
 	// TrustedPeers are the peers we trust to fetch headers from.
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch
@@ -82,15 +83,15 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 	return
 }
 
-func (cfg *Config) trustedHash(net p2p.Network) (libhead.Hash, error) {
+func (cfg *Config) trustedHash(net p2p.Network) (string, error) {
 	if cfg.TrustedHash == "" {
 		gen, err := p2p.GenesisFor(net)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		return hex.DecodeString(gen)
+		return gen, nil
 	}
-	return hex.DecodeString(cfg.TrustedHash)
+	return cfg.TrustedHash, nil
 }
 
 // Validate performs basic validation of the config.

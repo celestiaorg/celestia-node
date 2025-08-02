@@ -871,11 +871,10 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 		edsses[i] = eds
 	}
 	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
-
-	err = headerStore.Init(ctx, headers[0])
+	err = headerStore.Start(ctx)
 	require.NoError(t, err)
-
-	err = headerStore.Append(ctx, headers[1:]...)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, headers...)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -934,7 +933,10 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	err = headerStore.Init(ctx, h)
+	err = headerStore.Start(ctx)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, h)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {

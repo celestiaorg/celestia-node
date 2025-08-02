@@ -18,6 +18,7 @@ func (s *Service) findPruneableHeaders(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,
 ) ([]*header.ExtendedHeader, error) {
+	// TODO(@Wondertan): Do we align this with header which subtracts from head instead of now?
 	pruneCutoff := time.Now().UTC().Add(-s.window)
 
 	if !lastPruned.Time().UTC().Before(pruneCutoff) {
@@ -41,7 +42,7 @@ func (s *Service) findPruneableHeaders(
 
 	// GetRangeByHeight requests (from:to), where `to` is non-inclusive, we need
 	// to request one more header than the estimated cutoff
-	headers, err := s.getter.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight+1)
+	headers, err := s.hstore.GetRangeByHeight(ctx, lastPruned, estimatedCutoffHeight+1)
 	if err != nil {
 		log.Errorw("failed to get range from header store", "from", lastPruned.Height(),
 			"to", estimatedCutoffHeight, "error", err)
@@ -67,7 +68,7 @@ func (s *Service) findPruneableHeaders(
 			break
 		}
 
-		nextHeader, err := s.getter.GetByHeight(ctx, lastHeader.Height()+1)
+		nextHeader, err := s.hstore.GetByHeight(ctx, lastHeader.Height()+1)
 		if err != nil {
 			log.Errorw("failed to get header by height", "height", lastHeader.Height()+1, "error", err)
 			return nil, err
@@ -98,7 +99,7 @@ func (s *Service) calculateEstimatedCutoff(
 	estimatedRange := uint64(pruneCutoff.UTC().Sub(lastPruned.Time().UTC()) / s.blockTime)
 	estimatedCutoffHeight := lastPruned.Height() + estimatedRange
 
-	head, err := s.getter.Head(ctx)
+	head, err := s.hstore.Head(ctx)
 	if err != nil {
 		log.Errorw("failed to get Head from header store", "error", err)
 		return 0, err

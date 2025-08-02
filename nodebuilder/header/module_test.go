@@ -65,6 +65,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 	var syncer *sync.Syncer[*header.ExtendedHeader]
 	app := fxtest.New(t,
+		fx.Supply(node.Light),
 		fx.Supply(modp2p.Private),
 		fx.Supply(modp2p.Bootstrappers{}),
 		fx.Provide(context.Background),

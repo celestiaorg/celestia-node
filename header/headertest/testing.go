@@ -1,6 +1,7 @@
 package headertest
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
@@ -35,6 +36,7 @@ type TestSuite struct {
 	valPntr int
 
 	head *header.ExtendedHeader
+	tail *header.ExtendedHeader
 
 	// blockTime is optional - if set, the test suite will generate
 	// blocks timestamped at the specified interval
@@ -74,6 +76,29 @@ func NewTestSuiteWithGenesisTime(t *testing.T, startTime time.Time, blockTime ti
 		valSet:    valSet,
 		blockTime: blockTime,
 		startTime: startTime,
+	}
+}
+
+func NewTestSuiteDefaults(t *testing.T) *TestSuite {
+	valSet, vals := RandValidatorSet(3, 1)
+	return &TestSuite{
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: 1,
+		startTime: time.Now(),
+	}
+}
+
+func NewTestSuiteWithTail(t *testing.T, tail *header.ExtendedHeader) *TestSuite {
+	valSet, vals := RandValidatorSet(3, 1)
+	return &TestSuite{
+		t:         t,
+		vals:      vals,
+		valSet:    valSet,
+		blockTime: 1,
+		startTime: time.Now(),
+		tail:      tail,
 	}
 }
 
@@ -148,9 +173,16 @@ func signAddVote(privVal types.PrivValidator, vote *types.Vote, voteSet *types.V
 
 func (s *TestSuite) Head() *header.ExtendedHeader {
 	if s.head == nil {
-		s.head = s.genesis()
+		s.head = s.Tail()
 	}
 	return s.head
+}
+
+func (s *TestSuite) Tail() *header.ExtendedHeader {
+	if s.tail == nil {
+		s.tail = s.genesis()
+	}
+	return s.tail
 }
 
 func (s *TestSuite) GenExtendedHeaders(num int) []*header.ExtendedHeader {
@@ -165,8 +197,10 @@ var _ headertest.Generator[*header.ExtendedHeader] = &TestSuite{}
 
 func (s *TestSuite) NextHeader() *header.ExtendedHeader {
 	if s.head == nil {
-		s.head = s.genesis()
-		return s.head
+		if s.tail == nil {
+			return s.Head()
+		}
+		s.head = s.Tail()
 	}
 
 	dah := share.EmptyEDSRoots()
@@ -419,6 +453,20 @@ func ExtendedHeaderFromEDS(t testing.TB, height uint64, eds *rsmt2d.ExtendedData
 
 type Subscriber struct {
 	headertest.Subscriber[*header.ExtendedHeader]
+}
+
+func NewSubscriber(
+	t *testing.T,
+	store libhead.Store[*header.ExtendedHeader],
+	suite *TestSuite,
+	num int,
+) *headertest.Subscriber[*header.ExtendedHeader] {
+	headers := suite.GenExtendedHeaders(num)
+	err := store.Append(context.TODO(), headers...)
+	require.NoError(t, err)
+	return &headertest.Subscriber[*header.ExtendedHeader]{
+		Headers: headers,
+	}
 }
 
 var _ libhead.Subscriber[*header.ExtendedHeader] = &Subscriber{}

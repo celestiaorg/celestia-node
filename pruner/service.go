@@ -3,9 +3,11 @@ package pruner
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	contextds "github.com/ipfs/go-datastore/context"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
@@ -19,27 +21,28 @@ var log = logging.Logger("pruner/service")
 // Service handles running the pruning cycle for the node.
 type Service struct {
 	pruner Pruner
-	window time.Duration
+	hstore libhead.Store[*header.ExtendedHeader]
+	ds     datastore.Batching
 
-	getter libhead.Getter[*header.ExtendedHeader]
+	window    time.Duration
+	blockTime time.Duration
+	params    Params
 
-	ds         datastore.Datastore
+	// pruneMu ensures only a single pruning operation is in progress
+	pruneMu    sync.Mutex
 	checkpoint *checkpoint
 
-	blockTime time.Duration
+	metrics *metrics
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	doneCh chan struct{}
-
-	params  Params
-	metrics *metrics
 }
 
 func NewService(
 	p Pruner,
 	window time.Duration,
-	getter libhead.Getter[*header.ExtendedHeader],
+	hstore libhead.Store[*header.ExtendedHeader],
 	ds datastore.Datastore,
 	blockTime time.Duration,
 	opts ...Option,
@@ -53,30 +56,31 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{
-		pruner:     p,
-		window:     window,
-		getter:     getter,
-		checkpoint: &checkpoint{FailedHeaders: map[uint64]struct{}{}},
-		ds:         namespace.Wrap(ds, storePrefix),
-		blockTime:  blockTime,
-		doneCh:     make(chan struct{}),
-		params:     params,
-	}, nil
+	s := &Service{
+		pruner:    p,
+		window:    window,
+		hstore:    hstore,
+		ds:        namespace.Wrap(ds, storePrefix),
+		blockTime: blockTime,
+		doneCh:    make(chan struct{}),
+		params:    params,
+	}
+
+	// ensure we set delete handler before all the services start
+	hstore.OnDelete(s.pruneOnHeaderDelete)
+	return s, nil
 }
 
 // Start loads the pruner's last pruned height (1 if pruner is freshly
 // initialized) and runs the prune loop, pruning any blocks older than
 // the given availability window.
-func (s *Service) Start(context.Context) error {
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-
-	err := s.loadCheckpoint(s.ctx)
+func (s *Service) Start(ctx context.Context) error {
+	err := s.loadCheckpoint(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("pruner start: loading checkpoint %w", err)
 	}
-	log.Debugw("loaded checkpoint", "lastPruned", s.checkpoint.LastPrunedHeight)
 
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	go s.run()
 	return nil
 }
@@ -88,12 +92,19 @@ func (s *Service) Stop(ctx context.Context) error {
 
 	select {
 	case <-s.doneCh:
-		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("pruner unable to exit within context deadline")
 	}
+
+	err := storeCheckpoint(ctx, s.ds, s.checkpoint)
+	if err != nil {
+		return fmt.Errorf("pruner: saving checkpoint on stop: %w", err)
+	}
+
+	return nil
 }
 
+// TODO: Exposed but accesses checkpoint without synchronization
 func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
 	err := s.loadCheckpoint(ctx)
 	if err != nil {
@@ -102,9 +113,9 @@ func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
 	return s.checkpoint.LastPrunedHeight, nil
 }
 
+// TODO: Exposed but accesses checkpoint without synchronization
 func (s *Service) ResetCheckpoint(ctx context.Context) error {
-	s.checkpoint = newCheckpoint()
-	return storeCheckpoint(ctx, s.ds, s.checkpoint)
+	return s.resetCheckpoint(ctx)
 }
 
 // run prunes blocks older than the availability wiindow periodically until the
@@ -115,17 +126,8 @@ func (s *Service) run() {
 	ticker := time.NewTicker(s.params.pruneCycle)
 	defer ticker.Stop()
 
-	lastPrunedHeader, err := s.lastPruned(s.ctx)
-	if err != nil {
-		log.Errorw("failed to get last pruned header", "height", s.checkpoint.LastPrunedHeight,
-			"err", err)
-		log.Warn("exiting pruner service!")
-
-		s.cancel()
-	}
-
 	for {
-		lastPrunedHeader = s.prune(s.ctx, lastPrunedHeader)
+		s.prune(s.ctx)
 		// pruning may take a while beyond ticker's time
 		// and this ensures we don't do idle spins right after the pruning
 		// and ensures there is always pruneCycle period between each run
@@ -139,32 +141,50 @@ func (s *Service) run() {
 	}
 }
 
-func (s *Service) prune(
-	ctx context.Context,
-	lastPrunedHeader *header.ExtendedHeader,
-) *header.ExtendedHeader {
+func (s *Service) prune(ctx context.Context) {
+	s.pruneMu.Lock()
+	defer s.pruneMu.Unlock()
+
+	lastPrunedHeader, err := s.lastPruned(ctx)
+	if err != nil {
+		log.Errorw("getting last pruned header", "height", s.checkpoint.LastPrunedHeight, "err", err)
+		return
+	}
+
 	// prioritize retrying previously-failed headers
 	s.retryFailed(s.ctx)
 
 	now := time.Now()
+	successful, failed := 0, 0
 	log.Debug("pruning round start")
 	defer func() {
-		log.Debugw("pruning round finished", "took", time.Since(now))
+		log.Infow("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
+	}()
+
+	batch, err := s.ds.Batch(ctx)
+	if err != nil {
+		return
+	}
+	ctx = contextds.WithWrite(ctx, batch)
+	defer func() {
+		if err := batch.Commit(ctx); err != nil {
+			log.Errorw("failed to commit batch", "err", err)
+		}
 	}()
 
 	for {
 		select {
 		case <-s.ctx.Done():
-			return lastPrunedHeader
+			return
 		default:
 		}
 
 		headers, err := s.findPruneableHeaders(ctx, lastPrunedHeader)
 		if err != nil || len(headers) == 0 {
-			return lastPrunedHeader
+			return
 		}
 
-		failed := make(map[uint64]struct{})
+		failedSet := make(map[uint64]struct{})
 
 		log.Debugw("pruning headers", "from", headers[0].Height(), "to",
 			headers[len(headers)-1].Height())
@@ -175,33 +195,38 @@ func (s *Service) prune(
 			err = s.pruner.Prune(pruneCtx, eh)
 			if err != nil {
 				log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
-				failed[eh.Height()] = struct{}{}
+				failedSet[eh.Height()] = struct{}{}
+				failed++
 			} else {
 				lastPrunedHeader = eh
+				successful++
 			}
 
 			s.metrics.observePrune(pruneCtx, err != nil)
 			cancel()
 		}
 
-		err = s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failed)
+		err = s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failedSet)
 		if err != nil {
 			log.Errorw("failed to update checkpoint", "err", err)
-			return lastPrunedHeader
+			return
 		}
 
 		if len(headers) < maxHeadersPerLoop {
 			// we've pruned all the blocks we can
-			return lastPrunedHeader
+			return
 		}
 	}
 }
 
 func (s *Service) retryFailed(ctx context.Context) {
+	if len(s.checkpoint.FailedHeaders) == 0 {
+		return
+	}
 	log.Debugw("retrying failed headers", "amount", len(s.checkpoint.FailedHeaders))
 
 	for failed := range s.checkpoint.FailedHeaders {
-		h, err := s.getter.GetByHeight(ctx, failed)
+		h, err := s.hstore.GetByHeight(ctx, failed)
 		if err != nil {
 			log.Errorw("failed to load header from failed map", "height", failed, "err", err)
 			continue
@@ -213,4 +238,52 @@ func (s *Service) retryFailed(ctx context.Context) {
 		}
 		delete(s.checkpoint.FailedHeaders, failed)
 	}
+}
+
+// pruneOnHeaderDelete is called by the header Syncer whenever it prunes an old header.
+// This guarantees that respective block data is always pruned on the Pruner side.
+//
+// There is a possible race between Syncer and Pruner, however, it is gracefully resolved.
+// * If Syncer prunes a header first - pruneOnHeaderDelete gets called and data is deleted.
+//   - Pruner then ignores the header based on updated checkpoint state
+//
+// * If Pruner prunes a header first - Syncer only removes the header
+//   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
+func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
+	s.pruneMu.Lock()
+	if err := s.loadCheckpoint(ctx); err != nil {
+		return err
+	}
+	if _, ok := s.checkpoint.FailedHeaders[height]; ok {
+		log.Warnw("Deleted header for a height previously failed to be pruned", "height", height)
+		log.Warn("Stored data for the height may never be pruned unless full resync!")
+		// TODO(@Wondertan): Do we wanna give here an additional retry before removing?
+		delete(s.checkpoint.FailedHeaders, height)
+	}
+	if height <= s.checkpoint.LastPrunedHeight {
+		s.pruneMu.Unlock()
+		return nil
+	}
+	s.pruneMu.Unlock()
+
+	eh, err := s.hstore.GetByHeight(ctx, height)
+	if err != nil {
+		return fmt.Errorf("getting header %d to prune data with: %w", height, err)
+	}
+
+	err = s.pruner.Prune(ctx, eh)
+	s.metrics.observePrune(ctx, err != nil)
+	if err != nil {
+		return fmt.Errorf("pruning height %d: %w", height, err)
+	}
+
+	s.pruneMu.Lock()
+	defer s.pruneMu.Unlock()
+	if height <= s.checkpoint.LastPrunedHeight {
+		return nil
+	}
+	s.checkpoint.LastPrunedHeight = height
+	// no need to persist here, as it will done in pruning routine or Stop
+	log.Debugw("data pruned on header delete", "height", height)
+	return nil
 }
