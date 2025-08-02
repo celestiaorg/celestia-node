@@ -24,7 +24,6 @@ import (
 var (
 	log                   = logging.Logger("share/light")
 	samplingResultsPrefix = datastore.NewKey("sampling_result")
-	writeBatchSize        = 2048
 )
 
 // ShareAvailability implements share.Availability using Data Availability Sampling technique.
@@ -235,6 +234,6 @@ func datastoreKeyForRoot(root *share.AxisRoots) datastore.Key {
 }
 
 // Close flushes all queued writes to disk.
-func (la *ShareAvailability) Close(ctx context.Context) error {
+func (la *ShareAvailability) Close(_ context.Context) error {
 	return nil
 }

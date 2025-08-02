@@ -18,7 +18,8 @@ func (s *Service) findPruneableHeaders(
 	ctx context.Context,
 	lastPruned *header.ExtendedHeader,
 ) ([]*header.ExtendedHeader, error) {
-	pruneCutoff := time.Now().UTC().Add(-s.window) // TODO(@Wondertan): Do we align this with header which subtracts from head instead of now?
+	// TODO(@Wondertan): Do we align this with header which subtracts from head instead of now?
+	pruneCutoff := time.Now().UTC().Add(-s.window)
 
 	if !lastPruned.Time().UTC().Before(pruneCutoff) {
 		// this can happen when the network is young and all blocks
