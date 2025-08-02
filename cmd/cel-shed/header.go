@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/go-header/store"
+	"github.com/spf13/cobra"
+
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/go-header/store"
-	"github.com/ipfs/go-log/v2"
-	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -33,7 +33,7 @@ func init() {
 
 var headerStoreReset = &cobra.Command{
 	Use:          "store-reset <node_store_path> [--head <num>] [--tail <num>]",
-	Short:        "Forcefully resets header store tail or head to be at the given height. Requires the node being stopped.",
+	Short:        "Forcefully resets header store tail or head to be at the given height. Requires the node being stopped",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
@@ -70,14 +70,14 @@ var headerStoreReset = &cobra.Command{
 		}
 
 		if head != 0 {
-			err := store.ResetHead(ctx, hstore, head)
+			err := store.UnsafeResetHead(ctx, hstore, head)
 			if err != nil {
 				return fmt.Errorf("resetting head: %w", err)
 			}
 			fmt.Println("Reset header store head to height", head)
 		}
 		if tail != 0 {
-			err := store.ResetTail(ctx, hstore, tail)
+			err := store.UnsafeResetTail(ctx, hstore, tail)
 			if err != nil {
 				return fmt.Errorf("resetting tail: %w", err)
 			}
@@ -95,8 +95,9 @@ func init() {
 }
 
 var headerStoreRecover = &cobra.Command{
-	Use:          "store-recover <node_store_path> [--start-from <num>]",
-	Short:        "Recovers header store tail by forward iterating over the store until some header is found to be the new tail. Requires the node being stopped",
+	Use: "store-recover <node_store_path> [--start-from <num>]",
+	Short: `Recovers header store tail by forward iterating over the store until some header is found to be the new tail.
+	Requires the node being stopped`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
@@ -130,13 +131,12 @@ var headerStoreRecover = &cobra.Command{
 		}
 		fmt.Println("Found header at height", hdr.Height())
 
-		err = store.ResetTail(ctx, hstore, hdr.Height())
+		err = store.UnsafeResetTail(ctx, hstore, hdr.Height())
 		if err != nil {
 			return fmt.Errorf("resetting header store tail to %d: %w", hdr.Height(), err)
 		}
 		fmt.Println("Reset header store tail to height", hdr.Height())
 
-		log.SetLogLevel("badger4", "debug")
 		return s.Close()
 	},
 }
