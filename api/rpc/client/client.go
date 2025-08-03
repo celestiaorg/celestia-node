@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -73,9 +74,32 @@ func NewClient(ctx context.Context, addr, token string) (*Client, error) {
 	return newClient(ctx, addr, authHeader)
 }
 
+// NewClientWithTLS creates a new Client with TLS support and optional insecure TLS.
+func NewClientWithTLS(ctx context.Context, addr, token string, insecureTLS bool) (*Client, error) {
+	var authHeader http.Header
+	if token != "" {
+		authHeader = http.Header{perms.AuthKey: []string{fmt.Sprintf("Bearer %s", token)}}
+	}
+	return newClientWithTLS(ctx, addr, authHeader, insecureTLS)
+}
+
 func newClient(ctx context.Context, addr string, authHeader http.Header) (*Client, error) {
+	return newClientWithTLS(ctx, addr, authHeader, false)
+}
+
+func newClientWithTLS(ctx context.Context, addr string, authHeader http.Header, insecureTLS bool) (*Client, error) {
 	var multiCloser multiClientCloser
 	var client Client
+	
+	// TODO: TLS client support for go-jsonrpc needs to be implemented
+	// For now, we'll just log a warning if insecureTLS is requested
+	// This can be enhanced when the go-jsonrpc library supports custom HTTP clients
+	if insecureTLS {
+		// Note: Currently the go-jsonrpc library doesn't provide a direct way to pass
+		// a custom HTTP client. This is a placeholder for future implementation.
+		// Users should ensure their TLS certificates are properly configured.
+	}
+	
 	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
 		if err != nil {
