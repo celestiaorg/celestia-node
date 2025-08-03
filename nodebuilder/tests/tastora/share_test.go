@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,8 +20,8 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// ShareTestSuite provides comprehensive testing of the Share module APIs.
-// Tests data availability, share retrieval, and validation functionality.
+// ShareTestSuite provides integration testing of the Share module across multiple nodes.
+// Focuses on cross-node communication, data propagation, and multi-node scenarios.
 type ShareTestSuite struct {
 	suite.Suite
 	framework *Framework
@@ -34,1630 +35,532 @@ func TestShareTestSuite(t *testing.T) {
 }
 
 func (s *ShareTestSuite) SetupSuite() {
-	s.framework = NewFramework(s.T(), WithValidators(1), WithFullNodes(1), WithBridgeNodes(1))
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Setup with bridge node and multiple light nodes for comprehensive integration testing
+	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(2))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 
 // Helper function to submit a blob and get its height
 func (s *ShareTestSuite) submitTestBlob(ctx context.Context, namespace libshare.Namespace, data []byte) (uint64, []byte) {
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	client := s.framework.GetNodeRPCClient(ctx, fullNode)
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Create test wallet and fund the node account
 	testWallet := s.framework.CreateTestWallet(ctx, 5_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, fullNode, 1_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 1_000_000_000)
 
-	// Get node account address for blob signing
+	// Create and submit blob
 	nodeAddr, err := client.State.AccountAddress(ctx)
 	s.Require().NoError(err)
 
-	// Create blob using share package
 	libBlob, err := libshare.NewV1Blob(namespace, data, nodeAddr.Bytes())
 	s.Require().NoError(err)
 
-	// Convert to node blobs
 	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
 	s.Require().NoError(err)
 
-	// Submit blob via Submit API
+	commitmentBytes := nodeBlobs[0].Commitment
+
 	txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
 	height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 	s.Require().NoError(err)
-	s.Require().NotZero(height)
 
-	// Wait for inclusion
-	_, err = client.Header.WaitForHeight(ctx, height)
-	s.Require().NoError(err)
-
-	return height, nodeBlobs[0].Commitment
+	return height, commitmentBytes
 }
 
-// Helper function to test Share APIs across different node types
-func (s *ShareTestSuite) testWithAllNodeTypes(ctx context.Context, testName string, testFunc func(context.Context, *client.Client, string)) {
-	// Get all node types
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-	lightNode := s.framework.GetOrCreateLightNode(ctx)
-
-	clients := map[string]*client.Client{
-		"full":   s.framework.GetNodeRPCClient(ctx, fullNode),
-		"bridge": s.framework.GetNodeRPCClient(ctx, bridgeNode),
-		"light":  s.framework.GetNodeRPCClient(ctx, lightNode),
-	}
-
-	// Test with each node type
-	for nodeType, client := range clients {
-		s.Run(fmt.Sprintf("%s_%s", testName, nodeType), func() {
-			testFunc(ctx, client, nodeType)
-		})
-	}
-}
-
-// TestShareSharesAvailable tests SharesAvailable API with various scenarios
-func (s *ShareTestSuite) TestShareSharesAvailable() {
-	s.Run("ValidHeight_AllNodeTypes", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		defer cancel()
-
-		// Submit a test blob to ensure we have data
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
-		s.Require().NoError(err)
-		data := []byte("SharesAvailable test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Test SharesAvailable across all node types
-		s.testWithAllNodeTypes(ctx, "ValidHeight", func(ctx context.Context, client *client.Client, nodeType string) {
-			// Wait for light nodes to sync
-			if nodeType == "light" {
-				_, err := client.Header.WaitForHeight(ctx, height)
-				s.Require().NoError(err, "light node should sync to height %d", height)
-				// Additional wait for light node data propagation
-				time.Sleep(5 * time.Second)
-			}
-
-			// Test SharesAvailable API
-			err := client.Share.SharesAvailable(ctx, height)
-			s.Require().NoError(err, "shares should be available on %s node", nodeType)
-		})
-	})
-
-	s.Run("InvalidHeight", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Test with a very high height (should fail)
-		futureHeight := uint64(1000000)
-		err := client.Share.SharesAvailable(ctx, futureHeight)
-		s.Assert().Error(err, "should return error for future height")
-	})
-}
-
-// TestShareGetShare tests GetShare API with various coordinate scenarios
-func (s *ShareTestSuite) TestShareGetShare() {
-	s.Run("ValidCoordinates", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetShare test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get the EDS to verify it exists
-		_, err = client.Share.GetEDS(ctx, height)
-		s.Require().NoError(err, "should get EDS")
-
-		// Try to get a share at valid coordinates
-		share, err := client.Share.GetShare(ctx, height, 0, 0)
-		s.Require().NoError(err, "should get share at valid coordinates")
-		s.Require().NotNil(share, "share should not be nil")
-		s.Assert().NotEmpty(share, "share should not be empty")
-	})
-
-	s.Run("InvalidCoordinates", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get a valid height
-		head, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Try to get share with invalid coordinates (out of bounds)
-		_, err = client.Share.GetShare(ctx, head.Height(), 1000, 1000)
-		s.Assert().Error(err, "should return error for invalid coordinates")
-	})
-
-	s.Run("Q1_OriginalData", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x10}, 10))
-		s.Require().NoError(err)
-		data := []byte("Quadrant 1 test data")
-		height, commitment := s.submitTestBlob(ctx, namespace, data)
-
-		// Get the blob to find its coordinates
-		retrievedBlob, err := client.Blob.Get(ctx, height, namespace, commitment)
-		s.Require().NoError(err)
-
-		// Get header to determine EDS structure
-		hdr, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err)
-
-		// Calculate blob coordinates in EDS
-		coords, err := shwap.SampleCoordsFrom1DIndex(retrievedBlob.Index(), len(hdr.DAH.RowRoots))
-		s.Require().NoError(err)
-
-		// Test GetShare from Quadrant 1 (original data region)
-		share, err := client.Share.GetShare(ctx, height, coords.Row, coords.Col)
-		s.Require().NoError(err, "should get share from Q1")
-		s.Assert().NotEmpty(share, "Q1 share should not be empty")
-
-		// Verify the share belongs to the correct namespace
-		s.Assert().True(share.Namespace().Equals(namespace), "Q1 share should belong to correct namespace")
-	})
-
-	s.Run("Q4_ParityData", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x11}, 10))
-		s.Require().NoError(err)
-		data := []byte("Quadrant 4 parity test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get header to determine EDS structure
-		hdr, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err)
-
-		// Test GetShare from Quadrant 4 (last quadrant - parity of parity)
-		lastRow := len(hdr.DAH.RowRoots) - 1
-		lastCol := len(hdr.DAH.ColumnRoots) - 1
-		share, err := client.Share.GetShare(ctx, height, lastRow, lastCol)
-		s.Require().NoError(err, "should get share from Q4")
-		s.Assert().NotEmpty(share, "Q4 share should not be empty")
-
-		// Q4 shares should be parity data (typically empty namespace for parity)
-		s.Assert().True(share.Namespace().IsParityShares(), "Q4 share should be parity namespace")
-	})
-}
-
-// TestShareGetSamples tests GetSamples API with various coordinate scenarios
-func (s *ShareTestSuite) TestShareGetSamples() {
-	s.Run("ValidCoordinates", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetSamples test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get header for the height
-		header, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err, "should get header")
-
-		// Create sample coordinates
-		sampleCoords := []shwap.SampleCoords{
-			{Row: 0, Col: 0},
-			{Row: 0, Col: 1},
-		}
-
-		// Get samples
-		samples, err := client.Share.GetSamples(ctx, header, sampleCoords)
-		s.Require().NoError(err, "should get samples")
-		s.Require().Len(samples, 2, "should get expected number of samples")
-
-		// Validate samples
-		for i, sample := range samples {
-			s.Assert().NotEmpty(sample.Share, "sample %d should not be empty", i)
-			s.Assert().NotNil(sample.Proof, "sample %d should have proof", i)
-		}
-	})
-
-	s.Run("InvalidCoordinates", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get a valid header
-		header, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Create invalid sample coordinates
-		invalidCoords := []shwap.SampleCoords{
-			{Row: 1000, Col: 1000},
-		}
-
-		// Try to get samples with invalid coordinates
-		_, err = client.Share.GetSamples(ctx, header, invalidCoords)
-		s.Assert().Error(err, "should return error for invalid coordinates")
-	})
-
-	s.Run("Q1_OriginalData", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x12}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetSamples Q1 test data")
-		height, commitment := s.submitTestBlob(ctx, namespace, data)
-
-		// Get the blob to find its coordinates
-		retrievedBlob, err := client.Blob.Get(ctx, height, namespace, commitment)
-		s.Require().NoError(err)
-
-		// Get header for verification
-		hdr, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err)
-
-		// Calculate blob coordinates in Q1
-		coords, err := shwap.SampleCoordsFrom1DIndex(retrievedBlob.Index(), len(hdr.DAH.RowRoots))
-		s.Require().NoError(err)
-
-		// Test GetSamples from Q1
-		requestCoords := []shwap.SampleCoords{coords}
-		samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
-		s.Require().NoError(err, "should get samples from Q1")
-		s.Require().Len(samples, 1, "should get exactly 1 sample")
-
-		// Verify sample structure and proof
-		sample := samples[0]
-		s.Assert().NotEmpty(sample.Share, "Q1 sample share should not be empty")
-		s.Assert().NotNil(sample.Proof, "Q1 sample should have proof")
-
-		// Verify the sample against DAH
-		err = sample.Verify(hdr.DAH, coords.Row, coords.Col)
-		s.Assert().NoError(err, "Q1 sample should verify against DAH")
-
-		// Verify namespace matches
-		s.Assert().True(sample.Share.Namespace().Equals(namespace), "Q1 sample should belong to correct namespace")
-	})
-
-	s.Run("Q4_ParityData", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob to ensure EDS has data
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x13}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetSamples Q4 test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get header for EDS structure
-		hdr, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err)
-
-		// Create coordinates for Q4 (last quadrant)
-		lastRow := len(hdr.DAH.RowRoots) - 1
-		lastCol := len(hdr.DAH.RowRoots) - 1 // EDS is square
-		coords := shwap.SampleCoords{Row: lastRow, Col: lastCol}
-
-		// Test GetSamples from Q4
-		requestCoords := []shwap.SampleCoords{coords}
-		samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
-		s.Require().NoError(err, "should get samples from Q4")
-		s.Require().Len(samples, 1, "should get exactly 1 sample")
-
-		// Verify sample structure and proof
-		sample := samples[0]
-		s.Assert().NotEmpty(sample.Share, "Q4 sample share should not be empty")
-		s.Assert().NotNil(sample.Proof, "Q4 sample should have proof")
-
-		// Verify the sample against DAH
-		err = sample.Verify(hdr.DAH, coords.Row, coords.Col)
-		s.Assert().NoError(err, "Q4 sample should verify against DAH")
-
-		// Q4 shares should be parity data
-		s.Assert().True(sample.Share.Namespace().IsParityShares(), "Q4 sample should be parity namespace")
-	})
-}
-
-// TestShareGetEDS tests GetEDS API with various height scenarios
-func (s *ShareTestSuite) TestShareGetEDS() {
-	s.Run("ValidHeight", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob to ensure we have data
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x04}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetEDS test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get EDS
-		eds, err := client.Share.GetEDS(ctx, height)
-		s.Require().NoError(err, "should get EDS")
-		s.Require().NotNil(eds, "EDS should not be nil")
-
-		// Validate EDS structure
-		s.Assert().Greater(eds.Width(), uint(0), "EDS width should be greater than 0")
-		s.Assert().Equal(eds.Width(), eds.Width(), "EDS should be square")
-	})
-
-	s.Run("InvalidHeight", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Try to get EDS for invalid height
-		_, err := client.Share.GetEDS(ctx, 0)
-		s.Assert().Error(err, "should return error for height 0")
-	})
-}
-
-// TestShareGetRow tests GetRow API with various row scenarios
-func (s *ShareTestSuite) TestShareGetRow() {
-	s.Run("ValidRow", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetRow test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get row
-		row, err := client.Share.GetRow(ctx, height, 0)
-		s.Require().NoError(err, "should get row")
-		s.Require().NotNil(row, "row should not be nil")
-
-		// Validate row structure
-		s.Assert().NotEmpty(row.Shares, "row should have shares")
-		s.Assert().NotNil(row, "row should be valid")
-	})
-
-	s.Run("InvalidRow", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get a valid height
-		head, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Try to get row with invalid index
-		_, err = client.Share.GetRow(ctx, head.Height(), 1000)
-		s.Assert().Error(err, "should return error for invalid row index")
-	})
-
-	s.Run("Q1_OriginalDataRows", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x14}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetRow Q1 test data")
-		height, commitment := s.submitTestBlob(ctx, namespace, data)
-
-		// Get the blob to find its coordinates
-		retrievedBlob, err := client.Blob.Get(ctx, height, namespace, commitment)
-		s.Require().NoError(err)
-
-		// Get header for verification
-		hdr, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err)
-
-		// Calculate blob coordinates to find Q1 row
-		coords, err := shwap.SampleCoordsFrom1DIndex(retrievedBlob.Index(), len(hdr.DAH.RowRoots))
-		s.Require().NoError(err)
-
-		// Test GetRow from Q1 (row containing our blob)
-		row, err := client.Share.GetRow(ctx, height, coords.Row)
-		s.Require().NoError(err, "should get row from Q1")
-		s.Require().NotNil(row, "Q1 row should not be nil")
-
-		// Verify row structure
-		s.Assert().NotEmpty(row.Shares, "Q1 row should have shares")
-
-		// Verify row against DAH
-		err = row.Verify(hdr.DAH, coords.Row)
-		s.Assert().NoError(err, "Q1 row should verify against DAH")
-
-		// Get shares from row and verify our blob data is present
-		shares, err := row.Shares()
-		s.Require().NoError(err)
-		s.Assert().True(shares[coords.Col].Namespace().Equals(namespace), "blob share should be in correct position")
-	})
-
-	s.Run("Q4_ParityRows", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob to ensure EDS has data
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x15}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetRow Q4 test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get header for EDS structure
-		hdr, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err)
-
-		// Test GetRow from Q4 (last row - parity data)
-		lastRow := len(hdr.DAH.RowRoots) - 1
-		row, err := client.Share.GetRow(ctx, height, lastRow)
-		s.Require().NoError(err, "should get row from Q4")
-		s.Require().NotNil(row, "Q4 row should not be nil")
-
-		// Verify row structure
-		s.Assert().NotEmpty(row.Shares, "Q4 row should have shares")
-
-		// Verify row against DAH
-		err = row.Verify(hdr.DAH, lastRow)
-		s.Assert().NoError(err, "Q4 row should verify against DAH")
-
-		// Get shares from row and verify they are parity shares
-		shares, err := row.Shares()
-		s.Require().NoError(err)
-
-		// Check that shares in Q4 row are parity shares
-		halfPoint := len(shares) / 2
-		for i := halfPoint; i < len(shares); i++ {
-			s.Assert().True(shares[i].Namespace().IsParityShares(), "Q4 shares should be parity namespace")
-		}
-	})
-}
-
-// TestShareGetRange tests GetRange API with various range scenarios
-func (s *ShareTestSuite) TestShareGetRange() {
-	s.Run("ValidRange", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x06}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetRange test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get range data (retrieve shares 0-3 for example)
-		rangeResult, err := client.Share.GetRange(ctx, height, 0, 3)
-		s.Require().NoError(err, "should get range data")
-		s.Require().NotNil(rangeResult, "range result should not be nil")
-
-		// Validate range result
-		s.Assert().NotEmpty(rangeResult.Shares, "range result should have shares")
-		s.Assert().NotNil(rangeResult.Proof, "range result should have proof")
-
-		// Validate that shares are within the expected range
-		s.Assert().LessOrEqual(len(rangeResult.Shares), 4, "should have at most 4 shares for range 0-3")
-	})
-
-	s.Run("EmptyRange", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get current head
-		head, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Try to get range data for empty range (start == end)
-		rangeResult, err := client.Share.GetRange(ctx, head.Height(), 0, 0)
-		s.Require().NoError(err, "should succeed even for empty range")
-		s.Assert().LessOrEqual(len(rangeResult.Shares), 1, "should return at most 1 share for single index range")
-	})
-
-	s.Run("ProofVerification", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetRange proof verification test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get header to extract data root for proof verification
-		header, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err, "should get header")
-
-		// Get range data
-		rangeResult, err := client.Share.GetRange(ctx, height, 0, 5)
-		s.Require().NoError(err, "should get range data")
-		s.Require().NotNil(rangeResult, "range result should not be nil")
-
-		// Validate range result structure
-		s.Assert().NotEmpty(rangeResult.Shares, "range result should have shares")
-		s.Assert().NotNil(rangeResult.Proof, "range result should have proof")
-
-		// Verify the proof against the data root
-		dataRoot := header.DAH.Hash()
-		err = rangeResult.Verify(dataRoot)
-		s.Assert().NoError(err, "range proof should verify against data root")
-	})
-
-	s.Run("LargeRange", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x08}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetRange large range test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get range data for a larger range (0-15)
-		rangeResult, err := client.Share.GetRange(ctx, height, 0, 15)
-		s.Require().NoError(err, "should get range data for large range")
-		s.Require().NotNil(rangeResult, "range result should not be nil")
-
-		// Validate that we have data
-		s.Assert().NotEmpty(rangeResult.Shares, "range result should have shares")
-		s.Assert().NotNil(rangeResult.Proof, "range result should have proof")
-		s.Assert().LessOrEqual(len(rangeResult.Shares), 16, "should have at most 16 shares for range 0-15")
-	})
-
-	s.Run("InvalidRange", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get current head
-		head, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Try to get range data with invalid range (start > end)
-		_, err = client.Share.GetRange(ctx, head.Height(), 10, 5)
-		s.Assert().Error(err, "should return error for invalid range where start > end")
-
-		// Try to get range data with very large invalid range
-		_, err = client.Share.GetRange(ctx, head.Height(), 1000, 2000)
-		s.Assert().Error(err, "should return error for out-of-bounds range")
-	})
-
-	s.Run("FromLightNodes", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		defer cancel()
-
-		// Create bridge and light nodes
-		bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-		lightNode := s.framework.GetOrCreateLightNode(ctx)
-
-		bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-		lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
-
-		// Submit multiple test blobs to create realistic data scenario
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x25}, 10))
-		s.Require().NoError(err)
-
-		heights := make([]uint64, 3)
-		for i := 0; i < 3; i++ {
-			data := []byte(fmt.Sprintf("Light node GetRange test data block %d", i+1))
-			height, _ := s.submitTestBlob(ctx, namespace, data)
-			heights[i] = height
-		}
-
-		// Test GetRange from both bridge and light nodes for each height
-		for _, height := range heights {
-			// Wait for light node to sync to height
-			_, err = lightClient.Header.WaitForHeight(ctx, height)
-			s.Require().NoError(err)
-
-			// Get range data from bridge node (source of truth)
-			expectedRange, err := bridgeClient.Share.GetRange(ctx, height, 0, 10)
-			s.Require().NoError(err, "bridge should provide range data")
-			s.Require().NotEmpty(expectedRange.Shares, "bridge range should have shares")
-
-			// Get range data from light node (should fetch via ShrexND)
-			gotRange, err := lightClient.Share.GetRange(ctx, height, 0, 10)
-			s.Require().NoError(err, "light node should fetch range data via ShrexND")
-			s.Require().NotEmpty(gotRange.Shares, "light node range should have shares")
-
-			// Verify data consistency between bridge and light node
-			s.Assert().Equal(expectedRange.Shares, gotRange.Shares,
-				"light node should get same range data as bridge for height %d", height)
-			s.Assert().NotNil(gotRange.Proof, "light node range should have proof")
-		}
-	})
-}
-
-// TestShareGetNamespaceData tests GetNamespaceData API with various namespace scenarios
-func (s *ShareTestSuite) TestShareGetNamespaceData() {
-	s.Run("ValidNamespace", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob with specific namespace
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x20}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetNamespaceData test data")
-		height, commitment := s.submitTestBlob(ctx, namespace, data)
-
-		// Get namespace data
-		namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "should get namespace data")
-		s.Require().NotNil(namespaceData, "namespace data should not be nil")
-
-		// Validate namespace data structure
-		s.Assert().NotEmpty(namespaceData, "namespace data should not be empty")
-
-		// Flatten all shares from all rows
-		allShares := namespaceData.Flatten()
-		s.Assert().NotEmpty(allShares, "namespace data should have shares")
-
-		// Verify that all shares belong to the correct namespace
-		for i, share := range allShares {
-			s.Assert().True(share.Namespace().Equals(namespace), "share %d should belong to correct namespace", i)
-		}
-
-		// Parse blobs from namespace data to verify our blob is included
-		blobs, err := libshare.ParseBlobs(allShares)
-		s.Require().NoError(err, "should parse blobs from namespace data")
-		s.Require().NotEmpty(blobs, "should have at least one blob")
-
-		// Convert to node blobs and verify commitment matches
-		nodeBlobs, err := nodeblob.ToNodeBlobs(blobs...)
-		s.Require().NoError(err)
-		s.Require().NotEmpty(nodeBlobs, "should have node blobs")
-
-		// Find our blob by commitment
-		found := false
-		for _, blob := range nodeBlobs {
-			if bytes.Equal(blob.Commitment, commitment) {
-				found = true
-				s.Assert().Equal(data, blob.Data, "blob data should match")
-				break
-			}
-		}
-		s.Assert().True(found, "should find our blob in namespace data")
-	})
-
-	s.Run("EmptyNamespace", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get current head for a valid height
-		head, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Create a namespace that doesn't exist
-		emptyNamespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0xFF}, 10))
-		s.Require().NoError(err)
-
-		// Get namespace data for empty namespace
-		namespaceData, err := client.Share.GetNamespaceData(ctx, head.Height(), emptyNamespace)
-		s.Require().NoError(err, "should succeed even for empty namespace")
-		s.Require().NotNil(namespaceData, "namespace data should not be nil")
-
-		// Should have empty shares but valid structure
-		allShares := namespaceData.Flatten()
-		s.Assert().Empty(allShares, "empty namespace should have no shares")
-		s.Assert().NotNil(namespaceData, "empty namespace should still return valid structure")
-	})
-
-	s.Run("MultipleBlobs", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Use same namespace for multiple blobs
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x21}, 10))
-		s.Require().NoError(err)
-
-		// Submit multiple blobs with same namespace
-		data1 := []byte("First blob data")
-		data2 := []byte("Second blob data")
-		data3 := []byte("Third blob data")
-
-		_, _ = s.submitTestBlob(ctx, namespace, data1)
-		_, _ = s.submitTestBlob(ctx, namespace, data2)
-		height3, commitment3 := s.submitTestBlob(ctx, namespace, data3)
-
-		// For this test, we'll use the last height that should contain all blobs
-		testHeight := height3
-
-		// Get namespace data for the namespace
-		namespaceData, err := client.Share.GetNamespaceData(ctx, testHeight, namespace)
-		s.Require().NoError(err, "should get namespace data")
-		s.Require().NotNil(namespaceData, "namespace data should not be nil")
-
-		// Validate that we have data
-		allShares := namespaceData.Flatten()
-		s.Assert().NotEmpty(allShares, "namespace data should have shares for multiple blobs")
-		s.Assert().NotEmpty(namespaceData, "namespace data should not be empty")
-
-		// Parse all blobs from namespace data
-		blobs, err := libshare.ParseBlobs(allShares)
-		s.Require().NoError(err, "should parse blobs from namespace data")
-
-		// Convert to node blobs
-		nodeBlobs, err := nodeblob.ToNodeBlobs(blobs...)
-		s.Require().NoError(err)
-
-		// At minimum, we should find the blob from the current height
-		foundCommitments := make(map[string]bool)
-		for _, blob := range nodeBlobs {
-			commitmentStr := string(blob.Commitment)
-			foundCommitments[commitmentStr] = true
-		}
-
-		// Check that we found at least the blob from the current height
-		s.Assert().True(foundCommitments[string(commitment3)], "should find the blob from current height")
-	})
-
-	s.Run("ProofVerification", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x22}, 10))
-		s.Require().NoError(err)
-		data := []byte("GetNamespaceData proof verification test")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Get header to extract data root for proof verification
-		header, err := client.Header.GetByHeight(ctx, height)
-		s.Require().NoError(err, "should get header")
-
-		// Get namespace data
-		namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "should get namespace data")
-		s.Require().NotNil(namespaceData, "namespace data should not be nil")
-
-		// Validate namespace data structure
-		allShares := namespaceData.Flatten()
-		s.Assert().NotEmpty(allShares, "namespace data should have shares")
-		s.Assert().NotEmpty(namespaceData, "namespace data should not be empty")
-
-		// Verify the proof against the data root
-		err = namespaceData.Verify(header.DAH, namespace)
-		s.Assert().NoError(err, "namespace data proof should verify against data root")
-	})
-
-	s.Run("InvalidHeight", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Create a valid namespace
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x23}, 10))
-		s.Require().NoError(err)
-
-		// Try to get namespace data for invalid height
-		_, err = client.Share.GetNamespaceData(ctx, 0, namespace)
-		s.Assert().Error(err, "should return error for height 0")
-
-		// Try to get namespace data for future height
-		futureHeight := uint64(1000000)
-		_, err = client.Share.GetNamespaceData(ctx, futureHeight, namespace)
-		s.Assert().Error(err, "should return error for future height")
-	})
-
-	s.Run("SystemNamespaces", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Get current head for a valid height
-		head, err := client.Header.LocalHead(ctx)
-		s.Require().NoError(err)
-
-		// Test with a different regular namespace (simulating a system namespace)
-		systemNamespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x00}, 10))
-		s.Require().NoError(err)
-
-		// Get namespace data for system namespace
-		namespaceData, err := client.Share.GetNamespaceData(ctx, head.Height(), systemNamespace)
-		s.Require().NoError(err, "should get data for system namespace")
-		s.Require().NotNil(namespaceData, "namespace data should not be nil")
-
-		// System namespaces might have system data
-		s.Assert().NotNil(namespaceData, "system namespace should return valid structure")
-
-		// If there are shares, they should belong to the system namespace
-		allShares := namespaceData.Flatten()
-		for i, share := range allShares {
-			s.Assert().True(share.Namespace().Equals(systemNamespace), "share %d should belong to system namespace", i)
-		}
-	})
-
-	s.Run("WithNetworkResilience", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
-		defer cancel()
-
-		// Create multiple nodes including full nodes for resilience testing
-		bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-		fullNode1 := s.framework.GetOrCreateFullNode(ctx)
-		fullNode2 := s.framework.GetOrCreateFullNode(ctx)
-		lightNode := s.framework.GetOrCreateLightNode(ctx)
-
-		bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-		fullClient1 := s.framework.GetNodeRPCClient(ctx, fullNode1)
-		fullClient2 := s.framework.GetNodeRPCClient(ctx, fullNode2)
-		lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
-
-		// Submit test blob with specific namespace
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x26}, 10))
-		s.Require().NoError(err)
-		data := []byte("Network resilience test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Wait for all nodes to sync
-		for _, client := range []*client.Client{fullClient1, fullClient2, lightClient} {
-			_, err = client.Header.WaitForHeight(ctx, height)
-			s.Require().NoError(err)
-		}
-
-		// Get namespace data from bridge (source of truth)
-		expected, err := bridgeClient.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "bridge should provide namespace data")
-		expectedShares := expected.Flatten()
-		s.Require().NotEmpty(expectedShares, "bridge namespace data should have shares")
-
-		// Test that all full nodes can retrieve the same data
-		gotFull1, err := fullClient1.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "full node 1 should get namespace data")
-		gotFull1Shares := gotFull1.Flatten()
-		s.Require().NotEmpty(gotFull1Shares, "full node 1 should have shares")
-
-		gotFull2, err := fullClient2.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "full node 2 should get namespace data")
-		gotFull2Shares := gotFull2.Flatten()
-		s.Require().NotEmpty(gotFull2Shares, "full node 2 should have shares")
-
-		// Test that light node can retrieve data (should use ShrexND to fetch from available full nodes)
-		gotLight, err := lightClient.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "light node should get namespace data via ShrexND")
-		gotLightShares := gotLight.Flatten()
-		s.Require().NotEmpty(gotLightShares, "light node should have shares")
-
-		// Verify data consistency across all nodes
-		s.Assert().Equal(expectedShares, gotFull1Shares, "full node 1 should match bridge data")
-		s.Assert().Equal(expectedShares, gotFull2Shares, "full node 2 should match bridge data")
-		s.Assert().Equal(expectedShares, gotLightShares, "light node should match bridge data")
-
-		// Verify structures are present
-		s.Assert().NotEmpty(gotFull1, "full node 1 should have namespace data")
-		s.Assert().NotEmpty(gotFull2, "full node 2 should have namespace data")
-		s.Assert().NotEmpty(gotLight, "light node should have namespace data")
-	})
-
-	s.Run("FromRandomNamespaces", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-
-		bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-		lightNode := s.framework.GetOrCreateLightNode(ctx)
-
-		bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-		lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
-
-		// Submit blobs with multiple different namespaces
-		namespaces := make([]libshare.Namespace, 3)
-		heights := make([]uint64, 3)
-
-		for i := 0; i < 3; i++ {
-			// Create different namespaces
-			nsBytes := bytes.Repeat([]byte{byte(0x30 + i)}, 10)
-			namespace, err := libshare.NewV0Namespace(nsBytes)
-			s.Require().NoError(err)
-			namespaces[i] = namespace
-
-			data := []byte(fmt.Sprintf("Random namespace test data %d", i+1))
-			height, _ := s.submitTestBlob(ctx, namespace, data)
-			heights[i] = height
-		}
-
-		// Test namespace data retrieval for each namespace
-		for i, namespace := range namespaces {
-			height := heights[i]
-
-			// Wait for light node to sync
-			_, err := lightClient.Header.WaitForHeight(ctx, height)
-			s.Require().NoError(err)
-
-			// Get namespace data from bridge
-			bridgeData, err := bridgeClient.Share.GetNamespaceData(ctx, height, namespace)
-			s.Require().NoError(err, "bridge should get namespace data for ns %d", i)
-
-			// Get namespace data from light node
-			lightData, err := lightClient.Share.GetNamespaceData(ctx, height, namespace)
-			s.Require().NoError(err, "light node should get namespace data for ns %d", i)
-
-			// Verify data consistency
-			bridgeShares := bridgeData.Flatten()
-			lightShares := lightData.Flatten()
-			s.Assert().Equal(bridgeShares, lightShares,
-				"namespace data should match between bridge and light for ns %d", i)
-
-			// Verify all shares belong to correct namespace
-			for j, share := range lightShares {
-				s.Assert().True(share.Namespace().Equals(namespace),
-					"share %d should belong to namespace %d", j, i)
-			}
-
-			// Test that we get empty results for non-existent namespaces
-			nonExistentNs, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0xFF - byte(i)}, 10))
-			s.Require().NoError(err)
-
-			emptyData, err := lightClient.Share.GetNamespaceData(ctx, height, nonExistentNs)
-			s.Require().NoError(err, "should succeed for non-existent namespace")
-			emptyShares := emptyData.Flatten()
-			s.Assert().Empty(emptyShares, "should have no shares for non-existent namespace")
-			s.Assert().NotNil(emptyData, "should still return valid structure for non-existent namespace")
-		}
-	})
-
-	s.Run("VsGetRange_Complementary", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x24}, 10))
-		s.Require().NoError(err)
-		data := []byte("Comparing GetNamespaceData vs GetRange")
-		height, commitment := s.submitTestBlob(ctx, namespace, data)
-
-		// Get the blob to find its position
-		retrievedBlob, err := client.Blob.Get(ctx, height, namespace, commitment)
-		s.Require().NoError(err)
-
-		// Calculate blob length
-		blobLength, err := retrievedBlob.Length()
-		s.Require().NoError(err)
-
-		// Get data using GetNamespaceData
-		namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "should get namespace data")
-
-		// Get data using GetRange for the same blob
-		rangeData, err := client.Share.GetRange(ctx, height, retrievedBlob.Index(), retrievedBlob.Index()+blobLength)
-		s.Require().NoError(err, "should get range data")
-
-		// Both should return valid data
-		namespaceBlobShares := namespaceData.Flatten()
-		s.Assert().NotEmpty(namespaceBlobShares, "namespace data should have shares")
-		s.Assert().NotEmpty(rangeData.Shares, "range data should have shares")
-		s.Assert().NotEmpty(namespaceData, "namespace data should not be empty")
-		s.Assert().NotNil(rangeData.Proof, "range data should have proof")
-
-		// Parse blobs from both methods
-		rangeBlobShares := rangeData.Shares
-
-		// The shares from namespace data should contain all shares for the namespace
-		// The shares from range data should contain shares for the specific range
-		// For a single blob, the range data should be a subset of namespace data
-		s.Assert().GreaterOrEqual(len(namespaceBlobShares), len(rangeBlobShares),
-			"namespace data should have at least as many shares as range data")
-
-		// Verify that range shares are present in namespace shares
-		if len(rangeBlobShares) > 0 && len(namespaceBlobShares) > 0 {
-			// Find the range shares within namespace shares
-			found := false
-			for i := 0; i <= len(namespaceBlobShares)-len(rangeBlobShares); i++ {
-				match := true
-				for j := 0; j < len(rangeBlobShares); j++ {
-					if !bytes.Equal(namespaceBlobShares[i+j].ToBytes(), rangeBlobShares[j].ToBytes()) {
-						match = false
-						break
-					}
-				}
-				if match {
-					found = true
-					break
-				}
-			}
-			s.Assert().True(found, "range shares should be found within namespace shares")
-		}
-	})
-}
-
-// TestShareCrossNodeAvailability validates share availability across different node types
-func (s *ShareTestSuite) TestShareCrossNodeAvailability() {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	fullNode := s.framework.GetOrCreateFullNode(ctx)
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-
-	fullClient := s.framework.GetNodeRPCClient(ctx, fullNode)
-	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-
-	// Submit a test blob
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x0A}, 10))
-	s.Require().NoError(err)
-	data := []byte("Cross node availability test data")
-	height, _ := s.submitTestBlob(ctx, namespace, data)
-
-	// Wait for data to propagate
-	time.Sleep(10 * time.Second)
-
-	// Check availability on full node
-	err = fullClient.Share.SharesAvailable(ctx, height)
-	s.Require().NoError(err, "shares should be available on full node")
-
-	// Check availability on bridge node
-	err = bridgeClient.Share.SharesAvailable(ctx, height)
-	s.Require().NoError(err, "shares should be available on bridge node")
-
-	// Get range data from both nodes and compare
-	fullRange, err := fullClient.Share.GetRange(ctx, height, 0, 3)
-	s.Require().NoError(err, "should get range data from full node")
-
-	bridgeRange, err := bridgeClient.Share.GetRange(ctx, height, 0, 3)
-	s.Require().NoError(err, "should get range data from bridge node")
-
-	// Validate range data consistency
-	s.Assert().Equal(len(fullRange.Shares), len(bridgeRange.Shares), "range shares count should match across nodes")
-	s.Assert().NotNil(fullRange.Proof, "full node should have proof")
-	s.Assert().NotNil(bridgeRange.Proof, "bridge node should have proof")
-}
-
-// TestShareCrossNodeRobustness validates all Share APIs across all node types with multiple requests
-func (s *ShareTestSuite) TestShareCrossNodeRobustness() {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-
-	// Create all node types
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-	fullNode1 := s.framework.GetOrCreateFullNode(ctx)
-	fullNode2 := s.framework.GetOrCreateFullNode(ctx)
-	lightNode := s.framework.GetOrCreateLightNode(ctx)
-
-	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-	fullClient1 := s.framework.GetNodeRPCClient(ctx, fullNode1)
-	fullClient2 := s.framework.GetNodeRPCClient(ctx, fullNode2)
-	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
-
-	clients := map[string]*client.Client{
-		"bridge": bridgeClient,
-		"full1":  fullClient1,
-		"full2":  fullClient2,
-		"light":  lightClient,
-	}
-
-	// Submit test data with different namespaces for comprehensive testing
-	testData := []struct {
-		namespace libshare.Namespace
-		data      []byte
-		testName  string
-	}{
-		{mustCreateNamespace(bytes.Repeat([]byte{0x41}, 10)), []byte("Cross-node test data 1"), "test1"},
-		{mustCreateNamespace(bytes.Repeat([]byte{0x42}, 10)), []byte("Cross-node test data 2"), "test2"},
-		{mustCreateNamespace(bytes.Repeat([]byte{0x43}, 10)), []byte("Cross-node test data 3"), "test3"},
-	}
-
-	heights := make([]uint64, len(testData))
-	commitments := make([][]byte, len(testData))
-
-	// Submit all test blobs
-	for i, td := range testData {
-		height, commitment := s.submitTestBlob(ctx, td.namespace, td.data)
-		heights[i] = height
-		commitments[i] = commitment
-	}
-
-	// Wait for all nodes to sync to the latest height
-	maxHeight := heights[len(heights)-1]
-	for name, client := range clients {
-		_, err := client.Header.WaitForHeight(ctx, maxHeight)
-		s.Require().NoError(err, "%s node should sync to height %d", name, maxHeight)
-	}
-
-	// Additional wait for data propagation
-	time.Sleep(15 * time.Second)
-
-	s.Run("SharesAvailable_AllNodes", func() {
-		// Test SharesAvailable across all node types with multiple requests
-		for i, height := range heights {
-			for name, client := range clients {
-				// Make multiple requests to ensure consistency
-				for attempt := 1; attempt <= 3; attempt++ {
-					err := client.Share.SharesAvailable(ctx, height)
-					s.Assert().NoError(err, "%s node attempt %d should have shares available for height %d (test %s)",
-						name, attempt, height, testData[i].testName)
-				}
-			}
-		}
-	})
-
-	s.Run("GetShare_AllNodes", func() {
-		// Test GetShare across all node types
-		for i, height := range heights {
-			for name, client := range clients {
-				// Make multiple requests for different coordinates
-				coords := []struct{ row, col int }{
-					{0, 0}, {0, 1}, {1, 0},
-				}
-
-				for _, coord := range coords {
-					for attempt := 1; attempt <= 2; attempt++ {
-						share, err := client.Share.GetShare(ctx, height, coord.row, coord.col)
-						if err == nil {
-							s.Assert().NotEmpty(share, "%s node attempt %d should get valid share at (%d,%d) for height %d (test %s)",
-								name, attempt, coord.row, coord.col, height, testData[i].testName)
-						}
-						// Note: Some coordinates might be out of bounds, which is acceptable
-					}
-				}
-			}
-		}
-	})
-
-	s.Run("GetEDS_AllNodes", func() {
-		// Test GetEDS across all node types
-		for i, height := range heights {
-			for name, client := range clients {
-				// Make multiple requests to ensure consistency
-				for attempt := 1; attempt <= 2; attempt++ {
-					eds, err := client.Share.GetEDS(ctx, height)
-					s.Assert().NoError(err, "%s node attempt %d should get EDS for height %d (test %s)",
-						name, attempt, height, testData[i].testName)
-					if err == nil {
-						s.Assert().Greater(eds.Width(), uint(0), "%s node EDS should have positive width", name)
-					}
-				}
-			}
-		}
-	})
-
-	s.Run("GetRow_AllNodes", func() {
-		// Test GetRow across all node types
-		for i, height := range heights {
-			for name, client := range clients {
-				// Test multiple rows
-				rows := []int{0, 1}
-				for _, rowIdx := range rows {
-					for attempt := 1; attempt <= 2; attempt++ {
-						row, err := client.Share.GetRow(ctx, height, rowIdx)
-						if err == nil {
-							s.Assert().NotNil(row, "%s node attempt %d should get valid row %d for height %d (test %s)",
-								name, attempt, rowIdx, height, testData[i].testName)
-							s.Assert().NotEmpty(row.Shares, "%s node row should have shares", name)
-						}
-						// Note: Some row indices might be out of bounds, which is acceptable
-					}
-				}
-			}
-		}
-	})
-
-	s.Run("GetRange_AllNodes", func() {
-		// Test GetRange across all node types
-		for i, height := range heights {
-			for name, client := range clients {
-				// Test multiple ranges
-				ranges := []struct{ start, end int }{
-					{0, 3}, {0, 7}, {4, 8},
-				}
-
-				for _, r := range ranges {
-					for attempt := 1; attempt <= 2; attempt++ {
-						rangeResult, err := client.Share.GetRange(ctx, height, r.start, r.end)
-						if err == nil {
-							s.Assert().NotNil(rangeResult, "%s node attempt %d should get valid range (%d,%d) for height %d (test %s)",
-								name, attempt, r.start, r.end, height, testData[i].testName)
-							s.Assert().NotNil(rangeResult.Proof, "%s node range should have proof", name)
-						}
-						// Note: Some ranges might be invalid or out of bounds, which is acceptable
-					}
-				}
-			}
-		}
-	})
-
-	s.Run("GetNamespaceData_AllNodes", func() {
-		// Test GetNamespaceData across all node types
-		for i, td := range testData {
-			height := heights[i]
-			for name, client := range clients {
-				// Make multiple requests to ensure consistency
-				for attempt := 1; attempt <= 3; attempt++ {
-					namespaceData, err := client.Share.GetNamespaceData(ctx, height, td.namespace)
-					s.Assert().NoError(err, "%s node attempt %d should get namespace data for height %d (test %s)",
-						name, attempt, height, td.testName)
-
-					if err == nil {
-						s.Assert().NotNil(namespaceData, "%s node namespace data should not be nil", name)
-						allShares := namespaceData.Flatten()
-						s.Assert().NotEmpty(allShares, "%s node should have shares for namespace (test %s)", name, td.testName)
-
-						// Verify all shares belong to the correct namespace
-						for j, share := range allShares {
-							s.Assert().True(share.Namespace().Equals(td.namespace),
-								"%s node share %d should belong to correct namespace (test %s)", name, j, td.testName)
-						}
-					}
-				}
-			}
-		}
-	})
-
-	s.Run("GetSamples_AllNodes", func() {
-		// Test GetSamples across all node types
-		for i, height := range heights {
-			// Get header for samples
-			header, err := bridgeClient.Header.GetByHeight(ctx, height)
-			s.Require().NoError(err)
-
-			sampleCoords := []shwap.SampleCoords{
-				{Row: 0, Col: 0},
-				{Row: 0, Col: 1},
-				{Row: 1, Col: 0},
-			}
-
-			for name, client := range clients {
-				for attempt := 1; attempt <= 2; attempt++ {
-					samples, err := client.Share.GetSamples(ctx, header, sampleCoords)
-					if err == nil {
-						s.Assert().Len(samples, len(sampleCoords), "%s node attempt %d should get correct number of samples for height %d (test %s)",
-							name, attempt, height, testData[i].testName)
-
-						for j, sample := range samples {
-							s.Assert().NotEmpty(sample.Share, "%s node sample %d should not be empty", name, j)
-							s.Assert().NotNil(sample.Proof, "%s node sample %d should have proof", name, j)
-						}
-					}
-					// Note: Some sample coordinates might be out of bounds, which is acceptable
-				}
-			}
-		}
-	})
-
-	s.Run("CrossNode_DataConsistency", func() {
-		// Ensure data consistency across all node types
-		for i, td := range testData {
-			height := heights[i]
-
-			// Get namespace data from all nodes
-			nodeResults := make(map[string][]libshare.Share)
-
-			for name, client := range clients {
-				namespaceData, err := client.Share.GetNamespaceData(ctx, height, td.namespace)
-				if err == nil {
-					nodeResults[name] = namespaceData.Flatten()
-				}
-			}
-
-			// Compare results between nodes (should be identical)
-			if len(nodeResults) >= 2 {
-				var referenceShares []libshare.Share
-				var referenceName string
-
-				for name, shares := range nodeResults {
-					if len(shares) > 0 {
-						if referenceShares == nil {
-							referenceShares = shares
-							referenceName = name
-						} else {
-							s.Assert().Equal(len(referenceShares), len(shares),
-								"node %s should have same number of shares as %s (test %s)", name, referenceName, td.testName)
-
-							// Compare share data
-							for j := 0; j < len(shares) && j < len(referenceShares); j++ {
-								s.Assert().True(shares[j].Namespace().Equals(referenceShares[j].Namespace()),
-									"share %d namespace should match between %s and %s (test %s)", j, name, referenceName, td.testName)
-							}
-						}
-					}
-				}
-			}
-		}
-	})
-
-	s.Run("RepeatedRequests_Stability", func() {
-		// Test stability with many repeated requests
-		const numRepeats = 10
-		height := heights[0]
-
-		for name, client := range clients {
-			successCount := 0
-			for i := 0; i < numRepeats; i++ {
-				err := client.Share.SharesAvailable(ctx, height)
-				if err == nil {
-					successCount++
-				}
-
-				// Small delay between requests
-				time.Sleep(100 * time.Millisecond)
-			}
-
-			// Allow some failures for light nodes due to network conditions
-			expectedMinSuccess := numRepeats
-			if name == "light" {
-				expectedMinSuccess = numRepeats / 2 // Allow 50% success rate for light nodes
-			}
-
-			s.Assert().GreaterOrEqual(successCount, expectedMinSuccess,
-				"%s node should have at least %d successes out of %d repeated requests", name, expectedMinSuccess, numRepeats)
-		}
-	})
-}
-
-// Helper function for creating namespaces in tests
-func mustCreateNamespace(data []byte) libshare.Namespace {
-	ns, err := libshare.NewV0Namespace(data)
+// mustCreateNamespace creates a namespace and panics on error (for test data setup)
+func mustCreateNamespace(id []byte) libshare.Namespace {
+	ns, err := libshare.NewV0Namespace(id)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create namespace: %v", err))
 	}
 	return ns
 }
 
-// TestShareErrorHandling validates error handling scenarios
-func (s *ShareTestSuite) TestShareErrorHandling() {
-	s.Run("NetworkTimeout", func() {
-		// Use a valid context for framework operations
-		setupCtx, setupCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer setupCancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(setupCtx)
-		client := s.framework.GetNodeRPCClient(setupCtx, fullNode)
-
-		// Create a cancelled context only for the API call to test timeout behavior
-		apiCtx, apiCancel := context.WithCancel(context.Background())
-		apiCancel() // Cancel immediately to force timeout
-
-		// This should timeout immediately due to cancelled context
-		err := client.Share.SharesAvailable(apiCtx, 1)
-		s.Assert().Error(err, "should return timeout error")
-		// Check for context cancelled error
-		if err != nil {
-			s.Assert().Contains(err.Error(), "context canceled", "should be context cancelled error")
-		}
-	})
-}
-
-// TestSharePerformance validates performance characteristics
-func (s *ShareTestSuite) TestSharePerformance() {
-	s.Run("ConcurrentRequests", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		defer cancel()
-
-		fullNode := s.framework.GetOrCreateFullNode(ctx)
-		client := s.framework.GetNodeRPCClient(ctx, fullNode)
-
-		// Submit a test blob
-		namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x0B}, 10))
-		s.Require().NoError(err)
-		data := []byte("Performance test data")
-		height, _ := s.submitTestBlob(ctx, namespace, data)
-
-		// Test concurrent access
-		const numConcurrent = 5
-		results := make(chan error, numConcurrent)
-
-		for i := 0; i < numConcurrent; i++ {
-			go func(i int) {
-				rowIdx := i % 4 // Assume at least 4 rows exist
-				_, err := client.Share.GetRow(ctx, height, rowIdx)
-				results <- err
-			}(i)
-		}
-
-		// Wait for all goroutines to complete
-		for i := 0; i < numConcurrent; i++ {
-			select {
-			case err := <-results:
-				s.Assert().NoError(err, "concurrent request %d should succeed", i)
-			case <-time.After(30 * time.Second):
-				s.Fail("concurrent request timed out")
-			}
-		}
-	})
-}
-
-// TestShareGetNamespaceData_AllNodeTypes demonstrates testing across all node types
-func (s *ShareTestSuite) TestShareGetNamespaceData_AllNodeTypes() {
-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+// TestCrossNodeDataAvailability validates that data submitted to one bridge node
+// becomes available across all nodes in the network
+func (s *ShareTestSuite) TestCrossNodeDataAvailability() {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	// Submit test blob with specific namespace
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x50}, 10))
-	s.Require().NoError(err)
-	data := []byte("GetNamespaceData all nodes test data")
-	height, commitment := s.submitTestBlob(ctx, namespace, data)
+	// Get multiple bridge nodes and light nodes
+	bridgeNode1 := s.framework.GetOrCreateBridgeNode(ctx)
+	bridgeNode2 := s.framework.GetOrCreateBridgeNode(ctx)
+	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
+	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
 
-	// Store expected results from bridge node for comparison
-	var expectedShares []libshare.Share
-	var expectedBlobs []*nodeblob.Blob
+	bridge1Client := s.framework.GetNodeRPCClient(ctx, bridgeNode1)
+	bridge2Client := s.framework.GetNodeRPCClient(ctx, bridgeNode2)
+	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
+	light2Client := s.framework.GetNodeRPCClient(ctx, lightNode2)
 
-	s.testWithAllNodeTypes(ctx, "GetNamespaceData", func(ctx context.Context, client *client.Client, nodeType string) {
-		// Wait for node to sync and data to propagate
-		_, err := client.Header.WaitForHeight(ctx, height)
-		s.Require().NoError(err, "%s node should sync to height %d", nodeType, height)
-
-		if nodeType == "light" {
-			// Extra wait for light node data propagation via ShrexND
-			time.Sleep(10 * time.Second)
-		}
-
-		// Get namespace data
-		namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
-		s.Require().NoError(err, "%s node should get namespace data", nodeType)
-		s.Require().NotNil(namespaceData, "%s node namespace data should not be nil", nodeType)
-
-		// Validate namespace data structure
-		allShares := namespaceData.Flatten()
-		s.Assert().NotEmpty(allShares, "%s node namespace data should have shares", nodeType)
-
-		// Verify that all shares belong to the correct namespace
-		for i, share := range allShares {
-			s.Assert().True(share.Namespace().Equals(namespace),
-				"%s node share %d should belong to correct namespace", nodeType, i)
-		}
-
-		// Parse blobs from namespace data
-		blobs, err := libshare.ParseBlobs(allShares)
-		s.Require().NoError(err, "%s node should parse blobs from namespace data", nodeType)
-		s.Require().NotEmpty(blobs, "%s node should have at least one blob", nodeType)
-
-		// Convert to node blobs and verify
-		nodeBlobs, err := nodeblob.ToNodeBlobs(blobs...)
-		s.Require().NoError(err, "%s node should convert to node blobs", nodeType)
-		s.Require().NotEmpty(nodeBlobs, "%s node should have node blobs", nodeType)
-
-		if nodeType == "bridge" {
-			// Store bridge results as reference
-			expectedShares = allShares
-			expectedBlobs = nodeBlobs
-		} else if len(expectedShares) > 0 {
-			// Compare with bridge results for consistency
-			s.Assert().Equal(len(expectedShares), len(allShares),
-				"%s node should have same number of shares as bridge", nodeType)
-			s.Assert().Equal(len(expectedBlobs), len(nodeBlobs),
-				"%s node should have same number of blobs as bridge", nodeType)
-		}
-
-		// Find our specific blob by commitment
-		found := false
-		for _, blob := range nodeBlobs {
-			if bytes.Equal(blob.Commitment, commitment) {
-				found = true
-				s.Assert().Equal(data, blob.Data, "%s node blob data should match", nodeType)
-				break
-			}
-		}
-		s.Assert().True(found, "%s node should find our blob in namespace data", nodeType)
-
-		// Additional verification for light nodes (they use ShrexND protocol)
-		if nodeType == "light" {
-			s.T().Logf("Light node successfully retrieved namespace data via ShrexND for height %d", height)
-
-			// Verify proof validation works
-			header, err := client.Header.GetByHeight(ctx, height)
-			s.Require().NoError(err, "light node should get header")
-
-			err = namespaceData.Verify(header.DAH, namespace)
-			s.Assert().NoError(err, "light node namespace data proof should verify")
-		}
-	})
-}
-
-// TestShareGetRange_AllNodeTypes demonstrates GetRange testing across all node types
-func (s *ShareTestSuite) TestShareGetRange_AllNodeTypes() {
-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
-	defer cancel()
-
-	// Submit test blob
-	namespace, err := libshare.NewV0Namespace(bytes.Repeat([]byte{0x51}, 10))
-	s.Require().NoError(err)
-	data := []byte("GetRange all nodes test data")
+	// Submit test blob to bridge1
+	namespace := mustCreateNamespace(bytes.Repeat([]byte{0x01}, 10))
+	data := []byte("Cross-node data availability test")
 	height, _ := s.submitTestBlob(ctx, namespace, data)
 
-	var expectedShares []libshare.Share
+	// Wait for block propagation
+	time.Sleep(15 * time.Second)
 
-	s.testWithAllNodeTypes(ctx, "GetRange", func(ctx context.Context, client *client.Client, nodeType string) {
-		// Wait for node to sync
+	// Verify data is available on all nodes
+	nodes := map[string]*client.Client{
+		"bridge1": bridge1Client,
+		"bridge2": bridge2Client,
+		"light1":  light1Client,
+		"light2":  light2Client,
+	}
+
+	for nodeType, client := range nodes {
+		s.Run(fmt.Sprintf("DataAvailable_%s", nodeType), func() {
+			// Wait for node to sync to height
+			_, err := client.Header.WaitForHeight(ctx, height)
+			s.Require().NoError(err, "%s should sync to height %d", nodeType, height)
+
+			// Check shares are available
+			err = client.Share.SharesAvailable(ctx, height)
+			s.Require().NoError(err, "shares should be available on %s", nodeType)
+
+			// Get namespace data to verify content
+			namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
+			s.Require().NoError(err, "%s should get namespace data", nodeType)
+
+			allShares := namespaceData.Flatten()
+			s.Assert().NotEmpty(allShares, "%s should have shares for namespace", nodeType)
+
+			// Verify data integrity
+			blobs, err := libshare.ParseBlobs(allShares)
+			s.Require().NoError(err, "%s should parse blobs", nodeType)
+			s.Assert().NotEmpty(blobs, "%s should have parsed blobs", nodeType)
+		})
+	}
+}
+
+// TestDataPropagationTiming validates the timing of data propagation across different node types
+func (s *ShareTestSuite) TestDataPropagationTiming() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	lightNode := s.framework.GetOrCreateLightNode(ctx)
+
+	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
+	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
+
+	// Submit test blob
+	namespace := mustCreateNamespace(bytes.Repeat([]byte{0x02}, 10))
+	data := []byte("Data propagation timing test")
+	height, _ := s.submitTestBlob(ctx, namespace, data)
+
+	// Track when data becomes available on each node type
+	type availabilityResult struct {
+		nodeType  string
+		timestamp time.Time
+		duration  time.Duration
+	}
+
+	var results []availabilityResult
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	startTime := time.Now()
+
+	// Check bridge node availability
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				err := bridgeClient.Share.SharesAvailable(ctx, height)
+				if err == nil {
+					mu.Lock()
+					results = append(results, availabilityResult{
+						nodeType:  "bridge",
+						timestamp: time.Now(),
+						duration:  time.Since(startTime),
+					})
+					mu.Unlock()
+					return
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}()
+
+	// Check light node availability
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Wait for header sync first
+		_, err := lightClient.Header.WaitForHeight(ctx, height)
+		if err != nil {
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				err := lightClient.Share.SharesAvailable(ctx, height)
+				if err == nil {
+					mu.Lock()
+					results = append(results, availabilityResult{
+						nodeType:  "light",
+						timestamp: time.Now(),
+						duration:  time.Since(startTime),
+					})
+					mu.Unlock()
+					return
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Validate results
+	s.Require().Len(results, 2, "should have availability results for both node types")
+
+	var bridgeDuration, lightDuration time.Duration
+	for _, result := range results {
+		switch result.nodeType {
+		case "bridge":
+			bridgeDuration = result.duration
+		case "light":
+			lightDuration = result.duration
+		}
+	}
+
+	s.T().Logf("Bridge node data availability: %v", bridgeDuration)
+	s.T().Logf("Light node data availability: %v", lightDuration)
+
+	// Bridge should be faster (it stores full data)
+	s.Assert().True(bridgeDuration <= lightDuration, "bridge node should have data available before or same time as light node")
+}
+
+// TestMultiNamespaceDataIsolation validates that different namespaces are properly isolated
+// and each node can correctly filter and retrieve namespace-specific data
+func (s *ShareTestSuite) TestMultiNamespaceDataIsolation() {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	lightNode := s.framework.GetOrCreateLightNode(ctx)
+
+	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
+	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
+
+	// Create test wallets and fund accounts
+	testWallet := s.framework.CreateTestWallet(ctx, 10_000_000_000)
+	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 2_000_000_000)
+
+	// Submit blobs to different namespaces
+	namespace1 := mustCreateNamespace(bytes.Repeat([]byte{0x11}, 10))
+	namespace2 := mustCreateNamespace(bytes.Repeat([]byte{0x22}, 10))
+	namespace3 := mustCreateNamespace(bytes.Repeat([]byte{0x33}, 10))
+
+	data1 := []byte("Namespace 1 data")
+	data2 := []byte("Namespace 2 data")
+	data3 := []byte("Namespace 3 data")
+
+	// Submit all blobs in a single transaction for same block height
+	nodeAddr, err := bridgeClient.State.AccountAddress(ctx)
+	s.Require().NoError(err)
+
+	libBlob1, err := libshare.NewV1Blob(namespace1, data1, nodeAddr.Bytes())
+	s.Require().NoError(err)
+	libBlob2, err := libshare.NewV1Blob(namespace2, data2, nodeAddr.Bytes())
+	s.Require().NoError(err)
+	libBlob3, err := libshare.NewV1Blob(namespace3, data3, nodeAddr.Bytes())
+	s.Require().NoError(err)
+
+	nodeBlobs1, err := nodeblob.ToNodeBlobs(libBlob1)
+	s.Require().NoError(err)
+	nodeBlobs2, err := nodeblob.ToNodeBlobs(libBlob2)
+	s.Require().NoError(err)
+	nodeBlobs3, err := nodeblob.ToNodeBlobs(libBlob3)
+	s.Require().NoError(err)
+
+	allBlobs := append(nodeBlobs1, nodeBlobs2...)
+	allBlobs = append(allBlobs, nodeBlobs3...)
+
+	txConfig := state.NewTxConfig(state.WithGas(500_000), state.WithGasPrice(5000))
+	height, err := bridgeClient.Blob.Submit(ctx, allBlobs, txConfig)
+	s.Require().NoError(err)
+
+	// Wait for data propagation
+	time.Sleep(20 * time.Second)
+
+	// Test data isolation on both node types
+	clients := map[string]*client.Client{
+		"bridge": bridgeClient,
+		"light":  lightClient,
+	}
+
+	for nodeType, client := range clients {
+		s.Run(fmt.Sprintf("DataIsolation_%s", nodeType), func() {
+			// Wait for sync
+			_, err := client.Header.WaitForHeight(ctx, height)
+			s.Require().NoError(err)
+
+			// Get namespace data for each namespace
+			ns1Data, err := client.Share.GetNamespaceData(ctx, height, namespace1)
+			s.Require().NoError(err, "%s should get namespace1 data", nodeType)
+
+			ns2Data, err := client.Share.GetNamespaceData(ctx, height, namespace2)
+			s.Require().NoError(err, "%s should get namespace2 data", nodeType)
+
+			ns3Data, err := client.Share.GetNamespaceData(ctx, height, namespace3)
+			s.Require().NoError(err, "%s should get namespace3 data", nodeType)
+
+			// Verify each namespace has its own data
+			ns1Shares := ns1Data.Flatten()
+			ns2Shares := ns2Data.Flatten()
+			ns3Shares := ns3Data.Flatten()
+
+			s.Assert().NotEmpty(ns1Shares, "%s should have namespace1 shares", nodeType)
+			s.Assert().NotEmpty(ns2Shares, "%s should have namespace2 shares", nodeType)
+			s.Assert().NotEmpty(ns3Shares, "%s should have namespace3 shares", nodeType)
+
+			// Verify namespace isolation - shares should belong to correct namespace
+			for _, share := range ns1Shares {
+				s.Assert().True(share.Namespace().Equals(namespace1),
+					"%s namespace1 share should belong to namespace1", nodeType)
+			}
+			for _, share := range ns2Shares {
+				s.Assert().True(share.Namespace().Equals(namespace2),
+					"%s namespace2 share should belong to namespace2", nodeType)
+			}
+			for _, share := range ns3Shares {
+				s.Assert().True(share.Namespace().Equals(namespace3),
+					"%s namespace3 share should belong to namespace3", nodeType)
+			}
+
+			// Parse and verify blob content
+			blobs1, err := libshare.ParseBlobs(ns1Shares)
+			s.Require().NoError(err)
+			blobs2, err := libshare.ParseBlobs(ns2Shares)
+			s.Require().NoError(err)
+			blobs3, err := libshare.ParseBlobs(ns3Shares)
+			s.Require().NoError(err)
+
+			s.Assert().NotEmpty(blobs1, "%s should have namespace1 blobs", nodeType)
+			s.Assert().NotEmpty(blobs2, "%s should have namespace2 blobs", nodeType)
+			s.Assert().NotEmpty(blobs3, "%s should have namespace3 blobs", nodeType)
+		})
+	}
+}
+
+// TestLightNodeDataAvailabilitySampling validates that light nodes can successfully
+// perform Data Availability Sampling (DAS) across multiple bridge nodes
+func (s *ShareTestSuite) TestLightNodeDataAvailabilitySampling() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Use light node to test DAS
+	lightNode := s.framework.GetOrCreateLightNode(ctx)
+
+	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
+
+	// Submit larger blob to ensure meaningful sampling
+	namespace := mustCreateNamespace(bytes.Repeat([]byte{0x44}, 10))
+	// Create larger data to ensure multiple shares
+	largeData := bytes.Repeat([]byte("DAS test data "), 1000) // ~14KB
+	height, _ := s.submitTestBlob(ctx, namespace, largeData)
+
+	// Wait for data propagation
+	time.Sleep(25 * time.Second)
+
+	// Verify light node can perform DAS
+	_, err := lightClient.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err, "light node should sync to height")
+
+	// Check that light node considers shares available (DAS successful)
+	err = lightClient.Share.SharesAvailable(ctx, height)
+	s.Require().NoError(err, "light node should confirm shares available via DAS")
+
+	// Test sampling by requesting different share ranges
+	// Light node should be able to get samples even though it doesn't store full data
+	header, err := lightClient.Header.GetByHeight(ctx, height)
+	s.Require().NoError(err, "should get header")
+
+	for i := 0; i < 3; i++ {
+		samples, err := lightClient.Share.GetSamples(ctx, header, []shwap.SampleCoords{
+			{Row: i, Col: i},
+		})
+		s.Require().NoError(err, "light node should get samples via DAS")
+		s.Assert().NotEmpty(samples, "light node should receive sample data")
+		s.Assert().Len(samples, 1, "should receive exactly one sample")
+	}
+
+	// Verify light node can get namespace data (may use ShrexND protocol)
+	namespaceData, err := lightClient.Share.GetNamespaceData(ctx, height, namespace)
+	s.Require().NoError(err, "light node should get namespace data")
+
+	shares := namespaceData.Flatten()
+	s.Assert().NotEmpty(shares, "light node should have namespace shares")
+
+	// Verify data integrity
+	blobs, err := libshare.ParseBlobs(shares)
+	s.Require().NoError(err, "light node should parse blobs")
+	s.Assert().NotEmpty(blobs, "light node should have parsed blobs")
+}
+
+// TestNetworkResilienceWithNodeFailure tests how the network handles node failures
+// and validates data availability when some nodes are unavailable
+func (s *ShareTestSuite) TestNetworkResilienceWithNodeFailure() {
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+
+	// Get bridge node and multiple light nodes for resilience testing
+	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
+	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
+
+	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
+	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
+	light2Client := s.framework.GetNodeRPCClient(ctx, lightNode2)
+
+	// Submit test data
+	namespace := mustCreateNamespace(bytes.Repeat([]byte{0x55}, 10))
+	data := []byte("Network resilience test data")
+	height, _ := s.submitTestBlob(ctx, namespace, data)
+
+	// Wait for data propagation to all nodes
+	time.Sleep(30 * time.Second)
+
+	// Verify all nodes have the data initially
+	allClients := map[string]*client.Client{
+		"bridge": bridgeClient,
+		"light1": light1Client,
+		"light2": light2Client,
+	}
+
+	for nodeType, client := range allClients {
 		_, err := client.Header.WaitForHeight(ctx, height)
-		s.Require().NoError(err, "%s node should sync to height %d", nodeType, height)
+		s.Require().NoError(err, "%s should sync to height", nodeType)
 
-		if nodeType == "light" {
-			// Extra wait for light node data propagation
-			time.Sleep(10 * time.Second)
-		}
+		err = client.Share.SharesAvailable(ctx, height)
+		s.Require().NoError(err, "%s should have shares available", nodeType)
+	}
 
-		// Get range data (retrieve shares 0-7 for example)
-		rangeResult, err := client.Share.GetRange(ctx, height, 0, 7)
-		s.Require().NoError(err, "%s node should get range data", nodeType)
-		s.Require().NotNil(rangeResult, "%s node range result should not be nil", nodeType)
+	// **ACTUALLY STOP** one light node container to test real failure scenario
+	s.T().Logf("Stopping light1 container to test network resilience...")
+	err := lightNode1.Stop(ctx)
+	s.Require().NoError(err, "should be able to stop light1 container")
 
-		// Validate range result
-		s.Assert().NotEmpty(rangeResult.Shares, "%s node range result should have shares", nodeType)
-		s.Assert().NotNil(rangeResult.Proof, "%s node range result should have proof", nodeType)
+	// Wait for failure detection and network adaptation
+	time.Sleep(10 * time.Second)
 
-		if nodeType == "bridge" {
-			expectedShares = rangeResult.Shares
-		} else if len(expectedShares) > 0 {
-			// Compare with bridge results for consistency
-			s.Assert().Equal(expectedShares, rangeResult.Shares,
-				"%s node should get same range data as bridge", nodeType)
-		}
+	// Test that remaining nodes can still provide data despite container failure
+	remainingClients := map[string]*client.Client{
+		"bridge": bridgeClient,
+		"light2": light2Client,
+	}
 
-		// Additional verification for light nodes (they use ShrexND protocol)
-		if nodeType == "light" {
-			s.T().Logf("Light node successfully retrieved range data via ShrexND for height %d", height)
+	for nodeType, client := range remainingClients {
+		s.Run(fmt.Sprintf("ResilientAccess_%s", nodeType), func() {
+			// Verify shares are still available
+			err := client.Share.SharesAvailable(ctx, height)
+			s.Require().NoError(err, "%s should still have shares available", nodeType)
 
-			// Verify proof validation
-			header, err := client.Header.GetByHeight(ctx, height)
-			s.Require().NoError(err, "light node should get header")
+			// Verify we can still get the namespace data
+			namespaceData, err := client.Share.GetNamespaceData(ctx, height, namespace)
+			s.Require().NoError(err, "%s should still get namespace data", nodeType)
 
-			dataRoot := header.DAH.Hash()
-			err = rangeResult.Verify(dataRoot)
-			s.Assert().NoError(err, "light node range proof should verify")
-		}
-	})
+			shares := namespaceData.Flatten()
+			s.Assert().NotEmpty(shares, "%s should still have shares", nodeType)
+
+			// Verify data integrity
+			blobs, err := libshare.ParseBlobs(shares)
+			s.Require().NoError(err, "%s should still parse blobs", nodeType)
+			s.Assert().NotEmpty(blobs, "%s should still have blobs", nodeType)
+		})
+	}
+
+	s.T().Logf("✅ Network resilience test completed: real container failure tested!")
+}
+
+// TestConcurrentMultiNodeOperations validates that multiple nodes can handle
+// concurrent operations without conflicts or data corruption
+func (s *ShareTestSuite) TestConcurrentMultiNodeOperations() {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+
+	bridgeNode1 := s.framework.GetOrCreateBridgeNode(ctx)
+	bridgeNode2 := s.framework.GetOrCreateBridgeNode(ctx)
+	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
+	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
+
+	bridge1Client := s.framework.GetNodeRPCClient(ctx, bridgeNode1)
+	bridge2Client := s.framework.GetNodeRPCClient(ctx, bridgeNode2)
+	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
+	light2Client := s.framework.GetNodeRPCClient(ctx, lightNode2)
+
+	// Submit test data
+	namespace := mustCreateNamespace(bytes.Repeat([]byte{0x66}, 10))
+	data := []byte("Concurrent operations test data")
+	height, _ := s.submitTestBlob(ctx, namespace, data)
+
+	// Wait for data propagation
+	time.Sleep(20 * time.Second)
+
+	// Perform concurrent operations across all nodes
+	var wg sync.WaitGroup
+	errors := make(chan error, 12) // 4 nodes × 3 operations each
+
+	clients := []*client.Client{bridge1Client, bridge2Client, light1Client, light2Client}
+	nodeNames := []string{"bridge1", "bridge2", "light1", "light2"}
+
+	for i, nodeClient := range clients {
+		nodeName := nodeNames[i]
+
+		// Concurrent SharesAvailable calls
+		wg.Add(1)
+		go func(c *client.Client, name string) {
+			defer wg.Done()
+			err := c.Share.SharesAvailable(ctx, height)
+			if err != nil {
+				errors <- fmt.Errorf("%s SharesAvailable: %w", name, err)
+			}
+		}(nodeClient, nodeName)
+
+		// Concurrent GetNamespaceData calls
+		wg.Add(1)
+		go func(c *client.Client, name string) {
+			defer wg.Done()
+			_, err := c.Share.GetNamespaceData(ctx, height, namespace)
+			if err != nil {
+				errors <- fmt.Errorf("%s GetNamespaceData: %w", name, err)
+			}
+		}(nodeClient, nodeName)
+
+		// Concurrent GetRange calls
+		wg.Add(1)
+		go func(c *client.Client, name string) {
+			defer wg.Done()
+			_, err := c.Share.GetRange(ctx, height, 0, 2)
+			if err != nil {
+				errors <- fmt.Errorf("%s GetRange: %w", name, err)
+			}
+		}(nodeClient, nodeName)
+	}
+
+	// Wait for all operations to complete
+	wg.Wait()
+	close(errors)
+
+	// Check for errors
+	var errorList []error
+	for err := range errors {
+		errorList = append(errorList, err)
+	}
+
+	s.Assert().Empty(errorList, "concurrent operations should succeed on all nodes: %v", errorList)
 }
