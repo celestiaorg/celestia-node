@@ -170,6 +170,11 @@ test-share:
 	@echo "Running share module tests..."
 	@cd nodebuilder/tests/tastora && go test -v -tags=integration -run="TestShareTestSuite" -timeout=15m
 
+## test-sync: Run sync module tests via Tastora framework.
+test-sync:
+	@echo "Running sync module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -tags=integration -run="TestSyncTestSuite" -timeout=15m
+
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
 	@echo "Running all Tastora module tests..."
@@ -306,4 +311,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-blob test-share test-tastora
+.PHONY: test-blob test-share test-sync test-tastora
