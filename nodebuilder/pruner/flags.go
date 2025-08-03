@@ -40,5 +40,6 @@ func ParseFlags(cmd *cobra.Command, cfg *Config, tp node.Type) {
 	}
 
 	// If node operator does not explicitly pass `--archival` flag and pruner service is disabled, disallow
-	log.Fatal("ARCHIVAL MODE ENABLED BY ACCIDENT!!! Please explicitly pass `--archival` to enable archival mode!")
+	log.Fatal(`ARCHIVAL MODE ENABLED BY ACCIDENT!!!
+		Please enable pruning service in config or explicitly pass "--archival" to enable archival mode`)
 }
