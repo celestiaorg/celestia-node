@@ -12,7 +12,6 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/rs/cors"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
@@ -20,64 +19,46 @@ import (
 
 var log = logging.Logger("rpc")
 
-type CORSConfig struct {
-	Enabled        bool
-	AllowedOrigins []string
-	AllowedMethods []string
-	AllowedHeaders []string
-}
-
 type Server struct {
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
 	listener     net.Listener
 	authDisabled bool
+	tlsEnabled   bool
+	tlsCertPath  string
+	tlsKeyPath   string
 
-	started    atomic.Bool
-	corsConfig CORSConfig
+	started atomic.Bool
 
 	signer   jwt.Signer
 	verifier jwt.Verifier
 }
 
-func NewServer(
-	address, port string,
-	authDisabled bool,
-	corsConfig CORSConfig,
-	signer jwt.Signer,
-	verifier jwt.Verifier,
-) *Server {
+func NewServer(address, port string, authDisabled bool, signer jwt.Signer, verifier jwt.Verifier) *Server {
+	return NewServerWithTLS(address, port, authDisabled, false, "", "", signer, verifier)
+}
+
+func NewServerWithTLS(address, port string, authDisabled, tlsEnabled bool, tlsCertPath, tlsKeyPath string, signer jwt.Signer, verifier jwt.Verifier) *Server {
 	rpc := jsonrpc.NewServer()
 	srv := &Server{
-		rpc:          rpc,
+		rpc: rpc,
+		srv: &http.Server{
+			Addr: address + ":" + port,
+			// the amount of time allowed to read request headers. set to the default 2 seconds
+			ReadHeaderTimeout: 2 * time.Second,
+		},
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
-		corsConfig:   corsConfig,
+		tlsEnabled:   tlsEnabled,
+		tlsCertPath:  tlsCertPath,
+		tlsKeyPath:   tlsKeyPath,
 	}
-
-	srv.srv = &http.Server{
-		Addr:    net.JoinHostPort(address, port),
-		Handler: srv.newHandlerStack(rpc),
-		// the amount of time allowed to read request headers. set to the default 2 seconds
-		ReadHeaderTimeout: 2 * time.Second,
+	srv.srv.Handler = &auth.Handler{
+		Verify: srv.verifyAuth,
+		Next:   rpc.ServeHTTP,
 	}
-
 	return srv
-}
-
-// newHandlerStack returns wrapped rpc related handlers
-func (s *Server) newHandlerStack(core http.Handler) http.Handler {
-	if s.authDisabled {
-		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
-		return s.corsAny(core)
-	}
-
-	if s.corsConfig.Enabled {
-		return s.corsWithConfig(s.authHandler(core))
-	}
-
-	return s.authHandler(core)
 }
 
 // verifyAuth is the RPC server's auth middleware. This middleware is only
@@ -88,30 +69,6 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 		return perms.AllPerms, nil
 	}
 	return authtoken.ExtractSignedPermissions(s.verifier, token)
-}
-
-// authHandler wraps the handler with authentication.
-func (s *Server) authHandler(next http.Handler) http.Handler {
-	return &auth.Handler{
-		Verify: s.verifyAuth,
-		Next:   next.ServeHTTP,
-	}
-}
-
-// corsAny applies permissive CORS (allows all origins, methods, headers)
-func (s *Server) corsAny(next http.Handler) http.Handler {
-	c := cors.AllowAll()
-	return c.Handler(next)
-}
-
-// corsWithConfig applies CORS with specific configuration
-func (s *Server) corsWithConfig(next http.Handler) http.Handler {
-	c := cors.New(cors.Options{
-		AllowedOrigins: s.corsConfig.AllowedOrigins,
-		AllowedMethods: s.corsConfig.AllowedMethods,
-		AllowedHeaders: s.corsConfig.AllowedHeaders,
-	})
-	return c.Handler(next)
 }
 
 // RegisterService registers a service onto the RPC server. All methods on the service will then be
@@ -142,9 +99,16 @@ func (s *Server) Start(context.Context) error {
 		return err
 	}
 	s.listener = listener
-	log.Infow("server started", "listening on", s.srv.Addr)
-	//nolint:errcheck
-	go s.srv.Serve(listener)
+	
+	if s.tlsEnabled {
+		log.Infow("server started with TLS", "listening on", s.srv.Addr)
+		//nolint:errcheck
+		go s.srv.ServeTLS(listener, s.tlsCertPath, s.tlsKeyPath)
+	} else {
+		log.Infow("server started", "listening on", s.srv.Addr)
+		//nolint:errcheck
+		go s.srv.Serve(listener)
+	}
 	return nil
 }
 
