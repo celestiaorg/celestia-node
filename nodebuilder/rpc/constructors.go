@@ -43,10 +43,5 @@ func registerEndpoints(
 }
 
 func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
-	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, rpc.CORSConfig{
-		Enabled:        cfg.CORS.Enabled,
-		AllowedOrigins: cfg.CORS.AllowedOrigins,
-		AllowedMethods: cfg.CORS.AllowedMethods,
-		AllowedHeaders: cfg.CORS.AllowedHeaders,
-	}, signer, verifier)
+	return rpc.NewServerWithTLS(cfg.Address, cfg.Port, cfg.SkipAuth, cfg.TLSEnabled, cfg.TLSCertPath, cfg.TLSKeyPath, signer, verifier)
 }
