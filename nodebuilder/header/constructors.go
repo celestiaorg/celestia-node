@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -76,14 +77,17 @@ func newSyncer[H libhead.Header[H]](
 	sub libhead.Subscriber[H],
 	cfg Config,
 ) (*sync.Syncer[H], error) {
-	// sync from genesis unless configured differently and not a light node
-	if cfg.Syncer.SyncFromHash == "" && ndtp != node.Light {
-		hash, err := cfg.trustedHash(net)
+	if ndtp == node.Full || ndtp == node.Bridge {
+		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 {
+			return nil, fmt.Errorf("SyncFromHash and SyncFromHeight for Full and Bridge nodes are prohibited until https://github.com/celestiaorg/go-header/issues/333 is completed")
+		}
+
+		gen, err := modp2p.GenesisFor(net)
 		if err != nil {
 			return nil, err
 		}
 
-		cfg.Syncer.SyncFromHash = hash
+		cfg.Syncer.SyncFromHash = gen
 	}
 
 	opts := []sync.Option{

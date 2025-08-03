@@ -74,7 +74,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	head, err := s.syncer.Head(ctx)
 	switch {
 	case err != nil:
-		return nil, fmt.Errorf("getting head header: %w", err)
+		return nil, fmt.Errorf("syncer head: %w", err)
 	case head.Height() == height:
 		return head, nil
 	case head.Height()+1 < height:
@@ -85,10 +85,10 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	tail, err := s.store.Tail(ctx)
 	switch {
 	case err != nil:
-		return nil, fmt.Errorf("getting tail header: %w", err)
+		return nil, fmt.Errorf("store tail: %w", err)
 	case height < tail.Height():
 		log.Warnf(`requested header (%d) is below Tail (%d)
-		 	lazy fetching is not currently supported
+		 	lazy fetching (https://github.com/celestiaorg/go-header/issues/334) is not currently supported
 			make sure to set SyncFromHeight value in config covering desired header height`, height, tail.Height())
 		return nil, fmt.Errorf("requested header (%d) is below Tail (%d)", height, tail.Height())
 	case height == tail.Height():
@@ -98,7 +98,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (*header.Exten
 	head, err = s.store.Head(ctx)
 	switch {
 	case err != nil:
-		return nil, err
+		return nil, fmt.Errorf("store head: %w", err)
 	case head.Height() == height:
 		return head, nil
 	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away

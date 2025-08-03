@@ -211,7 +211,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			headerAmount: 2 * (24 * 7),
 			startTime:    time.Now().Add(-2 * time.Hour * 24 * 7),
 			// One week of headers are pruneable
-			expectedLength: (24 * 7) + 1,
+			expectedLength: (24 * 7),
 		},
 		{
 			name: "Estimated range not sufficient but finds the correct tail",
@@ -222,7 +222,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			headerAmount: 3 * (24 * 7),
 			startTime:    time.Now().Add(-3 * time.Hour * 24 * 7),
 			// Two weeks of headers are pruneable
-			expectedLength: (2 * 24 * 7) + 1,
+			expectedLength: (2 * 24 * 7),
 		},
 		{
 			name: "No pruneable headers",
@@ -266,7 +266,9 @@ func TestFindPruneableHeaders(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, pruneable, tc.expectedLength)
 
-			pruneableCutoff := time.Now().Add(-tc.availWindow)
+			head, err := store.Head(ctx)
+			require.NoError(t, err)
+			pruneableCutoff := head.Time().Add(-tc.availWindow)
 			// All returned headers are older than the availability window
 			for _, h := range pruneable {
 				require.WithinRange(t, h.Time(), tc.startTime, pruneableCutoff)
@@ -278,7 +280,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 				if lastPruneable.Height() != store.Height() {
 					firstUnpruneable, err := store.GetByHeight(ctx, lastPruneable.Height()+1)
 					require.NoError(t, err)
-					require.WithinRange(t, firstUnpruneable.Time(), pruneableCutoff, time.Now())
+					require.WithinRange(t, firstUnpruneable.Time().UTC(), pruneableCutoff, head.Time().UTC())
 				}
 			}
 		})
