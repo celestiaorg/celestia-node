@@ -284,11 +284,12 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time
-	opts.GcInterval = time.Second * 10
+	// somewhat aligned with pruner default
+	opts.GcInterval = time.Second * 30
 	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
 	// removes the pause in between GC rounds
-	// emperically, it doesn't cause any noticeable performance impact
+	// empirically, it doesn't cause any noticeable performance impact
 	// while it significantly speeds up disk space reclaimation for deleted data
 	opts.GcSleep = 0
 
@@ -316,8 +317,8 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// Dynamic compactor allocation
 	compactors := min(max(runtime.NumCPU()/2, 2), opts.MaxLevels)
 	opts.NumCompactors = compactors
-	// ensure we don't compact on close
-	// otherwise, if we stopping times out abruptly, it may corrupt db state
+	// don't compact on close
+	// this adds up to closing time, potentially exceeding StopTimeout
 	opts.CompactL0OnClose = false
 
 	return &opts

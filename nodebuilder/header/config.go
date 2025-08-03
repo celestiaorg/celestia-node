@@ -19,12 +19,6 @@ var MetricsEnabled = false
 
 // Config contains configuration parameters for header retrieval and management.
 type Config struct {
-	// TrustedHash is the Block/Header hash that Nodes use as starting point for header synchronization.
-	// Only affects the node once on initial sync.
-	//  TODO: Deprecate or break?
-	//   Also depends on whether we want to make pruning a default behavior from the start and for which nodes.
-	//   I guess we want to make it default for LNs and the opposite for FNs
-	TrustedHash string
 	// TrustedPeers are the peers we trust to fetch headers from.
 	// Note: The trusted does *not* imply Headers are not verified, but trusted as reliable to fetch
 	// headers at any moment.
@@ -39,7 +33,6 @@ type Config struct {
 
 func DefaultConfig(tp node.Type) Config {
 	cfg := Config{
-		TrustedHash:  "",
 		TrustedPeers: make([]string, 0),
 		Store:        store.DefaultParameters(),
 		Syncer:       sync.DefaultParameters(),
@@ -81,17 +74,6 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 		infos[i] = *p
 	}
 	return
-}
-
-func (cfg *Config) trustedHash(net p2p.Network) (string, error) {
-	if cfg.TrustedHash == "" {
-		gen, err := p2p.GenesisFor(net)
-		if err != nil {
-			return "", err
-		}
-		return gen, nil
-	}
-	return cfg.TrustedHash, nil
 }
 
 // Validate performs basic validation of the config.

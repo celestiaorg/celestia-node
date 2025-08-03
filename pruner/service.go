@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/keytransform"
+
 	contextds "github.com/ipfs/go-datastore/context"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
@@ -22,15 +24,14 @@ var log = logging.Logger("pruner/service")
 type Service struct {
 	pruner Pruner
 	hstore libhead.Store[*header.ExtendedHeader]
-	ds     datastore.Batching
+	ds     *keytransform.Datastore
 
 	window    time.Duration
 	blockTime time.Duration
 	params    Params
 
-	// pruneMu ensures only a single pruning operation is in progress
-	pruneMu    sync.Mutex
-	checkpoint *checkpoint
+	checkpointMu sync.Mutex
+	checkpoint   *checkpoint
 
 	metrics *metrics
 
@@ -142,8 +143,9 @@ func (s *Service) run() {
 }
 
 func (s *Service) prune(ctx context.Context) {
-	s.pruneMu.Lock()
-	defer s.pruneMu.Unlock()
+	// intentionally hold the lock for the whole pruning operation
+	s.checkpointMu.Lock()
+	defer s.checkpointMu.Unlock()
 
 	lastPrunedHeader, err := s.lastPruned(ctx)
 	if err != nil {
@@ -152,7 +154,7 @@ func (s *Service) prune(ctx context.Context) {
 	}
 
 	// prioritize retrying previously-failed headers
-	s.retryFailed(s.ctx)
+	s.retryFailed(ctx)
 
 	now := time.Now()
 	successful, failed := 0, 0
@@ -161,16 +163,15 @@ func (s *Service) prune(ctx context.Context) {
 		log.Infow("pruning round finished", "done", successful, "failed", failed, "took", time.Since(now))
 	}()
 
-	batch, err := s.ds.Batch(ctx)
-	if err != nil {
-		return
-	}
-	ctx = contextds.WithWrite(ctx, batch)
+	ctx, done := s.withWriteBatch(ctx)
 	defer func() {
-		if err := batch.Commit(ctx); err != nil {
-			log.Errorw("failed to commit batch", "err", err)
+		if err := done(); err != nil {
+			log.Errorw("committing batch", "err", err)
 		}
 	}()
+
+	ctx, doneTxn := s.withReadTransaction(ctx)
+	defer doneTxn()
 
 	for {
 		select {
@@ -190,9 +191,8 @@ func (s *Service) prune(ctx context.Context) {
 			headers[len(headers)-1].Height())
 
 		for _, eh := range headers {
-			pruneCtx, cancel := context.WithTimeout(ctx, time.Second*5)
-
-			err = s.pruner.Prune(pruneCtx, eh)
+			err = s.pruner.Prune(ctx, eh)
+			s.metrics.observePrune(ctx, err != nil)
 			if err != nil {
 				log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 				failedSet[eh.Height()] = struct{}{}
@@ -201,9 +201,6 @@ func (s *Service) prune(ctx context.Context) {
 				lastPrunedHeader = eh
 				successful++
 			}
-
-			s.metrics.observePrune(pruneCtx, err != nil)
-			cancel()
 		}
 
 		err = s.updateCheckpoint(s.ctx, lastPrunedHeader.Height(), failedSet)
@@ -250,7 +247,7 @@ func (s *Service) retryFailed(ctx context.Context) {
 // * If Pruner prunes a header first - Syncer only removes the header
 //   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
 func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
-	s.pruneMu.Lock()
+	s.checkpointMu.Lock()
 	if err := s.loadCheckpoint(ctx); err != nil {
 		return err
 	}
@@ -261,10 +258,10 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 		delete(s.checkpoint.FailedHeaders, height)
 	}
 	if height <= s.checkpoint.LastPrunedHeight {
-		s.pruneMu.Unlock()
+		s.checkpointMu.Unlock()
 		return nil
 	}
-	s.pruneMu.Unlock()
+	s.checkpointMu.Unlock()
 
 	eh, err := s.hstore.GetByHeight(ctx, height)
 	if err != nil {
@@ -277,8 +274,8 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 		return fmt.Errorf("pruning height %d: %w", height, err)
 	}
 
-	s.pruneMu.Lock()
-	defer s.pruneMu.Unlock()
+	s.checkpointMu.Lock()
+	defer s.checkpointMu.Unlock()
 	if height <= s.checkpoint.LastPrunedHeight {
 		return nil
 	}
@@ -286,4 +283,36 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 	// no need to persist here, as it will done in pruning routine or Stop
 	log.Debugw("data pruned on header delete", "height", height)
 	return nil
+}
+
+func (s *Service) withWriteBatch(ctx context.Context) (context.Context, func() error) {
+	bds, ok := s.ds.Children()[0].(datastore.Batching)
+	if !ok {
+		return ctx, func() error { return nil }
+	}
+
+	batch, err := bds.Batch(ctx)
+	if err != nil {
+		return ctx, func() error { return nil }
+	}
+
+	return contextds.WithWrite(ctx, batch), func() error {
+		return batch.Commit(ctx)
+	}
+}
+
+func (s *Service) withReadTransaction(ctx context.Context) (context.Context, func()) {
+	tds, ok := s.ds.Children()[0].(datastore.TxnDatastore)
+	if !ok {
+		return ctx, func() {}
+	}
+
+	txn, err := tds.NewTransaction(ctx, true)
+	if err != nil {
+		return ctx, func() {}
+	}
+
+	return contextds.WithRead(ctx, txn), func() {
+		txn.Discard(ctx)
+	}
 }
