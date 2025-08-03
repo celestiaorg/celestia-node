@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/keytransform"
-
 	contextds "github.com/ipfs/go-datastore/context"
+	"github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 
