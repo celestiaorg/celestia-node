@@ -6,6 +6,7 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
@@ -129,4 +130,20 @@ func toCoreNMTProof(proofs []*nmt.Proof) []*tmproto.NMTProof {
 		}
 	}
 	return coreProofs
+}
+
+// MarshalJSON marshals an GetRangeResult to JSON. Uses tendermint encoder for proof for compatibility.
+func (r *GetRangeResult) MarshalJSON() ([]byte, error) {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json marshaling
+	type Alias GetRangeResult
+	return tmjson.Marshal((*Alias)(r))
+}
+
+// UnmarshalJSON unmarshals an GetRangeResult from JSON. Uses tendermint decoder for proof for compatibility.
+func (r *GetRangeResult) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json Unmarshaling
+	type Alias GetRangeResult
+	return tmjson.Unmarshal(data, (*Alias)(r))
 }
