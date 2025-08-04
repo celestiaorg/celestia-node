@@ -121,7 +121,7 @@ install-key:
 # Runs `gofmt & goimports` internally.
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
-	@go mod tidy -compat=1.20
+	@find . -name 'go.mod' -execdir go mod tidy \;
 	@cfmt -w -m=120 ./...
 	@gofumpt -w -extra .
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
