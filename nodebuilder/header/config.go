@@ -2,6 +2,7 @@ package header
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -12,7 +13,10 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
+
+const trustingPeriod = 7 * 24 * time.Hour // Ref: CIP-036
 
 // MetricsEnabled will be set during runtime if metrics are enabled on the node.
 var MetricsEnabled = false
@@ -39,16 +43,18 @@ func DefaultConfig(tp node.Type) Config {
 		Server:       p2p_exchange.DefaultServerParameters(),
 		Client:       p2p_exchange.DefaultClientParameters(),
 	}
+	cfg.Syncer.TrustingPeriod = trustingPeriod
 
 	switch tp {
-	case node.Bridge:
-		return cfg
-	case node.Full:
+	case node.Full, node.Bridge:
+		cfg.Syncer.PruningWindow = 0 // reset pruning window to zero
 		return cfg
 	case node.Light:
 		cfg.Store.StoreCacheSize = 512
 		cfg.Store.IndexCacheSize = 2048
 		cfg.Store.WriteBatchSize = 512
+
+		cfg.Syncer.PruningWindow = availability.StorageWindow
 		return cfg
 	default:
 		panic("header: invalid node type")
@@ -83,14 +89,35 @@ func (cfg *Config) Validate(tp node.Type) error {
 		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
 	}
 
-	err = cfg.Syncer.Validate()
-	if err != nil {
-		return fmt.Errorf("module/header: misconfiguration of syncer: %w", err)
-	}
-
 	err = cfg.Server.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
+	}
+
+	if cfg.Syncer.TrustingPeriod != trustingPeriod {
+		return fmt.Errorf("module/header: Syncer.TrustingPeriod must be %s", trustingPeriod)
+	}
+
+	switch tp {
+	case node.Full, node.Bridge:
+		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 || cfg.Syncer.PruningWindow != 0 {
+			return fmt.Errorf(
+				"module/header: Syncer.SyncFromHash/Syncer.SyncFromHeight/Syncer.PruningWindow must not be set for FN/BN nodes" +
+					"until https://github.com/celestiaorg/go-header/issues/333 is completed. Full and Bridge must sync all the headers until then",
+			)
+		}
+	case node.Light:
+		err = cfg.Syncer.Validate()
+		if err != nil {
+			return fmt.Errorf("module/header: misconfiguration of syncer: %w", err)
+		}
+
+		if cfg.Syncer.PruningWindow < availability.StorageWindow {
+			// TODO(@Wondertan): Technically, a LN may break this restriction by setting SyncFromHeight/Hash to a header
+			//  that is closer to Head than StorageWindow. Consider putting efforts into catching this too.
+			return fmt.Errorf("module/header: Syncer.PruningWindow must not be less then sampling storage window (%s)",
+				availability.StorageWindow)
+		}
 	}
 
 	// we do not create a client for bridge nodes

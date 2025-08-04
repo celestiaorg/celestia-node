@@ -2,7 +2,6 @@ package header
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -78,16 +77,20 @@ func newSyncer[H libhead.Header[H]](
 	cfg Config,
 ) (*sync.Syncer[H], error) {
 	if ndtp == node.Full || ndtp == node.Bridge {
-		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 {
-			return nil, fmt.Errorf("SyncFromHash and SyncFromHeight for Full and Bridge nodes are prohibited until https://github.com/celestiaorg/go-header/issues/333 is completed")
-		}
-
-		gen, err := modp2p.GenesisFor(net)
+		genesis, err := modp2p.GenesisFor(net)
 		if err != nil {
 			return nil, err
 		}
 
-		cfg.Syncer.SyncFromHash = gen
+		cfg.Syncer.SyncFromHash = genesis
+		if genesis == "" {
+			// set by height if hash is not available
+			cfg.Syncer.SyncFromHeight = 1
+
+			// TODO(@Wondertan): Hack until https://github.com/celestiaorg/go-header/issues/335 is fixed
+			//  Only relevant for tests anyway
+			cfg.Syncer.PruningWindow = 100
+		}
 	}
 
 	opts := []sync.Option{
@@ -117,8 +120,8 @@ func newFraudedSyncer[H libhead.Header[H]](
 	}
 }
 
-// newInitStore constructs an initialized store
-func newInitStore[H libhead.Header[H]](
+// newStore constructs an initialized store
+func newStore[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	cfg Config,
 	ds datastore.Batching,

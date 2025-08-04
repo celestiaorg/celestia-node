@@ -3,7 +3,6 @@ package header
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
@@ -61,7 +60,6 @@ func TestConstructModule_StoreParams(t *testing.T) {
 // params are set in syncer correctly.
 func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
-	cfg.Syncer.TrustingPeriod = time.Hour
 	cfg.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 	var syncer *sync.Syncer[*header.ExtendedHeader]
 	app := fxtest.New(t,
