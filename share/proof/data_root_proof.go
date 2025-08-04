@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
+	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -18,8 +19,9 @@ import (
 
 type DataRootProof struct {
 	// the size of the data square
-	squareSize          int64
-	incompleteRowsProof *IncompleteRowsProof
+	squareSize              int64
+	firstIncompleteRowProof *nmt.Proof
+	lastIncompleteRowProof  *nmt.Proof
 	// merkleProof provides Merkle inclusion proof for the row roots within the data root.
 	merkleProof *MerkleProof
 }
@@ -47,12 +49,10 @@ func NewDataRootProof(
 		return nil, err
 	}
 	return &DataRootProof{
-		squareSize: int64(len(root.RowRoots) / 2),
-		incompleteRowsProof: &IncompleteRowsProof{
-			firstIncompleteRowProof: leftProof,
-			lastIncompleteRowProof:  rightProof,
-		},
-		merkleProof: merkleProof,
+		squareSize:              int64(len(root.RowRoots) / 2),
+		firstIncompleteRowProof: leftProof,
+		lastIncompleteRowProof:  rightProof,
+		merkleProof:             merkleProof,
 	}, nil
 }
 
@@ -60,8 +60,8 @@ func NewDataRootProof(
 func (p *DataRootProof) Start() int64 {
 	startRow := p.merkleProof.Start
 	startCol := 0
-	if p.incompleteRowsProof.firstIncompleteRowProof != nil {
-		startCol = p.incompleteRowsProof.firstIncompleteRowProof.Start()
+	if p.firstIncompleteRowProof != nil {
+		startCol = p.firstIncompleteRowProof.Start()
 	}
 	return startRow*p.squareSize + int64(startCol)
 }
@@ -70,10 +70,10 @@ func (p *DataRootProof) Start() int64 {
 func (p *DataRootProof) End() int64 {
 	endRow := p.merkleProof.End - 1
 	endCol := p.squareSize - 1
-	if p.incompleteRowsProof.lastIncompleteRowProof != nil {
-		endCol = int64(p.incompleteRowsProof.lastIncompleteRowProof.End() - 1)
-	} else if p.incompleteRowsProof.firstIncompleteRowProof != nil { // in case we have a single row range
-		endCol = int64(p.incompleteRowsProof.firstIncompleteRowProof.End() - 1)
+	if p.lastIncompleteRowProof != nil {
+		endCol = int64(p.lastIncompleteRowProof.End() - 1)
+	} else if p.firstIncompleteRowProof != nil { // in case we have a single row range
+		endCol = int64(p.firstIncompleteRowProof.End() - 1)
 	}
 	return endRow*p.squareSize + endCol
 }
@@ -95,17 +95,19 @@ func (p *DataRootProof) VerifyNamespace(shares [][]libshare.Share, dataRootHash 
 
 func (p *DataRootProof) ToProto() *proof_pb.DataRootProof {
 	return &proof_pb.DataRootProof{
-		SquareSize:  p.squareSize,
-		RowsProof:   p.incompleteRowsProof.ToProto(),
-		MerkleProof: p.merkleProof.ToProto(),
+		SquareSize:              p.squareSize,
+		FirstIncompleteRowProof: nmtToNmtPbProof(p.firstIncompleteRowProof),
+		LastIncompleteRowProof:  nmtToNmtPbProof(p.lastIncompleteRowProof),
+		MerkleProof:             p.merkleProof.ToProto(),
 	}
 }
 
 func DataRootProofFromProto(p *proof_pb.DataRootProof) (*DataRootProof, error) {
 	return &DataRootProof{
-		squareSize:          p.SquareSize,
-		incompleteRowsProof: IncompleteRowsProofFromProto(p.RowsProof),
-		merkleProof:         MerkleProofFromProto(p.MerkleProof),
+		squareSize:              p.SquareSize,
+		firstIncompleteRowProof: pbNmtTonmtProof(p.FirstIncompleteRowProof),
+		lastIncompleteRowProof:  pbNmtTonmtProof(p.LastIncompleteRowProof),
+		merkleProof:             MerkleProofFromProto(p.MerkleProof),
 	}, nil
 }
 
@@ -127,7 +129,7 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 	}
 
 	// verify special case when the requested range spans across the whole eds.
-	if p.merkleProof.SubtreeRoots == nil && p.incompleteRowsProof == nil {
+	if p.merkleProof.SubtreeRoots == nil && p == nil {
 		// reconstruct the axis roots
 		roots, err := reconstructDataSquare(shares)
 		if err != nil {
@@ -158,7 +160,7 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 	// Initialize array to store computed row roots for each row of shares
 	rowRoots := make([][]byte, len(shares))
 
-	rowProofs := []*nmt.Proof{p.incompleteRowsProof.firstIncompleteRowProof, p.incompleteRowsProof.lastIncompleteRowProof}
+	rowProofs := []*nmt.Proof{p.firstIncompleteRowProof, p.lastIncompleteRowProof}
 	// Process rows that have proofs
 	// These are typically incomplete rows (partial namespace data within a row)
 	for _, proof := range rowProofs {
@@ -227,30 +229,34 @@ func (p *DataRootProof) verify(shares [][]libshare.Share, dataRootHash []byte, v
 
 func (p *DataRootProof) MarshalJSON() ([]byte, error) {
 	temp := struct {
-		SquareSize          int64                `json:"square_size"`
-		IncompleteRowsProof *IncompleteRowsProof `json:"incomplete_row_proof,omitempty"`
-		MerkleProof         *MerkleProof         `json:"row_root_proof,omitempty"`
+		SquareSize              int64        `json:"square_size"`
+		FirstIncompleteRowProof *nmt.Proof   `json:"first_incomplete_row_proof,omitempty"`
+		LastIncompleteRowProof  *nmt.Proof   `json:"last_incomplete_row_proof,omitempty"`
+		MerkleProof             *MerkleProof `json:"row_root_proof,omitempty"`
 	}{
-		SquareSize:          p.squareSize,
-		IncompleteRowsProof: p.incompleteRowsProof,
-		MerkleProof:         p.merkleProof,
+		SquareSize:              p.squareSize,
+		FirstIncompleteRowProof: p.firstIncompleteRowProof,
+		LastIncompleteRowProof:  p.lastIncompleteRowProof,
+		MerkleProof:             p.merkleProof,
 	}
 	return json.Marshal(temp)
 }
 
 func (p *DataRootProof) UnmarshalJSON(data []byte) error {
 	temp := struct {
-		SquareSize          int64                `json:"square_size"`
-		IncompleteRowsProof *IncompleteRowsProof `json:"incomplete_row_proof,omitempty"`
-		MerkleProof         *MerkleProof         `json:"row_root_proof,omitempty"`
+		SquareSize              int64        `json:"square_size"`
+		FirstIncompleteRowProof *nmt.Proof   `json:"first_incomplete_row_proof,omitempty"`
+		LastIncompleteRowProof  *nmt.Proof   `json:"last_incomplete_row_proof,omitempty"`
+		MerkleProof             *MerkleProof `json:"row_root_proof,omitempty"`
 	}{}
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
 		return err
 	}
 	p.squareSize = temp.SquareSize
+	p.firstIncompleteRowProof = temp.FirstIncompleteRowProof
+	p.lastIncompleteRowProof = temp.LastIncompleteRowProof
 	p.merkleProof = temp.MerkleProof
-	p.incompleteRowsProof = temp.IncompleteRowsProof
 	return nil
 }
 
@@ -276,4 +282,26 @@ func reconstructDataSquare(shares [][]libshare.Share) (*share.AxisRoots, error) 
 		return nil, err
 	}
 	return share.NewAxisRoots(eds)
+}
+
+func nmtToNmtPbProof(proof *nmt.Proof) *nmt_pb.Proof {
+	if proof == nil {
+		return nil
+	}
+
+	return &nmt_pb.Proof{
+		Start:                 int64(proof.Start()),
+		End:                   int64(proof.End()),
+		Nodes:                 proof.Nodes(),
+		LeafHash:              proof.LeafHash(),
+		IsMaxNamespaceIgnored: proof.IsMaxNamespaceIDIgnored(),
+	}
+}
+
+func pbNmtTonmtProof(pbproof *nmt_pb.Proof) *nmt.Proof {
+	if pbproof == nil {
+		return nil
+	}
+	proof := nmt.ProtoToProof(*pbproof)
+	return &proof
 }

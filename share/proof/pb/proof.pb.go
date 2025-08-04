@@ -23,69 +23,18 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type IncompleteRowsProof struct {
-	FirstIncompleteRowProof *pb.Proof `protobuf:"bytes,1,opt,name=firstIncompleteRowProof,proto3" json:"firstIncompleteRowProof,omitempty"`
-	LastIncompleteRowProof  *pb.Proof `protobuf:"bytes,2,opt,name=lastIncompleteRowProof,proto3" json:"lastIncompleteRowProof,omitempty"`
-}
-
-func (m *IncompleteRowsProof) Reset()         { *m = IncompleteRowsProof{} }
-func (m *IncompleteRowsProof) String() string { return proto.CompactTextString(m) }
-func (*IncompleteRowsProof) ProtoMessage()    {}
-func (*IncompleteRowsProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_568df82aaa36537b, []int{0}
-}
-func (m *IncompleteRowsProof) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *IncompleteRowsProof) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_IncompleteRowsProof.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *IncompleteRowsProof) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IncompleteRowsProof.Merge(m, src)
-}
-func (m *IncompleteRowsProof) XXX_Size() int {
-	return m.Size()
-}
-func (m *IncompleteRowsProof) XXX_DiscardUnknown() {
-	xxx_messageInfo_IncompleteRowsProof.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_IncompleteRowsProof proto.InternalMessageInfo
-
-func (m *IncompleteRowsProof) GetFirstIncompleteRowProof() *pb.Proof {
-	if m != nil {
-		return m.FirstIncompleteRowProof
-	}
-	return nil
-}
-
-func (m *IncompleteRowsProof) GetLastIncompleteRowProof() *pb.Proof {
-	if m != nil {
-		return m.LastIncompleteRowProof
-	}
-	return nil
-}
-
 type DataRootProof struct {
-	SquareSize  int64                `protobuf:"varint,1,opt,name=squareSize,proto3" json:"squareSize,omitempty"`
-	RowsProof   *IncompleteRowsProof `protobuf:"bytes,2,opt,name=rowsProof,proto3" json:"rowsProof,omitempty"`
-	MerkleProof *MerkleProof         `protobuf:"bytes,3,opt,name=merkleProof,proto3" json:"merkleProof,omitempty"`
+	SquareSize              int64        `protobuf:"varint,1,opt,name=squareSize,proto3" json:"squareSize,omitempty"`
+	FirstIncompleteRowProof *pb.Proof    `protobuf:"bytes,2,opt,name=firstIncompleteRowProof,proto3" json:"firstIncompleteRowProof,omitempty"`
+	LastIncompleteRowProof  *pb.Proof    `protobuf:"bytes,3,opt,name=lastIncompleteRowProof,proto3" json:"lastIncompleteRowProof,omitempty"`
+	MerkleProof             *MerkleProof `protobuf:"bytes,4,opt,name=merkleProof,proto3" json:"merkleProof,omitempty"`
 }
 
 func (m *DataRootProof) Reset()         { *m = DataRootProof{} }
 func (m *DataRootProof) String() string { return proto.CompactTextString(m) }
 func (*DataRootProof) ProtoMessage()    {}
 func (*DataRootProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_568df82aaa36537b, []int{1}
+	return fileDescriptor_568df82aaa36537b, []int{0}
 }
 func (m *DataRootProof) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -121,9 +70,16 @@ func (m *DataRootProof) GetSquareSize() int64 {
 	return 0
 }
 
-func (m *DataRootProof) GetRowsProof() *IncompleteRowsProof {
+func (m *DataRootProof) GetFirstIncompleteRowProof() *pb.Proof {
 	if m != nil {
-		return m.RowsProof
+		return m.FirstIncompleteRowProof
+	}
+	return nil
+}
+
+func (m *DataRootProof) GetLastIncompleteRowProof() *pb.Proof {
+	if m != nil {
+		return m.LastIncompleteRowProof
 	}
 	return nil
 }
@@ -146,7 +102,7 @@ func (m *MerkleProof) Reset()         { *m = MerkleProof{} }
 func (m *MerkleProof) String() string { return proto.CompactTextString(m) }
 func (*MerkleProof) ProtoMessage()    {}
 func (*MerkleProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_568df82aaa36537b, []int{2}
+	return fileDescriptor_568df82aaa36537b, []int{1}
 }
 func (m *MerkleProof) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -204,7 +160,6 @@ func (m *MerkleProof) GetSubtreeRoots() [][]byte {
 }
 
 func init() {
-	proto.RegisterType((*IncompleteRowsProof)(nil), "proof.IncompleteRowsProof")
 	proto.RegisterType((*DataRootProof)(nil), "proof.DataRootProof")
 	proto.RegisterType((*MerkleProof)(nil), "proof.MerkleProof")
 }
@@ -212,73 +167,25 @@ func init() {
 func init() { proto.RegisterFile("share/proof/pb/proof.proto", fileDescriptor_568df82aaa36537b) }
 
 var fileDescriptor_568df82aaa36537b = []byte{
-	// 299 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x51, 0xcd, 0x4a, 0xf3, 0x40,
-	0x14, 0xcd, 0x7c, 0xf3, 0x55, 0xf0, 0xa6, 0xfe, 0x30, 0x8a, 0x86, 0x2c, 0x86, 0x92, 0x55, 0x57,
-	0x29, 0xa8, 0x0b, 0xd7, 0x22, 0x48, 0x17, 0x82, 0x8c, 0x4f, 0x30, 0xd1, 0x29, 0x16, 0xd3, 0x4e,
-	0x9c, 0xb9, 0x45, 0xf0, 0x29, 0x7c, 0x03, 0xd7, 0xbe, 0x89, 0xcb, 0x2e, 0x5d, 0x4a, 0xf2, 0x22,
-	0x92, 0xc9, 0x48, 0x13, 0x48, 0x77, 0x73, 0xcf, 0x39, 0xf7, 0xdc, 0x73, 0x18, 0x88, 0xed, 0x93,
-	0x34, 0x6a, 0x52, 0x18, 0xad, 0x67, 0x93, 0x22, 0x6b, 0x1e, 0x69, 0x61, 0x34, 0x6a, 0x36, 0x70,
-	0x43, 0xbc, 0xdf, 0x85, 0x93, 0x4f, 0x02, 0x47, 0xd3, 0xe5, 0x83, 0x5e, 0x14, 0xb9, 0x42, 0x25,
-	0xf4, 0xab, 0xbd, 0xab, 0x59, 0x36, 0x85, 0xd3, 0xd9, 0xdc, 0x58, 0xec, 0x70, 0x8e, 0x8a, 0xc8,
-	0x88, 0x8c, 0xc3, 0xb3, 0x83, 0xd4, 0xdb, 0x64, 0xa9, 0x83, 0xc5, 0x36, 0x3d, 0xbb, 0x81, 0x93,
-	0x5c, 0xf6, 0x3a, 0xfd, 0xeb, 0x77, 0xda, 0x22, 0x4f, 0x3e, 0x08, 0xec, 0x5d, 0x4b, 0x94, 0x42,
-	0x6b, 0x6c, 0xac, 0x39, 0x80, 0x7d, 0x59, 0x49, 0xa3, 0xee, 0xe7, 0x6f, 0xca, 0x05, 0xa3, 0xa2,
-	0x85, 0xb0, 0x4b, 0xd8, 0x35, 0x7f, 0x95, 0xfc, 0xb5, 0xd8, 0x5f, 0xeb, 0x29, 0x2d, 0x36, 0x62,
-	0x76, 0x01, 0xe1, 0x42, 0x99, 0xe7, 0x5c, 0x35, 0xbb, 0xd4, 0xed, 0x32, 0xbf, 0x7b, 0xbb, 0x61,
-	0x44, 0x5b, 0x96, 0x68, 0x08, 0x5b, 0x1c, 0x3b, 0x86, 0x01, 0x6a, 0x94, 0xb9, 0x4f, 0xd6, 0x0c,
-	0x35, 0x6a, 0x51, 0x1a, 0x74, 0x81, 0xa8, 0x68, 0x06, 0x76, 0x08, 0x54, 0x2d, 0x1f, 0xdd, 0x21,
-	0x2a, 0xea, 0x27, 0x4b, 0x60, 0x68, 0x57, 0x19, 0x1a, 0xa5, 0xea, 0xc2, 0x36, 0xfa, 0x3f, 0xa2,
-	0xe3, 0xa1, 0xe8, 0x60, 0x57, 0xd1, 0x57, 0xc9, 0xc9, 0xba, 0xe4, 0xe4, 0xa7, 0xe4, 0xe4, 0xbd,
-	0xe2, 0xc1, 0xba, 0xe2, 0xc1, 0x77, 0xc5, 0x83, 0x6c, 0xc7, 0xfd, 0xef, 0xf9, 0x6f, 0x00, 0x00,
-	0x00, 0xff, 0xff, 0x6f, 0x93, 0x9a, 0x7d, 0x14, 0x02, 0x00, 0x00,
-}
-
-func (m *IncompleteRowsProof) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *IncompleteRowsProof) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *IncompleteRowsProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.LastIncompleteRowProof != nil {
-		{
-			size, err := m.LastIncompleteRowProof.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintProof(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x12
-	}
-	if m.FirstIncompleteRowProof != nil {
-		{
-			size, err := m.FirstIncompleteRowProof.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintProof(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
+	// 275 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xcf, 0x4a, 0xc3, 0x40,
+	0x10, 0xc6, 0xb3, 0x6e, 0xeb, 0x61, 0x52, 0xff, 0xb0, 0x88, 0x86, 0x1e, 0x96, 0x90, 0x53, 0x4e,
+	0x29, 0xa8, 0x4f, 0x20, 0x82, 0xf4, 0x20, 0xc8, 0xfa, 0x04, 0x1b, 0xdd, 0x62, 0x31, 0xed, 0xc4,
+	0xdd, 0x29, 0x82, 0x4f, 0xe1, 0x63, 0x79, 0xec, 0xd1, 0xa3, 0x24, 0x4f, 0xe1, 0x4d, 0xb2, 0x09,
+	0x98, 0x42, 0x73, 0x9b, 0xef, 0x37, 0xdf, 0x37, 0xbb, 0xb3, 0x0b, 0x53, 0xf7, 0xa2, 0xad, 0x99,
+	0x95, 0x16, 0x71, 0x31, 0x2b, 0xf3, 0xb6, 0xc8, 0x4a, 0x8b, 0x84, 0x62, 0xec, 0xc5, 0xf4, 0x78,
+	0x17, 0x27, 0xbf, 0x0c, 0x8e, 0x6e, 0x35, 0x69, 0x85, 0x48, 0x0f, 0x0d, 0x17, 0x12, 0xc0, 0xbd,
+	0x6d, 0xb4, 0x35, 0x8f, 0xcb, 0x0f, 0x13, 0xb1, 0x98, 0xa5, 0x5c, 0xf5, 0x88, 0x98, 0xc3, 0xc5,
+	0x62, 0x69, 0x1d, 0xcd, 0xd7, 0x4f, 0xb8, 0x2a, 0x0b, 0x43, 0x46, 0xe1, 0xbb, 0x8f, 0x46, 0x07,
+	0x31, 0x4b, 0xc3, 0xcb, 0x93, 0xac, 0x3b, 0x20, 0xcf, 0x3c, 0x56, 0x43, 0x7e, 0x71, 0x07, 0xe7,
+	0x85, 0xde, 0x3b, 0x89, 0xef, 0x9f, 0x34, 0x60, 0x17, 0xd7, 0x10, 0xae, 0x8c, 0x7d, 0x2d, 0x4c,
+	0x9b, 0x1e, 0xf9, 0xb4, 0xe8, 0xd2, 0xf7, 0xff, 0x1d, 0xd5, 0xb7, 0x25, 0x08, 0x61, 0xaf, 0x27,
+	0xce, 0x60, 0x4c, 0x48, 0xba, 0xe8, 0x76, 0x6e, 0x45, 0x43, 0x1d, 0x69, 0x4b, 0x7e, 0x39, 0xae,
+	0x5a, 0x21, 0x4e, 0x81, 0x9b, 0xf5, 0xb3, 0xbf, 0x26, 0x57, 0x4d, 0x29, 0x12, 0x98, 0xb8, 0x4d,
+	0x4e, 0xd6, 0x98, 0xe6, 0x29, 0x5d, 0x34, 0x8a, 0x79, 0x3a, 0x51, 0x3b, 0xec, 0x26, 0xfa, 0xaa,
+	0x24, 0xdb, 0x56, 0x92, 0xfd, 0x54, 0x92, 0x7d, 0xd6, 0x32, 0xd8, 0xd6, 0x32, 0xf8, 0xae, 0x65,
+	0x90, 0x1f, 0xfa, 0xdf, 0xb8, 0xfa, 0x0b, 0x00, 0x00, 0xff, 0xff, 0xff, 0x09, 0x09, 0x7f, 0xc2,
+	0x01, 0x00, 0x00,
 }
 
 func (m *DataRootProof) Marshal() (dAtA []byte, err error) {
@@ -311,11 +218,23 @@ func (m *DataRootProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintProof(dAtA, i, uint64(size))
 		}
 		i--
+		dAtA[i] = 0x22
+	}
+	if m.LastIncompleteRowProof != nil {
+		{
+			size, err := m.LastIncompleteRowProof.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintProof(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x1a
 	}
-	if m.RowsProof != nil {
+	if m.FirstIncompleteRowProof != nil {
 		{
-			size, err := m.RowsProof.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.FirstIncompleteRowProof.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -391,23 +310,6 @@ func encodeVarintProof(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *IncompleteRowsProof) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.FirstIncompleteRowProof != nil {
-		l = m.FirstIncompleteRowProof.Size()
-		n += 1 + l + sovProof(uint64(l))
-	}
-	if m.LastIncompleteRowProof != nil {
-		l = m.LastIncompleteRowProof.Size()
-		n += 1 + l + sovProof(uint64(l))
-	}
-	return n
-}
-
 func (m *DataRootProof) Size() (n int) {
 	if m == nil {
 		return 0
@@ -417,8 +319,12 @@ func (m *DataRootProof) Size() (n int) {
 	if m.SquareSize != 0 {
 		n += 1 + sovProof(uint64(m.SquareSize))
 	}
-	if m.RowsProof != nil {
-		l = m.RowsProof.Size()
+	if m.FirstIncompleteRowProof != nil {
+		l = m.FirstIncompleteRowProof.Size()
+		n += 1 + l + sovProof(uint64(l))
+	}
+	if m.LastIncompleteRowProof != nil {
+		l = m.LastIncompleteRowProof.Size()
 		n += 1 + l + sovProof(uint64(l))
 	}
 	if m.MerkleProof != nil {
@@ -457,128 +363,6 @@ func sovProof(x uint64) (n int) {
 }
 func sozProof(x uint64) (n int) {
 	return sovProof(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *IncompleteRowsProof) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowProof
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: IncompleteRowsProof: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: IncompleteRowsProof: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FirstIncompleteRowProof", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthProof
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthProof
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.FirstIncompleteRowProof == nil {
-				m.FirstIncompleteRowProof = &pb.Proof{}
-			}
-			if err := m.FirstIncompleteRowProof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastIncompleteRowProof", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowProof
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthProof
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthProof
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.LastIncompleteRowProof == nil {
-				m.LastIncompleteRowProof = &pb.Proof{}
-			}
-			if err := m.LastIncompleteRowProof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipProof(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthProof
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *DataRootProof) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -630,7 +414,7 @@ func (m *DataRootProof) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RowsProof", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field FirstIncompleteRowProof", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -657,14 +441,50 @@ func (m *DataRootProof) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.RowsProof == nil {
-				m.RowsProof = &IncompleteRowsProof{}
+			if m.FirstIncompleteRowProof == nil {
+				m.FirstIncompleteRowProof = &pb.Proof{}
 			}
-			if err := m.RowsProof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.FirstIncompleteRowProof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastIncompleteRowProof", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProof
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthProof
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthProof
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LastIncompleteRowProof == nil {
+				m.LastIncompleteRowProof = &pb.Proof{}
+			}
+			if err := m.LastIncompleteRowProof.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MerkleProof", wireType)
 			}
