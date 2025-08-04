@@ -47,12 +47,13 @@ func DefaultConfig(tp node.Type) Config {
 
 	switch tp {
 	case node.Full, node.Bridge:
+		cfg.Store.StoreCacheSize = 2048
+		cfg.Store.IndexCacheSize = 4096
+
 		cfg.Syncer.PruningWindow = 0 // reset pruning window to zero
 		return cfg
 	case node.Light:
-		cfg.Store.StoreCacheSize = 512
-		cfg.Store.IndexCacheSize = 2048
-		cfg.Store.WriteBatchSize = 512
+		cfg.Store.WriteBatchSize = 16
 
 		cfg.Syncer.PruningWindow = availability.StorageWindow
 		return cfg
