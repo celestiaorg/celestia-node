@@ -66,7 +66,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
-		defaultFundingAmount: 3_000_000_000, // 3 billion utia - default funding amount
+		defaultFundingAmount: 10_000_000_000, // 10 billion utia - enough for multiple blob transactions
 	}
 
 	// Apply configuration options
