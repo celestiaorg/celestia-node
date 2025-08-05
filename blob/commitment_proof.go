@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
+	tmjson "github.com/cometbft/cometbft/libs/json"
+
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/proof"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -152,4 +154,20 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 
 	// verify row roots to data root proof
 	return commitmentProof.RowProof.VerifyProof(root), nil
+}
+
+// MarshalJSON marshals an CommitmentProof to JSON. Uses tendermint encoder for row proof for compatibility.
+func (commitmentProof *CommitmentProof) MarshalJSON() ([]byte, error) {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json Marshaling
+	type Alias CommitmentProof
+	return tmjson.Marshal((*Alias)(commitmentProof))
+}
+
+// UnmarshalJSON unmarshals an CommitmentProof from JSON. Uses tendermint decoder for row proof for compatibility.
+func (commitmentProof *CommitmentProof) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json Unmarshaling
+	type Alias CommitmentProof
+	return tmjson.Unmarshal(data, (*Alias)(commitmentProof))
 }

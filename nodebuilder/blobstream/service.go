@@ -24,7 +24,7 @@ func NewService(headerMod headerServ.Module) *Service {
 
 // GetDataRootTupleRoot collects the data roots over a provided ordered range of blocks,
 // and then creates a new Merkle root of those data roots. The range is end exclusive.
-func (s *Service) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (*DataRootTupleRoot, error) {
+func (s *Service) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (DataRootTupleRoot, error) {
 	log.Debugw("validating the data commitment range", "start", start, "end", end)
 	err := s.validateDataRootTupleRootRange(ctx, start, end)
 	if err != nil {
@@ -36,13 +36,7 @@ func (s *Service) GetDataRootTupleRoot(ctx context.Context, start, end uint64) (
 		return nil, err
 	}
 	log.Debugw("hashing the data root tuples", "start", start, "end", end)
-	root, err := hashDataRootTuples(encodedDataRootTuples)
-	if err != nil {
-		return nil, err
-	}
-	// Create data commitment
-	dataRootTupleRoot := DataRootTupleRoot(root)
-	return &dataRootTupleRoot, nil
+	return hashDataRootTuples(encodedDataRootTuples)
 }
 
 // GetDataRootTupleInclusionProof creates an inclusion proof for the data root of block

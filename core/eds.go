@@ -7,8 +7,8 @@ import (
 
 	coretypes "github.com/cometbft/cometbft/types"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	libsquare "github.com/celestiaorg/go-square/v2"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
@@ -82,7 +82,7 @@ func storeEDS(
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
 	}
 	if err == nil {
-		log.Debugw("stored EDS for height", "height", eh.Height())
+		log.Debugw("stored EDS for height", "height", eh.Height(), "EDS size", len(eh.DAH.RowRoots))
 	}
 	return err
 }
