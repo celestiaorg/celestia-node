@@ -184,7 +184,7 @@ var getRange = &cobra.Command{
 		}
 
 		if start >= end {
-			return errors.New("start must be greater than end")
+			return errors.New("start index must be less than end index")
 		}
 
 		rng, err := client.Share.GetRange(cmd.Context(), height, int(start), int(end))
