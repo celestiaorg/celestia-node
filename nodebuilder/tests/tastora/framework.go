@@ -30,9 +30,9 @@ import (
 
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v4.0.0-rc6"
+	defaultCelestiaTag = "v5.0.1"
 	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
-	defaultNodeTag     = "v0.23.2-mocha"
+	defaultNodeTag     = "5b96c43" // update this to tag after the release
 	testChainID        = "test"
 )
 
