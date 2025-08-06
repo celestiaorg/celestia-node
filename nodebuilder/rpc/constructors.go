@@ -34,18 +34,10 @@ func registerEndpoints(
 	serv.RegisterService("fraud", fraudMod, &fraud.API{})
 	serv.RegisterService("das", daserMod, &das.API{})
 	serv.RegisterService("header", headerMod, &header.API{})
-
-	// Apply read-only wrappers if read-only mode is enabled
-	if cfg.ReadOnly {
-		stateMod = &disabledStateModule{stateMod}
-		blobMod = &readOnlyBlobModule{blobMod}
-	}
 	serv.RegisterService("state", stateMod, &state.API{})
-
 	serv.RegisterService("share", shareMod, &share.API{})
 	serv.RegisterService("p2p", p2pMod, &p2p.API{})
 	serv.RegisterService("node", nodeMod, &node.API{})
-
 	serv.RegisterService("blob", blobMod, &blob.API{})
 
 	serv.RegisterService("da", daMod, &da.API{})
