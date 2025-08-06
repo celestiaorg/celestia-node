@@ -89,7 +89,7 @@ func CreateFraudExtHeader(
 	t *testing.T,
 	eh *header.ExtendedHeader,
 ) *header.ExtendedHeader {
-	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots))
+	square := edstest.RandByzantineEDS(t, len(eh.DAH.RowRoots)/2)
 	dah, err := da.NewDataAvailabilityHeader(square)
 	require.NoError(t, err)
 	eh.DAH = &dah
