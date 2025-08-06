@@ -40,29 +40,23 @@ type ServerParams struct {
 }
 
 func DefaultClientParameters() *ClientParams {
-	return &ClientParams{Parameters: defaultClientParameters()}
+	return &ClientParams{
+		Parameters: &Parameters{
+			ReadTimeout:  time.Minute * 2, // server.WriteTimeout + server.HandleRequestTimeout
+			WriteTimeout: 5 * time.Second,
+		},
+	}
 }
 
 func DefaultServerParameters() *ServerParams {
 	return &ServerParams{
-		Parameters:           defaultServerParameters(),
+		Parameters: &Parameters{
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: time.Minute, // based on max observed sample time for 256 blocks (~50s)
+
+		},
 		HandleRequestTimeout: time.Minute,
 		ConcurrencyLimit:     10,
-	}
-}
-
-func defaultClientParameters() *Parameters {
-	return &Parameters{
-		ReadTimeout:  time.Minute * 2, // server.WriteTimeout + server.HandleRequestTimeout
-		WriteTimeout: 5 * time.Second,
-	}
-}
-
-func defaultServerParameters() *Parameters {
-	return &Parameters{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: time.Minute, // based on max observed sample time for 256 blocks (~50s)
-
 	}
 }
 

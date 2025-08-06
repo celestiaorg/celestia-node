@@ -126,6 +126,19 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 }
 
 func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) status {
+	log.Debugf("server: handling data request: %s from peer: %s", requestID.Name(), stream.Conn().RemotePeer())
+
+	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
+	if err != nil {
+		log.Debugw("server: setting read deadline", "err", err)
+	}
+
+	_, err = requestID.ReadFrom(stream)
+	if err != nil {
+		log.Errorf("server: reading request %s from peer %s, %w", requestID.Name(), stream.Conn().RemotePeer(), err)
+		return statusReadReqErr
+	}
+
 	logger := log.With(
 		"source", "server",
 		"name", requestID.Name(),
@@ -133,24 +146,9 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		"peer", stream.Conn().RemotePeer().String(),
 	)
 
-	logger.Debugf("handling data request: %s", requestID.Name())
-
-	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
-	if err != nil {
-		logger.Debugw("setting read deadline", "err", err)
-	}
-
-	_, err = requestID.ReadFrom(stream)
-	if err != nil {
-		logger.Warnf("reading request: %w", err)
-		return statusReadReqErr
-	}
-
-	logger.Debug("new request")
-
 	err = stream.CloseRead()
 	if err != nil {
-		logger.Warnw("closing read side of the stream", "err", err)
+		log.Warnw("server: closing read side of the stream", "err", err)
 	}
 
 	err = requestID.Validate()
@@ -159,7 +157,6 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return statusBadRequest
 	}
 
-	logger.Debugw("new request")
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
 	defer cancel()
 
@@ -167,12 +164,12 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 
 	deadlineErr := stream.SetWriteDeadline(time.Now().Add(srv.params.WriteTimeout))
 	if deadlineErr != nil {
-		logger.Debugw("setting write deadline", "err", err)
+		log.Debugw("server: setting write deadline", "err", err)
 	}
 
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			logger.Errorf("file not found")
+			logger.Errorf("file not found in store")
 			return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream)
 		}
 		logger.Errorf("getting header %w", err)
@@ -182,7 +179,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	defer utils.CloseAndLog(log, "file", file)
 	r, err := requestID.ResponseReader(ctx, file)
 	if err != nil {
-		logger.Errorf("getting the data %w", err)
+		logger.Errorf("getting data from response reader %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
@@ -205,7 +202,7 @@ func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network
 	_, err := serde.Write(stream, &shrexpb.Response{Status: status})
 	if err != nil {
 		log.Errorw("sending response status", "err", err)
-		return statusSendRespErr
+		return statusSendStatusErr
 	}
 
 	switch status {
