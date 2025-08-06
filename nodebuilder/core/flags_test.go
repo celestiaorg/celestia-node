@@ -83,7 +83,7 @@ func TestParseFlags(t *testing.T) {
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
-					Port: DefaultPort, // Flag value always takes precedence
+					Port: "5678", // Config value preserved when flag not changed
 				},
 			},
 			expectError: false,
@@ -116,6 +116,22 @@ func TestParseFlags(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: DefaultPort,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "explicit core.port overrides config",
+			args: []string{"--core.ip=127.0.0.1", "--core.port=8080"},
+			inputCfg: Config{
+				EndpointConfig: EndpointConfig{
+					Port: "5678",
+				},
+			},
+			expectedCfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: "8080", // Explicit flag overrides config
 				},
 			},
 			expectError: false,
