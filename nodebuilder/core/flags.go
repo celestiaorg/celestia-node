@@ -59,9 +59,14 @@ func ParseFlags(
 		return nil
 	}
 
-	// Always set the port from the flag value (including default value)
-	grpc := cmd.Flag(corePortFlag).Value.String()
-	cfg.Port = grpc
+	// Set port from flag if explicitly changed, otherwise preserve config value or use default
+	if cmd.Flag(corePortFlag).Changed {
+		grpc := cmd.Flag(corePortFlag).Value.String()
+		cfg.Port = grpc
+	} else if cfg.Port == "" {
+		// If no config value and flag not changed, use default
+		cfg.Port = DefaultPort
+	}
 
 	enabled, err := cmd.Flags().GetBool(coreTLS)
 	if err != nil {
