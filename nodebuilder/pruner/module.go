@@ -38,7 +38,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
 		// TODO @renaynay: move this to share module construction
-		fx.Supply(modshare.Window(availability.StorageWindow)),
 		advertiseArchival(tp, cfg),
 		prunerService,
 	)
@@ -48,6 +47,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		// LNs enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
+			fx.Supply(modshare.Window(availability.SamplingWindow)),
 			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 			//  note this provide exists in pruner module to avoid cyclical imports
 			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
@@ -62,6 +62,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 
 		return fx.Module("prune",
 			baseComponents,
+			fx.Supply(modshare.Window(availability.StorageWindow)),
 			fx.Supply(fullAvailOpts),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			convertToPruned(),
@@ -79,6 +80,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		return fx.Module("prune",
 			baseComponents,
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
+			fx.Supply(modshare.Window(availability.StorageWindow)),
 			fx.Supply(coreOpts),
 			fx.Supply(fullAvailOpts),
 			convertToPruned(),
