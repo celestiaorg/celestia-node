@@ -580,11 +580,3 @@ func (s *DASTestSuite) pollDASCatchUp(ctx context.Context, client *client.Client
 		}
 	}
 }
-
-// Helper function for max calculation (Go doesn't have built-in max for float64)
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
