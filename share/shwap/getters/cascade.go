@@ -123,7 +123,7 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	}
 	if from >= to {
 		return shwap.RangeNamespaceData{},
-			fmt.Errorf("start must not be bigger or eqaul to end: %d-%d", from, to)
+			fmt.Errorf("start must not be bigger or equal to end: %d-%d", from, to)
 	}
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
