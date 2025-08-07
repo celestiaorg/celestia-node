@@ -19,8 +19,8 @@ import (
 // ErrDisallowRevertToArchival is returned when a node has been run with pruner enabled before and
 // launching it with archival mode.
 var ErrDisallowRevertToArchival = errors.New(
-	"Node has previously been run with the pruner enabled. Converting it to an archival node is not supported. " +
-		"To start as an archival node, re-initialization is required.")
+	"node has previously been run with the pruner enabled. Converting it to an archival node is not supported. " +
+		"To start as an archival node, re-initialization is required")
 
 var log = logging.Logger("share/full")
 
