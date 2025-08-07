@@ -42,7 +42,7 @@ func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Create test blob
@@ -84,7 +84,7 @@ func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Create test namespace and blobs
@@ -140,7 +140,7 @@ func (s *BlobTestSuite) TestBlobGet_ExistingBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
@@ -182,7 +182,7 @@ func (s *BlobTestSuite) TestBlobGet_NonExistentBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x04}, 10))
@@ -200,7 +200,7 @@ func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // Increased timeout
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Create test namespace
@@ -246,7 +246,7 @@ func (s *BlobTestSuite) TestBlobGetProof_ValidBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Create and submit test blob
@@ -288,7 +288,7 @@ func (s *BlobTestSuite) TestBlobMixedVersions() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	bridgeNode := s.framework.GetBridgeNode(ctx, 0)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))

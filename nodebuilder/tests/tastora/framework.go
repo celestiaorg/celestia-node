@@ -104,40 +104,42 @@ func (f *Framework) SetupNetwork(ctx context.Context) error {
 	return nil
 }
 
-// ============ CLEAN API ============
-
-// GetBridgeNode returns a bridge node by index, creating it if it doesn't exist.
-func (f *Framework) GetBridgeNode(ctx context.Context, index int) *tastoradockertypes.DANode {
-	// Create bridge nodes up to the requested index
-	for len(f.bridgeNodes) <= index {
-		bridgeNode := f.newBridgeNode(ctx)
-		f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
-	}
-	return f.bridgeNodes[index]
+// GetBridgeNodes returns all existing bridge nodes.
+func (f *Framework) GetBridgeNodes() []*tastoradockertypes.DANode {
+	return f.bridgeNodes
 }
 
-// GetLightNode returns a light node by index, creating it if it doesn't exist.
-func (f *Framework) GetLightNode(ctx context.Context, index int) *tastoradockertypes.DANode {
-	// Create light nodes up to the requested index
-	for len(f.lightNodes) <= index {
-		// Get the next available light node from the DA network
-		allLightNodes := f.daNetwork.GetLightNodes()
-		if len(f.lightNodes) >= len(allLightNodes) {
-			f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
-		}
+// GetLightNodes returns all existing light nodes.
+func (f *Framework) GetLightNodes() []*tastoradockertypes.DANode {
+	return f.lightNodes
+}
 
-		// Use the first bridge node as the connection point
-		bridgeNode := f.bridgeNodes[0]
-		lightNode := f.startLightNode(ctx, bridgeNode, f.celestia)
-		f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
-		f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
+// NewBridgeNode creates, starts and appends a new bridge node.
+func (f *Framework) NewBridgeNode(ctx context.Context) *tastoradockertypes.DANode {
+	bridgeNode := f.newBridgeNode(ctx)
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
 
-		// Wait a moment to ensure funds are available
-		time.Sleep(2 * time.Second)
-
-		f.lightNodes = append(f.lightNodes, lightNode)
+// NewLightNode creates, starts and appends a new light node.
+func (f *Framework) NewLightNode(ctx context.Context) *tastoradockertypes.DANode {
+	// Get the next available light node from the DA network
+	allLightNodes := f.daNetwork.GetLightNodes()
+	if len(f.lightNodes) >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
 	}
-	return f.lightNodes[index]
+
+	// Use the first bridge node as the connection point
+	bridgeNode := f.bridgeNodes[0]
+	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia)
+	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
+	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
+
+	// Wait a moment to ensure funds are available
+	time.Sleep(2 * time.Second)
+
+	f.lightNodes = append(f.lightNodes, lightNode)
+	return lightNode
 }
 
 // GetCelestiaChain returns the Celestia chain instance.
@@ -188,8 +190,6 @@ func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 	require.NoError(f.t, err, "failed to query balance")
 	return *res.Balance
 }
-
-// ============ PRIVATE METHODS (not exposed to tests) ============
 
 // newBridgeNode creates and starts a bridge node.
 func (f *Framework) newBridgeNode(ctx context.Context) *tastoradockertypes.DANode {
@@ -358,8 +358,9 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
-				"P2P_NETWORK":     testChainID,
+				"CELESTIA_CUSTOM":       tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
 			},
 		),
 	)
