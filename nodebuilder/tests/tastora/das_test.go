@@ -10,11 +10,13 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
+	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 )
 
 // DASTestSuite provides integration testing of Data Availability Sampling across multiple nodes.
@@ -46,10 +48,10 @@ func (s *DASTestSuite) TestMultiNodeSamplingCoordination() {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
-	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
-	lightNode3 := s.framework.GetOrCreateLightNode(ctx)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
+	lightNode1 := s.framework.NewLightNode(ctx)
+	lightNode2 := s.framework.NewLightNode(ctx)
+	lightNode3 := s.framework.NewLightNode(ctx)
 
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
@@ -145,11 +147,11 @@ func (s *DASTestSuite) TestDASCatchUpScenarios() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Start with early-joining light node
-	earlyLightNode := s.framework.GetOrCreateLightNode(ctx)
+	earlyLightNode := s.framework.NewLightNode(ctx)
 	earlyLightClient := s.framework.GetNodeRPCClient(ctx, earlyLightNode)
 
 	// Generate initial blocks for early node to sample
@@ -182,7 +184,7 @@ func (s *DASTestSuite) TestDASCatchUpScenarios() {
 	s.T().Logf("Network progressed to height %d before late node joins", currentHeight)
 
 	// Now start late-joining light node
-	lateLightNode := s.framework.GetOrCreateLightNode(ctx)
+	lateLightNode := s.framework.NewLightNode(ctx)
 	lateLightClient := s.framework.GetNodeRPCClient(ctx, lateLightNode)
 
 	// Monitor late node catch-up process with polling
@@ -228,9 +230,9 @@ func (s *DASTestSuite) TestDASPerformanceUnderLoad() {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
-	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
+	lightNode1 := s.framework.NewLightNode(ctx)
+	lightNode2 := s.framework.NewLightNode(ctx)
 
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
@@ -242,7 +244,7 @@ func (s *DASTestSuite) TestDASPerformanceUnderLoad() {
 	// Get baseline stats
 	baseline1, err := light1Client.DAS.SamplingStats(ctx)
 	s.Require().NoError(err)
-	baseline2, err := light2Client.DAS.SamplingStats(ctx)
+	_, err = light2Client.DAS.SamplingStats(ctx)
 	s.Require().NoError(err)
 
 	baselineHeight := baseline1.NetworkHead
@@ -331,9 +333,9 @@ func (s *DASTestSuite) TestDASNetworkResilience() {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
-	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
+	lightNode1 := s.framework.NewLightNode(ctx)
+	lightNode2 := s.framework.NewLightNode(ctx)
 
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
@@ -419,9 +421,9 @@ func (s *DASTestSuite) TestCrossNodeSamplingVerification() {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
-	bridgeNode := s.framework.GetOrCreateBridgeNode(ctx)
-	lightNode1 := s.framework.GetOrCreateLightNode(ctx)
-	lightNode2 := s.framework.GetOrCreateLightNode(ctx)
+	bridgeNode := s.framework.GetBridgeNodes()[0]
+	lightNode1 := s.framework.NewLightNode(ctx)
+	lightNode2 := s.framework.NewLightNode(ctx)
 
 	light1Client := s.framework.GetNodeRPCClient(ctx, lightNode1)
 	light2Client := s.framework.GetNodeRPCClient(ctx, lightNode2)
@@ -473,12 +475,10 @@ func (s *DASTestSuite) TestCrossNodeSamplingVerification() {
 }
 
 // Helper function to generate test blocks with real blob data for DAS to sample
-func (s *DASTestSuite) generateTestBlocks(ctx context.Context, bridgeNode interface{}, numBlocks int) {
+func (s *DASTestSuite) generateTestBlocks(ctx context.Context, bridgeNode *tastoradockertypes.DANode, numBlocks int) {
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Fund the bridge node for blob submissions
-	testWallet := s.framework.CreateTestWallet(ctx, 10_000_000_000)
-	s.framework.FundNodeAccount(ctx, testWallet, bridgeNode, 2_000_000_000)
+	// Bridge nodes are automatically funded, no need to fund again
 
 	// Generate real blocks by actually submitting blobs
 	for i := 0; i < numBlocks; i++ {
@@ -493,11 +493,11 @@ func (s *DASTestSuite) generateTestBlocks(ctx context.Context, bridgeNode interf
 		txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(gasPrice))
 
 		// Submit the blob transaction
-		txResp, err := bridgeClient.Blob.Submit(ctx, blobs, txConfig)
+		height, err := bridgeClient.Blob.Submit(ctx, blobs, txConfig)
 		s.Require().NoError(err, "should successfully submit blob for block %d", i+1)
-		s.Require().NotZero(txResp.Height, "blob submission should return valid height")
+		s.Require().NotZero(height, "blob submission should return valid height")
 
-		s.T().Logf("✅ Generated real block %d/%d at height %d for DAS sampling", i+1, numBlocks, txResp.Height)
+		s.T().Logf("✅ Generated real block %d/%d at height %d for DAS sampling", i+1, numBlocks, height)
 
 		// Much shorter wait for block processing
 		time.Sleep(1 * time.Second)
@@ -511,7 +511,8 @@ func (s *DASTestSuite) createBlobsForDAS(ctx context.Context, client *client.Cli
 	s.Require().NoError(err, "should get node address")
 
 	// Create a unique namespace for this submission to ensure variety in DAS sampling
-	namespace := share.MustNewV0Namespace([]byte(fmt.Sprintf("dastest%02d", submissionID%100)))
+	namespace, err := share.NewV0Namespace([]byte(fmt.Sprintf("dastest%02d", submissionID%100)))
+	s.Require().NoError(err, "should create namespace")
 
 	// Create the blob with real data
 	libBlob, err := share.NewV1Blob(namespace, []byte(data), nodeAddr.Bytes())
