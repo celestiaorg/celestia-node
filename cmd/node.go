@@ -56,7 +56,7 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		Args:  cobra.NoArgs,
 		Short: "Manage your Light node",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := WithNodeType(cmd.Context(), node.Bridge)
+			ctx := WithNodeType(cmd.Context(), node.Light)
 			cmd.SetContext(ctx)
 			return nil
 		},
