@@ -170,6 +170,11 @@ test-blob:
 	@echo "--> Running blob module tests"
 	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -run TestBlobTestSuite ./...
 
+## test-das: Run DAS module tests via Tastora framework.
+test-das:
+	@echo "Running DAS module tests..."
+	@cd nodebuilder/tests/tastora && go test -v -tags=integration -run="TestDASTestSuite" -timeout=15m
+
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
 	@echo "--> Running all Tastora tests"
@@ -306,4 +311,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-blob test-tastora
+.PHONY: test-blob test-das test-tastora
