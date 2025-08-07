@@ -175,11 +175,6 @@ test-tastora:
 	@echo "--> Running all Tastora tests"
 	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration ./...
 
-## test-version: Test LDFLAGS version injection.
-test-version:
-	@echo "--> Testing LDFLAGS version injection"
-	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -tags integration -run TestLDFlagsInjection -v
-
 ## benchmark: Run all benchmarks.
 benchmark:
 	@echo "--> Running benchmarks"
