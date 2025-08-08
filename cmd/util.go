@@ -74,7 +74,7 @@ func DecodeToBytes(param string) ([]byte, error) {
 	return decoded, nil
 }
 
-func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) error {
+func ParseStoreDeterminationFlags(cmd *cobra.Command, nodeType node.Type, _ []string) error {
 	var (
 		ctx = cmd.Context()
 		err error
@@ -101,6 +101,21 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 
+	ctx = WithNodeConfig(ctx, &cfg)
+	cmd.SetContext(ctx)
+
+	return nil
+}
+
+func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error {
+	err := ParseStoreDeterminationFlags(cmd, nodeType, args)
+	if err != nil {
+		return err
+	}
+
+	ctx := cmd.Context()
+	cfg := NodeConfig(ctx)
+
 	err = core.ParseFlags(cmd, &cfg.Core)
 	if err != nil {
 		return err
@@ -116,7 +131,6 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 
-	pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
 	switch nodeType {
 	case node.Light, node.Full:
 		err = header.ParseFlags(cmd, &cfg.Header)
@@ -124,6 +138,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 			return err
 		}
 	case node.Bridge:
+		pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
@@ -131,6 +146,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	// set config
 	ctx = WithNodeConfig(ctx, &cfg)
 	cmd.SetContext(ctx)
+
 	return nil
 }
 
