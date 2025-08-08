@@ -72,10 +72,10 @@ type Getter interface {
 	) (NamespaceData, error)
 
 	// GetRangeNamespaceData retrieves a range of shares within a specific namespace in the
-	// Extended Data Square (EDS). The range is defined by from and to coordinates, which
-	// specify the start and end points of the desired range. The coordinates are inclusive,
-	// meaning shares at both from and to positions are included in the result. The shares are
-	// returned in a row-by-row order if the range spans multiple rows.
+	// Extended Data Square (EDS). The range is defined by from and to indexes, which
+	// specify the start and end points of the desired range, where `from` is inclusive
+	// and `to` is exclusive indexes. The shares are returned in a row-by-row order
+	// if the range spans multiple rows.
 	GetRangeNamespaceData(
 		ctx context.Context,
 		header *header.ExtendedHeader,

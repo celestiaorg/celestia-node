@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/hex"
+	"errors"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ func init() {
 		getSharesByNamespaceCmd,
 		getShare,
 		getEDS,
+		getRange,
 	)
 }
 
@@ -154,5 +156,38 @@ var getEDS = &cobra.Command{
 
 		shares, err := client.Share.GetEDS(cmd.Context(), height)
 		return cmdnode.PrintOutput(shares, err, nil)
+	},
+}
+
+var getRange = &cobra.Command{
+	Use:   "get-range [height] [start] [end(exclusive)]",
+	Short: "Gets a range of shares from the given height within the given ODS indexes",
+	Args:  cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		height, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			return err
+		}
+		start, err := strconv.ParseUint(args[1], 10, 64)
+		if err != nil {
+			return err
+		}
+		end, err := strconv.ParseUint(args[2], 10, 64)
+		if err != nil {
+			return err
+		}
+
+		if start >= end {
+			return errors.New("start index must be less than end index")
+		}
+
+		rng, err := client.Share.GetRange(cmd.Context(), height, int(start), int(end))
+		return cmdnode.PrintOutput(rng, err, nil)
 	},
 }
