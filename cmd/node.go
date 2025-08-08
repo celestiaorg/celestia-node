@@ -27,7 +27,7 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		Use:   "bridge [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Bridge node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := WithNodeType(cmd.Context(), node.Bridge)
 			cmd.SetContext(ctx)
 
@@ -55,7 +55,7 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		Use:   "light [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Light node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := WithNodeType(cmd.Context(), node.Light)
 			cmd.SetContext(ctx)
 			return nil
@@ -82,7 +82,7 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		Use:   "full [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Full node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			log.Error(
 				"DEPRECATION NOTICE: FULL NODE MODE WILL BE DEPRECATED SOON." +
 					" NODE OPERATORS SHOULD CONSIDER RUNNING A BRIDGE NODE INSTEAD IF THEY REQUIRE FULL DATA STORAGE FUNCTIONALITY.",
