@@ -65,7 +65,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Supply(modshare.Window(availability.StorageWindow)),
 			fx.Supply(fullAvailOpts),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
-			convertToPruned(),
+			fx.Invoke(convertToPruned),
 		)
 	case node.Bridge:
 		coreOpts := make([]core.Option, 0)
@@ -83,7 +83,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Supply(modshare.Window(availability.StorageWindow)),
 			fx.Supply(coreOpts),
 			fx.Supply(fullAvailOpts),
-			convertToPruned(),
+			fx.Invoke(convertToPruned),
 		)
 	default:
 		panic("unknown node type")
@@ -102,13 +102,13 @@ func advertiseArchival(tp node.Type, pruneCfg *Config) fx.Option {
 
 // convertToPruned checks if the node is being converted to an archival node
 // to a pruned node.
-func convertToPruned() fx.Option {
-	return fx.Invoke(func(
-		ctx context.Context,
-		cfg *Config,
-		ds datastore.Batching,
-		p *pruner.Service,
-	) error {
+func convertToPruned(
+	lc fx.Lifecycle,
+	cfg *Config,
+	ds datastore.Batching,
+	p *pruner.Service,
+) error {
+	convertFn := func(ctx context.Context) error {
 		lastPrunedHeight, err := p.LastPruned(ctx)
 		if err != nil {
 			return err
@@ -134,5 +134,8 @@ func convertToPruned() fx.Option {
 		}
 
 		return nil
-	})
+	}
+
+	lc.Append(fx.StartHook(convertFn))
+	return nil
 }

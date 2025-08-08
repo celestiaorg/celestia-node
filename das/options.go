@@ -33,9 +33,6 @@ type Parameters struct {
 	// checkpoint backup.
 	BackgroundStoreInterval time.Duration
 
-	// SampleFrom is the height sampling will start from if no previous checkpoint was saved
-	SampleFrom uint64
-
 	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
 	// canceled. High ConcurrencyLimit value may increase sampling time due to node resources being
 	// divided between parallel workers. SampleTimeout should be adjusted proportionally to
@@ -52,7 +49,6 @@ func DefaultParameters() Parameters {
 		SamplingRange:           100,
 		ConcurrencyLimit:        concurrencyLimit,
 		BackgroundStoreInterval: 10 * time.Minute,
-		SampleFrom:              1,
 		// SampleTimeout = approximate block time (with a bit of wiggle room) * max amount of catchup
 		// workers
 		SampleTimeout: 15 * time.Second * time.Duration(concurrencyLimit),
@@ -79,15 +75,6 @@ func (p *Parameters) Validate() error {
 	if p.ConcurrencyLimit <= 0 {
 		return errInvalidOptionValue(
 			"ConcurrencyLimit",
-			"negative or 0",
-		)
-	}
-
-	// SampleFrom = 0 would tell the DASer to start sampling from block height 0
-	// which does not exist therefore breaking the DASer.
-	if p.SampleFrom <= 0 {
-		return errInvalidOptionValue(
-			"SampleFrom",
 			"negative or 0",
 		)
 	}
@@ -138,14 +125,6 @@ func WithConcurrencyLimit(concurrencyLimit int) Option {
 func WithBackgroundStoreInterval(backgroundStoreInterval time.Duration) Option {
 	return func(d *DASer) {
 		d.params.BackgroundStoreInterval = backgroundStoreInterval
-	}
-}
-
-// WithSampleFrom is a functional option to configure the daser's `SampleFrom` parameter
-// Refer to WithSamplingRange documentation to see an example of how to use this
-func WithSampleFrom(sampleFrom uint64) Option {
-	return func(d *DASer) {
-		d.params.SampleFrom = sampleFrom
 	}
 }
 
