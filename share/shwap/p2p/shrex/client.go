@@ -82,7 +82,7 @@ func (c *Client) doRequest(
 
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
-		return statusOpenStreamErr, err
+		return statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
 
 	c.setStreamDeadlines(ctx, logger, stream)
