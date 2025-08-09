@@ -22,6 +22,7 @@ func Flags() *flag.FlagSet {
 
 func ParseFlags(cmd *cobra.Command, cfg *Config, tp node.Type) {
 	archivalChanged := cmd.Flag(archivalFlag).Changed
+	isStartCommand := cmd.Name() == "start"
 
 	// Validate archival flag usage early to prevent invalid configurations
 	if archivalChanged {
@@ -30,12 +31,18 @@ func ParseFlags(cmd *cobra.Command, cfg *Config, tp node.Type) {
 		}
 
 		cfg.EnableService = false
-		log.Info("ARCHIVAL MODE ENABLED. All blocks will be synced and stored.")
+		// Only log on start command
+		if isStartCommand {
+			log.Info("ARCHIVAL MODE ENABLED. All blocks will be synced and stored.")
+		}
 		return
 	}
 
 	if cfg.EnableService {
-		log.Info("PRUNING MODE ENABLED. Node will prune blocks to save space.")
+		// Only log on start command
+		if isStartCommand {
+			log.Info("PRUNING MODE ENABLED. Node will prune blocks to save space.")
+		}
 		return
 	}
 
