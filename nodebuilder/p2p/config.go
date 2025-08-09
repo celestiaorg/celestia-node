@@ -30,6 +30,10 @@ type Config struct {
 
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
+	// DisableP2P disables all p2p networking components including DHT, gossip, shrex and bitswap.
+	// When enabled, the node will only run core functionality like storage and RPC/API serving.
+	// This is useful for storage-only nodes that don't need p2p capabilities.
+	DisableP2P bool
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
@@ -63,6 +67,7 @@ func DefaultConfig(tp node.Type) Config {
 		MutualPeers:  []string{},
 		PeerExchange: tp == node.Bridge || tp == node.Full,
 		ConnManager:  defaultConnManagerConfig(tp),
+		DisableP2P:   false,
 	}
 }
 
