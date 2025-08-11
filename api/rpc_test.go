@@ -136,7 +136,7 @@ type api struct {
 	Node       node.Module
 	P2P        p2p.Module
 	Blob       blob.Module
-	DA         da.Module
+	DA         da.Module //nolint: staticcheck
 	Blobstream blobstream.Module
 }
 
