@@ -132,7 +132,9 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 	}
 
 	opt := pruner.ParseFlags(cmd, nodeType)
-	ctx = WithNodeOptions(ctx, opt)
+	if opt != nil {
+		ctx = WithNodeOptions(ctx, opt)
+	}
 
 	switch nodeType {
 	case node.Light, node.Full:

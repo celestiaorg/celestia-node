@@ -34,7 +34,5 @@ func ParseFlags(cmd *cobra.Command, tp node.Type) fx.Option {
 	}
 
 	log.Info("PRUNING MODE ENABLED. Node will prune blocks to save space.")
-	return fx.Replace(&Config{
-		EnableService: true,
-	})
+	return nil
 }

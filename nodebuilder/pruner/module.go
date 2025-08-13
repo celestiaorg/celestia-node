@@ -38,9 +38,7 @@ func ConstructModule(tp node.Type) fx.Option {
 	baseComponents := fx.Options(
 		// supply the default config, which can only be overridden by
 		// passing the `--archival` flag
-		fx.Supply(&Config{
-			EnableService: true,
-		}),
+		fx.Supply(DefaultConfig()),
 		// TODO @renaynay: move this to share module construction
 		advertiseArchival(),
 		prunerService,
