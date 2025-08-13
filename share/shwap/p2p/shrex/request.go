@@ -27,6 +27,9 @@ var registry = []newRequestID{
 	func() request {
 		return &shwap.RowID{}
 	},
+	func() request {
+		return &shwap.RangeNamespaceDataID{}
+	},
 }
 
 // request represents compatible generalised interface for requests.

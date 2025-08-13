@@ -43,8 +43,11 @@ const (
 )
 
 type metrics struct {
-	edsAttempts metric.Int64Histogram
-	ndAttempts  metric.Int64Histogram
+	edsAttempts    metric.Int64Histogram
+	ndAttempts     metric.Int64Histogram
+	rowAttempts    metric.Int64Histogram
+	sampleAttempts metric.Int64Histogram
+	rangeAttempts  metric.Int64Histogram
 }
 
 func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
@@ -67,6 +70,36 @@ func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success
 			attribute.Bool("success", success)))
 }
 
+func (m *metrics) recordRowAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	ctx = utils.ResetContextOnError(ctx)
+	m.rowAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
+}
+
+func (m *metrics) recordSampleAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	ctx = utils.ResetContextOnError(ctx)
+	m.sampleAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
+}
+
+func (m *metrics) recordRangeAttempt(ctx context.Context, attemptCount int, success bool) {
+	if m == nil {
+		return
+	}
+	ctx = utils.ResetContextOnError(ctx)
+	m.rangeAttempts.Record(ctx, int64(attemptCount),
+		metric.WithAttributes(
+			attribute.Bool("success", success)))
+}
+
 func (sg *Getter) WithMetrics() error {
 	edsAttemptHistogram, err := meter.Int64Histogram(
 		"getters_shrex_eds_attempts_per_request",
@@ -84,9 +117,36 @@ func (sg *Getter) WithMetrics() error {
 		return err
 	}
 
+	rowAttemptsHistogram, err := meter.Int64Histogram(
+		"getters_shrex_row_attempts_per_request",
+		metric.WithDescription("Number of attempts per shrex request"),
+	)
+	if err != nil {
+		return err
+	}
+
+	sampleAttemptsHistogram, err := meter.Int64Histogram(
+		"getters_shrex_sample_attempts_per_request",
+		metric.WithDescription("Number of attempts per shrex request"),
+	)
+	if err != nil {
+		return err
+	}
+
+	rangeAttemptsHistogram, err := meter.Int64Histogram(
+		"getters_shrex_range_attempts_per_request",
+		metric.WithDescription("Number of attempts per shrex request"),
+	)
+	if err != nil {
+		return err
+	}
+
 	sg.metrics = &metrics{
-		edsAttempts: edsAttemptHistogram,
-		ndAttempts:  ndAttemptHistogram,
+		edsAttempts:    edsAttemptHistogram,
+		ndAttempts:     ndAttemptHistogram,
+		rowAttempts:    rowAttemptsHistogram,
+		sampleAttempts: sampleAttemptsHistogram,
+		rangeAttempts:  rangeAttemptsHistogram,
 	}
 	return nil
 }
@@ -168,13 +228,17 @@ func (sg *Getter) GetSamples(
 	}
 
 	samples := make([]shwap.Sample, 0, len(requests))
+	var attempts int
 	for _, request := range requests {
-		sample, err := sg.getSample(ctx, header, request)
+		sample, attempt, err := sg.getSample(ctx, header, request)
+		attempts += attempt
 		if err != nil {
+			sg.metrics.recordSampleAttempt(ctx, attempts, false)
 			return nil, err
 		}
 		samples = append(samples, sample)
 	}
+	sg.metrics.recordSampleAttempt(ctx, attempts, true)
 	return samples, nil
 }
 
@@ -199,7 +263,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 	var attempt int
 	for {
 		if ctx.Err() != nil {
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			sg.metrics.recordRowAttempt(ctx, attempt, false)
 			return shwap.Row{}, errors.Join(err, ctx.Err())
 		}
 		attempt++
@@ -211,7 +275,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 				"hash", header.DAH.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			sg.metrics.recordRowAttempt(ctx, attempt, false)
 			return shwap.Row{}, errors.Join(err, getErr)
 		}
 
@@ -222,7 +286,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultNoop)
-			sg.metrics.recordEDSAttempt(ctx, attempt, true)
+			sg.metrics.recordRowAttempt(ctx, attempt, true)
 			buildErr := response.Verify(header.DAH, rowIndex)
 			if buildErr != nil {
 				getErr = buildErr
@@ -430,11 +494,107 @@ func (sg *Getter) GetNamespaceData(
 }
 
 func (sg *Getter) GetRangeNamespaceData(
-	_ context.Context,
-	_ *header.ExtendedHeader,
-	_, _ int,
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	from, to int,
 ) (shwap.RangeNamespaceData, error) {
-	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
+	var (
+		attempt int
+		err     error
+	)
+	ctx, span := tracer.Start(ctx, "shrex/get-range-namespace-data", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.Int("from", from),
+		attribute.Int("to", to),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	edsID, err := shwap.NewEdsID(header.Height())
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	request, err := shwap.NewRangeNamespaceDataID(edsID, from, to, len(header.DAH.RowRoots)/2)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	response := shwap.RangeNamespaceData{}
+
+	for {
+		if ctx.Err() != nil {
+			sg.metrics.recordRangeAttempt(ctx, attempt, false)
+			return shwap.RangeNamespaceData{}, errors.Join(err, ctx.Err())
+		}
+		attempt++
+		//start := time.Now()
+
+		peer, setStatus, getErr := sg.getPeer(ctx, header)
+		if getErr != nil {
+			//log.Debugw("nd: couldn't find peer",
+			//	"hash", dah.String(),
+			//	"namespace", namespace.String(),
+			//	"err", getErr,
+			//	"finished (s)", time.Since(start))
+			// add metric
+			sg.metrics.recordRangeAttempt(ctx, attempt, false)
+			return shwap.RangeNamespaceData{}, errors.Join(err, getErr)
+		}
+
+		//reqStart := time.Now()
+		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
+		getErr = sg.client.Get(reqCtx, &request, &response, peer)
+		cancel()
+		switch {
+		case getErr == nil:
+			fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, len(header.DAH.RowRoots)/2)
+			if err != nil {
+				return shwap.RangeNamespaceData{}, err
+			}
+			// `to-1` to make an inclusive coordinate of the range
+			toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, len(header.DAH.RowRoots)/2)
+			if err != nil {
+				return shwap.RangeNamespaceData{}, err
+			}
+			// both inclusion and non-inclusion cases needs verification
+			verErr := response.VerifyInclusion(
+				fromCoords,
+				toCoords,
+				len(header.DAH.RowRoots)/2,
+				header.DAH.RowRoots[from:to+1])
+			if verErr != nil {
+				getErr = verErr
+				setStatus(peers.ResultBlacklistPeer)
+				break
+			}
+			setStatus(peers.ResultNoop)
+			sg.metrics.recordRangeAttempt(ctx, attempt, true)
+			return response, nil
+		case errors.Is(getErr, context.DeadlineExceeded),
+			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
+		case errors.Is(getErr, shrex.ErrNotFound):
+			getErr = shwap.ErrNotFound
+			setStatus(peers.ResultCooldownPeer)
+		case errors.Is(getErr, shrex.ErrInvalidResponse):
+			setStatus(peers.ResultBlacklistPeer)
+		default:
+			setStatus(peers.ResultCooldownPeer)
+		}
+
+		if !shrex.ErrorContains(err, getErr) {
+			err = errors.Join(err, getErr)
+		}
+		sg.metrics.recordRangeAttempt(ctx, attempt, false)
+		//log.Debugw("nd: request failed",
+		//	"hash", dah.String(),
+		//	"namespace", namespace.String(),
+		//	"peer", peer.String(),
+		//	"attempt", attempt,
+		//	"err", getErr,
+		//	"finished (s)", time.Since(reqStart))
+	}
 }
 
 func (sg *Getter) getPeer(
@@ -452,15 +612,14 @@ func (sg *Getter) getSample(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	sID shwap.SampleID,
-) (shwap.Sample, error) {
+) (shwap.Sample, int, error) {
 	var (
 		attempt int
 		err     error
 	)
 	for {
 		if ctx.Err() != nil {
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return shwap.Sample{}, errors.Join(err, ctx.Err())
+			return shwap.Sample{}, attempt, errors.Join(err, ctx.Err())
 		}
 		attempt++
 		start := time.Now()
@@ -472,8 +631,7 @@ func (sg *Getter) getSample(
 				"hash", header.DAH.String(),
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return shwap.Sample{}, errors.Join(err, getErr)
+			return shwap.Sample{}, attempt, errors.Join(err, getErr)
 		}
 
 		reqStart := time.Now()
@@ -484,7 +642,7 @@ func (sg *Getter) getSample(
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultNoop)
-			sg.metrics.recordEDSAttempt(ctx, attempt, true)
+			sg.metrics.recordSampleAttempt(ctx, attempt, true)
 			buildErr := response.Verify(header.DAH, sID.RowIndex, sID.ShareIndex)
 			if buildErr != nil {
 				getErr = buildErr
@@ -492,7 +650,7 @@ func (sg *Getter) getSample(
 				break
 			}
 			setStatus(peers.ResultNoop)
-			return response, buildErr
+			return response, attempt, buildErr
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)

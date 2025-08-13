@@ -17,4 +17,8 @@ type Accessor interface {
 	Sample(ctx context.Context, idx SampleCoords) (Sample, error)
 	AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error)
 	Reader() (io.Reader, error)
+	RangeNamespaceData(
+		ctx context.Context,
+		from, to int,
+	) (RangeNamespaceData, error)
 }

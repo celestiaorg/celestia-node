@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -264,4 +265,20 @@ func (r *Row) ReadFrom(reader io.Reader) (int64, error) {
 
 	*r, err = RowFromProto(&rowpb)
 	return int64(n), err
+}
+
+func (rid RowID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	halfRow, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
+	if err != nil {
+		return nil, fmt.Errorf("getting half row from accessor: %w", err)
+	}
+	row := halfRow.ToRow()
+
+	// TODO(@vgonkivs): This is a temporary solution that will be reworked
+	buf := &bytes.Buffer{}
+	_, err = row.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing row: %w", err)
+	}
+	return buf, nil
 }
