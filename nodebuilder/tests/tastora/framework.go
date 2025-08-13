@@ -30,10 +30,15 @@ import (
 
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v4.0.0-rc6"
+	defaultCelestiaTag = "v5.0.1"
 	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
-	defaultNodeTag     = "v0.23.2-mocha"
 	testChainID        = "test"
+)
+
+var (
+	// defaultNodeTag can be overridden at build time using ldflags
+	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
+	defaultNodeTag = "5b96c43" // fallback if not set via ldflags
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
@@ -45,15 +50,18 @@ type Framework struct {
 	client  *client.Client
 	network string
 
-	provider   tastoratypes.Provider
-	daNetwork  tastoratypes.DataAvailabilityNetwork
-	bridgeNode *tastoradockertypes.DANode
-	lightNodes []*tastoradockertypes.DANode
-	celestia   tastoratypes.Chain
+	provider  tastoratypes.Provider
+	daNetwork tastoratypes.DataAvailabilityNetwork
 
-	// Default wallet for automatic node funding
-	defaultWallet tastoratypes.Wallet
-	// Default funding amount for nodes (3 billion utia)
+	// Main DA network infrastructure
+	celestia tastoratypes.Chain
+
+	// Node topology (simplified)
+	bridgeNodes []*tastoradockertypes.DANode // Bridge nodes (bridgeNodes[0] created by default)
+	lightNodes  []*tastoradockertypes.DANode // Light nodes
+
+	// Private funding infrastructure (not exposed to tests)
+	fundingWallet        tastoratypes.Wallet
 	defaultFundingAmount int64
 }
 
@@ -63,7 +71,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
-		defaultFundingAmount: 3_000_000_000, // 3 billion utia - default funding amount
+		defaultFundingAmount: 10_000_000_000, // 10 billion utia - enough for multiple blob transactions
 	}
 
 	// Apply configuration options
@@ -80,90 +88,63 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 }
 
 // SetupNetwork initializes the basic network infrastructure.
-// This includes starting the Celestia chain and DA network infrastructure.
-// Nodes are created lazily when requested via GetOrCreate/New methods.
+// This includes starting the Celestia chain, DA network infrastructure,
+// and ALWAYS creates the main bridge node (minimum viable DA network).
 func (f *Framework) SetupNetwork(ctx context.Context) error {
+	// 1. Create and start Celestia chain
 	f.celestia = f.createAndStartCelestiaChain(ctx)
 
+	// 2. Setup DA network infrastructure
 	daNetwork, err := f.provider.GetDataAvailabilityNetwork(ctx)
 	if err != nil {
 		return err
 	}
 	f.daNetwork = daNetwork
 
-	// Don't create any nodes by default - let tests create them as needed
-	// This provides better resource usage and more flexible testing
+	// 3. ALWAYS create default bridge node (minimum viable DA network)
+	defaultBridgeNode := f.newBridgeNode(ctx)
+	f.bridgeNodes = append(f.bridgeNodes, defaultBridgeNode)
+	f.logger.Info("Default bridge node created and funded automatically")
 
 	return nil
 }
 
-// GetBridgeNode returns the bridge node instance.
-func (f *Framework) GetBridgeNode() *tastoradockertypes.DANode {
-	return f.bridgeNode
+// GetBridgeNodes returns all existing bridge nodes.
+func (f *Framework) GetBridgeNodes() []*tastoradockertypes.DANode {
+	return f.bridgeNodes
 }
 
-// GetOrCreateBridgeNode returns the bridge node, creating it if it doesn't exist.
-// The bridge node is automatically funded with the default amount for transaction operations.
-func (f *Framework) GetOrCreateBridgeNode(ctx context.Context) *tastoradockertypes.DANode {
-	if f.bridgeNode == nil {
-		f.bridgeNode = f.startBridgeNode(ctx, f.celestia)
-
-		// Automatically fund the bridge node
-		defaultWallet := f.getOrCreateDefaultWallet(ctx)
-		f.FundNodeAccount(ctx, defaultWallet, f.bridgeNode, f.defaultFundingAmount)
-		f.t.Logf("Bridge node automatically funded with %d utia", f.defaultFundingAmount)
-
-		// Wait a moment to ensure funds are available
-		time.Sleep(2 * time.Second)
-	}
-	return f.bridgeNode
+// GetLightNodes returns all existing light nodes.
+func (f *Framework) GetLightNodes() []*tastoradockertypes.DANode {
+	return f.lightNodes
 }
 
-// NewLightNode creates and starts a new light node.
-// The light node is automatically funded with the default amount for transaction operations.
+// NewBridgeNode creates, starts and appends a new bridge node.
+func (f *Framework) NewBridgeNode(ctx context.Context) *tastoradockertypes.DANode {
+	bridgeNode := f.newBridgeNode(ctx)
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
+
+// NewLightNode creates, starts and appends a new light node.
 func (f *Framework) NewLightNode(ctx context.Context) *tastoradockertypes.DANode {
-	// Ensure we have a bridge node to connect to
-	bridgeNode := f.GetOrCreateBridgeNode(ctx)
-
 	// Get the next available light node from the DA network
 	allLightNodes := f.daNetwork.GetLightNodes()
 	if len(f.lightNodes) >= len(allLightNodes) {
 		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
 	}
 
+	// Use the first bridge node as the connection point
+	bridgeNode := f.bridgeNodes[0]
 	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia)
-
-	// Automatically fund the light node
-	defaultWallet := f.getOrCreateDefaultWallet(ctx)
-	f.FundNodeAccount(ctx, defaultWallet, lightNode, f.defaultFundingAmount)
-	f.t.Logf("Light node automatically funded with %d utia", f.defaultFundingAmount)
+	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
+	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Wait a moment to ensure funds are available
 	time.Sleep(2 * time.Second)
 
 	f.lightNodes = append(f.lightNodes, lightNode)
 	return lightNode
-}
-
-// GetBridgeNodes returns all bridge node instances.
-func (f *Framework) GetBridgeNodes() []*tastoradockertypes.DANode {
-	if f.bridgeNode != nil {
-		return []*tastoradockertypes.DANode{f.bridgeNode}
-	}
-	return []*tastoradockertypes.DANode{}
-}
-
-// GetOrCreateLightNode returns the first light node, creating it if none exist.
-func (f *Framework) GetOrCreateLightNode(ctx context.Context) *tastoradockertypes.DANode {
-	if len(f.lightNodes) == 0 {
-		return f.NewLightNode(ctx)
-	}
-	return f.lightNodes[0]
-}
-
-// GetLightNodes returns all light node instances.
-func (f *Framework) GetLightNodes() []*tastoradockertypes.DANode {
-	return f.lightNodes
 }
 
 // GetCelestiaChain returns the Celestia chain instance.
@@ -215,8 +196,20 @@ func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 	return *res.Balance
 }
 
-// FundWallet sends funds from one wallet to another address.
-func (f *Framework) FundWallet(ctx context.Context, fromWallet tastoratypes.Wallet, toAddr sdk.AccAddress, amount int64) {
+// newBridgeNode creates and starts a bridge node.
+func (f *Framework) newBridgeNode(ctx context.Context) *tastoradockertypes.DANode {
+	bridgeNode := f.startBridgeNode(ctx, f.celestia)
+	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
+	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
+
+	// Wait a moment to ensure funds are available
+	time.Sleep(2 * time.Second)
+
+	return bridgeNode
+}
+
+// fundWallet sends funds from one wallet to another address.
+func (f *Framework) fundWallet(ctx context.Context, fromWallet tastoratypes.Wallet, toAddr sdk.AccAddress, amount int64) {
 	fromAddr, err := sdkacc.AddressFromWallet(fromWallet)
 	require.NoError(f.t, err, "failed to get from address")
 
@@ -264,8 +257,9 @@ func (f *Framework) FundWallet(ctx context.Context, fromWallet tastoratypes.Wall
 	require.GreaterOrEqual(f.t, bal.Amount.Int64(), amount, "balance is not sufficient after funding")
 }
 
-// FundNodeAccount funds a specific DA node account using the provided wallet.
-func (f *Framework) FundNodeAccount(ctx context.Context, fromWallet tastoratypes.Wallet, daNode *tastoradockertypes.DANode, amount int64) {
+// fundNodeAccount funds a specific DA node account using the default wallet.
+func (f *Framework) fundNodeAccount(ctx context.Context, daNode *tastoradockertypes.DANode, amount int64) {
+	fundingWallet := f.getOrCreateFundingWallet(ctx)
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 
 	// Get the node's account address
@@ -278,7 +272,7 @@ func (f *Framework) FundNodeAccount(ctx context.Context, fromWallet tastoratypes
 	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
 
 	// Fund the node account
-	f.FundWallet(ctx, fromWallet, nodeAccAddr, amount)
+	f.fundWallet(ctx, fundingWallet, nodeAccAddr, amount)
 }
 
 // createDockerProvider initializes the Docker provider for creating chains and nodes.
@@ -353,12 +347,13 @@ func (f *Framework) createAndStartCelestiaChain(ctx context.Context) tastoratype
 func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chain) *tastoradockertypes.DANode {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
-	// Get the first available bridge node from the DA network
+	// Get the next available bridge node from the DA network
 	bridgeNodes := f.daNetwork.GetBridgeNodes()
-	if len(bridgeNodes) == 0 {
-		f.t.Fatalf("No bridge nodes available in DA network")
+	bridgeNodeIndex := len(f.bridgeNodes)
+	if bridgeNodeIndex >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", bridgeNodeIndex, len(bridgeNodes))
 	}
-	bridgeNode := bridgeNodes[0].(*tastoradockertypes.DANode)
+	bridgeNode := bridgeNodes[bridgeNodeIndex].(*tastoradockertypes.DANode)
 
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
 	require.NoError(f.t, err, "failed to get internal hostname")
@@ -368,8 +363,9 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
-				"P2P_NETWORK":     testChainID,
+				"CELESTIA_CUSTOM":       tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
 			},
 		),
 	)
@@ -387,10 +383,16 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradocke
 	p2pAddr, err := p2pInfo.GetP2PAddress()
 	require.NoError(f.t, err, "failed to get bridge node p2p address")
 
-	lightNode := f.daNetwork.GetLightNodes()[0].(*tastoradockertypes.DANode)
+	// Get the core node hostname for state access
+	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
+	require.NoError(f.t, err, "failed to get internal hostname")
+
+	// Use the correct index based on how many light nodes we already have (FIXED!)
+	lightNodeIndex := len(f.lightNodes)
+	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex].(*tastoradockertypes.DANode)
 	err = lightNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
@@ -459,13 +461,12 @@ func getNodeImage() string {
 	return nodeImage
 }
 
-// getOrCreateDefaultWallet returns the default wallet, creating it if it doesn't exist.
-// This wallet is used for automatic node funding.
-func (f *Framework) getOrCreateDefaultWallet(ctx context.Context) tastoratypes.Wallet {
-	if f.defaultWallet == nil {
+// getOrCreateFundingWallet returns the framework's funding wallet, creating it if needed.
+func (f *Framework) getOrCreateFundingWallet(ctx context.Context) tastoratypes.Wallet {
+	if f.fundingWallet == nil {
 		// Create a wallet with enough funds to fund multiple nodes
-		f.defaultWallet = f.CreateTestWallet(ctx, 50_000_000_000) // 50 billion utia
-		f.t.Logf("Created default wallet for automatic node funding")
+		f.fundingWallet = f.CreateTestWallet(ctx, 50_000_000_000) // 50 billion utia
+		f.t.Logf("Created funding wallet for automatic node funding")
 	}
-	return f.defaultWallet
+	return f.fundingWallet
 }
