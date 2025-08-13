@@ -19,7 +19,7 @@ import (
 
 var log = logging.Logger("module/pruner")
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(tp node.Type) fx.Option {
 	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
@@ -36,9 +36,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	)
 
 	baseComponents := fx.Options(
-		fx.Supply(cfg),
+		// supply the default config, which can only be overridden by
+		// passing the `--archival` flag
+		fx.Supply(DefaultConfig()),
 		// TODO @renaynay: move this to share module construction
-		advertiseArchival(tp, cfg),
+		advertiseArchival(),
 		prunerService,
 	)
 
@@ -53,36 +55,29 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
 		)
 	case node.Full:
-		fullAvailOpts := make([]fullavail.Option, 0)
-
-		if !cfg.EnableService {
-			// populate archival mode opts
-			fullAvailOpts = []fullavail.Option{fullavail.WithArchivalMode()}
-		}
-
 		return fx.Module("prune",
 			baseComponents,
 			fx.Supply(modshare.Window(availability.StorageWindow)),
-			fx.Supply(fullAvailOpts),
+			fx.Provide(func(cfg *Config) []fullavail.Option {
+				if cfg.EnableService {
+					return make([]fullavail.Option, 0)
+				}
+				return []fullavail.Option{fullavail.WithArchivalMode()}
+			}),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			convertToPruned(),
 		)
 	case node.Bridge:
-		coreOpts := make([]core.Option, 0)
-		fullAvailOpts := make([]fullavail.Option, 0)
-
-		if !cfg.EnableService {
-			// populate archival mode opts
-			coreOpts = []core.Option{core.WithArchivalMode()}
-			fullAvailOpts = []fullavail.Option{fullavail.WithArchivalMode()}
-		}
-
 		return fx.Module("prune",
 			baseComponents,
+			fx.Provide(func(cfg *Config) ([]core.Option, []fullavail.Option) {
+				if cfg.EnableService {
+					return make([]core.Option, 0), make([]fullavail.Option, 0)
+				}
+				return []core.Option{core.WithArchivalMode()}, []fullavail.Option{fullavail.WithArchivalMode()}
+			}),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			fx.Supply(modshare.Window(availability.StorageWindow)),
-			fx.Supply(coreOpts),
-			fx.Supply(fullAvailOpts),
 			convertToPruned(),
 		)
 	default:
@@ -90,11 +85,11 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	}
 }
 
-func advertiseArchival(tp node.Type, pruneCfg *Config) fx.Option {
-	if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
-		return fx.Supply(discovery.WithAdvertise())
-	}
-	return fx.Provide(func() discovery.Option {
+func advertiseArchival() fx.Option {
+	return fx.Provide(func(tp node.Type, pruneCfg *Config) discovery.Option {
+		if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
+			return discovery.WithAdvertise()
+		}
 		var opt discovery.Option
 		return opt
 	})
