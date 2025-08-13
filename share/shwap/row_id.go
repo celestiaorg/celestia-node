@@ -38,6 +38,10 @@ func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 	return rid, nil
 }
 
+func (rid RowID) Name() string {
+	return rowName
+}
+
 // RowIDFromBinary decodes a RowID from its binary representation.
 // It returns an error if the input data does not conform to the expected size or content format.
 func RowIDFromBinary(data []byte) (RowID, error) {
@@ -135,7 +139,7 @@ func (rid RowID) AppendBinary(data []byte) ([]byte, error) {
 	return binary.BigEndian.AppendUint16(data, uint16(rid.RowIndex)), nil
 }
 
-func (rid RowID) ContainerDataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+func (rid RowID) ResponseDataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
 	if err != nil {
 		return nil, err

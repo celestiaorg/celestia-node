@@ -22,7 +22,7 @@ var registry = []newRequestID{
 		return &shwap.EdsID{}
 	},
 	func() request {
-		return &shwap.SampleIDs{}
+		return &shwap.SampleID{}
 	},
 	func() request {
 		return &shwap.RowID{}

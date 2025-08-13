@@ -64,6 +64,10 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 	return sid, nil
 }
 
+func (sid SampleID) Name() string {
+	return sampleName
+}
+
 // SampleIDFromBinary deserializes a SampleID from binary data, ensuring the data length matches
 // the expected size.
 func SampleIDFromBinary(data []byte) (SampleID, error) {

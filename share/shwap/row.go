@@ -15,8 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// RowName is the name identifier for the row container.
-const RowName = "row_v0"
+// rowName is the name identifier for the row container.
+const rowName = "row_v0"
 
 // RowSide enumerates the possible sides of a row within an Extended Data Square (EDS).
 type RowSide int

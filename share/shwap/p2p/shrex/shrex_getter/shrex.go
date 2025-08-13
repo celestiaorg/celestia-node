@@ -158,82 +158,24 @@ func (sg *Getter) GetSamples(
 		return []shwap.Sample{}, nil
 	}
 
-	request := make(shwap.SampleIDs, len(coords))
+	requests := make([]shwap.SampleID, len(coords))
 	for i, coord := range coords {
 		sID, err := shwap.NewSampleID(header.Height(), coord, len(header.DAH.RowRoots))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a sampleID from the coordinates: %w", err)
 		}
-		request[i] = sID
+		requests[i] = sID
 	}
 
-	response := shwap.NewSamplesReader()
-	var attempt int
-	for {
-		if ctx.Err() != nil {
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return []shwap.Sample{}, errors.Join(err, ctx.Err())
+	samples := make([]shwap.Sample, 0, len(requests))
+	for _, request := range requests {
+		sample, err := sg.getSample(ctx, header, request)
+		if err != nil {
+			return nil, err
 		}
-		attempt++
-		start := time.Now()
-
-		peer, setStatus, getErr := sg.getPeer(ctx, header)
-		if getErr != nil {
-			log.Debugw("eds: couldn't find peer",
-				"hash", header.DAH.String(),
-				"err", getErr,
-				"finished (s)", time.Since(start))
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return []shwap.Sample{}, errors.Join(err, getErr)
-		}
-
-		reqStart := time.Now()
-		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		getErr = sg.client.Get(reqCtx, &request, response, peer)
-		cancel()
-		switch {
-		case getErr == nil:
-			setStatus(peers.ResultNoop)
-			sg.metrics.recordEDSAttempt(ctx, attempt, true)
-			if response.Len() != request.Len() {
-				getErr = fmt.Errorf("samples amount mismatch: expected %d, got %d", request.Len(), response.Len())
-				setStatus(peers.ResultBlacklistPeer)
-				break
-			}
-
-			samples := response.Samples()
-			for i, sample := range samples {
-				buildErr := sample.Verify(header.DAH, request[i].RowIndex, request[i].ShareIndex)
-				if buildErr != nil {
-					getErr = buildErr
-					setStatus(peers.ResultBlacklistPeer)
-					break
-				}
-			}
-			setStatus(peers.ResultNoop)
-			return samples, nil
-		case errors.Is(getErr, context.DeadlineExceeded),
-			errors.Is(getErr, context.Canceled):
-			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(getErr, shrex.ErrNotFound):
-			getErr = shwap.ErrNotFound
-			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(getErr, shrex.ErrInvalidResponse):
-			setStatus(peers.ResultBlacklistPeer)
-		default:
-			setStatus(peers.ResultCooldownPeer)
-		}
-
-		if !shrex.ErrorContains(err, getErr) {
-			err = errors.Join(err, getErr)
-		}
-		log.Debugw("samples: request failed",
-			"hash", header.DAH.String(),
-			"peer", peer.String(),
-			"attempt", attempt,
-			"err", getErr,
-			"finished (s)", time.Since(reqStart))
+		samples = append(samples, sample)
 	}
+	return samples, nil
 }
 
 func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
@@ -504,4 +446,73 @@ func (sg *Getter) getPeer(
 		return p, df, err
 	}
 	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+}
+
+func (sg *Getter) getSample(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	sID shwap.SampleID,
+) (shwap.Sample, error) {
+	var (
+		attempt int
+		err     error
+	)
+	for {
+		if ctx.Err() != nil {
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			return shwap.Sample{}, errors.Join(err, ctx.Err())
+		}
+		attempt++
+		start := time.Now()
+
+		var response shwap.Sample
+		peer, setStatus, getErr := sg.getPeer(ctx, header)
+		if getErr != nil {
+			log.Debugw("sample: couldn't find peer",
+				"hash", header.DAH.String(),
+				"err", getErr,
+				"finished (s)", time.Since(start))
+			sg.metrics.recordEDSAttempt(ctx, attempt, false)
+			return shwap.Sample{}, errors.Join(err, getErr)
+		}
+
+		reqStart := time.Now()
+		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
+		getErr = sg.client.Get(reqCtx, &sID, &response, peer)
+		cancel()
+
+		switch {
+		case getErr == nil:
+			setStatus(peers.ResultNoop)
+			sg.metrics.recordEDSAttempt(ctx, attempt, true)
+			buildErr := response.Verify(header.DAH, sID.RowIndex, sID.ShareIndex)
+			if buildErr != nil {
+				getErr = buildErr
+				setStatus(peers.ResultBlacklistPeer)
+				break
+			}
+			setStatus(peers.ResultNoop)
+			return response, buildErr
+		case errors.Is(getErr, context.DeadlineExceeded),
+			errors.Is(getErr, context.Canceled):
+			setStatus(peers.ResultCooldownPeer)
+		case errors.Is(getErr, shrex.ErrNotFound):
+			getErr = shwap.ErrNotFound
+			setStatus(peers.ResultCooldownPeer)
+		case errors.Is(getErr, shrex.ErrInvalidResponse):
+			setStatus(peers.ResultBlacklistPeer)
+		default:
+			setStatus(peers.ResultCooldownPeer)
+		}
+
+		if !shrex.ErrorContains(err, getErr) {
+			err = errors.Join(err, getErr)
+		}
+		log.Debugw("samples: request failed",
+			"hash", header.DAH.String(),
+			"peer", peer.String(),
+			"attempt", attempt,
+			"err", getErr,
+			"finished (s)", time.Since(reqStart))
+	}
 }
