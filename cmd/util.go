@@ -131,6 +131,9 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 		return err
 	}
 
+	opt := pruner.ParseFlags(cmd, nodeType)
+	ctx = WithNodeOptions(ctx, opt)
+
 	switch nodeType {
 	case node.Light, node.Full:
 		err = header.ParseFlags(cmd, &cfg.Header)
@@ -138,7 +141,6 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 			return err
 		}
 	case node.Bridge:
-		pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}

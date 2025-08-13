@@ -3,6 +3,7 @@ package pruner
 import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
@@ -20,25 +21,20 @@ func Flags() *flag.FlagSet {
 	return flags
 }
 
-func ParseFlags(cmd *cobra.Command, cfg *Config, tp node.Type) {
+func ParseFlags(cmd *cobra.Command, tp node.Type) fx.Option {
 	archivalChanged := cmd.Flag(archivalFlag).Changed
-
-	// Validate archival flag usage early to prevent invalid configurations
 	if archivalChanged {
 		if tp != node.Full && tp != node.Bridge {
 			log.Fatal("Archival mode is only supported for Full and Bridge nodes")
 		}
-
-		cfg.EnableService = false
 		log.Info("ARCHIVAL MODE ENABLED. All blocks will be synced and stored.")
-		return
+		return fx.Replace(&Config{
+			EnableService: false,
+		})
 	}
 
-	if cfg.EnableService {
-		log.Info("PRUNING MODE ENABLED. Node will prune blocks to save space.")
-		return
-	}
-
-	// If node operator does not explicitly pass `--archival` flag and pruner service is disabled, disallow
-	log.Fatal("ARCHIVAL MODE ENABLED BY ACCIDENT!!! Please explicitly pass `--archival` to enable archival mode!")
+	log.Info("PRUNING MODE ENABLED. Node will prune blocks to save space.")
+	return fx.Replace(&Config{
+		EnableService: true,
+	})
 }
