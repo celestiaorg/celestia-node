@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
@@ -138,6 +139,11 @@ func (f *fsKeystore) pathTo(file string) string {
 }
 
 func checkPerms(perms os.FileMode) error {
+	// Skip permission checks on Windows as the filesystem permission model differs
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
 	if perms&0o077 != 0 {
 		return fmt.Errorf("required: 0600, got: %#o", perms)
 	}
