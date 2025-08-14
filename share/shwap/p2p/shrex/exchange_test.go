@@ -1,4 +1,4 @@
-package shrexnd
+package shrex
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -24,7 +24,6 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	edsStore, client, server := makeExchange(t)
-	require.NoError(t, server.Start(ctx))
 
 	height := atomic.Uint64{}
 	height.Add(1)
@@ -35,8 +34,12 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 
 		namespace := libshare.RandomNamespace()
 		height := height.Add(1)
-		_, err := client.RequestND(ctx, height, namespace, server.host.ID())
-		require.ErrorIs(t, err, shrex.ErrNotFound)
+
+		id, err := shwap.NewNamespaceDataID(height, namespace)
+		data := shwap.NamespaceData{}
+		require.NoError(t, err)
+		err = client.Get(ctx, &id, &data, server.host.ID())
+		require.ErrorIs(t, err, ErrNotFound)
 	})
 
 	t.Run("ErrNamespaceNotFound", func(t *testing.T) {
@@ -52,9 +55,14 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		require.NoError(t, err)
 
 		namespace := libshare.RandomNamespace()
-		emptyShares, err := client.RequestND(ctx, height, namespace, server.host.ID())
+
+		id, err := shwap.NewNamespaceDataID(height, namespace)
+		data := shwap.NamespaceData{}
 		require.NoError(t, err)
-		require.Empty(t, emptyShares.Flatten())
+
+		err = client.Get(ctx, &id, &data, server.host.ID())
+		require.NoError(t, err)
+		require.Empty(t, data.Flatten())
 	})
 }
 
@@ -63,12 +71,10 @@ func TestExchange_RequestND(t *testing.T) {
 		net, err := mocknet.FullMeshConnected(2)
 		require.NoError(t, err)
 
-		client, err := NewClient(DefaultParameters(), net.Hosts()[0])
+		client, err := NewClient(DefaultClientParameters(), net.Hosts()[0])
 		require.NoError(t, err)
-		server, err := NewServer(DefaultParameters(), net.Hosts()[1], nil)
+		server, err := NewServer(DefaultServerParameters(), net.Hosts()[1], nil)
 		require.NoError(t, err)
-
-		require.NoError(t, server.Start(context.Background()))
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		t.Cleanup(cancel)
@@ -88,21 +94,41 @@ func TestExchange_RequestND(t *testing.T) {
 				t.Fatal("timeout")
 			}
 		}
-		middleware := shrex.NewMiddleware(rateLimit)
-		server.host.SetStreamHandler(server.protocolID,
-			middleware.RateLimitHandler(mockHandler))
+		middleware, err := newMiddleware(rateLimit)
+		require.NoError(t, err)
+		for _, reqID := range registry {
+			server.host.SetStreamHandler(
+				ProtocolID(server.params.NetworkID(), reqID().Name()),
+				middleware.rateLimitHandler(
+					ctx,
+					mockHandler,
+					nil,
+					reqID().Name(),
+				),
+			)
+		}
 
 		// take server concurrency slots with blocked requests
 		for i := range rateLimit {
 			go func(i int) {
-				client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID()) //nolint:errcheck
+				namespace := libshare.RandomNamespace()
+				id, err := shwap.NewNamespaceDataID(1, namespace)
+				data := shwap.NamespaceData{}
+				require.NoError(t, err)
+
+				client.Get(ctx, &id, &data, server.host.ID()) //nolint:errcheck
 			}(i)
 		}
 
 		// wait until all server slots are taken
 		wg.Wait()
-		_, err = client.RequestND(ctx, 1, libshare.RandomNamespace(), server.host.ID())
-		require.ErrorIs(t, err, shrex.ErrRateLimited)
+		namespace := libshare.RandomNamespace()
+		id, err := shwap.NewNamespaceDataID(1, namespace)
+		data := shwap.NamespaceData{}
+		require.NoError(t, err)
+
+		err = client.Get(ctx, &id, &data, server.host.ID())
+		require.ErrorIs(t, err, ErrRateLimited)
 	})
 }
 
@@ -121,10 +147,12 @@ func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 	require.NoError(t, err)
 	hosts := createMocknet(t, 2)
 
-	client, err := NewClient(DefaultParameters(), hosts[0])
+	client, err := NewClient(DefaultClientParameters(), hosts[0])
 	require.NoError(t, err)
-	server, err := NewServer(DefaultParameters(), hosts[1], s)
+	server, err := NewServer(DefaultServerParameters(), hosts[1], s)
 	require.NoError(t, err)
-
+	err = server.WithMetrics()
+	require.NoError(t, err)
+	require.NoError(t, server.Start(context.Background()))
 	return s, client, server
 }

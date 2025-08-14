@@ -20,12 +20,12 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-func TestShrexNDFromLights(t *testing.T) {
+func TestShrexFromLights(t *testing.T) {
 	t.Parallel()
 	const (
 		blocks = 10
@@ -38,7 +38,6 @@ func TestShrexNDFromLights(t *testing.T) {
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	heightsCh, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
-
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 
@@ -86,12 +85,20 @@ func TestShrexNDFromLights(t *testing.T) {
 
 		require.True(t, len(got[0].Shares) > 0)
 		require.Equal(t, expected, got)
+
+		expectedEds, err := bridgeClient.Share.GetEDS(ctx, height)
+		require.NoError(t, err)
+
+		gotEds, err := lightClient.Share.GetEDS(ctx, height)
+		require.NoError(t, err)
+		require.True(t, expectedEds.Equals(gotEds))
 	}
+
 	sw.StopNode(ctx, bridge)
 	sw.StopNode(ctx, light)
 }
 
-func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
+func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	const (
 		blocks        = 10
 		btime         = time.Millisecond * 300
@@ -117,7 +124,7 @@ func TestShrexNDFromLightsWithBadFulls(t *testing.T) {
 	for i := 0; i < amountOfFulls; i++ {
 		cfg := sw.DefaultTestConfig(node.Full)
 		setTimeInterval(cfg, testTimeout)
-		full := sw.NewNodeWithConfig(node.Full, cfg, replaceNDServer(cfg, ndHandler), replaceShareGetter())
+		full := sw.NewNodeWithConfig(node.Full, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
@@ -201,23 +208,23 @@ func stopFullNodes(ctx context.Context, sw *swamp.Swamp, fulls ...*nodebuilder.N
 	}
 }
 
-func replaceNDServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.Option {
+func replaceShrexServer(cfg *nodebuilder.Config, handler network.StreamHandler) fx.Option {
 	return fx.Decorate(fx.Annotate(
 		func(
 			host host.Host,
 			store *store.Store,
 			network p2p.Network,
-		) (*shrexnd.Server, error) {
-			cfg.Share.ShrExNDParams.WithNetworkID(network.String())
-			return shrexnd.NewServer(cfg.Share.ShrExNDParams, host, store)
+		) (*shrex.Server, error) {
+			cfg.Share.ShrexServer.WithNetworkID(network.String())
+			return shrex.NewServer(cfg.Share.ShrexServer, host, store)
 		},
-		fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
-			// replace handler for server
-			server.SetHandler(handler)
-			return server.Start(ctx)
+		fx.OnStart(func(ctx context.Context, server *shrex.Server, network p2p.Network) error {
+			server.SetHandler(shrex.ProtocolID(network.String(), "eds_v0"), handler)
+			server.SetHandler(shrex.ProtocolID(network.String(), "nd_v0"), handler)
+			return nil
 		}),
-		fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
-			return server.Start(ctx)
+		fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
+			return server.Stop(ctx)
 		}),
 	))
 }

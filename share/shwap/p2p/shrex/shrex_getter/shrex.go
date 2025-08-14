@@ -1,6 +1,7 @@
 package shrex_getter
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -20,11 +21,10 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 )
 
 var (
@@ -77,8 +77,8 @@ func (sg *Getter) WithMetrics() error {
 	}
 
 	ndAttemptHistogram, err := meter.Int64Histogram(
-		"getters_shrex_nd_attempts_per_request",
-		metric.WithDescription("Number of attempts per shrex/nd request"),
+		"getters_shrex_attempts_per_request",
+		metric.WithDescription("Number of attempts per shrex request"),
 	)
 	if err != nil {
 		return err
@@ -91,10 +91,9 @@ func (sg *Getter) WithMetrics() error {
 	return nil
 }
 
-// Getter is a share.Getter that uses the shrex/eds and shrex/nd protocol to retrieve shares.
+// Getter is a share.Getter that uses the shrex protocol to retrieve shares.
 type Getter struct {
-	edsClient *shrexeds.Client
-	ndClient  *shrexnd.Client
+	client *shrex.Client
 
 	fullPeerManager     *peers.Manager
 	archivalPeerManager *peers.Manager
@@ -111,15 +110,13 @@ type Getter struct {
 }
 
 func NewGetter(
-	edsClient *shrexeds.Client,
-	ndClient *shrexnd.Client,
+	client *shrex.Client,
 	fullPeerManager *peers.Manager,
 	archivalManager *peers.Manager,
 	availWindow time.Duration,
 ) *Getter {
 	s := &Getter{
-		edsClient:           edsClient,
-		ndClient:            ndClient,
+		client:              client,
 		fullPeerManager:     fullPeerManager,
 		archivalPeerManager: archivalManager,
 		minRequestTimeout:   defaultMinRequestTimeout,
@@ -166,6 +163,13 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		return share.EmptyEDS(), nil
 	}
 
+	request, err := shwap.NewEdsID(header.Height())
+	if err != nil {
+		return nil, err
+	}
+
+	response := bytes.NewBuffer(make([]byte, 0))
+
 	var attempt int
 	for {
 		if ctx.Err() != nil {
@@ -187,13 +191,21 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		eds, getErr := sg.edsClient.RequestEDS(reqCtx, header.DAH, header.Height(), peer)
+		getErr = sg.client.Get(reqCtx, &request, response, peer)
 		cancel()
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordEDSAttempt(ctx, attempt, true)
-			return eds, nil
+			eds, buildErr := eds.ReadAccessor(ctx, response, header.DAH)
+			if buildErr != nil {
+				getErr = buildErr
+				setStatus(peers.ResultBlacklistPeer)
+				break
+			}
+
+			setStatus(peers.ResultNoop)
+			return eds.ExtendedDataSquare, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)
@@ -247,6 +259,12 @@ func (sg *Getter) GetNamespaceData(
 		return shwap.NamespaceData{}, nil
 	}
 
+	request, err := shwap.NewNamespaceDataID(header.Height(), namespace)
+	if err != nil {
+		return nil, err
+	}
+	response := shwap.NamespaceData{}
+
 	for {
 		if ctx.Err() != nil {
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
@@ -268,19 +286,19 @@ func (sg *Getter) GetNamespaceData(
 
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		nd, getErr := sg.ndClient.RequestND(reqCtx, header.Height(), namespace, peer)
+		getErr = sg.client.Get(reqCtx, &request, &response, peer)
 		cancel()
 		switch {
 		case getErr == nil:
 			// both inclusion and non-inclusion cases needs verification
-			if verErr := nd.Verify(dah, namespace); verErr != nil {
+			if verErr := response.Verify(dah, namespace); verErr != nil {
 				getErr = verErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
 			setStatus(peers.ResultNoop)
 			sg.metrics.recordNDAttempt(ctx, attempt, true)
-			return nd, nil
+			return response, nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)
