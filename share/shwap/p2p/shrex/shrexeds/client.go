@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
@@ -125,11 +124,6 @@ func (c *Client) doRequest(
 	}
 	_, err = serde.Read(stream, resp)
 	if err != nil {
-		// server closes the stream here if we are rate limited
-		if errors.Is(err, io.EOF) {
-			c.metrics.ObserveRequests(ctx, 1, shrex.StatusRateLimited)
-			return nil, shrex.ErrNotFound
-		}
 		return nil, fmt.Errorf("read status from stream: %w", err)
 	}
 	switch resp.Status {
