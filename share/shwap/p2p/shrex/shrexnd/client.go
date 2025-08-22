@@ -12,6 +12,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -21,6 +23,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
+
+var tracer = otel.Tracer("shrexnd/client")
 
 // Client implements client side of shrex/nd protocol to obtain namespaced shares data from remote
 // peers.
@@ -53,10 +57,10 @@ func (c *Client) RequestND(
 	namespace libshare.Namespace,
 	peer peer.ID,
 ) (shwap.NamespaceData, error) {
-	if err := namespace.ValidateForData(); err != nil {
+	err := namespace.ValidateForData()
+	if err != nil {
 		return nil, err
 	}
-
 	shares, err := c.doRequest(ctx, height, namespace, peer)
 	if err == nil {
 		return shares, nil
@@ -88,11 +92,16 @@ func (c *Client) doRequest(
 ) (shwap.NamespaceData, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ServerReadTimeout)
 	defer cancel()
+
+	span := trace.SpanFromContext(ctx)
+
 	stream, err := c.host.NewStream(streamOpenCtx, peerID, c.protocolID)
 	if err != nil {
 		return nil, err
 	}
 	defer utils.CloseAndLog(log, "client", stream)
+
+	span.AddEvent("opened stream")
 
 	c.setStreamDeadlines(ctx, stream)
 
@@ -107,6 +116,8 @@ func (c *Client) doRequest(
 		return nil, fmt.Errorf("client-nd: writing request: %w", err)
 	}
 
+	span.AddEvent("wrote request to stream")
+
 	err = stream.CloseWrite()
 	if err != nil {
 		log.Warnw("client-nd: closing write side of the stream", "err", err)
@@ -117,12 +128,15 @@ func (c *Client) doRequest(
 		return nil, err
 	}
 
+	span.AddEvent("read status from stream")
+
 	nd := shwap.NamespaceData{}
 	_, err = nd.ReadFrom(stream)
 	if err != nil {
 		c.metrics.ObserveRequests(ctx, 1, shrex.StatusReadRespErr)
 		return nil, err
 	}
+	span.AddEvent("read namespaced data from stream")
 	return nd, nil
 }
 

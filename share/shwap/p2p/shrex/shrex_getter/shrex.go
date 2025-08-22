@@ -255,6 +255,8 @@ func (sg *Getter) GetNamespaceData(
 		attempt++
 		start := time.Now()
 
+		span.AddEvent(fmt.Sprintf("requesting peer attempt %d", attempt))
+
 		peer, setStatus, getErr := sg.getPeer(ctx, header)
 		if getErr != nil {
 			log.Debugw("nd: couldn't find peer",
@@ -265,6 +267,8 @@ func (sg *Getter) GetNamespaceData(
 			sg.metrics.recordNDAttempt(ctx, attempt, false)
 			return nil, errors.Join(err, getErr)
 		}
+
+		span.AddEvent("found peer to request")
 
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
