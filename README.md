@@ -42,7 +42,7 @@ See the [official docs page](https://docs.celestia.org/how-to-guides/nodes-overv
 
 ## Supported architectures
 
-Celestia-app officially supports the following architectures:
+Celestia-node officially supports the following architectures:
 
 - `linux/amd64`
 - `linux/arm64`
