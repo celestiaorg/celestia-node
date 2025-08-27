@@ -75,6 +75,9 @@ func NewService(
 // initialized) and runs the prune loop, pruning any blocks older than
 // the given availability window.
 func (s *Service) Start(ctx context.Context) error {
+	s.checkpointMu.Lock()
+	defer s.checkpointMu.Unlock()
+
 	err := s.loadCheckpoint(ctx)
 	if err != nil {
 		return fmt.Errorf("pruner start: loading checkpoint %w", err)
@@ -87,7 +90,6 @@ func (s *Service) Start(ctx context.Context) error {
 
 func (s *Service) Stop(ctx context.Context) error {
 	s.cancel()
-
 	s.metrics.close()
 
 	select {
@@ -95,6 +97,9 @@ func (s *Service) Stop(ctx context.Context) error {
 	case <-ctx.Done():
 		return fmt.Errorf("pruner unable to exit within context deadline")
 	}
+
+	s.checkpointMu.Lock()
+	defer s.checkpointMu.Unlock()
 
 	err := storeCheckpoint(ctx, s.ds, s.checkpoint)
 	if err != nil {
@@ -104,8 +109,10 @@ func (s *Service) Stop(ctx context.Context) error {
 	return nil
 }
 
-// TODO: Exposed but accesses checkpoint without synchronization
 func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
+	s.checkpointMu.Lock()
+	defer s.checkpointMu.Unlock()
+
 	err := s.loadCheckpoint(ctx)
 	if err != nil {
 		return 0, err
@@ -113,8 +120,9 @@ func (s *Service) LastPruned(ctx context.Context) (uint64, error) {
 	return s.checkpoint.LastPrunedHeight, nil
 }
 
-// TODO: Exposed but accesses checkpoint without synchronization
 func (s *Service) ResetCheckpoint(ctx context.Context) error {
+	s.checkpointMu.Lock()
+	defer s.checkpointMu.Unlock()
 	return s.resetCheckpoint(ctx)
 }
 
@@ -246,8 +254,13 @@ func (s *Service) retryFailed(ctx context.Context) {
 // * If Pruner prunes a header first - Syncer only removes the header
 //   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
 func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
+	if s.ctx.Err() != nil {
+		return fmt.Errorf("pruner service is closed")
+	}
+
 	s.checkpointMu.Lock()
 	if err := s.loadCheckpoint(ctx); err != nil {
+		s.checkpointMu.Unlock()
 		return err
 	}
 	if _, ok := s.checkpoint.FailedHeaders[height]; ok {
