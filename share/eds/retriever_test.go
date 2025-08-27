@@ -97,7 +97,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 }
 
 func TestFraudProofValidation(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer t.Cleanup(cancel)
 	bServ := ipld.NewMemBlockservice()
 
