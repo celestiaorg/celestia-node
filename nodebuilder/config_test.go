@@ -91,6 +91,7 @@ var outdatedConfig = `
   DiscoveryInterval = "30s"
   AdvertiseInterval = "30s"
   UseShareExchange = true
+  UseBitswap = true
   [Share.ShrExEDSParams]
     ServerReadTimeout = "5s"
     ServerWriteTimeout = "1m0s"
