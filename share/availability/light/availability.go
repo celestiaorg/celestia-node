@@ -64,12 +64,12 @@ func NewShareAvailability(
 	}
 
 	return &ShareAvailability{
-		getter:        getter,
-		bs:            bs,
-		params:        params,
-		storageWindow: availability.SamplingWindow,
-		activeHeights: utils.NewSessions(),
-		ds:            autoDS,
+		getter:         getter,
+		bs:             bs,
+		params:         params,
+		samplingWindow: availability.SamplingWindow,
+		activeHeights:  utils.NewSessions(),
+		ds:             autoDS,
 	}
 }
 

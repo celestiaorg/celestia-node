@@ -78,8 +78,6 @@ func ConstructModule(tp node.Type) fx.Option {
 			}),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			fx.Supply(modshare.Window(availability.StorageWindow)),
-			fx.Supply(coreOpts),
-			fx.Supply(fullAvailOpts),
 			fx.Invoke(convertToPruned),
 		)
 	default:
