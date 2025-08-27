@@ -132,6 +132,7 @@ func NewClient(
 		// These two options have mixed up named. One should be another and vice versa.
 		client.ProviderSearchDelay(broadcastDelay),
 		client.RebroadcastDelay(delay.Fixed(provSearchDelay)),
+		client.BroadcastControlEnable(false),
 	}
 	return client.New(
 		ctx,
