@@ -304,6 +304,11 @@ Keys:
 * `bu/<YYYYMMDDHHmm>/<commitment>` → index for unconfirmed bucket
 * `bc/<YYYYMMDDHHmm>/<commitment>` → index for confirmed bucket
 
+Why this shape:
+
+- **Promotion is tiny**: just move the pointer and swap a small bucket entry; the 300 KB `d/*` value is **not** rewritten.
+- **GC is cheap**: at each minute boundary, iterate `bu/<nowmin>/*` and `bc/<nowmin>/*` and delete those items + their `d/*` + `p/*` keys.
+
 **Reasons**: promotion updates only tiny keys; GC is a minute-bucket sweep; no big-value rewrite on promotion.
 
 **Store API**
