@@ -109,7 +109,7 @@ func TestShareModule(t *testing.T) {
 				requestCoords := []shwap.SampleCoords{coords}
 				for _, client := range clients {
 					// request from the first quadrant using the blob coordinates.
-					samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
+					samples, err := client.Share.GetSamples(ctx, hdr.Height(), requestCoords)
 					require.NoError(t, err)
 					err = samples[0].Verify(dah, coords.Row, coords.Col)
 					require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestShareModule(t *testing.T) {
 				requestCoords := []shwap.SampleCoords{coords}
 				for _, client := range clients {
 					// getting the last sample from the eds(from quadrant 4).
-					samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
+					samples, err := client.Share.GetSamples(ctx, hdr.Height(), requestCoords)
 					require.NoError(t, err)
 					err = samples[0].Verify(dah, coords.Row, coords.Col)
 					require.NoError(t, err)
