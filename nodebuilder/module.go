@@ -45,11 +45,11 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Supply(node.StorePath(store.Path())),
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
-		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header),
+		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header, &cfg.P2P),
 		share.ConstructModule(tp, &cfg.Share),
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		das.ConstructModule(tp, &cfg.DASer),
-		fraud.ConstructModule(tp),
+		fraud.ConstructModule(tp, &cfg.P2P),
 		blob.ConstructModule(),
 		da.ConstructModule(),
 		node.ConstructModule(tp),

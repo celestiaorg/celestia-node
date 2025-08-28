@@ -70,3 +70,7 @@ func newFraudServiceWithoutSync(
 		Service: pservice,
 	}, pservice, nil
 }
+// newStubFraudService provides a stub fraud service when p2p is disabled
+func newStubFraudService() (Module, fraud.Service[*header.ExtendedHeader], error) {
+	return &module{Service: nil}, nil, nil
+}

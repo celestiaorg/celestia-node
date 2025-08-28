@@ -34,6 +34,8 @@ func TestConstructModule_StoreParams(t *testing.T) {
 	cfg.Store.WriteBatchSize = 35
 	var headerStore *store.Store[*header.ExtendedHeader]
 
+	p2pCfg := modp2p.DefaultConfig(node.Light)
+
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
 		fx.Supply(modp2p.Bootstrappers{}),
@@ -44,7 +46,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 			ds := datastore.NewMapDatastore()
 			return ds, ds
 		}),
-		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg, &p2pCfg),
 		fx.Invoke(
 			func(s libhead.Store[*header.ExtendedHeader]) {
 				ss := s.(*store.Store[*header.ExtendedHeader])
@@ -64,6 +66,9 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 	cfg.Syncer.TrustingPeriod = time.Hour
 	cfg.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 	var syncer *sync.Syncer[*header.ExtendedHeader]
+	
+	p2pCfg := modp2p.DefaultConfig(node.Light)
+	
 	app := fxtest.New(t,
 		fx.Supply(modp2p.Private),
 		fx.Supply(modp2p.Bootstrappers{}),
@@ -81,7 +86,7 @@ func TestConstructModule_SyncerParams(t *testing.T) {
 		fx.Provide(func() fraud.Service[*header.ExtendedHeader] {
 			return nil
 		}),
-		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg, &p2pCfg),
 		fx.Invoke(func(s *sync.Syncer[*header.ExtendedHeader]) {
 			syncer = s
 		}),
@@ -99,6 +104,8 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	var exchange *p2p.Exchange[*header.ExtendedHeader]
 	var exchangeServer *p2p.ExchangeServer[*header.ExtendedHeader]
 
+	p2pCfg := modp2p.DefaultConfig(node.Light)
+
 	app := fxtest.New(t,
 		fx.Provide(pidstore.NewPeerIDStore),
 		fx.Provide(context.Background),
@@ -108,7 +115,7 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg, &p2pCfg),
 		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
 			return conngater.NewBasicConnectionGater(b)
 		}),

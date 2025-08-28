@@ -13,6 +13,17 @@ var log = logging.Logger("module/p2p")
 
 // ConstructModule collects all the components and services related to p2p.
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+	// If p2p is disabled, return a minimal module with only basic config
+	if cfg.DisableP2P {
+		return fx.Module(
+			"p2p",
+			fx.Supply(cfg),
+			fx.Provide(Key),
+			fx.Provide(id),
+			fx.Provide(newModule),
+		)
+	}
+
 	// sanitize config values before constructing module
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
