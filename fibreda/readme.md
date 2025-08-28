@@ -4,9 +4,9 @@
 
 ## 0) Glossary
 
-* **FSP**: Fibre Storage Provider — a validator-operated server storing rows.
+* **FSP**: Fibre Service Provider — a validator-operated server storing rows.
 * **Row**: fixed-size 2 KiB chunk used by rsema1d; contains encoded data.
-* **Commitment**: 32‑byte root (Merkle/commitment) over rows.
+* **Commitment**:  SHA256(rowRoot || rlcRoot)
 * **RLC**/**rlc\_orig**: GF(2^128) vector used for rsema1d **Context-Based Verification**.
 * **PFB**: PayForBlob (on-chain transaction), used to confirm & promote storage.
 * **Promotion**: extending TTL from *unconfirmed* (\~5m) to *confirmed* (\~24h) upon PFB.
