@@ -39,13 +39,13 @@ func DefaultConfig(tp node.Type) Config {
 		// scenario
 		cfg.SampleTimeout = 2 * modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
 	}
-	return Config(cfg)
+	return cfg
 }
 
 // Validate performs basic validation of the config.
 // Upon encountering an invalid value, Validate returns an error of type: ErrMisConfig
 func (cfg *Config) Validate() error {
-	err := cfg.Validate()
+	err := cfg.Parameters.Validate()
 	if err != nil {
 		return fmt.Errorf("moddas misconfiguration: %w", err)
 	}
