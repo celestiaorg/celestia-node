@@ -116,7 +116,6 @@ type Client interface {
 ### 4.5 Sharding & replication
 
 * **Default ShardMap**: **SipHash‑2‑4** keyed by `commitment` over `(val_pubkey || row_index)`; per validator pick the lowest `rows_per_val` scores.
-  Good question — that line is describing the **ShardMap algorithm** proposal (how we decide which validator stores which rows). Let me unpack it step by step:
 * **Replication** (TBD): deterministic top‑`R` scores per row, or probabilistic cutoff. See §11.1.
 
 ---
