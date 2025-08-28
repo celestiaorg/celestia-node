@@ -538,7 +538,7 @@ func (f *Framework) getOrCreateFundingWallet(ctx context.Context) tastoratypes.W
 // ConnectLightToBridge ensures the light node is directly connected to the bridge peer.
 func (f *Framework) ConnectLightToBridge(ctx context.Context, bridgeClient, lightClient *rpcclient.Client, label string) {
 	// Fetch bridge AddrInfo
-	infoCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	infoCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	info, err := bridgeClient.P2P.Info(infoCtx)
 	cancel()
 	if err != nil {
@@ -546,17 +546,16 @@ func (f *Framework) ConnectLightToBridge(ctx context.Context, bridgeClient, ligh
 		return
 	}
 
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(20 * time.Second)
 	for attempt := 1; ; attempt++ {
-		cctx, ccancel := context.WithTimeout(ctx, 5*time.Second)
+		cctx, ccancel := context.WithTimeout(ctx, 3*time.Second)
 		_ = lightClient.P2P.Connect(cctx, info)
 		ccancel()
 
-		stx, scancel := context.WithTimeout(ctx, 3*time.Second)
+		stx, scancel := context.WithTimeout(ctx, 2*time.Second)
 		state, _ := lightClient.P2P.Connectedness(stx, info.ID)
 		scancel()
 		if state == network.Connected {
-			f.t.Logf("info: %s connected to bridge (peer %s)", label, info.ID)
 			return
 		}
 
@@ -564,7 +563,7 @@ func (f *Framework) ConnectLightToBridge(ctx context.Context, bridgeClient, ligh
 			f.t.Logf("warning: %s failed to connect to bridge within timeout", label)
 			return
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -588,9 +587,9 @@ func (f *Framework) WaitPeersReady(ctx context.Context, client *rpcclient.Client
 
 // WaitSharesAvailable waits until SharesAvailable succeeds for the given client and height.
 func (f *Framework) WaitSharesAvailable(ctx context.Context, client *rpcclient.Client, height uint64) error {
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for {
-		reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		err := client.Share.SharesAvailable(reqCtx, height)
 		cancel()
 		if err == nil {
@@ -599,15 +598,15 @@ func (f *Framework) WaitSharesAvailable(ctx context.Context, client *rpcclient.C
 		if time.Now().After(deadline) {
 			return err
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
 // WaitBlobAvailable waits until Blob.Get succeeds for the given parameters.
 func (f *Framework) WaitBlobAvailable(ctx context.Context, client *rpcclient.Client, height uint64, namespace share.Namespace, commitment []byte) (*nodeblob.Blob, error) {
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for {
-		reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		blob, err := client.Blob.Get(reqCtx, height, namespace, commitment)
 		cancel()
 		if err == nil {
@@ -616,15 +615,15 @@ func (f *Framework) WaitBlobAvailable(ctx context.Context, client *rpcclient.Cli
 		if time.Now().After(deadline) {
 			return nil, err
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
 // WaitNamespaceDataAvailable waits until GetNamespaceData succeeds for the given parameters.
 func (f *Framework) WaitNamespaceDataAvailable(ctx context.Context, client *rpcclient.Client, height uint64, namespace share.Namespace) (interface{}, error) {
-	deadline := time.Now().Add(90 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for {
-		reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		data, err := client.Share.GetNamespaceData(reqCtx, height, namespace)
 		cancel()
 		if err == nil {
@@ -633,22 +632,20 @@ func (f *Framework) WaitNamespaceDataAvailable(ctx context.Context, client *rpcc
 		if time.Now().After(deadline) {
 			return nil, err
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
 // SetupP2PConnectivity establishes P2P connections between bridge and light nodes.
 func (f *Framework) SetupP2PConnectivity(ctx context.Context, bridgeClient, lightClient *rpcclient.Client, label string) {
 	f.ConnectLightToBridge(ctx, bridgeClient, lightClient, label)
-	f.WaitPeersReady(ctx, lightClient, label, 45*time.Second)
+	f.WaitPeersReady(ctx, lightClient, label, 15*time.Second)
 
 	// Ensure light node is synced
-	swctx, swcancel := context.WithTimeout(ctx, 90*time.Second)
+	swctx, swcancel := context.WithTimeout(ctx, 30*time.Second)
 	err := lightClient.Header.SyncWait(swctx)
 	swcancel()
 	if err != nil {
 		f.t.Logf("warning: %s SyncWait failed: %v", label, err)
 	}
-
-	f.t.Logf("✅ P2P connectivity established for %s", label)
 }
