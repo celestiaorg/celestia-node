@@ -170,7 +170,7 @@ type Client interface {
 1. Valset via ValTracker.
 2. Plan with ShardMap (who should have what).
 3. Fetch in parallel (`read_workers`) by **bitmap** or **indices**; request only missing indices; de‑dup sources.
-4. Verify each row’s **Merkle proof** against `commitment` and the **RLC context** once per session (Context-Based Verification).
+4. Verify each row’s **Merkle proof** against `commitment` and the **RLC context** after full blob is retrieved (rsema1d.VerificationContext).
 5. Reconstruct with rsema1d when enough rows gathered to reach `originalLength`.
 6. **Optional**: reconstruct “zoda proof” as extra verification (§11.2).
 
