@@ -416,30 +416,17 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradocke
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
 	require.NoError(f.t, err, "failed to get internal hostname")
 
-	// Try starting an unused light node, with a retry to avoid occasional docker flakiness
+	// Get the next available light node from the DA network
+	allLightNodes := f.daNetwork.GetLightNodes()
+	lightNodeIndex := len(f.lightNodes)
+	if lightNodeIndex >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", lightNodeIndex, len(allLightNodes))
+	}
+	lightNode := allLightNodes[lightNodeIndex].(*tastoradockertypes.DANode)
+
+	// Try starting the light node, with a retry to avoid occasional docker flakiness
 	var lastErr error
 	for attempt := 1; attempt <= 2; attempt++ {
-		// Select next unused light node from DA network (prevents index drift)
-		var lightNode *tastoradockertypes.DANode
-		available := f.daNetwork.GetLightNodes()
-		for _, n := range available {
-			candidate := n.(*tastoradockertypes.DANode)
-			used := false
-			for _, existing := range f.lightNodes {
-				if existing == candidate {
-					used = true
-					break
-				}
-			}
-			if !used {
-				lightNode = candidate
-				break
-			}
-		}
-		if lightNode == nil {
-			f.t.Fatalf("no unused light nodes available: have %d total, %d already started", len(f.daNetwork.GetLightNodes()), len(f.lightNodes))
-		}
-
 		err = lightNode.Start(ctx,
 			tastoratypes.WithChainID(testChainID),
 			tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
