@@ -61,8 +61,7 @@ func (s *E2ESanityTestSuite) TestBasicDASFlow() {
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
-	// Step 1: Setup P2P connectivity and submit blob
-	// This tests the core E2E workflow: establish connectivity and submit data
+	// Step 1: Setup P2P connectivity by waiting for peers and sync wait
 	s.framework.SetupP2PConnectivity(ctx, bridgeClient, lightClient, "light")
 
 	// Create test blob with unique namespace
@@ -85,7 +84,6 @@ func (s *E2ESanityTestSuite) TestBasicDASFlow() {
 	s.testData = string(blobData)
 
 	// Step 2: Wait for block inclusion and verify data availability
-	// This tests the core E2E workflow: data is included and available across nodes
 	// Wait for bridge node to include the block
 	_, err = bridgeClient.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err, "bridge node should be able to wait for block inclusion")
@@ -103,7 +101,6 @@ func (s *E2ESanityTestSuite) TestBasicDASFlow() {
 	s.Require().NoError(err, "light node should be able to get namespace data at height %d", height)
 
 	// Step 3: Retrieve data on light node and verify cross-node coordination
-	// This tests the core E2E workflow: data can be retrieved across nodes
 	retrievedBlob, err := s.framework.WaitBlobAvailable(ctx, lightClient, height, namespace, s.testCommitment)
 	s.Require().NoError(err, "light node should be able to retrieve blob within timeout")
 	s.Require().NotNil(retrievedBlob, "light node should return valid blob")
@@ -113,7 +110,6 @@ func (s *E2ESanityTestSuite) TestBasicDASFlow() {
 	s.Assert().Equal([]byte(s.testData), retrievedData, "light node should return correct data")
 
 	// Step 4: Verify cross-node coordination
-	// This tests the core E2E workflow: both nodes have consistent view of data
 	bridgeNamespaceData, err := bridgeClient.Share.GetNamespaceData(ctx, height, namespace)
 	s.Require().NoError(err, "bridge node should be able to get namespace data")
 
@@ -152,7 +148,7 @@ func (s *E2ESanityTestSuite) createBlobsForSubmission(ctx context.Context, clien
 	return nodeBlobs
 }
 
-// TestBasicBlobLifecycle tests the complete blob lifecycle workflow on a single node
+// TestBasicBlobLifecycle tests the complete blob lifecycle workflow on a bridge node
 func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -162,7 +158,6 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
 	// Step 1: Submit blob
-	// This tests the core E2E workflow: user submits data to the network
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
 	s.Require().NoError(err, "should create namespace")
 
@@ -182,7 +177,6 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	s.testData = string(blobData)
 
 	// Step 2: Wait for inclusion and verify availability
-	// This tests the core E2E workflow: data is included in the blockchain
 	_, err = bridgeClient.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err, "bridge node should be able to wait for block inclusion")
 
@@ -191,7 +185,6 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	s.Require().NoError(err, "bridge node should have shares available at height %d", height)
 
 	// Step 3: Retrieve blob on same node
-	// This tests the core E2E workflow: user can retrieve their submitted data
 	retrievedBlob, err := s.framework.WaitBlobAvailable(ctx, bridgeClient, height, namespace, s.testCommitment)
 	s.Require().NoError(err, "bridge node should be able to retrieve blob within timeout")
 	s.Require().NotNil(retrievedBlob, "bridge node should return valid blob")
@@ -201,7 +194,6 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	s.Assert().Equal([]byte(s.testData), retrievedData, "bridge node should return correct data")
 
 	// Step 4: Get blob proof and verify inclusion
-	// This tests the core E2E workflow: user can verify their data is included
 	proof, err := bridgeClient.Blob.GetProof(ctx, height, namespace, s.testCommitment)
 	s.Require().NoError(err, "bridge node should be able to get blob proof")
 	s.Require().NotNil(proof, "blob proof should not be nil")
@@ -212,7 +204,6 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	s.Assert().True(included, "blob should be included at height %d", height)
 
 	// Step 5: Get all blobs at height
-	// This tests the core E2E workflow: user can query for all data at a height
 	blobs, err := bridgeClient.Blob.GetAll(ctx, height, []share.Namespace{namespace})
 	s.Require().NoError(err, "bridge node should be able to get all blobs")
 	s.Require().NotEmpty(blobs, "should return at least one blob")
@@ -250,7 +241,6 @@ func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
 	s.Require().NotNil(lightSyncState, "light sync state should not be nil")
 
 	// Step 2: Test cross-node header consistency
-	// This is the core E2E test: verify that both nodes have the same view of the blockchain
 	bridgeHead, err := bridgeClient.Header.LocalHead(ctx)
 	s.Require().NoError(err, "bridge node should be able to provide local head")
 	s.Require().NotNil(bridgeHead, "bridge head should not be nil")
@@ -267,7 +257,6 @@ func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
 	s.testHeight = bridgeHead.Height()
 
 	// Step 3: Test header synchronization workflow
-	// This tests the core E2E workflow: nodes should sync to new blocks together
 	currentHeight := s.testHeight
 	targetHeight := currentHeight + 3
 
@@ -286,7 +275,6 @@ func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
 	s.Assert().Equal(bridgeHeader.Height(), lightHeader.Height(), "both nodes should have same height")
 
 	// Step 4: Test header chain consistency across nodes
-	// This verifies that the header chain is consistent between nodes
 	startHeight := s.testHeight - 2
 	endHeight := s.testHeight
 
@@ -326,50 +314,47 @@ func (s *E2ESanityTestSuite) TestP2PConnectivity() {
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
-	// Test end-to-end P2P connectivity workflow
-	s.Run("P2PConnectivityWorkflow", func() {
-		// Step 1: Verify nodes can establish P2P connectivity
-		// This tests the core E2E workflow: nodes should be able to connect to each other
-		bridgeInfo, err := bridgeClient.P2P.Info(ctx)
-		s.Require().NoError(err, "bridge node should be able to provide P2P info")
-		s.Require().NotNil(bridgeInfo, "bridge P2P info should not be nil")
+	// Step 1: Verify nodes can establish P2P connectivity
+	// This tests the core E2E workflow: nodes should be able to connect to each other
+	bridgeInfo, err := bridgeClient.P2P.Info(ctx)
+	s.Require().NoError(err, "bridge node should be able to provide P2P info")
+	s.Require().NotNil(bridgeInfo, "bridge P2P info should not be nil")
 
-		lightInfo, err := lightClient.P2P.Info(ctx)
-		s.Require().NoError(err, "light node should be able to provide P2P info")
-		s.Require().NotNil(lightInfo, "light P2P info should not be nil")
+	lightInfo, err := lightClient.P2P.Info(ctx)
+	s.Require().NoError(err, "light node should be able to provide P2P info")
+	s.Require().NotNil(lightInfo, "light P2P info should not be nil")
 
-		// Step 2: Test the core E2E workflow - nodes should discover each other
-		bridgePeers, err := bridgeClient.P2P.Peers(ctx)
-		s.Require().NoError(err, "bridge node should be able to discover peers")
-		s.Require().NotNil(bridgePeers, "bridge peer list should not be nil")
+	// Step 2: Test the core E2E workflow - nodes should discover each other
+	bridgePeers, err := bridgeClient.P2P.Peers(ctx)
+	s.Require().NoError(err, "bridge node should be able to discover peers")
+	s.Require().NotNil(bridgePeers, "bridge peer list should not be nil")
 
-		lightPeers, err := lightClient.P2P.Peers(ctx)
-		s.Require().NoError(err, "light node should be able to discover peers")
-		s.Require().NotNil(lightPeers, "light peer list should not be nil")
+	lightPeers, err := lightClient.P2P.Peers(ctx)
+	s.Require().NoError(err, "light node should be able to discover peers")
+	s.Require().NotNil(lightPeers, "light peer list should not be nil")
 
-		// Step 3: Test the core E2E workflow - nodes should be connected to each other
-		// This is the main E2E test: verify that the network topology works
-		s.Assert().GreaterOrEqual(len(bridgePeers), 1, "bridge node should have discovered at least one peer")
-		s.Assert().GreaterOrEqual(len(lightPeers), 1, "light node should have discovered at least one peer")
+	// Step 3: Test the core E2E workflow - nodes should be connected to each other
+	// This is the main E2E test: verify that the network topology works
+	s.Assert().GreaterOrEqual(len(bridgePeers), 1, "bridge node should have discovered at least one peer")
+	s.Assert().GreaterOrEqual(len(lightPeers), 1, "light node should have discovered at least one peer")
 
-		// Step 4: Test the core E2E workflow - bidirectional connectivity
-		// This verifies that the P2P network is functioning end-to-end
-		bridgeConnectivity, err := bridgeClient.P2P.Connectedness(ctx, lightInfo.ID)
-		s.Require().NoError(err, "bridge node should be able to check connectivity")
-		s.Assert().Equal(1, int(bridgeConnectivity), "bridge node should be connected to light node")
+	// Step 4: Test the core E2E workflow - bidirectional connectivity
+	// This verifies that the P2P network is functioning end-to-end
+	bridgeConnectivity, err := bridgeClient.P2P.Connectedness(ctx, lightInfo.ID)
+	s.Require().NoError(err, "bridge node should be able to check connectivity")
+	s.Assert().Equal(1, int(bridgeConnectivity), "bridge node should be connected to light node")
 
-		lightConnectivity, err := lightClient.P2P.Connectedness(ctx, bridgeInfo.ID)
-		s.Require().NoError(err, "light node should be able to check connectivity")
-		s.Assert().Equal(1, int(lightConnectivity), "light node should be connected to bridge node")
+	lightConnectivity, err := lightClient.P2P.Connectedness(ctx, bridgeInfo.ID)
+	s.Require().NoError(err, "light node should be able to check connectivity")
+	s.Assert().Equal(1, int(lightConnectivity), "light node should be connected to bridge node")
 
-		// Step 5: Test the core E2E workflow - network is functional for data exchange
-		// This verifies that the P2P network can support actual data exchange
-		bridgePeerInfo, err := bridgeClient.P2P.PeerInfo(ctx, lightInfo.ID)
-		s.Require().NoError(err, "bridge node should be able to exchange peer information")
-		s.Require().NotNil(bridgePeerInfo, "bridge should receive valid peer info")
+	// Step 5: Test the core E2E workflow - network is functional for data exchange
+	// This verifies that the P2P network can support actual data exchange
+	bridgePeerInfo, err := bridgeClient.P2P.PeerInfo(ctx, lightInfo.ID)
+	s.Require().NoError(err, "bridge node should be able to exchange peer information")
+	s.Require().NotNil(bridgePeerInfo, "bridge should receive valid peer info")
 
-		lightPeerInfo, err := lightClient.P2P.PeerInfo(ctx, bridgeInfo.ID)
-		s.Require().NoError(err, "light node should be able to exchange peer information")
-		s.Require().NotNil(lightPeerInfo, "light should receive valid peer info")
-	})
+	lightPeerInfo, err := lightClient.P2P.PeerInfo(ctx, bridgeInfo.ID)
+	s.Require().NoError(err, "light node should be able to exchange peer information")
+	s.Require().NotNil(lightPeerInfo, "light should receive valid peer info")
 }
