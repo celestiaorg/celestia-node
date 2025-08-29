@@ -10,11 +10,11 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/go-square/v2/share"
 
 	rpc_client "github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
