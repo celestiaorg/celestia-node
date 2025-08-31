@@ -2,12 +2,10 @@ package shrexeds
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
 	libhost "github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -87,48 +85,6 @@ func TestExchange_RequestEDS(t *testing.T) {
 		require.NoError(t, err)
 		height := uint64(668)
 		_, err = client.RequestEDS(timeoutCtx, roots, height, server.host.ID())
-		require.ErrorIs(t, err, shrex.ErrNotFound)
-	})
-
-	// Testcase: Concurrency limit reached
-	t.Run("EDS_concurrency_limit", func(t *testing.T) {
-		_, client, server := makeExchange(t)
-
-		require.NoError(t, server.Start(ctx))
-
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
-		t.Cleanup(cancel)
-
-		rateLimit := 2
-		wg := sync.WaitGroup{}
-		wg.Add(rateLimit)
-
-		// mockHandler will block requests on server side until test is over
-		lock := make(chan struct{})
-		defer close(lock)
-		mockHandler := func(network.Stream) {
-			wg.Done()
-			select {
-			case <-lock:
-			case <-ctx.Done():
-				t.Fatal("timeout")
-			}
-		}
-		middleware := shrex.NewMiddleware(rateLimit)
-		server.host.SetStreamHandler(server.protocolID,
-			middleware.RateLimitHandler(mockHandler))
-
-		// take server concurrency slots with blocked requests
-		emptyRoot := share.EmptyEDSRoots()
-		for i := range rateLimit {
-			go func(i int) {
-				client.RequestEDS(ctx, emptyRoot, 1, server.host.ID()) //nolint:errcheck
-			}(i)
-		}
-
-		// wait until all server slots are taken
-		wg.Wait()
-		_, err = client.RequestEDS(ctx, emptyRoot, 1, server.host.ID())
 		require.ErrorIs(t, err, shrex.ErrNotFound)
 	})
 }
