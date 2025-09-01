@@ -8,10 +8,12 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/containerd/errdefs"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -20,7 +22,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/go-square/v2/share"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/toml"
@@ -29,7 +30,6 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
-	nodeblob "github.com/celestiaorg/celestia-node/blob"
 )
 
 const (
@@ -106,7 +106,7 @@ func (f *Framework) SetupNetwork(ctx context.Context) error {
 		if err == nil {
 			break
 		}
-		if strings.Contains(err.Error(), "No such container") {
+		if errdefs.IsNotFound(err) {
 			f.t.Logf("retrying DA network setup due to missing container (attempt %d/2): %v", attempt, err)
 			time.Sleep(2 * time.Second)
 			continue
@@ -154,8 +154,8 @@ func (f *Framework) NewLightNode(ctx context.Context) *tastoradockertypes.DANode
 	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
-	// Wait a moment to ensure funds are available
-	time.Sleep(2 * time.Second)
+	// Verify funds are available by checking balance
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
 
 	f.lightNodes = append(f.lightNodes, lightNode)
 	return lightNode
@@ -194,7 +194,6 @@ func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) tastorat
 func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 	grpcAddr := f.celestia.GetGRPCAddress()
 
-	// Use a timeout context for GRPC connection
 	grpcCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -209,7 +208,6 @@ func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 		Denom:   "utia",
 	}
 
-	// Use the timeout context for the balance query
 	res, err := bankClient.Balance(grpcCtx, req)
 	require.NoError(f.t, err, "failed to query balance")
 	return *res.Balance
@@ -221,8 +219,8 @@ func (f *Framework) newBridgeNode(ctx context.Context) *tastoradockertypes.DANod
 	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
 	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
 
-	// Wait a moment to ensure funds are available
-	time.Sleep(2 * time.Second)
+	// Verify funds are available by checking balance
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "bridge node")
 
 	return bridgeNode
 }
@@ -239,11 +237,9 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet tastoratypes.Wall
 	require.NoError(f.t, err)
 	require.Equal(f.t, resp.Code, uint32(0), "resp: %v", resp)
 
-	// Use a longer timeout context for waiting for blocks
 	waitCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// wait for blocks to ensure the funds are available with retries
 	maxRetries := 3
 	for retry := 0; retry < maxRetries; retry++ {
 		err = wait.ForBlocks(waitCtx, 3, f.celestia) // Increased from 2 to 3 blocks
@@ -257,7 +253,6 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet tastoratypes.Wall
 	}
 	require.NoError(f.t, err, "failed to wait for blocks after funding transaction")
 
-	// Check balance with retries
 	for attempt := 1; attempt <= 5; attempt++ {
 		bal := f.queryBalance(waitCtx, toAddr.String())
 		if bal.Amount.Int64() >= amount {
@@ -271,9 +266,37 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet tastoratypes.Wall
 		}
 	}
 
-	// Final balance check
 	bal := f.queryBalance(waitCtx, toAddr.String())
 	require.GreaterOrEqual(f.t, bal.Amount.Int64(), amount, "balance is not sufficient after funding")
+}
+
+// verifyNodeBalance verifies that a DA node has the expected balance after funding.
+// This function provides deterministic balance verification with retries and waiting.
+// It should be called after fundNodeAccount to ensure funding was successful.
+func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *tastoradockertypes.DANode, expectedAmount int64, nodeType string) {
+	nodeClient := f.GetNodeRPCClient(ctx, daNode)
+	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
+	require.NoError(f.t, err, "failed to get %s account address", nodeType)
+
+	maxRetries := 5
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		bal := f.queryBalance(ctx, nodeAddr.String())
+		if bal.Amount.Int64() >= expectedAmount {
+			f.t.Logf("Successfully verified %s balance: %d utia (expected: %d)", nodeType, bal.Amount.Int64(), expectedAmount)
+			return
+		}
+
+		if attempt < maxRetries {
+			f.t.Logf("Balance check attempt %d/%d for %s: expected %d utia, got %d utia, retrying...",
+				attempt, maxRetries, nodeType, expectedAmount, bal.Amount.Int64())
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	bal := f.queryBalance(ctx, nodeAddr.String())
+	require.GreaterOrEqual(f.t, bal.Amount.Int64(), expectedAmount,
+		"%s should have sufficient balance after funding (final check: got %d, expected %d)",
+		nodeType, bal.Amount.Int64(), expectedAmount)
 }
 
 // fundNodeAccount funds a specific DA node account using the default wallet.
@@ -285,10 +308,8 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *tastoradockerty
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get node account address")
 
-	// Convert state.Address to sdk.AccAddress using Bytes()
 	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
 
-	// Skip funding if balance is already sufficient
 	current := f.queryBalance(ctx, nodeAccAddr.String())
 	if current.Amount.Int64() >= amount {
 		f.t.Logf("Skipping funding for %s: current balance %d >= %d", nodeAccAddr.String(), current.Amount.Int64(), amount)
@@ -297,7 +318,6 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *tastoradockerty
 
 	f.t.Logf("Funding node account %s with %d utia", nodeAddr.String(), amount)
 
-	// Fund the node account
 	f.fundWallet(ctx, fundingWallet, nodeAccAddr, amount)
 }
 
@@ -361,12 +381,9 @@ func (f *Framework) createAndStartCelestiaChain(ctx context.Context) tastoratype
 	celestia, err := f.provider.GetChain(ctx)
 	require.NoError(f.t, err, "failed to get chain")
 
-	// Start the chain once. Retrying here can leave partially-created containers
-	// and cause name conflicts on the next attempt.
 	err = celestia.Start(ctx)
 	require.NoError(f.t, err)
 
-	// verify the chain is producing blocks
 	require.NoError(f.t, wait.ForBlocks(ctx, 2, celestia))
 	return celestia
 }
@@ -441,7 +458,7 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradocke
 		}
 		lastErr = err
 		// Retry only for transient docker/container races
-		if strings.Contains(err.Error(), "No such container") {
+		if errdefs.IsNotFound(err) {
 			f.t.Logf("retrying light node start due to missing container (attempt %d/2): %v", attempt, err)
 			time.Sleep(2 * time.Second)
 			continue
@@ -512,8 +529,7 @@ func getNodeImage() string {
 // getOrCreateFundingWallet returns the framework's funding wallet, creating it if needed.
 func (f *Framework) getOrCreateFundingWallet(ctx context.Context) tastoratypes.Wallet {
 	if f.fundingWallet == nil {
-		// Create a wallet with enough funds to fund multiple nodes
-		f.fundingWallet = f.CreateTestWallet(ctx, 50_000_000_000) // 50 billion utia
+		f.fundingWallet = f.CreateTestWallet(ctx, 50_000_000_000)
 		f.t.Logf("Created funding wallet for automatic node funding")
 	}
 	return f.fundingWallet
@@ -521,117 +537,80 @@ func (f *Framework) getOrCreateFundingWallet(ctx context.Context) tastoratypes.W
 
 // Robust waiting and P2P connectivity helpers
 
-// ConnectLightToBridge ensures the light node is directly connected to the bridge peer.
-func (f *Framework) ConnectLightToBridge(ctx context.Context, bridgeClient, lightClient *rpcclient.Client, label string) {
-	// Fetch bridge AddrInfo
-	infoCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	info, err := bridgeClient.P2P.Info(infoCtx)
-	cancel()
-	if err != nil {
-		f.t.Logf("warning: failed to get bridge AddrInfo: %v", err)
+// ConnectNodes ensures that all provided nodes are connected to each other in a mesh topology.
+// It takes a map of node labels to RPC clients and establishes P2P connections between them.
+//
+// Example usage:
+//
+//	nodes := map[string]*rpcclient.Client{
+//	    "bridge": bridgeClient,
+//	    "light1": lightClient1,
+//	    "light2": lightClient2,
+//	}
+//	f.ConnectNodes(ctx, nodes, 30*time.Second)
+func (f *Framework) ConnectNodes(ctx context.Context, nodes map[string]*rpcclient.Client, timeout time.Duration) {
+	if len(nodes) < 2 {
 		return
 	}
 
-	deadline := time.Now().Add(20 * time.Second)
-	for attempt := 1; ; attempt++ {
-		cctx, ccancel := context.WithTimeout(ctx, 3*time.Second)
-		_ = lightClient.P2P.Connect(cctx, info)
-		ccancel()
+	nodeInfos := make(map[string]peer.AddrInfo)
+	infoCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-		stx, scancel := context.WithTimeout(ctx, 2*time.Second)
-		state, _ := lightClient.P2P.Connectedness(stx, info.ID)
-		scancel()
-		if state == network.Connected {
-			return
+	for label, client := range nodes {
+		info, err := client.P2P.Info(infoCtx)
+		if err != nil {
+			f.t.Logf("warning: failed to get P2P info for %s: %v", label, err)
+			continue
 		}
+		nodeInfos[label] = info
+	}
 
-		if time.Now().After(deadline) {
-			f.t.Logf("warning: %s failed to connect to bridge within timeout", label)
-			return
+	labels := make([]string, 0, len(nodes))
+	for label := range nodes {
+		labels = append(labels, label)
+	}
+
+	for i, sourceLabel := range labels {
+		sourceClient := nodes[sourceLabel]
+		for j := i + 1; j < len(labels); j++ {
+			targetLabel := labels[j]
+			targetInfo := nodeInfos[targetLabel]
+
+			if targetInfo.ID == "" {
+				continue
+			}
+
+			_ = sourceClient.P2P.Connect(ctx, targetInfo)
+
+			state, _ := sourceClient.P2P.Connectedness(ctx, targetInfo.ID)
+			if state == network.Connected {
+				f.t.Logf("✓ %s ↔ %s", sourceLabel, targetLabel)
+			} else {
+				f.t.Logf("⚠ %s failed to connect to %s (state: %v)", sourceLabel, targetLabel, state)
+			}
 		}
-		time.Sleep(1 * time.Second)
 	}
 }
 
 // WaitPeersReady waits until the node reports at least one peer.
 func (f *Framework) WaitPeersReady(ctx context.Context, client *rpcclient.Client, label string, timeout time.Duration) {
-	deadline := time.Now().Add(timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// Keep checking for peers until timeout or success
 	for {
-		pctx, pcancel := context.WithTimeout(ctx, 3*time.Second)
-		peers, err := client.P2P.Peers(pctx)
-		pcancel()
+		peers, err := client.P2P.Peers(timeoutCtx)
 		if err == nil && len(peers) > 0 {
 			return
 		}
-		if time.Now().After(deadline) {
-			f.t.Logf("warning: %s has no peers yet (err=%v)", label, err)
+
+		// Check if context is done (timeout or cancellation)
+		if timeoutCtx.Err() != nil {
+			f.t.Logf("warning: %s has no peers yet (timeout after %v)", label, timeout)
 			return
 		}
+
 		time.Sleep(1 * time.Second)
-	}
-}
-
-// WaitSharesAvailable waits until SharesAvailable succeeds for the given client and height.
-func (f *Framework) WaitSharesAvailable(ctx context.Context, client *rpcclient.Client, height uint64) error {
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		err := client.Share.SharesAvailable(reqCtx, height)
-		cancel()
-		if err == nil {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return err
-		}
-		time.Sleep(1 * time.Second)
-	}
-}
-
-// WaitBlobAvailable waits until Blob.Get succeeds for the given parameters.
-func (f *Framework) WaitBlobAvailable(ctx context.Context, client *rpcclient.Client, height uint64, namespace share.Namespace, commitment []byte) (*nodeblob.Blob, error) {
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		blob, err := client.Blob.Get(reqCtx, height, namespace, commitment)
-		cancel()
-		if err == nil {
-			return blob, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, err
-		}
-		time.Sleep(1 * time.Second)
-	}
-}
-
-// WaitNamespaceDataAvailable waits until GetNamespaceData succeeds for the given parameters.
-func (f *Framework) WaitNamespaceDataAvailable(ctx context.Context, client *rpcclient.Client, height uint64, namespace share.Namespace) (interface{}, error) {
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		data, err := client.Share.GetNamespaceData(reqCtx, height, namespace)
-		cancel()
-		if err == nil {
-			return data, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, err
-		}
-		time.Sleep(1 * time.Second)
-	}
-}
-
-// SetupP2PConnectivity establishes P2P connections between bridge and light nodes.
-func (f *Framework) SetupP2PConnectivity(ctx context.Context, bridgeClient, lightClient *rpcclient.Client, label string) {
-	f.ConnectLightToBridge(ctx, bridgeClient, lightClient, label)
-	f.WaitPeersReady(ctx, lightClient, label, 15*time.Second)
-
-	// Ensure light node is synced
-	swctx, swcancel := context.WithTimeout(ctx, 30*time.Second)
-	err := lightClient.Header.SyncWait(swctx)
-	swcancel()
-	if err != nil {
-		f.t.Logf("warning: %s SyncWait failed: %v", label, err)
 	}
 }
