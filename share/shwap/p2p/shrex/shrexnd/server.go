@@ -9,6 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -104,6 +106,13 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 	logger := log.With("source", "server", "peer", stream.Conn().RemotePeer().String())
 	logger.Debug("handling nd request")
 
+	var err error
+
+	ctx, span := tracer.Start(ctx, "shrex/nd/handle-request")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	srv.observeRateLimitedRequests()
 	ndid, err := srv.readRequest(logger, stream)
 	if err != nil {
@@ -111,6 +120,8 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusBadRequest)
 		return err
 	}
+
+	span.AddEvent("read request from stream")
 
 	logger = logger.With(
 		"namespace", ndid.DataNamespace.String(),
@@ -140,12 +151,16 @@ func (srv *Server) handleNamespaceData(ctx context.Context, stream network.Strea
 		return err
 	}
 
+	span.AddEvent("sent status to stream")
+
 	_, err = nd.WriteTo(stream)
 	if err != nil {
 		logger.Errorw("send nd data", "err", err)
 		srv.metrics.ObserveRequests(ctx, 1, shrex.StatusSendRespErr)
 		return err
 	}
+
+	span.AddEvent("wrote namespaced data to stream")
 	return nil
 }
 
@@ -176,6 +191,8 @@ func (srv *Server) getNamespaceData(
 	ctx context.Context,
 	id shwap.NamespaceDataID,
 ) (shwap.NamespaceData, shrexpb.Status, error) {
+	span := trace.SpanFromContext(ctx)
+
 	file, err := srv.store.GetByHeight(ctx, id.Height)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, shrexpb.Status_NOT_FOUND, nil
@@ -185,10 +202,19 @@ func (srv *Server) getNamespaceData(
 	}
 	defer utils.CloseAndLog(log, "file", file)
 
+	size, err := file.Size(ctx)
+	if err != nil {
+		return nil, shrexpb.Status_INTERNAL, fmt.Errorf("getting file size: %w", err)
+	}
+
+	span.AddEvent("retrieved file from store", trace.WithAttributes(attribute.Int("square_size", size)))
+
 	nd, err := eds.NamespaceData(ctx, file, id.DataNamespace)
 	if err != nil {
 		return nil, shrexpb.Status_INVALID, fmt.Errorf("getting nd: %w", err)
 	}
+
+	span.AddEvent("extracted namespaced data from EDS")
 
 	return nd, shrexpb.Status_OK, nil
 }
