@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // q4 stores the fourth quadrant of the square.
@@ -109,19 +109,19 @@ func (q4 *q4) close() error {
 	return q4.file.Close()
 }
 
-func (q4 *q4) axisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (q4 *q4) axisHalf(axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	size := q4.hdr.SquareSize()
 	q4AxisIdx := axisIdx - size/2
 	if q4AxisIdx < 0 {
-		return eds.AxisHalf{}, fmt.Errorf("invalid axis index for Q4: %d", axisIdx)
+		return shwap.AxisHalf{}, fmt.Errorf("invalid axis index for Q4: %d", axisIdx)
 	}
 
 	axisHalf, err := readAxisHalf(q4.file, axisType, q4AxisIdx, q4.hdr, 0)
 	if err != nil {
-		return eds.AxisHalf{}, fmt.Errorf("reading axis half from Q4: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("reading axis half from Q4: %w", err)
 	}
 
-	return eds.AxisHalf{
+	return shwap.AxisHalf{
 		Shares:   axisHalf,
 		IsParity: true,
 	}, nil
