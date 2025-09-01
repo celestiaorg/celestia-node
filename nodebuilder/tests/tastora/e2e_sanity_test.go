@@ -23,12 +23,6 @@ import (
 type E2ESanityTestSuite struct {
 	suite.Suite
 	framework *Framework
-
-	// Test data for sharing between steps
-	testHeight     uint64
-	testNamespace  share.Namespace
-	testCommitment []byte
-	testData       string
 }
 
 func TestE2ESanityTestSuite(t *testing.T) {
@@ -110,28 +104,23 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	s.Require().NoError(err, "bridge node should be able to submit blob")
 	s.Require().NotZero(height, "blob submission should return valid height")
 
-	s.testHeight = height
-	s.testNamespace = namespace
-	s.testCommitment = nodeBlobs[0].Commitment
-	s.testData = string(blobData)
-
 	_, err = bridgeClient.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err, "bridge node should be able to wait for block inclusion")
 
 	blobCtx, blobCancel := context.WithTimeout(ctx, 30*time.Second)
-	retrievedBlob, err := bridgeClient.Blob.Get(blobCtx, height, namespace, s.testCommitment)
+	retrievedBlob, err := bridgeClient.Blob.Get(blobCtx, height, namespace, nodeBlobs[0].Commitment)
 	blobCancel()
 	s.Require().NoError(err, "bridge node should be able to retrieve blob within timeout")
 	s.Require().NotNil(retrievedBlob, "bridge node should return valid blob")
 
 	retrievedData := bytes.TrimRight(retrievedBlob.Data(), "\x00")
-	s.Assert().Equal([]byte(s.testData), retrievedData, "bridge node should return correct data")
+	s.Assert().Equal(blobData, retrievedData, "bridge node should return correct data")
 
-	proof, err := bridgeClient.Blob.GetProof(ctx, height, namespace, s.testCommitment)
+	proof, err := bridgeClient.Blob.GetProof(ctx, height, namespace, nodeBlobs[0].Commitment)
 	s.Require().NoError(err, "bridge node should be able to get blob proof")
 	s.Require().NotNil(proof, "blob proof should not be nil")
 
-	included, err := bridgeClient.Blob.Included(ctx, height, namespace, proof, s.testCommitment)
+	included, err := bridgeClient.Blob.Included(ctx, height, namespace, proof, nodeBlobs[0].Commitment)
 	s.Require().NoError(err, "bridge node should be able to verify blob inclusion")
 	s.Assert().True(included, "blob should be included at height %d", height)
 
@@ -141,7 +130,7 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 
 	found := false
 	for _, blob := range blobs {
-		if bytes.Equal(blob.Commitment, s.testCommitment) {
+		if bytes.Equal(blob.Commitment, nodeBlobs[0].Commitment) {
 			found = true
 			break
 		}
@@ -182,9 +171,7 @@ func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
 	s.Assert().Equal(bridgeHead.Hash(), lightHead.Hash(), "both nodes should have same head hash")
 
 	// Store current height for later use
-	s.testHeight = bridgeHead.Height()
-
-	currentHeight := s.testHeight
+	currentHeight := bridgeHead.Height()
 	targetHeight := currentHeight + 3
 
 	// Wait for new blocks on bridge node
@@ -201,8 +188,8 @@ func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
 	s.Assert().Equal(bridgeHeader.Hash(), lightHeader.Hash(), "both nodes should have identical headers")
 	s.Assert().Equal(bridgeHeader.Height(), lightHeader.Height(), "both nodes should have same height")
 
-	startHeight := s.testHeight - 2
-	endHeight := s.testHeight
+	startHeight := currentHeight - 2
+	endHeight := currentHeight
 
 	bridgeHeaders := make([]*header.ExtendedHeader, 0)
 	for h := startHeight; h <= endHeight; h++ {
