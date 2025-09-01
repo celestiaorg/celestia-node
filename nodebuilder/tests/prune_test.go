@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
 	full_avail "github.com/celestiaorg/celestia-node/share/availability/full"
@@ -55,7 +56,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
 	heightsCh, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
-	archivalBN := sw.NewBridgeNode()
+	archivalBN := sw.NewBridgeNode(fx.Replace(&pruner.Config{EnableService: false})) // simulates passing `--archival`
 	sw.SetBootstrapper(t, archivalBN)
 
 	err := archivalBN.Start(ctx)
@@ -73,9 +74,6 @@ func TestArchivalBlobSync(t *testing.T) {
 	for height := range heightsCh {
 		heights = append(heights, height)
 	}
-
-	pruningCfg := sw.DefaultTestConfig(node.Bridge)
-	pruningCfg.Pruner.EnableService = true
 
 	testAvailWindow := time.Millisecond
 	prunerOpts := fx.Options(
@@ -101,12 +99,12 @@ func TestArchivalBlobSync(t *testing.T) {
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
 
-	pruningBN := sw.NewNodeWithConfig(node.Bridge, pruningCfg, prunerOpts)
+	pruningBN := sw.NewBridgeNode(prunerOpts)
 	err = pruningBN.Start(ctx)
 	require.NoError(t, err)
 
+	pruningCfg := nodebuilder.DefaultConfig(node.Bridge)
 	pruningCfg.DASer = das.DefaultConfig(node.Full)
-	pruningCfg.Pruner.EnableService = true
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
 	for range 3 {
 		pruningFN := sw.NewNodeWithConfig(node.Full, pruningCfg, prunerOpts)
@@ -203,19 +201,15 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 
 	// Light nodes have pruning enabled by default
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		pruningCfg := sw.DefaultTestConfig(nt)
-		pruningCfg.Pruner.EnableService = true
-		store := nodebuilder.MockStore(t, pruningCfg)
+		store := nodebuilder.MockStore(t, nodebuilder.DefaultConfig(nt))
 		pruningNode := sw.MustNewNodeWithStore(nt, store)
 		err := pruningNode.Start(ctx)
 		require.NoError(t, err)
 		err = pruningNode.Stop(ctx)
 		require.NoError(t, err)
 
-		archivalCfg := sw.DefaultTestConfig(nt)
-		err = store.PutConfig(archivalCfg)
-		require.NoError(t, err)
-		_, err = sw.NewNodeWithStore(nt, store)
+		// fx.Replace simulates the `--archival` flag being passed
+		_, err = sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{EnableService: false}))
 		assert.Error(t, err)
 		assert.ErrorIs(t, full_avail.ErrDisallowRevertToArchival, err)
 	}
@@ -233,9 +227,7 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 	}
 
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		archivalCfg := sw.DefaultTestConfig(nt)
-
-		store := nodebuilder.MockStore(t, archivalCfg)
+		store := nodebuilder.MockStore(t, nodebuilder.DefaultConfig(nt))
 		ds, err := store.Datastore()
 		require.NoError(t, err)
 
@@ -248,7 +240,10 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 		err = prunerStore.Put(ctx, datastore.NewKey("checkpoint"), bin)
 		require.NoError(t, err)
 
-		_, err = sw.NewNodeWithStore(nt, store)
+		// fx.Replace simulates the `--archival` flag being passed
+		_, err = sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{
+			EnableService: false,
+		}))
 		require.Error(t, err)
 		assert.ErrorIs(t, full_avail.ErrDisallowRevertToArchival, err)
 	}
@@ -298,9 +293,7 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		require.NoError(t, err)
 
 		// convert to pruned node
-		pruningCfg := sw.DefaultTestConfig(nt)
-		pruningCfg.Pruner.EnableService = true
-		err = store.PutConfig(pruningCfg)
+		err = store.PutConfig(nodebuilder.DefaultConfig(nt))
 		require.NoError(t, err)
 		_, err = sw.NewNodeWithStore(nt, store)
 		assert.NoError(t, err)

@@ -22,6 +22,7 @@ type Config struct {
 	BlockStoreCacheSize uint
 
 	UseShareExchange bool
+	UseBitswap       bool
 	// ShrExEDSParams sets shrexeds client and server configuration parameters
 	ShrExEDSParams *shrexeds.Parameters
 	// ShrExNDParams sets shrexnd client and server configuration parameters
@@ -41,6 +42,7 @@ func DefaultConfig(tp node.Type) Config {
 		ShrExEDSParams:      shrexeds.DefaultParameters(),
 		ShrExNDParams:       shrexnd.DefaultParameters(),
 		UseShareExchange:    true,
+		UseBitswap:          true,
 		PeerManagerParams:   peers.DefaultParameters(),
 	}
 
