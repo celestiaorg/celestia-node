@@ -1,6 +1,7 @@
 package file
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -17,10 +18,10 @@ type square [][]libshare.Share
 // readSquare reads Shares from the reader and returns a square. It assumes that the reader is
 // positioned at the beginning of the Shares. It knows the size of the Shares and the size of the
 // square, so reads from reader are limited to exactly the amount of data required.
-func readSquare(r io.Reader, shareSize, edsSize int) (square, error) {
+func readSquare(ctx context.Context, r io.Reader, shareSize, edsSize int) (square, error) {
 	odsLn := edsSize / 2
 
-	shares, err := eds.ReadShares(r, shareSize, odsLn)
+	shares, err := eds.ReadShares(ctx, r, shareSize, odsLn)
 	if err != nil {
 		return nil, fmt.Errorf("reading shares: %w", err)
 	}
