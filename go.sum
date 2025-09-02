@@ -378,10 +378,12 @@ github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14 h1:MBVJBZuJqZLyRgYkF4ONvt
 github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14/go.mod h1:clLEg7hWK0iJfiO1Vp71tcQ0vGbFzVsEcLxxnRobIZM=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
+github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4 h1:udw77BU45zmvTV7798FhR1wHFmsFpu4GnA5mubtMcR0=
+github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4/go.mod h1:W+pI1NsUsz3tcsAACMtfC+IZdnQTnC/7VfPoJBQuts0=
 github.com/celestiaorg/go-fraud v0.2.3 h1:vsGmd5HtGL92q/pvjN0cpDsXn7hGJSbVZwOJl+dNX8E=
 github.com/celestiaorg/go-fraud v0.2.3/go.mod h1:h2Or0jHka/TDlQ3XsJV6OibIiwm49UiGVEu2jHKzybA=
-github.com/celestiaorg/go-header v0.6.6 h1:17GvSXU/w8L1YWHZP4pYm9/4YHA8iy5Ku2wTEKYYkCU=
-github.com/celestiaorg/go-header v0.6.6/go.mod h1:RdnlTmsyuNerztNiJiQE5G/EGEH+cErhQ83xNjuGcaQ=
+github.com/celestiaorg/go-header v0.7.0 h1:bxRCjk6pabCk1J5HLT7ogQXkxcwS32E7KiIkcq+1igI=
+github.com/celestiaorg/go-header v0.7.0/go.mod h1:eX9iTSPthVEAlEDLux40ZT/olXPGhpxHd+mEzJeDhd0=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
@@ -912,8 +914,6 @@ github.com/ipfs/go-block-format v0.2.2 h1:uecCTgRwDIXyZPgYspaLXoMiMmxQpSx2aq34eN
 github.com/ipfs/go-block-format v0.2.2/go.mod h1:vmuefuWU6b+9kIU0vZJgpiJt1yicQz9baHXE8qR+KB8=
 github.com/ipfs/go-cid v0.5.0 h1:goEKKhaGm0ul11IHA7I6p1GmKz8kEYniqFopaB5Otwg=
 github.com/ipfs/go-cid v0.5.0/go.mod h1:0L7vmeNXpQpUS9vt+yEARkJ8rOg43DF3iPgn4GIN0mk=
-github.com/ipfs/go-datastore v0.8.3 h1:z391GsQyGKUIUof2tPoaZVeDknbt7fNHs6Gqjcw5Jo4=
-github.com/ipfs/go-datastore v0.8.3/go.mod h1:raxQ/CreIy9L6MxT71ItfMX12/ASN6EhXJoUFjICQ2M=
 github.com/ipfs/go-detect-race v0.0.1 h1:qX/xay2W3E4Q1U7d9lNs1sU9nvguX0a7319XbyQ6cOk=
 github.com/ipfs/go-detect-race v0.0.1/go.mod h1:8BNT7shDZPo99Q74BpGMK+4D8Mn4j46UU0LZ723meps=
 github.com/ipfs/go-ds-badger4 v0.1.8 h1:frNczf5CjCVm62RJ5mW5tD/oLQY/9IKAUpKviRV9QAI=
@@ -1016,8 +1016,8 @@ github.com/libp2p/go-libp2p-kad-dht v0.34.0 h1:yvJ/Vrt36GVjsqPxiGcuuwOloKuZLV9Aa
 github.com/libp2p/go-libp2p-kad-dht v0.34.0/go.mod h1:JNbkES4W5tajS6uYivw6MPs0842cPHAwhgaPw8sQG4o=
 github.com/libp2p/go-libp2p-kbucket v0.7.0 h1:vYDvRjkyJPeWunQXqcW2Z6E93Ywx7fX0jgzb/dGOKCs=
 github.com/libp2p/go-libp2p-kbucket v0.7.0/go.mod h1:blOINGIj1yiPYlVEX0Rj9QwEkmVnz3EP8LK1dRKBC6g=
-github.com/libp2p/go-libp2p-pubsub v0.13.1 h1:tV3ttzzZSCk0EtEXnxVmWIXgjVxXx+20Jwjbs/Ctzjo=
-github.com/libp2p/go-libp2p-pubsub v0.13.1/go.mod h1:MKPU5vMI8RRFyTP0HfdsF9cLmL1nHAeJm44AxJGJx44=
+github.com/libp2p/go-libp2p-pubsub v0.14.0 h1:+YxFHOdrk45szLb8G/fVsWwg4pdx0nVUXoZdLvYw2VY=
+github.com/libp2p/go-libp2p-pubsub v0.14.0/go.mod h1:MKPU5vMI8RRFyTP0HfdsF9cLmL1nHAeJm44AxJGJx44=
 github.com/libp2p/go-libp2p-record v0.3.1 h1:cly48Xi5GjNw5Wq+7gmjfBiG9HCzQVkiZOUZ8kUl+Fg=
 github.com/libp2p/go-libp2p-record v0.3.1/go.mod h1:T8itUkLcWQLCYMqtX7Th6r7SexyUJpIyPgks757td/E=
 github.com/libp2p/go-libp2p-routing-helpers v0.7.5 h1:HdwZj9NKovMx0vqq6YNPTh6aaNzey5zHD7HeLJtq6fI=
