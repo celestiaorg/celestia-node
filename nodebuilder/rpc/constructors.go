@@ -26,7 +26,7 @@ func registerEndpoints(
 	p2pMod p2p.Module,
 	nodeMod node.Module,
 	blobMod blob.Module,
-	daMod da.Module,
+	daMod da.Module, //nolint: staticcheck
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
 ) {

@@ -1,4 +1,4 @@
-package eds
+package shwap
 
 import (
 	"testing"

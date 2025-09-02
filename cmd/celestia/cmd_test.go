@@ -49,7 +49,7 @@ func TestLight(t *testing.T) {
 		output := &bytes.Buffer{}
 		rootCmd.SetOut(output)
 		rootCmd.SetArgs([]string{
-			"bridge",
+			"light",
 			"--node.store", ".celestia-light",
 			"init",
 		})

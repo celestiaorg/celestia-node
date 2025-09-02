@@ -54,7 +54,6 @@ func TestUpdateConfig(t *testing.T) {
 	// ensure old custom values were not changed
 	require.Equal(t, "thisshouldnthavechanged", cfg.State.DefaultKeyName)
 	require.Equal(t, "7979", cfg.RPC.Port)
-	require.True(t, cfg.Gateway.Enabled)
 }
 
 // outdatedConfig is an outdated config from a light node
@@ -87,25 +86,18 @@ var outdatedConfig = `
   Address = "0.0.0.0"
   Port = "7979"
 
-[Gateway]
-  Address = "0.0.0.0"
-  Port = "26659"
-  Enabled = true
-
 [Share]
   PeersLimit = 5
   DiscoveryInterval = "30s"
   AdvertiseInterval = "30s"
   UseShareExchange = true
-  [Share.ShrExEDSParams]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "1m0s"
-    HandleRequestTimeout = "1m0s"
-    ConcurrencyLimit = 10
-    BufferSize = 32768
-  [Share.ShrExNDParams]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "2m35s"
+  UseBitswap = true  
+  [Share.ShrexClient]
+    ReadTimeout = "2m0s"
+    WriteTimeout = "5s"
+  [Share.ShrexServer]   
+    ReadTimeout = "5s"
+    WriteTimeout = "1m0s"
     HandleRequestTimeout = "1m0s"
     ConcurrencyLimit = 10
 

@@ -33,7 +33,7 @@ production environments.
 ```go
 // Create a new framework instance
 framework := NewFramework(t, 
-    WithFullNodes(2),
+    WithBridgeNodes(1),
     WithLightNodes(1),
 )
 
@@ -43,7 +43,6 @@ require.NoError(t, err)
 
 // Get clients for different node types - all nodes are automatically funded
 bridgeNode := framework.GetBridgeNode()
-fullNodes := framework.GetFullNodes()
 lightNodes := framework.GetLightNodes()
 ```
 
@@ -53,8 +52,8 @@ lightNodes := framework.GetLightNodes()
 
 ```go
 // Nodes are automatically funded and ready for transactions
-fullNode := framework.GetOrCreateFullNode(ctx)
-client := framework.GetNodeRPCClient(ctx, fullNode)
+bridgeNode := framework.GetOrCreateBridgeNode(ctx)
+client := framework.GetNodeRPCClient(ctx, bridgeNode)
 
 // Submit transactions directly - no manual funding required
 txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
@@ -92,7 +91,7 @@ func (s *YourModuleTestSuite) SetupSuite() {
 
 func (s *YourModuleTestSuite) TestYourModuleFeature() {
     // Your test implementation
-    client := s.framework.GetNodeRPCClient(s.ctx, s.framework.GetFullNodes()[0])
+    client := s.framework.GetNodeRPCClient(s.ctx, s.framework.GetOrCreateBridgeNode(s.ctx))
     // ... test your module
 }
 ```
@@ -104,7 +103,6 @@ The framework supports various configuration options:
 ```go
 framework := NewFramework(t,
     WithValidators(1),      // Number of validators in the chain
-    WithFullNodes(2),       // Number of full DA nodes
     WithBridgeNodes(1),     // Number of bridge DA nodes  
     WithLightNodes(3),      // Number of light DA nodes
 )
@@ -120,7 +118,7 @@ For modules currently using the swamp framework, follow this migration pattern:
 func TestYourModule(t *testing.T) {
     sw := swamp.NewSwamp(t)
     bridge := sw.NewBridgeNode()
-    full := sw.NewFullNode()
+    light := sw.NewLightNode()
     // ... test implementation
 }
 ```
@@ -136,11 +134,11 @@ type YourModuleTestSuite struct {
 
 func (s *YourModuleTestSuite) TestYourModule() {
     // Nodes are automatically funded, ready for immediate use
-    bridge := s.framework.GetBridgeNode()
-    fullNodes := s.framework.GetFullNodes()
+    bridge := s.framework.GetOrCreateBridgeNode(ctx)
+    lightNodes := s.framework.GetLightNodes()
     
     // Get RPC client and start testing
-    client := s.framework.GetNodeRPCClient(ctx, fullNodes[0])
+    client := s.framework.GetNodeRPCClient(ctx, bridge)
     // ... test implementation
 }
 
@@ -299,7 +297,7 @@ When adding new module tests to this framework:
 The framework provides several key services:
 
 1. **Chain Management**: Manages Celestia chain via Docker
-2. **Node Management**: Handles bridge, full, and light nodes with automatic funding
+2. **Node Management**: Handles bridge and light nodes with automatic funding
 3. **Wallet Operations**: Creates and funds test wallets
 4. **RPC Clients**: Provides access to node APIs
 
@@ -310,11 +308,10 @@ All nodes created by the framework are automatically funded with 3 billion utia,
 ```go
 // Nodes are automatically funded when created
 bridgeNode := framework.GetOrCreateBridgeNode(ctx)  // Auto-funded
-fullNode := framework.NewFullNode(ctx)              // Auto-funded  
 lightNode := framework.NewLightNode(ctx)            // Auto-funded
 
 // Ready for immediate transaction operations
-client := framework.GetNodeRPCClient(ctx, fullNode)
+client := framework.GetNodeRPCClient(ctx, bridgeNode)
 txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
 height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 ```
