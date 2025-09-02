@@ -12,16 +12,18 @@ import (
 )
 
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
-	var err error
-	// do not validate daser config for bridge node as it
-	// does not need it
-	if tp != node.Bridge {
-		err = cfg.Validate()
+	// If DASer is disabled, provide the stub implementation for any node type
+	// Also provide the stub implementation for bridge nodes as they do not need DASer
+	if !cfg.Enabled || tp == node.Bridge {
+		return fx.Module(
+			"das",
+			fx.Provide(newDaserStub),
+		)
 	}
 
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
-		fx.Error(err),
+		fx.Error(cfg.Validate()),
 		fx.Provide(
 			func(c Config) []das.Option {
 				return []das.Option{
@@ -34,32 +36,21 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		),
 	)
 
-	switch tp {
-	case node.Light, node.Full:
-		return fx.Module(
-			"das",
-			baseComponents,
-			fx.Provide(fx.Annotate(
-				newDASer,
-				fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
-					return breaker.Start(ctx)
-				}),
-				fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
-					return breaker.Stop(ctx)
-				}),
-			)),
-			// Module is needed for the RPC handler
-			fx.Provide(func(das *das.DASer) Module {
-				return das
+	return fx.Module(
+		"das",
+		baseComponents,
+		fx.Provide(fx.Annotate(
+			newDASer,
+			fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
+				return breaker.Start(ctx)
 			}),
-		)
-	case node.Bridge:
-		return fx.Module(
-			"das",
-			baseComponents,
-			fx.Provide(newDaserStub),
-		)
-	default:
-		panic("invalid node type")
-	}
+			fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
+				return breaker.Stop(ctx)
+			}),
+		)),
+		// Module is needed for the RPC handler
+		fx.Provide(func(das *das.DASer) Module {
+			return das
+		}),
+	)
 }

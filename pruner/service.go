@@ -194,7 +194,7 @@ func (s *Service) prune(ctx context.Context) {
 
 		failedSet := make(map[uint64]struct{})
 
-		log.Debugw("pruning headers", "from", headers[0].Height(), "to",
+		log.Debugw("pruning block data", "from", headers[0].Height(), "to",
 			headers[len(headers)-1].Height())
 
 		for _, eh := range headers {
