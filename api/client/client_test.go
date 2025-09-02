@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"

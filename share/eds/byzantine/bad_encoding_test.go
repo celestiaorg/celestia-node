@@ -13,7 +13,7 @@ import (
 	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/test/util/malicious"
+	"github.com/celestiaorg/celestia-app/v6/test/util/malicious"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"

@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v6/app"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/toml"
@@ -35,11 +35,9 @@ const (
 	testChainID        = "test"
 )
 
-var (
-	// defaultNodeTag can be overridden at build time using ldflags
-	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultNodeTag = "5b96c43" // fallback if not set via ldflags
-)
+// defaultNodeTag can be overridden at build time using ldflags
+// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
+var defaultNodeTag = "5b96c43" // fallback if not set via ldflags
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
 // It provides Docker-based chain and node setup, similar to how Swamp provides
