@@ -12,6 +12,7 @@ import (
 
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cristalhq/jwt/v5"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
