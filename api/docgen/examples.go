@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -187,6 +188,7 @@ func init() {
 	))
 
 	add(network.DirUnknown)
+	add(bytes.HexBytes(hash))
 }
 
 func exampleValue(t, parent reflect.Type) (any, error) {

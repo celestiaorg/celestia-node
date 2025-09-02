@@ -14,7 +14,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -75,7 +74,7 @@ func DecodeToBytes(param string) ([]byte, error) {
 	return decoded, nil
 }
 
-func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) error {
+func ParseStoreDeterminationFlags(cmd *cobra.Command, nodeType node.Type, _ []string) error {
 	var (
 		ctx = cmd.Context()
 		err error
@@ -102,6 +101,21 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 		return err
 	}
 
+	ctx = WithNodeConfig(ctx, &cfg)
+	cmd.SetContext(ctx)
+
+	return nil
+}
+
+func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error {
+	err := ParseStoreDeterminationFlags(cmd, nodeType, args)
+	if err != nil {
+		return err
+	}
+
+	ctx := cmd.Context()
+	cfg := NodeConfig(ctx)
+
 	err = core.ParseFlags(cmd, &cfg.Core)
 	if err != nil {
 		return err
@@ -116,9 +130,12 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	if err = rpc_cfg.ParseFlags(cmd, &cfg.RPC); err != nil {
 		return err
 	}
-	gateway.ParseFlags(cmd, &cfg.Gateway)
 
-	pruner.ParseFlags(cmd, &cfg.Pruner, nodeType)
+	opt := pruner.ParseFlags(cmd, nodeType)
+	if opt != nil {
+		ctx = WithNodeOptions(ctx, opt)
+	}
+
 	switch nodeType {
 	case node.Light, node.Full:
 		err = header.ParseFlags(cmd, &cfg.Header)
@@ -133,6 +150,7 @@ func PersistentPreRunEnv(cmd *cobra.Command, nodeType node.Type, _ []string) err
 	// set config
 	ctx = WithNodeConfig(ctx, &cfg)
 	cmd.SetContext(ctx)
+
 	return nil
 }
 
