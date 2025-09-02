@@ -45,8 +45,6 @@ func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Bridge nodes are automatically funded by the framework
-
 	// Create test blob
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
 	s.Require().NoError(err)
@@ -88,8 +86,6 @@ func (s *BlobTestSuite) TestBlobSubmit_MultipleBlobs() {
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-
-	// Bridge nodes are automatically funded by the framework
 
 	// Create test namespace and blobs
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
@@ -146,8 +142,6 @@ func (s *BlobTestSuite) TestBlobGet_ExistingBlob() {
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-
-	// Explicit funding approach - create wallet and fund the node account directly
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
 	s.Require().NoError(err)
@@ -208,8 +202,6 @@ func (s *BlobTestSuite) TestBlobGetAll_ValidNamespace() {
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-
-	// Explicit funding approach - create wallet and fund the node account directly
 
 	// Create test namespace
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))
@@ -298,8 +290,6 @@ func (s *BlobTestSuite) TestBlobMixedVersions() {
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
-
-	// Explicit funding approach - create wallet and fund the node account directly
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x07}, 10))
 	s.Require().NoError(err)

@@ -2,13 +2,18 @@ SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
 versioningPath := github.com/celestiaorg/celestia-node/nodebuilder/node
+tastoraPath := github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 OS := $(shell uname -s)
 LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
                     -X $(versioningPath).semanticVersion=$(shell \
                       git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
                       git describe --tags --dirty=-dev 2>/dev/null || \
-                      git rev-parse --short HEAD)"
+                      git rev-parse --short HEAD) \
+                    -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(shell \
+                      git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
+                      git describe --tags --dirty=-dev 2>/dev/null || \
+                      git rev-parse --short HEAD))"
 TAGS=integration
 SHORT=
 ifeq (${PREFIX},)
@@ -163,7 +168,7 @@ test-integration-race:
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:
 	@echo "--> Running blob module tests"
-	cd nodebuilder/tests/tastora && go test -v -tags integration -run TestBlobTestSuite ./...
+	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -run TestBlobTestSuite ./...
 
 ## test-e2e-sanity: Run just the E2ESanityTestSuite suite
 test-e2e-sanity:
@@ -173,7 +178,7 @@ test-e2e-sanity:
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
 	@echo "--> Running all Tastora tests"
-	cd nodebuilder/tests/tastora && go test -v -tags integration ./...
+	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:
