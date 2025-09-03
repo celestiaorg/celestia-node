@@ -302,7 +302,8 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...genesis.Keyri
 		WithChainID(chainID).
 		WithTendermintConfig(tmCfg).
 		WithAppConfig(appConf).
-		WithGenesis(g)
+		WithGenesis(g).
+		WithBlockTime(1 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, config)
 
