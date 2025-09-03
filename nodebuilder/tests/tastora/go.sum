@@ -791,10 +791,10 @@ github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFos
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork h1:gvoKagc3npL+ra8pEtgR+SMGGgeGsirJtzWrYQJ+5cs=
 github.com/celestiaorg/boxo v0.29.0-fork/go.mod h1:c3R52nMlgMsN1tADffYcogKoVRsX1RJE1TMYSpJ4uVs=
-github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0 h1:/bzkkK8ypZD+/JEUumIAzsoUbFcly/eO7qgwd/1pnPo=
-github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0/go.mod h1:+bDQJ+fFxp70vQhmfZ8CGKV1DEfFXYnP942Shu9S59o=
-github.com/celestiaorg/celestia-core v0.39.2 h1:gSBwXY1axLR6O4YsMxTSyncIs1xu05VbcevJQr+bfAc=
-github.com/celestiaorg/celestia-core v0.39.2/go.mod h1:UafZ4a/ALKmUYTJK6/ckIZ+9Mp2QdFODlSQWJyuQHrg=
+github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0.0.20250903230330-033fce56a589 h1:vCQ7bFhIAQ6XpVqZehNwO9s4rQZ2NMV3mmv+i+yl1bQ=
+github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0.0.20250903230330-033fce56a589/go.mod h1:qCnZEqr1/v1mAR6fj0eFj1SAtgnw6IOx5IoCE5qMD9o=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250903225553-1d8aab5b15c6 h1:yhgiJLpn/s+5o9hjtnLArm0ktbW/TufXSuITaMrkc5I=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250903225553-1d8aab5b15c6/go.mod h1:Xad8Dx7sVHD93DaCP+Tvf62vuY5Wr28FdasbsLx159o=
 github.com/celestiaorg/cosmos-sdk v0.51.0 h1:rToI6MStYPZ5mIlXPxNHGMf9EdpW9wTQKPiKNQA8QFU=
 github.com/celestiaorg/cosmos-sdk v0.51.0/go.mod h1:J4OO1l1ALnUXInKv6RYmqLrEsDeILG5d2iOfRaChh9I=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
@@ -815,8 +815,8 @@ github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6
 github.com/celestiaorg/ibc-go/v8 v8.7.2/go.mod h1:E3WTax+cfyDIehNRpwEI96/0E8GBtU1g9XWr18qUGZ8=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
-github.com/celestiaorg/nmt v0.24.0 h1:23u/mneledCG/6xWl1cZeTPrzRLpDTAHxMFsqoOL+B4=
-github.com/celestiaorg/nmt v0.24.0/go.mod h1:kYfIjRq5rmA2mJnv41GLWkxn5KyLNPlma3v5Q68rHdI=
+github.com/celestiaorg/nmt v0.24.1 h1:MhGKqp257eq2EQQKcva1H/BSYFqIt0Trk8/t3IWfWSw=
+github.com/celestiaorg/nmt v0.24.1/go.mod h1:IhLnJDgCdP70crZFpgihFmU6G+PGeXN37tnMRm+/4iU=
 github.com/celestiaorg/rsmt2d v0.14.0 h1:L7XJ3tRJDY8sQcvCjzHq0L7JmsmaSD+VItymIYFLqYc=
 github.com/celestiaorg/rsmt2d v0.14.0/go.mod h1:4kxqiTdFev49sGiKXTDjohbWYOG5GlcIfftTgaBJnpc=
 github.com/celestiaorg/tastora v0.0.4 h1:bRarVu5MZuqi4TEzjjRE8pKy4YSt2aVAPA/nbB99ZKg=
@@ -1898,8 +1898,8 @@ github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2
 github.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=
 github.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLYF3GoBXY=
 github.com/ulikunitz/xz v0.5.10/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
-github.com/ulikunitz/xz v0.5.12 h1:37Nm15o69RwBkXM0J6A5OlE67RZTfzUxTj8fB3dfcsc=
-github.com/ulikunitz/xz v0.5.12/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
+github.com/ulikunitz/xz v0.5.14 h1:uv/0Bq533iFdnMHZdRBTOlaNMdb1+ZxXIlHDZHIHcvg=
+github.com/ulikunitz/xz v0.5.14/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli v1.22.10/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
@@ -2797,8 +2797,8 @@ google.golang.org/protobuf v1.28.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqw
 google.golang.org/protobuf v1.29.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.30.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.33.0/go.mod h1:c6P6GXX6sHbq/GpV6MGZEdwhWPcYBgnhAHhKbcUYpos=
-google.golang.org/protobuf v1.36.7 h1:IgrO7UwFQGJdRNXH/sQux4R1Dj1WAKcLElzeeRaXV2A=
-google.golang.org/protobuf v1.36.7/go.mod h1:jduwjTPXsFjZGTmRluh+L6NjiWu7pchiJ2/5YcXBHnY=
+google.golang.org/protobuf v1.36.8 h1:xHScyCOEuuwZEc6UtSOvPbAT4zRh0xcNRYekJwfqyMc=
+google.golang.org/protobuf v1.36.8/go.mod h1:fuxRtAxBytpl4zzqUh6/eyUujkJdNiuEkXntxiD/uRU=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

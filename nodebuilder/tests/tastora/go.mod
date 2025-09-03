@@ -4,7 +4,7 @@ go 1.24.6
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0
+	github.com/celestiaorg/celestia-app/v6 v6.0.0-rc0.0.20250903230330-033fce56a589s
 	github.com/celestiaorg/celestia-node v0.23.2-mocha
 	github.com/celestiaorg/go-square/v2 v2.3.1
 	github.com/celestiaorg/tastora v0.0.4
@@ -82,7 +82,7 @@ require (
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.24.0 // indirect
+	github.com/celestiaorg/nmt v0.24.1 // indirect
 	github.com/celestiaorg/rsmt2d v0.14.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -316,7 +316,7 @@ require (
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ulikunitz/xz v0.5.12 // indirect
+	github.com/ulikunitz/xz v0.5.14 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/zeebo/errs v1.4.0 // indirect
@@ -356,7 +356,7 @@ require (
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250728155136-f173205681a0 // indirect
-	google.golang.org/protobuf v1.36.7 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
@@ -370,7 +370,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-node => ../../..
 	//github.com/celestiaorg/tastora => ../../tastora
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.2
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20250903225553-1d8aab5b15c6 // v0.39.2
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
