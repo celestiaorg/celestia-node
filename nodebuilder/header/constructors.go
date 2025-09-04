@@ -96,6 +96,7 @@ func newSyncer[H libhead.Header[H]](
 	opts := []sync.Option{
 		sync.WithParams(cfg.Syncer),
 		sync.WithBlockTime(modp2p.BlockTime),
+		sync.WithTrustingPeriod(trustingPeriod),
 	}
 	if MetricsEnabled {
 		opts = append(opts, sync.WithMetrics())

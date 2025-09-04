@@ -43,7 +43,6 @@ func DefaultConfig(tp node.Type) Config {
 		Server:       p2p_exchange.DefaultServerParameters(),
 		Client:       p2p_exchange.DefaultClientParameters(),
 	}
-	cfg.Syncer.TrustingPeriod = trustingPeriod
 
 	switch tp {
 	case node.Full, node.Bridge:
@@ -93,10 +92,6 @@ func (cfg *Config) Validate(tp node.Type) error {
 	err = cfg.Server.Validate()
 	if err != nil {
 		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
-	}
-
-	if cfg.Syncer.TrustingPeriod != trustingPeriod {
-		return fmt.Errorf("module/header: Syncer.TrustingPeriod must be %s", trustingPeriod)
 	}
 
 	switch tp {
