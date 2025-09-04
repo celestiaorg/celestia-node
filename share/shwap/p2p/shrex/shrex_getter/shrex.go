@@ -528,21 +528,21 @@ func (sg *Getter) GetRangeNamespaceData(
 			return shwap.RangeNamespaceData{}, errors.Join(err, ctx.Err())
 		}
 		attempt++
-		//start := time.Now()
+		start := time.Now()
 
 		peer, setStatus, getErr := sg.getPeer(ctx, header)
 		if getErr != nil {
-			//log.Debugw("nd: couldn't find peer",
-			//	"hash", dah.String(),
-			//	"namespace", namespace.String(),
-			//	"err", getErr,
-			//	"finished (s)", time.Since(start))
-			// add metric
+			log.Debugw("rangeND: couldn't find peer",
+				"hash", header.DAH.String(),
+				"from", from,
+				"to", to,
+				"err", getErr,
+				"finished (s)", time.Since(start))
 			sg.metrics.recordRangeAttempt(ctx, attempt, false)
 			return shwap.RangeNamespaceData{}, errors.Join(err, getErr)
 		}
 
-		//reqStart := time.Now()
+		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 		getErr = sg.client.Get(reqCtx, &request, &response, peer)
 		cancel()
@@ -587,13 +587,14 @@ func (sg *Getter) GetRangeNamespaceData(
 			err = errors.Join(err, getErr)
 		}
 		sg.metrics.recordRangeAttempt(ctx, attempt, false)
-		//log.Debugw("nd: request failed",
-		//	"hash", dah.String(),
-		//	"namespace", namespace.String(),
-		//	"peer", peer.String(),
-		//	"attempt", attempt,
-		//	"err", getErr,
-		//	"finished (s)", time.Since(reqStart))
+		log.Debugw("rangeND: request failed",
+			"hash", header.DAH.String(),
+			"from", from,
+			"to", to,
+			"peer", peer.String(),
+			"attempt", attempt,
+			"err", getErr,
+			"finished (s)", time.Since(reqStart))
 	}
 }
 
@@ -629,6 +630,8 @@ func (sg *Getter) getSample(
 		if getErr != nil {
 			log.Debugw("sample: couldn't find peer",
 				"hash", header.DAH.String(),
+				"row", sID.RowIndex,
+				"col", sID.ShareIndex,
 				"err", getErr,
 				"finished (s)", time.Since(start))
 			return shwap.Sample{}, attempt, errors.Join(err, getErr)
@@ -666,7 +669,8 @@ func (sg *Getter) getSample(
 		if !shrex.ErrorContains(err, getErr) {
 			err = errors.Join(err, getErr)
 		}
-		log.Debugw("samples: request failed",
+		sg.metrics.recordSampleAttempt(ctx, attempt, false)
+		log.Debugw("sample: request failed",
 			"hash", header.DAH.String(),
 			"peer", peer.String(),
 			"attempt", attempt,
