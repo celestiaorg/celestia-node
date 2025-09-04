@@ -4,6 +4,7 @@ package nodebuilder
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -77,15 +78,14 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 		{tp: node.Light},
 	}
 
+	// we're also creating a test node because the gRPC connection
+	// is started automatically when starting the node.
 	consNode := core.StartTestNode(t)
 	host, port, err := net.SplitHostPort(consNode.GRPCClient.Target())
 	require.NoError(t, err)
 
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			// we're also creating a test node because the gRPC connection
-			// is started automatically when starting the node.
-
 			cfg := DefaultConfig(tt.tp)
 			cfg.Core.IP = host
 			cfg.Core.Port = port
@@ -122,28 +122,56 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 }
 
 func StartMockOtelCollectorHTTPServer(t *testing.T) (string, func()) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/metrics" && r.Method != http.MethodPost {
-			t.Errorf("Expected to request [POST] '/fixedvalue', got: [%s] %s", r.Method, r.URL.Path)
+	// Use a port outside the testnode deterministic range (20000+) to avoid conflicts
+	// This prevents race conditions between httptest.NewServer and GetDeterministicPort on macOS
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	// Get the allocated port and check if it conflicts with testnode range
+	port := listener.Addr().(*net.TCPAddr).Port
+	if port >= 20000 {
+		// If we got a port in the testnode range, try a few lower ports
+		listener.Close()
+		for testPort := 19999; testPort >= 19900; testPort-- {
+			if newListener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", testPort)); err == nil {
+				listener = newListener
+				break
+			}
 		}
-
-		if r.Header.Get("Content-Type") != "application/x-protobuf" {
-			t.Errorf("Expected Content-Type: application/x-protobuf header, got: %s", r.Header.Get("Content-Type"))
+		// If we still couldn't get a safe port, fall back to the original approach
+		if listener == nil {
+			listener, err = net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
 		}
+	}
 
-		response := collectormetricpb.ExportMetricsServiceResponse{}
-		rawResponse, _ := proto.Marshal(&response)
-		contentType := "application/x-protobuf"
-		status := http.StatusOK
+	server := &httptest.Server{
+		Listener: listener,
+		Config: &http.Server{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/v1/metrics" && r.Method != http.MethodPost {
+					t.Errorf("Expected to request [POST] '/fixedvalue', got: [%s] %s", r.Method, r.URL.Path)
+				}
 
-		log.Debug("Responding to otlp POST request")
-		w.Header().Set("Content-Type", contentType)
-		w.WriteHeader(status)
-		_, _ = w.Write(rawResponse)
+				if r.Header.Get("Content-Type") != "application/x-protobuf" {
+					t.Errorf("Expected Content-Type: application/x-protobuf header, got: %s", r.Header.Get("Content-Type"))
+				}
 
-		log.Debug("Responded to otlp POST request")
-	}))
+				response := collectormetricpb.ExportMetricsServiceResponse{}
+				rawResponse, _ := proto.Marshal(&response)
+				contentType := "application/x-protobuf"
+				status := http.StatusOK
 
+				log.Debug("Responding to otlp POST request")
+				w.Header().Set("Content-Type", contentType)
+				w.WriteHeader(status)
+				_, _ = w.Write(rawResponse)
+
+				log.Debug("Responded to otlp POST request")
+			}),
+		},
+	}
+	server.Start()
 	server.EnableHTTP2 = true
 	return server.URL, server.Close
 }
