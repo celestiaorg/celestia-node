@@ -33,20 +33,10 @@ const chainID = "private"
 //
 // Additionally, it instructs Tendermint + Celestia App tandem to setup 10 funded accounts.
 func DefaultTestConfig() *testnode.Config {
-	genesis := genesis.NewDefaultGenesis().
-		WithChainID(chainID).
-		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
-		WithConsensusParams(testnode.DefaultConsensusParams())
-
-	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
-
 	return testnode.DefaultConfig().
-		WithGenesis(genesis).
+		WithDelayedPrecommitTimeout(200 * time.Millisecond).
 		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
-		WithChainID(chainID).
-		WithTendermintConfig(tmConfig).
-		WithSuppressLogs(true)
+		WithChainID(chainID)
 }
 
 // StartTestNode simply starts Tendermint and Celestia App tandem with default testing

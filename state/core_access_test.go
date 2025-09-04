@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v2/share"
@@ -226,53 +225,20 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	chainID := "private"
 
 	t.Helper()
-	accounts := []genesis.KeyringAccount{
-		{
-			Name:          "jimmy",
-			InitialTokens: 100_000_000,
-		},
-		{
-			Name:          "carl",
-			InitialTokens: 100_000_000,
-		},
-		{
-			Name:          "sheen",
-			InitialTokens: 100_000_000,
-		},
-		{
-			Name:          "cindy",
-			InitialTokens: 100_000_000,
-		},
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
 	}
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 1
-
-	appConf := testnode.DefaultAppConfig()
-	appConf.API.Enable = true
-
-	g := genesis.NewDefaultGenesis().
-		WithChainID(chainID).
-		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
-		WithConsensusParams(testnode.DefaultConsensusParams()).WithKeyringAccounts(accounts...)
 
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
-		WithTendermintConfig(tmCfg).
-		WithAppConfig(appConf).
-		WithGenesis(g)
+		WithFundedAccounts(accounts...).
+		WithTimeoutCommit(time.Millisecond * 1)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, opts...)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, opts...)
 	require.NoError(t, err)
-	return ca, getNames(accounts)
-}
-
-func getNames(accounts []genesis.KeyringAccount) (names []string) {
-	for _, account := range accounts {
-		names = append(names, account.Name)
-	}
-	return names
+	return ca, accounts
 }
