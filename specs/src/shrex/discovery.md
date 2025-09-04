@@ -1,208 +1,210 @@
-# Discovery Protocol Specification
+# Peer Discovery Specification for SHREX Protocol
 
 ## Abstract
 
-This specification defines the peer discovery protocol for the data availability network. The discovery protocol enables efficient peer discovery and connection establishment for nodes in the network, allowing them to find peers with specific capabilities through tag-based discovery.
+This specification defines the peer discovery mechanism for the SHREX protocol in the Celestia network. The discovery service enables efficient peer location and selection for data availability sampling and share retrieval operations.
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Requirements Language](#requirements-language)
-3. [Terminology](#terminology)
-4. [Overview](#overview)
-5. [Architecture](#architecture)
-6. [Protocol Specification](#protocol-specification)
-7. [API Reference](#api-reference)
-8. [Implementation Details](#implementation-details)
-9. [References](#references)
-
-## Introduction
-
-The Discovery protocol is a foundational component of the DA network that facilitates peer discovery and connection establishment. This protocol enables nodes to discover and establish communication channels with other peers based on their capabilities and roles within the network.
-
-The discovery mechanism operates on tag-based discovery, where peers advertise their presence under specific tags and other peers discover them through DHT-based routing.
-
-### Scope
-
-This specification covers:
-
-- Peer discovery mechanisms for DA network
-- Tag-based peer advertisement and lookup
-- Integration with node types
-- Bounded peer set management
-
-## Requirements Language
-
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+- [Terminology](#terminology)
+- [Overview](#overview)
+- [Protocol Specification](#protocol-specification)
+  - [Discovery Tags](#discovery-tags)
+  - [Discovery Parameters](#discovery-parameters)
+  - [Discovery Operations](#discovery-operations)
+- [Node Behavior](#node-behavior)
+- [API Reference](#api-reference)
+- [References](#references)
+- [Requirements Language](#requirements-language)
 
 ## Terminology
 
-- **Discovery**: The main service that handles peer discovery operations
-- **Tag**: A string identifier that categorizes peers by their capabilities (e.g., "full", "archival")
-- **Limited Set**: A bounded collection that maintains discovered peers with configurable size limits
+- **Discovery**: The process of finding and maintaining connections to peers in the network
 - **Advertisement**: The process of announcing peer presence under a specific tag
 - **Parameters**: Configuration structure containing discovery settings
+- **Tag**: A string identifier used to categorize peers by their capabilities
 
 ## Overview
 
-The Discovery protocol operates as a tag-based discovery system where:
+The discovery service REQUIRES the libp2p DHT (Distributed Hash Table) to enable nodes to find peers capable of serving specific data types. The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities).
 
-1. **Full nodes (FN) and Bridge nodes (BN)** advertise their presence under specific tags
-2. **All nodes** (Full, Bridge, Light) can discover other peers associated with tags of interest
-3. **Light nodes (LN)** primarily use discovery to find Full and Bridge nodes
-4. **Limited Set** maintains a bounded collection of discovered peers
+## Sequence Diagrams
 
-The protocol enables communication establishment for higher-level protocols. Light nodes discover Full and Bridge nodes to access data availability services, while Full and Bridge nodes advertise their availability to be discoverable by other nodes in the network.
+### Advertisement
 
-### Node Type Usage Patterns
+```mermaid
+sequenceDiagram
+    participant Node as Advertising Node
+    participant Disc as Discovery Service
+    participant DHT as libp2p DHT
+    participant Remote as Remote DHT Peers
 
-- **Full Nodes**: Advertise under tags AND discover other peers
-- **Bridge Nodes**: Advertise under tags AND discover other peers
-- **Light Nodes**: Only discover peers (do not advertise)
+    Note over Node: Node determines its capabilities
+    Node->>Disc: Advertise(ctx)
 
-## Architecture
+    loop Every AdvertiseInterval
+        Disc->>DHT: Provide(tag, nodeID)
+        DHT->>Remote: Store advertisement record
+        Remote-->>DHT: ACK
+        DHT-->>Disc: Advertisement success
 
-### Component Overview
+        Note over Disc: Wait for next interval (default: 1 hour)
 
-```pgsql
-┌─────────────────────────────────────────────────────────────┐
-│                Discovery Service                            │
-├─────────────────────┬───────────────────┬───────────────────┤
-│      Discovery      │    Limited Set    │   Peer Updates    │
-│    (Advertise)      │   (set.Size())    │   (Callbacks)     │
-├─────────────────────┼───────────────────┼───────────────────┤
-│                DHT Routing Discovery                        │
-├─────────────────────────────────────────────────────────────┤
-│                    P2P Host                                 │
-└─────────────────────────────────────────────────────────────┘
+        alt Advertisement fails
+            DHT-->>Disc: Advertisement error
+            Note over Disc: Retry with exponential backoff
+        end
+    end
 ```
 
-### Core Components
+### Peer Discovery
 
-1. **Discovery**: Main service that handles advertisement and peer discovery operations
-2. **Limited Set**: Bounded collection that maintains discovered peers (accessed via `set.Size()`)
-3. **Parameters**: Configuration including `PeersLimit`, `AdvertiseInterval`
-4. **Peer Update Callbacks**: Event handlers for peer addition/removal notifications via `WithOnPeersUpdate`
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Disc as Discovery Service
+    participant PeerSet as Peer Set
+    participant DHT as libp2p DHT
+    participant Host as libp2p Host
+
+    App->>Disc: Peers(ctx)
+    
+    alt Peer set has available peers
+        Disc->>PeerSet: GetPeers()
+        PeerSet-->>Disc: Available peers
+        Disc-->>App: Return peers
+    else Peer set empty
+        Note over Disc: Block until peers found
+        
+        loop Discovery attempts
+            Disc->>DHT: FindPeers(tag)
+            DHT-->>Disc: Found peer list
+            
+            loop For each found peer
+                Disc->>Host: Connect to peer
+                Host-->>Disc: Connection result
+                
+                alt Connection successful
+                    Disc->>PeerSet: AddPeer(peerID)
+                    Note over Disc: Trigger OnPeersUpdate callback
+                else Connection failed
+                    Note over Disc: Skip peer, continue
+                end
+            end
+            
+            alt Peer set still empty
+                Note over Disc: Wait retry timeout
+            else Peers found
+                Disc-->>App: Return available peers
+            end
+        end
+    end
+```
+
+**Note**: Full nodes (FN) are deprecated in the current protocol implementation but remain part of this specification for completeness as they are still present in the codebase.
+
+The discovery mechanism enables:
+
+- **Light nodes** discover Full and Bridge nodes
+- **Full and Bridge nodes** MAY discover each other for data synchronization
 
 ## Protocol Specification
 
+### Discovery Tags
+
+The discovery service uses specific tags to categorize peers by their data availability capabilities:
+
+#### Tag Definitions
+
+**Full Node Tag**: `"full"`
+
+- **Purpose**: Identifies nodes that store recent block data
+- **Capabilities**: Can serve shares for recent heights within the sampling window
+- **Advertisement**: Light nodes MUST NOT advertise under this tag
+- **Discovery**: All node types SHOULD discover peers under this tag
+
+**Archival Node Tag**: `"archival"`
+
+- **Purpose**: Identifies nodes that store historical block data beyond the sampling window
+- **Capabilities**: Can serve shares for all historical heights
+- **Advertisement**: Both Bridge and FULL nodes MAY advertise under this tag in case pruner service is disabled
+- **Discovery**: All node types SHOULD discover peers under this tag
+
+### Discovery Parameters
+
+The discovery service operates with the following configurable parameters:
+
+#### PeersLimit
+
+- **Type**: Integer
+- **Default**: 5
+- **Purpose**: Maximum number of peers to maintain in the limited peer set
+- **Rationale**: Limits resource consumption while ensuring sufficient peer diversity for data availability
+
+#### AdvertiseInterval
+
+- **Type**: Duration
+- **Default**: 1 hour
+- **Purpose**: Interval between peer advertisements to the DHT
+- **Rationale**: Balances network overhead with peer visibility, following DHT best practices
+
 ### Discovery Operations
 
-#### Peer Advertisement
+#### Advertisement Process
 
-Only Full nodes and Bridge nodes can advertise their presence:
+1. Nodes MUST determine their appropriate tags based on capabilities
+2. Nodes SHOULD periodically advertise their presence under relevant tags
+3. Advertisement includes node's peer ID and network addresses
 
-1. **Tag-based Advertisement**: Full/Bridge nodes advertise under capability tags (e.g., "full", "archival")
-2. **DHT Integration**: Uses underlying DHT routing for advertisement
-3. **Configurable Interval**: Advertisement timing controlled by `AdvertiseInterval` parameter
+#### Peer Discovery Process
 
-#### Peer Discovery
+1. Nodes MUST query the DHT for peers under specific tags
+2. Discovery service maintains a limited set of discovered peers
+3. Peers are selected using round-robin or similar algorithms for load distribution
 
-All node types can discover peers:
+## Node Behavior
 
-1. **Tag-based Lookup**: Any node can query for peers advertising under specific tags
-2. **Limited Set Management**: Discovered peers are added to bounded peer set
-3. **Automatic Updates**: Peer additions/removals trigger update notifications
-4. **Connection Tracking**: Monitors peer connectivity state
+### Light Nodes
 
-**Typical Usage:**
+- MUST NOT advertise themselves under any discovery tags
+- MUST discover peers under "full" and "archival" tags for data retrieval
+- SHOULD prioritize recently discovered peers for load distribution
 
-- **Light nodes** discover Full and Bridge nodes
-- **Full and Bridge nodes** may discover each other
+### Full Nodes (Deprecated)
+
+- MUST advertise under "full" tag if active
+- MAY advertise under "archival" tag if pruner service is disabled
+- MAY discover other nodes
+
+### Bridge Nodes
+
+- MUST advertise under "full" tag
+- MAY advertise under "archival" tag if pruner service is disabled
+- MAY discover other nodes
+- SHOULD maintain persistent advertisement to ensure network availability
 
 ## API Reference
 
+### Advertisement Interface
+
+```text
+// Advertise announces the node's presence under specified tags
+Advertise(context, tags) -> error
+```
+
 ### Discovery Interface
 
-Based on the actual implementation:
-
-```go
-// Discovery provides peer discovery and advertisement functionality
-type Discovery interface {
-    // Advertise announces peer presence under the configured tag (FN/BN only)
-    Advertise(ctx context.Context) error
-
-    // Start begins the discovery service and launches the loop that performs
-    // peer discovery under specific topic.
-    Start(ctx context.Context) error
-
-    // Stop shuts down the discovery service
-    Stop(ctx context.Context) error
-
-    // Size returns the current number of peers in the limited set
-    Size() int
-
-    // Peers provides a list of discovered peers in the given topic
-    // If Discovery hasn't found any peers, it blocks until at least one peer is found
-    func Peers(ctx context.Context) ([]peer.ID, error)
-
-    // Discard removes the peer from the peer set and rediscovers more if soft peer limit is not
-    // reached. Reports whether peer was removed with bool.
-    func Discard(id peer.ID) bool
-}
+```text
+// Peers returns discovered peers, blocking until at least one peer is found
+Peers(context) -> ([]PeerID, error)
 ```
-
-### Parameters
-
-```go
-type Parameters struct {
-    PeersLimit        int           // Maximum peers in limited set
-    AdvertiseInterval time.Duration // Interval between advertisements
-}
-
-// DefaultParameters returns the default Parameters' configuration values
-// for the Discovery module
-func DefaultParameters() *Parameters {
-    return &Parameters{
-        PeersLimit:        5, 
-        AdvertiseInterval: time.Hour,
-    }
-}
-```
-
-### Tags
-
-```go
-const (
-    // fullNodesTag is the tag used to identify full nodes in the discovery service.
-    fullNodesTag = "full"
-    // archivalNodesTag is the tag used to identify archival nodes in the  discovery service.
-    archivalNodesTag = "archival"
-)
-```
-
-## Implementation Details
-
-### Discovery Service
-
-The Discovery service is the core component that:
-
-1. **Manages Advertisement**: Runs advertisement as background process
-2. **Maintains Peer Set**: Uses limited set to bound discovered peers
-3. **Provides Notifications**: Calls update callbacks on peer changes
-4. **Integrates with DHT**: Uses routing discovery for DHT operations
-
-### Limited Set Management
-
-The Limited Set provides bounded peer management:
-
-- **Size Constraints**: Enforces maximum number of peers via `PeersLimit`
-- **Automatic Cleanup**: Removes peers when connections are lost
-- **Size Reporting**: Provides current peer count via `Size()` method
-
-### Tag-Based Organization
-
-- Nodes create separate Discovery instances for each tag they manage
-- Tags identify node capabilities
-- Discovery instances operate independently per tag
 
 ## References
 
 1. **Celestia Node**: <https://github.com/celestiaorg/celestia-node>
 2. **libp2p Discovery**: <https://docs.libp2p.io/concepts/protocols/#peer-discovery>
+3. **libp2p DHT Specification**: <https://github.com/libp2p/specs/tree/master/kad-dht>
 
----
+## Requirements Language
 
-**Status**: Implemented  
-**Version**: 1.0  
-**Last Updated**: August 2025
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
