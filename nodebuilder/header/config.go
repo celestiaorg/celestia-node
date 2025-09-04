@@ -36,10 +36,13 @@ type Config struct {
 }
 
 func DefaultConfig(tp node.Type) Config {
+	syncerCfg := sync.DefaultParameters()
+	sync.WithTrustingPeriod(trustingPeriod)(&syncerCfg) // enforce default trusting period
+
 	cfg := Config{
 		TrustedPeers: make([]string, 0),
 		Store:        store.DefaultParameters(),
-		Syncer:       sync.DefaultParameters(),
+		Syncer:       syncerCfg,
 		Server:       p2p_exchange.DefaultServerParameters(),
 		Client:       p2p_exchange.DefaultClientParameters(),
 	}
@@ -103,6 +106,9 @@ func (cfg *Config) Validate(tp node.Type) error {
 			)
 		}
 	case node.Light:
+		// enforce trusting period / overwrite any previous values
+		sync.WithTrustingPeriod(trustingPeriod)(&cfg.Syncer)
+
 		err = cfg.Syncer.Validate()
 		if err != nil {
 			return fmt.Errorf("module/header: misconfiguration of syncer: %w", err)
