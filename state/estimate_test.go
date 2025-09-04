@@ -173,7 +173,7 @@ func (m *mockEstimatorServer) stop() {
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	t.Helper()
 
-	freePort := testnode.GetDeterministicPort()
+	freePort := testnode.MustGetFreePort()
 	addr := fmt.Sprintf(":%d", freePort)
 	net, err := net.Listen("tcp", addr)
 	require.NoError(t, err)
