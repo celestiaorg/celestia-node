@@ -87,16 +87,6 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate(tp node.Type) error {
-	err := cfg.Store.Validate()
-	if err != nil {
-		return fmt.Errorf("module/header: misconfiguration of store: %w", err)
-	}
-
-	err = cfg.Server.Validate()
-	if err != nil {
-		return fmt.Errorf("module/header: misconfiguration of p2p exchange server: %w", err)
-	}
-
 	switch tp {
 	case node.Full, node.Bridge:
 		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 || cfg.Syncer.PruningWindow != 0 {
@@ -106,30 +96,14 @@ func (cfg *Config) Validate(tp node.Type) error {
 			)
 		}
 	case node.Light:
-		// enforce trusting period
-		sync.WithTrustingPeriod(trustingPeriod)(&cfg.Syncer)
-
-		err = cfg.Syncer.Validate()
-		if err != nil {
-			return fmt.Errorf("module/header: misconfiguration of syncer: %w", err)
-		}
-
 		if cfg.Syncer.PruningWindow < availability.StorageWindow {
 			// TODO(@Wondertan): Technically, a LN may break this restriction by setting SyncFromHeight/Hash to a header
 			//  that is closer to Head than StorageWindow. Consider putting efforts into catching this too.
 			return fmt.Errorf("module/header: Syncer.PruningWindow must not be less then sampling storage window (%s)",
 				availability.StorageWindow)
 		}
-	}
-
-	// we do not create a client for bridge nodes
-	if tp == node.Bridge {
-		return nil
-	}
-
-	err = cfg.Client.Validate()
-	if err != nil {
-		return fmt.Errorf("module/header: misconfiguration of p2p exchange client: %w", err)
+	default:
+		panic("invalid node type")
 	}
 
 	return nil
