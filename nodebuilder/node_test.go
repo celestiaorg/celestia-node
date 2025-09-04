@@ -77,13 +77,14 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 		{tp: node.Light},
 	}
 
+	consNode := core.StartTestNode(t)
+	host, port, err := net.SplitHostPort(consNode.GRPCClient.Target())
+	require.NoError(t, err)
+
 	for i, tt := range test {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			// we're also creating a test node because the gRPC connection
 			// is started automatically when starting the node.
-			consNode := core.StartTestNode(t)
-			host, port, err := net.SplitHostPort(consNode.GRPCClient.Target())
-			require.NoError(t, err)
 
 			cfg := DefaultConfig(tt.tp)
 			cfg.Core.IP = host
