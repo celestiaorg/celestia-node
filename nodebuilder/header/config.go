@@ -36,13 +36,10 @@ type Config struct {
 }
 
 func DefaultConfig(tp node.Type) Config {
-	syncerCfg := sync.DefaultParameters()
-	sync.WithTrustingPeriod(trustingPeriod)(&syncerCfg) // enforce default trusting period
-
 	cfg := Config{
 		TrustedPeers: make([]string, 0),
 		Store:        store.DefaultParameters(),
-		Syncer:       syncerCfg,
+		Syncer:       sync.DefaultParameters(),
 		Server:       p2p_exchange.DefaultServerParameters(),
 		Client:       p2p_exchange.DefaultClientParameters(),
 	}
