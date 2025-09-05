@@ -2,8 +2,6 @@ module github.com/celestiaorg/celestia-node
 
 go 1.24.6
 
-toolchain go1.24.7
-
 require (
 	cosmossdk.io/log v1.6.0
 	cosmossdk.io/math v1.5.3
@@ -12,7 +10,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v5 v5.0.1
+	github.com/celestiaorg/celestia-app/v6 v6.0.0-arabica
 	github.com/celestiaorg/go-fraud v0.2.3
 	github.com/celestiaorg/go-header v0.7.2
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
@@ -135,7 +133,6 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
 	github.com/bytedance/sonic v1.13.1 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
@@ -336,7 +333,6 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
-	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ulikunitz/xz v0.5.14 // indirect
@@ -382,8 +378,9 @@ require (
 
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v1.57.2-tm-v0.38.17
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.4-sdk-v0.50.14
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.3
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.0
+	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
