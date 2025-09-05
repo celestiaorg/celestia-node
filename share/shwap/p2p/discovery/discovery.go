@@ -371,7 +371,7 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 		}
 	default:
 		logger.Warnw("skip handle: unsupported status", "peer", peer.ID.String(), "status", connectedness.String())
-		d.metrics.observeHandlePeer(ctx, hanldePeerUnknownStatus)
+		d.metrics.observeHandlePeer(ctx, handlePeerUnknownStatus)
 		return false
 	}
 

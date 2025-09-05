@@ -22,7 +22,7 @@ const (
 	handlePeerConnected     handlePeerResult = "connected"
 	handlePeerConnErr       handlePeerResult = "conn_err"
 	handlePeerInSet         handlePeerResult = "in_set"
-	hanldePeerUnknownStatus handlePeerResult = "unknown_status"
+	handlePeerUnknownStatus handlePeerResult = "unknown_status"
 
 	advertiseFailedKey = "failed"
 )
