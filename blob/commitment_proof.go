@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -39,7 +40,7 @@ type CommitmentProof struct {
 }
 
 func (com Commitment) String() string {
-	return string(com)
+	return hex.EncodeToString(com)
 }
 
 // Equal ensures that commitments are the same
