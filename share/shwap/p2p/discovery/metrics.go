@@ -15,13 +15,14 @@ import (
 const (
 	discoveryEnoughPeersKey = "enough_peers"
 
-	handlePeerResultKey                    = "result"
-	handlePeerSkipSelf    handlePeerResult = "skip_self"
-	handlePeerEnoughPeers handlePeerResult = "skip_enough_peers"
-	handlePeerBackoff     handlePeerResult = "skip_backoff"
-	handlePeerConnected   handlePeerResult = "connected"
-	handlePeerConnErr     handlePeerResult = "conn_err"
-	handlePeerInSet       handlePeerResult = "in_set"
+	handlePeerResultKey                      = "result"
+	handlePeerSkipSelf      handlePeerResult = "skip_self"
+	handlePeerEnoughPeers   handlePeerResult = "skip_enough_peers"
+	handlePeerBackoff       handlePeerResult = "skip_backoff"
+	handlePeerConnected     handlePeerResult = "connected"
+	handlePeerConnErr       handlePeerResult = "conn_err"
+	handlePeerInSet         handlePeerResult = "in_set"
+	hanldePeerUnknownStatus handlePeerResult = "unknown_status"
 
 	advertiseFailedKey = "failed"
 )
