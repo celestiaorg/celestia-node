@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.24-alpine3.22 AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.25-alpine3.22 AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
