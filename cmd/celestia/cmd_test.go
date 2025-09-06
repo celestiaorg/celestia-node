@@ -139,7 +139,7 @@ func parseSignatureForHelpString(methodSig reflect.StructField) string {
 		}
 	}
 	simplifiedSignature += ") -> ("
-	for i := range out - 1 {
+	for i := 0; i < out; i++ {
 		simplifiedSignature += methodSig.Type.Out(i).String()
 		if i != out-2 {
 			simplifiedSignature += ", "
