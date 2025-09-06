@@ -18,6 +18,7 @@ var (
 	corsAllowedOriginsFlag = "rpc.cors-allowed-origins"
 	corsAllowedMethodsFlag = "rpc.cors-allowed-methods"
 	corsAllowedHeadersFlag = "rpc.cors-allowed-headers"
+	readOnlyFlag           = "rpc.readonly"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -64,6 +65,11 @@ func Flags() *flag.FlagSet {
 			"Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)",
 			defaultAllowedHeaders,
 		),
+	)
+	flags.Bool(
+		readOnlyFlag,
+		false,
+		"Enable read-only mode (disables all write operations)",
 	)
 
 	return flags
@@ -137,5 +143,14 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	if !cfg.SkipAuth && corsSettingsProvided {
 		log.Warn("CORS settings provided but authentication is enabled. CORS settings may not work as expected.")
 	}
+
+	// Parse readonly flag
+	if val, err := cmd.Flags().GetBool(readOnlyFlag); err != nil {
+		return err
+	} else if val {
+		log.Info("Read-only mode enabled (--rpc.readonly)")
+		cfg.ReadOnly = true
+	}
+
 	return nil
 }
