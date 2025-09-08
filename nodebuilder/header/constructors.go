@@ -86,16 +86,13 @@ func newSyncer[H libhead.Header[H]](
 		if genesis == "" {
 			// set by height if hash is not available
 			cfg.Syncer.SyncFromHeight = 1
-
-			// TODO(@Wondertan): Hack until https://github.com/celestiaorg/go-header/issues/335 is fixed
-			//  Only relevant for tests anyway
-			cfg.Syncer.PruningWindow = 100
 		}
 	}
 
 	opts := []sync.Option{
 		sync.WithParams(cfg.Syncer),
 		sync.WithBlockTime(modp2p.BlockTime),
+		sync.WithTrustingPeriod(trustingPeriod),
 	}
 	if MetricsEnabled {
 		opts = append(opts, sync.WithMetrics())
