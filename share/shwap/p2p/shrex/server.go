@@ -11,6 +11,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	libp2prate "github.com/libp2p/go-libp2p/x/rate"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -19,6 +22,8 @@ import (
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 	"github.com/celestiaorg/celestia-node/store"
 )
+
+var tracer = otel.Tracer("shrex/server")
 
 // Server implements Server side of shrex protocol to serve data to remote
 // peers.
@@ -101,6 +106,19 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 	return func(s network.Stream) {
 		requestID, handleTime := id(), time.Now()
 
+		var status status
+
+		ctx, span := tracer.Start(ctx, "shrex/server/handle",
+			trace.WithAttributes(attribute.String("request name", requestID.Name())),
+		)
+		defer func() {
+			var err error
+			if status != statusSuccess {
+				err = fmt.Errorf("failed with status %s", status)
+			}
+			utils.SetStatusAndEnd(span, err)
+		}()
+
 		// bind the stream to the shrex service scope in the resource manager.
 		// this enforces global and per-peer stream concurrency limits.
 		if err := s.Scope().SetService(serviceName); err != nil {
@@ -152,6 +170,8 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) (status, int) {
 	log.Debugf("server: handling data request: %s from peer: %s", requestID.Name(), stream.Conn().RemotePeer())
 
+	span := trace.SpanFromContext(ctx)
+
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
 	if err != nil {
 		log.Debugw("server: setting read deadline", "err", err)
@@ -162,6 +182,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		log.Errorf("server: reading request %s from peer %s, %w", requestID.Name(), stream.Conn().RemotePeer(), err)
 		return statusReadReqErr, 0
 	}
+	span.AddEvent("read request from stream")
 
 	logger := log.With(
 		"source", "server",
@@ -200,6 +221,13 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
+	size, err := file.Size(ctx)
+	if err != nil {
+		logger.Errorf("getting file size %w", err)
+		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
+	}
+	span.AddEvent("got file from store", trace.WithAttributes(attribute.Int("ODS size", size)))
+
 	defer utils.CloseAndLog(log, "file", file)
 	// get the actual EDS size to compute an exact memory reservation before reading.
 	edsSize, err := file.Size(ctx)
@@ -223,6 +251,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		logger.Errorf("getting data from response reader %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
+	span.AddEvent("prepared response")
 
 	status, writtenStatus := respondStatus(logger, shrexpb.Status_OK, stream)
 	logger.Debugw("sending status", "status", status)
@@ -230,13 +259,14 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return status, writtenStatus
 	}
 
-	writtenResponse, err := io.Copy(stream, r)
+	written, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
-		return statusSendRespErr, writtenStatus + int(writtenResponse)
+		return statusSendRespErr, writtenStatus + int(written)
 	}
-	logger.Debugw("sent the data to the client")
-	return statusSuccess, writtenStatus + int(writtenResponse)
+	span.AddEvent("wrote response to stream", trace.WithAttributes(attribute.Int64("bytes written", written)))
+	logger.Debugw("wrote data to stream", "size", written)
+	return statusSuccess, writtenStatus + int(written)
 }
 
 // respondStatus returns the status written to stream and the size of the response.
