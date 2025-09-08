@@ -30,7 +30,7 @@ func TestConfigWriteRead(t *testing.T) {
 			var out Config
 			err = out.Decode(buf)
 			require.NoError(t, err)
-			assert.EqualValues(t, in, &out)
+			assert.EqualExportedValues(t, in, &out)
 		})
 	}
 }
