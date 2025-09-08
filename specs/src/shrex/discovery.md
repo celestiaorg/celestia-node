@@ -12,6 +12,7 @@ This specification defines the peer discovery mechanism for the SHREX protocol i
   - [Discovery Tags](#discovery-tags)
   - [Discovery Parameters](#discovery-parameters)
   - [Discovery Operations](#discovery-operations)
+  - [Connection Management](#connection-management)
 - [Node Behavior](#node-behavior)
 - [API Reference](#api-reference)
 - [References](#references)
@@ -23,10 +24,15 @@ This specification defines the peer discovery mechanism for the SHREX protocol i
 - **Advertisement**: The process of announcing peer presence under a specific tag
 - **Parameters**: Configuration structure containing discovery settings
 - **Tag**: A string identifier used to categorize peers by their capabilities
+- **Limited Peer Set**: A bounded collection of actively connected peers maintained by the discovery service
+- **Active Connection**: A live, bidirectional connection between two peers that can carry protocol messages
+- **Connectedness**: The state of connectivity between two peers (connected, disconnected, connecting, etc.)
+- **Backoff**: The delay between connection attempts with a single peer.
 
 ## Overview
 
-The discovery service REQUIRES the libp2p DHT (Distributed Hash Table) to enable nodes to find peers capable of serving specific data types. The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities).
+The discovery service REQUIRES the libp2p DHT (Distributed Hash Table) to enable nodes to find peers capable of serving specific data types. The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities). The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities) while maintaining a limited set of actively connected peers.
+The discovery service maintains a limited peer set where all peers MUST have only active connections. When connectedness changes from connected to any other state, the peer MUST be immediately dropped and replaced through new discovery. The dropped peer is added to a cache with the backoff, so it won't be connected through the discovery in case backoff period is not ended.
 
 ## Sequence Diagrams
 
@@ -112,7 +118,9 @@ The discovery mechanism enables:
 
 ### Discovery Tags
 
-The discovery service uses specific tags to categorize peers by their data availability capabilities:
+The discovery service uses specific tags to categorize peers by their data availability capabilities.
+
+**Important**: From a discovery standpoint, full nodes and bridge nodes MUST provide the same services to light nodes. This equivalence is the rationale for both node types advertising under the same **full**/**archival** tag.
 
 #### Tag Definitions
 
@@ -148,6 +156,13 @@ The discovery service operates with the following configurable parameters:
 - **Purpose**: Interval between peer advertisements to the DHT
 - **Rationale**: Balances network overhead with peer visibility, following DHT best practices
 
+#### Backoff period
+
+- **Type**: Duration
+- **Default**: 10 Minutes
+- **Purpose**: Interval between peer connection attempts
+- **Rationale**: Prevents wasting resources by repeatedly trying to connect to a peer that's likely experiencing persistent issues, giving it time to recover while avoiding connection storms across the network.
+
 ### Discovery Operations
 
 #### Advertisement Process
@@ -161,6 +176,26 @@ The discovery service operates with the following configurable parameters:
 1. Nodes MUST query the DHT for peers under specific tags
 2. Discovery service maintains a limited set of discovered peers
 3. Peers are selected using round-robin or similar algorithms for load distribution
+
+### Connection Management
+
+The discovery service implements strict connection management to ensure reliable data availability:
+
+#### Active Connection Requirements
+
+- **Peer Set Criteria**: Only peers with active connections are maintained in the limited peer set
+- **Connection Monitoring**: The service MUST continuously monitor the connectedness status of all peers in the limited set
+- **Immediate Removal**: When a peer's connectedness changes from connected to any other state (disconnected, connecting, etc.), the peer MUST be immediately dropped from the limited set
+- **Backoff**: A backoff period RECOMMENDED to be added to a dropped peer to prevent wasting resources for immediate reconnection
+- **Replacement Discovery**: Upon peer removal, the service MUST initiate discovery to find a replacement peer that meets the active connection criteria in case Peer Limit is not reached
+- **Connection Validation**: Before adding a peer to the limited set, the service MUST verify that an active connection exists and backoff is ended
+
+#### Connection State Handling
+
+- **Connected**: Peer is eligible for the limited set and can serve requests
+- **Disconnected**: Peer MUST be removed from limited set immediately
+- **Connecting**: Peer is not eligible for limited set until connection becomes active
+- **Other States**: All non-connected states result in peer removal from limited set
 
 ## Node Behavior
 
@@ -199,11 +234,17 @@ Advertise(context, tags) -> error
 Peers(context) -> ([]PeerID, error)
 ```
 
+### Connection Management Interface
+
+```text
+// OnConnectionChange handles connection state changes for discovered peers
+OnConnectionChange(peerID, connectedness) -> void
+```
+
 ## References
 
 1. **Celestia Node**: <https://github.com/celestiaorg/celestia-node>
-2. **libp2p Discovery**: <https://docs.libp2p.io/concepts/protocols/#peer-discovery>
-3. **libp2p DHT Specification**: <https://github.com/libp2p/specs/tree/master/kad-dht>
+2. **libp2p kad-DHT Specification**: <https://docs.libp2p.io/concepts/discovery-routing/kaddht>
 
 ## Requirements Language
 
