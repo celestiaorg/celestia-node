@@ -103,7 +103,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: git checkout ${{ inputs.run-on-tag }}
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ needs.setup.outputs.go-version }}
 
