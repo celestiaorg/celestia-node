@@ -176,59 +176,16 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (_ uint64, err error) {
-	ctx, span := tracer.Start(ctx, "submit")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
-
-	span.SetAttributes(
-		attribute.Float64("gas-price", txConfig.GasPrice()),
-		attribute.Int64("gas-limit", int64(txConfig.GasLimit())),
-		attribute.String("signer", txConfig.SignerAddress()),
-		attribute.String("fee-granter", txConfig.FeeGranterAddress()),
-		attribute.String("key-name", txConfig.KeyName()),
-		attribute.Int("tx-priority", int(txConfig.TxPriority())),
-	)
-
 	libBlobs := make([]*libshare.Blob, len(blobs))
-	ids := make([]string, len(blobs))
-	dataLengths := make([]int, len(blobs))
 	for i := range blobs {
-		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
-			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
-		}
-
 		libBlobs[i] = blobs[i].Blob
-		ids[i] = blobs[i].Namespace().String()
-		dataLengths[i] = blobs[i].DataLen()
 	}
-	span.SetAttributes(attribute.StringSlice("namespaces", ids))
-	span.SetAttributes(attribute.IntSlice("blob-data-lengths", dataLengths))
-
-	log.Infow("submitting blobs",
-		"amount", len(blobs),
-		"namespaces", ids,
-		"data-lengths", dataLengths,
-		"signer", txConfig.SignerAddress(),
-		"key-name", txConfig.KeyName(),
-		"gas-price", txConfig.GasPrice(),
-		"gas-limit", txConfig.GasLimit(),
-		"fee-granter", txConfig.FeeGranterAddress(),
-		"tx-priority", int(txConfig.TxPriority()),
-	)
-	defer func() {
-		if err != nil {
-			log.Errorw("submitting blobs",
-				"err", err,
-				"namespaces", ids,
-			)
-		}
-	}()
 
 	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
+
 	return uint64(resp.Height), nil
 }
 

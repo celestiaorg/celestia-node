@@ -21,6 +21,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -36,7 +38,10 @@ import (
 	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
+
+var tracer = otel.Tracer("state/service")
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
@@ -182,9 +187,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	cfg *TxConfig,
 ) (_ *TxResponse, err error) {
 	start := time.Now()
-	if len(libBlobs) == 0 {
-		return nil, errors.New("state: no blobs provided")
-	}
 
 	// Calculate blob metrics - optimized single pass
 	totalSize := int64(0)
@@ -197,6 +199,61 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	// Use defer to ensure metrics are recorded exactly once at the end
 	defer func() {
 		ca.metrics.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+	}()
+
+	if len(libBlobs) == 0 {
+		err = errors.New("state: no blobs provided")
+		return nil, err
+	}
+
+	ctx, span := tracer.Start(ctx, "submit")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	span.SetAttributes(
+		attribute.Float64("gas-price", cfg.GasPrice()),
+		attribute.Int64("gas-limit", int64(cfg.GasLimit())),
+		attribute.String("signer", cfg.SignerAddress()),
+		attribute.String("fee-granter", cfg.FeeGranterAddress()),
+		attribute.String("key-name", cfg.KeyName()),
+		attribute.Int("tx-priority", int(cfg.TxPriority())),
+	)
+
+	ids := make([]string, len(libBlobs))
+	dataLengths := make([]int, len(libBlobs))
+	for i := range libBlobs {
+		if err := libBlobs[i].Namespace().ValidateForBlob(); err != nil {
+			return nil, fmt.Errorf("not allowed namespace %s were used to build the blob", libBlobs[i].Namespace().ID())
+		}
+
+		ids[i] = libBlobs[i].Namespace().String()
+		dataLengths[i] = libBlobs[i].DataLen()
+	}
+
+	span.SetAttributes(attribute.StringSlice("namespaces", ids))
+	span.SetAttributes(attribute.IntSlice("blob-data-lengths", dataLengths))
+
+	log.Infow("submitting blobs",
+		"amount", len(libBlobs),
+		"namespaces", ids,
+		"data-lengths", dataLengths,
+		"signer", cfg.SignerAddress(),
+		"key-name", cfg.KeyName(),
+		"gas-price", cfg.GasPrice(),
+		"gas-limit", cfg.GasLimit(),
+		"fee-granter", cfg.FeeGranterAddress(),
+		"tx-priority", int(cfg.TxPriority()),
+	)
+	defer func() {
+		if err != nil {
+			log.Errorw("submitting blobs",
+				"err", err,
+				"namespaces", ids,
+				"signer", cfg.SignerAddress(),
+				"key-name", cfg.KeyName(),
+			)
+		}
 	}()
 
 	client, err := ca.getTxClient(ctx)
