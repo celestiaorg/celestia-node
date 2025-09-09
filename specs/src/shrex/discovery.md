@@ -24,15 +24,15 @@ This specification defines the peer discovery mechanism for the SHREX protocol i
 - **Advertisement**: The process of announcing peer presence under a specific tag
 - **Parameters**: Configuration structure containing discovery settings
 - **Tag**: A string identifier used to categorize peers by their capabilities
-- **Limited Peer Set**: A bounded collection of actively connected peers maintained by the discovery service
+- **Active set**: A bounded collection of actively connected peers maintained by the discovery service
 - **Active Connection**: A live, bidirectional connection between two peers that can carry protocol messages
 - **Connectedness**: The state of connectivity between two peers (connected, disconnected, connecting, etc.)
 - **Backoff**: The delay between connection attempts with a single peer.
 
 ## Overview
 
-The discovery service REQUIRES the libp2p DHT (Distributed Hash Table) to enable nodes to find peers capable of serving specific data types. The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities). The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities) while maintaining a limited set of actively connected peers.
-The discovery service maintains a limited peer set where all peers MUST have only active connections. When connectedness changes from connected to any other state, the peer MUST be immediately dropped and replaced through new discovery. The dropped peer is added to a cache with the backoff, so it won't be connected through the discovery in case backoff period is not ended.
+The discovery service REQUIRES the libp2p DHT (Distributed Hash Table) to enable nodes to find peers capable of serving specific data types. The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities) while maintaining an active set of connected peers.
+The discovery service maintains a set in which all peers MUST have active connections with the host service. When connectedness changes from active to any other state, the peer MUST be immediately dropped and replaced through new discovery. The dropped peer SHOULD be added to a cache with backoff, so it will not be prematurely re-connected to through discovery.
 
 ## Sequence Diagrams
 
@@ -146,7 +146,7 @@ The discovery service operates with the following configurable parameters:
 
 - **Type**: Integer
 - **Default**: 5
-- **Purpose**: Maximum number of peers to maintain in the limited peer set
+- **Purpose**: Maximum number of peers to maintain in the active peer set
 - **Rationale**: Limits resource consumption while ensuring sufficient peer diversity for data availability
 
 #### AdvertiseInterval
@@ -174,7 +174,7 @@ The discovery service operates with the following configurable parameters:
 #### Peer Discovery Process
 
 1. Nodes MUST query the DHT for peers under specific tags
-2. Discovery service maintains a limited set of discovered peers
+2. Discovery service maintains an active set of discovered peers
 3. Peers are selected using round-robin or similar algorithms for load distribution
 
 ### Connection Management
@@ -183,19 +183,19 @@ The discovery service implements strict connection management to ensure reliable
 
 #### Active Connection Requirements
 
-- **Peer Set Criteria**: Only peers with active connections are maintained in the limited peer set
-- **Connection Monitoring**: The service MUST continuously monitor the connectedness status of all peers in the limited set
-- **Immediate Removal**: When a peer's connectedness changes from connected to any other state (disconnected, connecting, etc.), the peer MUST be immediately dropped from the limited set
+- **Peer Set Criteria**: Only peers with active connections are maintained in the active peer set
+- **Connection Monitoring**: The service MUST continuously monitor the connectedness status of all peers in the active set
+- **Immediate Removal**: When a peer's connectedness changes from connected to any other state (disconnected, connecting, etc.), the peer MUST be immediately dropped from the active set
 - **Backoff**: A backoff period RECOMMENDED to be added to a dropped peer to prevent wasting resources for immediate reconnection
 - **Replacement Discovery**: Upon peer removal, the service MUST initiate discovery to find a replacement peer that meets the active connection criteria in case Peer Limit is not reached
-- **Connection Validation**: Before adding a peer to the limited set, the service MUST verify that an active connection exists and backoff is ended
+- **Connection Validation**: Before adding a peer to the active set, the service MUST verify that an active connection exists and backoff is ended
 
 #### Connection State Handling
 
-- **Connected**: Peer is eligible for the limited set and can serve requests
-- **Disconnected**: Peer MUST be removed from limited set immediately
-- **Connecting**: Peer is not eligible for limited set until connection becomes active
-- **Other States**: All non-connected states result in peer removal from limited set
+- **Connected**: Peer is eligible for the active set and can serve requests
+- **Disconnected**: Peer MUST be removed from active set immediately
+- **Connecting**: Peer is not eligible for active set until connection becomes active
+- **Other States**: All non-connected states result in peer removal from active set
 
 ## Node Behavior
 
