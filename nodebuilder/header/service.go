@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"go.opentelemetry.io/otel"
+
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/sync"
-	"go.opentelemetry.io/otel"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
