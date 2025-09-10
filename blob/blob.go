@@ -115,7 +115,7 @@ func (b *Blob) Length() (int, error) {
 	if len(s) == 0 {
 		return 0, errors.New("blob with zero shares received")
 	}
-	return libshare.SparseSharesNeededV2(s[0].SequenceLen(), s[0].Version() == libshare.ShareVersionOne), nil
+	return libshare.SparseSharesNeededV2(s[0].SequenceLen(), b.HasSigner()), nil
 }
 
 // Signer returns blob's author.
