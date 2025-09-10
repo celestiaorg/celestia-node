@@ -65,7 +65,7 @@ func ConstructModule(tp node.Type) fx.Option {
 				return []fullavail.Option{fullavail.WithArchivalMode()}
 			}),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
-			convertToPruned(),
+			fx.Invoke(convertToPruned),
 		)
 	case node.Bridge:
 		return fx.Module("prune",
@@ -78,7 +78,7 @@ func ConstructModule(tp node.Type) fx.Option {
 			}),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			fx.Supply(modshare.Window(availability.StorageWindow)),
-			convertToPruned(),
+			fx.Invoke(convertToPruned),
 		)
 	default:
 		panic("unknown node type")
@@ -97,13 +97,13 @@ func advertiseArchival() fx.Option {
 
 // convertToPruned checks if the node is being converted to an archival node
 // to a pruned node.
-func convertToPruned() fx.Option {
-	return fx.Invoke(func(
-		ctx context.Context,
-		cfg *Config,
-		ds datastore.Batching,
-		p *pruner.Service,
-	) error {
+func convertToPruned(
+	lc fx.Lifecycle,
+	cfg *Config,
+	ds datastore.Batching,
+	p *pruner.Service,
+) error {
+	convertFn := func(ctx context.Context) error {
 		lastPrunedHeight, err := p.LastPruned(ctx)
 		if err != nil {
 			return err
@@ -129,5 +129,8 @@ func convertToPruned() fx.Option {
 		}
 
 		return nil
-	})
+	}
+
+	lc.Append(fx.StartHook(convertFn))
+	return nil
 }

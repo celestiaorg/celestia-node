@@ -12,7 +12,7 @@ require (
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app/v5 v5.0.1
 	github.com/celestiaorg/go-fraud v0.2.3
-	github.com/celestiaorg/go-header v0.6.6
+	github.com/celestiaorg/go-header v0.7.1
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v2 v2.3.1
@@ -46,7 +46,7 @@ require (
 	github.com/klauspost/reedsolomon v1.12.1
 	github.com/libp2p/go-libp2p v0.43.0
 	github.com/libp2p/go-libp2p-kad-dht v0.34.0
-	github.com/libp2p/go-libp2p-pubsub v0.13.1
+	github.com/libp2p/go-libp2p-pubsub v0.14.0
 	github.com/libp2p/go-libp2p-record v0.3.1
 	github.com/libp2p/go-libp2p-routing-helpers v0.7.5
 	github.com/mitchellh/go-homedir v1.1.0
@@ -208,7 +208,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
-	github.com/google/pprof v0.0.0-20250607225305-033d6d78b36a // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
@@ -339,7 +338,7 @@ require (
 	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ulikunitz/xz v0.5.12 // indirect
+	github.com/ulikunitz/xz v0.5.14 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/zeebo/errs v1.4.0 // indirect
@@ -390,3 +389,5 @@ replace (
 )
 
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork-4
+
+replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4

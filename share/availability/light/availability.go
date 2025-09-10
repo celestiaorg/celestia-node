@@ -41,8 +41,11 @@ type ShareAvailability struct {
 	samplingWindow time.Duration
 
 	activeHeights *utils.Sessions
-	dsLk          sync.RWMutex
-	ds            *autobatch.Datastore
+
+	// TODO(@Wondertan): Consider using contextds to batch writes instead of
+	// autobatch which requires unnecessary coordination.
+	dsLk sync.RWMutex
+	ds   *autobatch.Datastore
 }
 
 // NewShareAvailability creates a new light Availability.

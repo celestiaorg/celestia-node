@@ -30,7 +30,7 @@ func TestConfigWriteRead(t *testing.T) {
 			var out Config
 			err = out.Decode(buf)
 			require.NoError(t, err)
-			assert.EqualValues(t, in, &out)
+			assert.EqualExportedValues(t, in, &out)
 		})
 	}
 }
@@ -91,16 +91,13 @@ var outdatedConfig = `
   DiscoveryInterval = "30s"
   AdvertiseInterval = "30s"
   UseShareExchange = true
-  UseBitswap = true
-  [Share.ShrExEDSParams]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "1m0s"
-    HandleRequestTimeout = "1m0s"
-    ConcurrencyLimit = 10
-    BufferSize = 32768
-  [Share.ShrExNDParams]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "2m35s"
+  UseBitswap = true  
+  [Share.ShrexClient]
+    ReadTimeout = "2m0s"
+    WriteTimeout = "5s"
+  [Share.ShrexServer]   
+    ReadTimeout = "5s"
+    WriteTimeout = "1m0s"
     HandleRequestTimeout = "1m0s"
     ConcurrencyLimit = 10
 
