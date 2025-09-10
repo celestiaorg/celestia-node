@@ -15,7 +15,7 @@ require (
 	github.com/celestiaorg/go-header v0.7.1
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/go-square/v2 v2.3.1
+	github.com/celestiaorg/go-square/v2 v2.3.2
 	github.com/celestiaorg/nmt v0.24.0
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft v0.38.17
@@ -60,7 +60,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.45.0
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.27.0
@@ -77,7 +77,7 @@ require (
 	golang.org/x/sync v0.16.0
 	golang.org/x/text v0.28.0
 	google.golang.org/grpc v1.73.0
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/protobuf v1.36.8
 )
 
 require (
