@@ -815,8 +815,8 @@ github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076/go.mod h1:hlidgivKyvv7m4Yl2Fdf2mSTmazZYxX8+bnr5IQrI98=
-github.com/celestiaorg/go-square/v2 v2.3.1 h1:CDdiQ+QkKPOQEcyDPODgP/PbAEzqUcftsohCPcbvsnw=
-github.com/celestiaorg/go-square/v2 v2.3.1/go.mod h1:6M2txj0j6dkoE+cgwyG0EqrEPhbZpM2R1lsWEopMIBc=
+github.com/celestiaorg/go-square/v2 v2.3.2 h1:taVqiK0UyWl1H1lNQ8UEYo3ZbubJtoWcMgVtAdRWtGs=
+github.com/celestiaorg/go-square/v2 v2.3.2/go.mod h1:NeHFT8wbfGWNEieqOBL55copZd6DPchX3CEAlRkCt30=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
 github.com/celestiaorg/ibc-go/v8 v8.7.2/go.mod h1:E3WTax+cfyDIehNRpwEI96/0E8GBtU1g9XWr18qUGZ8=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=

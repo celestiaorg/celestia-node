@@ -40,7 +40,7 @@ func (p *parser) set(index int, shrs []libshare.Share) ([]libshare.Share, error)
 	// `+=` as index could be updated in `skipPadding`
 	p.index += index
 	length := shrs[0].SequenceLen()
-	p.length = libshare.SparseSharesNeeded(length)
+	p.length = libshare.SparseSharesNeededV2(length, shrs[0].Version() == libshare.ShareVersionOne)
 	return shrs, nil
 }
 
