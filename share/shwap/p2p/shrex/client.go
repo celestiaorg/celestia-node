@@ -10,6 +10,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -128,12 +130,12 @@ func (c *Client) doRequest(
 		return statusReadRespErr, err
 	}
 
-	_, err = resp.ReadFrom(stream)
+	bytesRead, err := resp.ReadFrom(stream)
 	if err != nil {
 		return statusReadRespErr, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 	}
 
-	span.AddEvent("read response from stream")
+	span.AddEvent("read response from stream", trace.WithAttributes(attribute.Int64("size", bytesRead)))
 	return statusSuccess, nil
 }
 
