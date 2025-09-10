@@ -139,7 +139,7 @@ func (c *Client) doRequest(
 		return int64(statusLength), statusReadRespErr, ErrInvalidResponse
 	}
 
-	dataLength, err := resp.ReadFrom(stream)
+	bytesRead, err := resp.ReadFrom(stream)
 	st := statusSuccess
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrInvalidResponse, err)
@@ -147,8 +147,8 @@ func (c *Client) doRequest(
 	}
 
 	span.AddEvent("read response from stream",
-		trace.WithAttributes(attribute.Int64("size", dataLength)))
-	return int64(statusLength) + dataLength, st, err
+		trace.WithAttributes(attribute.Int64("size", bytesRead)))
+	return int64(statusLength) + bytesRead, st, err
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogger, stream network.Stream) {
