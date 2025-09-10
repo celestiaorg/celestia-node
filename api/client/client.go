@@ -48,7 +48,7 @@ type Client struct {
 	ReadClient
 	State stateapi.Module
 
-	chainCloser func() error
+	closer func() error
 }
 
 // New initializes the Celestia client. It connects to the Celestia consensus nodes and Bridge
@@ -78,7 +78,7 @@ func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
 	}
 	err = cl.initTxClient(ctx, cfg.SubmitConfig, grpcCl, kr)
 	if err != nil {
-		clerr := cl.Close()
+		clerr := cl.ReadClient.Close()
 		return nil, errors.Join(err, clerr)
 	}
 	return cl, nil
@@ -118,8 +118,8 @@ func (c *Client) initTxClient(
 		submitter: blobSvc,
 	}
 
-	c.chainCloser = func() error {
-		err := conn.Close()
+	c.closer = func() error {
+		err = conn.Close()
 		if err != nil {
 			return fmt.Errorf("failed to close grpc connection: %w", err)
 		}
@@ -131,10 +131,6 @@ func (c *Client) initTxClient(
 		if err != nil {
 			return fmt.Errorf("failed to stop blob service: %w", err)
 		}
-		err = c.ReadClient.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close read client: %w", err)
-		}
 		return nil
 	}
 	return nil
@@ -142,5 +138,9 @@ func (c *Client) initTxClient(
 
 // Close closes all open connections to Celestia consensus nodes and Bridge nodes.
 func (c *Client) Close() error {
-	return c.chainCloser()
+	err := c.ReadClient.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close read client: %w", err)
+	}
+	return c.closer()
 }
