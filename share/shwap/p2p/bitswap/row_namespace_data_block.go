@@ -79,7 +79,7 @@ func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
 }
 
 func (rndb *RowNamespaceDataBlock) Height() uint64 {
-	return rndb.ID.Height
+	return rndb.ID.Height()
 }
 
 func (rndb *RowNamespaceDataBlock) Marshal() ([]byte, error) {

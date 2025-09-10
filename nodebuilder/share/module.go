@@ -17,10 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -104,30 +103,20 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 			}),
 		// shrex-nd client
 		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexnd.Client, error) {
-				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewClient(cfg.ShrExNDParams, host)
-			},
-		),
-
-		// shrex-eds client
-		fx.Provide(
-			func(host host.Host, network modp2p.Network) (*shrexeds.Client, error) {
-				cfg.ShrExEDSParams.WithNetworkID(network.String())
-				return shrexeds.NewClient(cfg.ShrExEDSParams, host)
+			func(host host.Host, network modp2p.Network) (*shrex.Client, error) {
+				cfg.ShrexClient.WithNetworkID(network.String())
+				return shrex.NewClient(cfg.ShrexClient, host)
 			},
 		),
 
 		// shrex-getter
 		fx.Provide(fx.Annotate(
 			func(
-				edsClient *shrexeds.Client,
-				ndClient *shrexnd.Client,
+				client *shrex.Client,
 				managers map[string]*peers.Manager,
 			) *shrex_getter.Getter {
 				return shrex_getter.NewGetter(
-					edsClient,
-					ndClient,
+					client,
 					managers[fullNodesTag],
 					managers[archivalNodesTag],
 					availability.RequestWindow,
@@ -185,32 +174,20 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 
 func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
-		fx.Invoke(func(_ *shrexeds.Server, _ *shrexnd.Server) {}),
-		fx.Provide(fx.Annotate(
-			func(host host.Host, store *store.Store, network modp2p.Network) (*shrexeds.Server, error) {
-				cfg.ShrExEDSParams.WithNetworkID(network.String())
-				return shrexeds.NewServer(cfg.ShrExEDSParams, host, store)
-			},
-			fx.OnStart(func(ctx context.Context, server *shrexeds.Server) error {
-				return server.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, server *shrexeds.Server) error {
-				return server.Stop(ctx)
-			}),
-		)),
+		fx.Invoke(func(_ *shrex.Server) {}),
 		fx.Provide(fx.Annotate(
 			func(
 				host host.Host,
 				store *store.Store,
 				network modp2p.Network,
-			) (*shrexnd.Server, error) {
-				cfg.ShrExNDParams.WithNetworkID(network.String())
-				return shrexnd.NewServer(cfg.ShrExNDParams, host, store)
+			) (*shrex.Server, error) {
+				cfg.ShrexServer.WithNetworkID(network.String())
+				return shrex.NewServer(cfg.ShrexServer, host, store)
 			},
-			fx.OnStart(func(ctx context.Context, server *shrexnd.Server) error {
+			fx.OnStart(func(ctx context.Context, server *shrex.Server) error {
 				return server.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, server *shrexnd.Server) error {
+			fx.OnStop(func(ctx context.Context, server *shrex.Server) error {
 				return server.Stop(ctx)
 			})),
 		),

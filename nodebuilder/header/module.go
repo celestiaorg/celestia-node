@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -30,7 +31,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(newHeaderService),
-		fx.Provide(newInitStore[H]),
+		fx.Provide(newStore[H]),
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
 		}),
@@ -41,6 +42,13 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				ctx context.Context,
 				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
 			) error {
+				// TODO(@Wondertan): This fix flakes in e2e tests
+				//  This is coming from the store asynchronity.
+				//  Previously, we would request genesis during initialization
+				//  but now we request it during Syncer start and given to the Store.
+				//  However, the Store doesn't makes it immediately available causing flakes
+				//  The proper fix will be in a follow up release after pruning.
+				defer time.Sleep(time.Millisecond * 100)
 				return breaker.Start(ctx)
 			}),
 			fx.OnStop(func(
