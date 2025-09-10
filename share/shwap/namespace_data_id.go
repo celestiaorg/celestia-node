@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"golang.org/x/sync/errgroup"
+
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -149,13 +151,23 @@ func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (i
 	if err != nil {
 		return nil, fmt.Errorf("failed to get row indexes: %w", err)
 	}
+
 	rows := make(NamespaceData, len(rowIdxs))
 
+	errGroup, ctx := errgroup.WithContext(ctx)
 	for i, idx := range rowIdxs {
-		rows[i], err = acc.RowNamespaceData(ctx, ndid.DataNamespace, idx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
-		}
+		errGroup.Go(func() error {
+			rowData, err := acc.RowNamespaceData(ctx, ndid.DataNamespace, idx)
+			if err != nil {
+				return fmt.Errorf("failed to process row %d: %w", idx, err)
+			}
+			rows[i] = rowData
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to process rows: %w", err)
 	}
 
 	buf := &bytes.Buffer{}
