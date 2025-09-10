@@ -34,6 +34,11 @@ This specification defines the peer discovery mechanism for the SHREX protocol i
 The discovery service REQUIRES the libp2p DHT (Distributed Hash Table) to enable nodes to find peers capable of serving specific data types. The service handles both peer advertisement (announcing capabilities) and peer discovery (finding peers with required capabilities) while maintaining an active set of connected peers.
 The discovery service maintains a set in which all peers MUST have active connections with the host service. When connectedness changes from active to any other state, the peer MUST be immediately dropped and replaced through new discovery. The dropped peer SHOULD be added to a cache with backoff, so it will not be prematurely re-connected to through discovery.
 
+DHT Configuration: The kad-dht is configured with default libp2p parameters and operates in different modes based on node type:
+
+Light Nodes: dht.ModeClient - consume DHT services without serving DHT queries
+Bridge/Full Nodes: dht.ModeServer - both consume and serve DHT queries to support network infrastructure
+
 ## Sequence Diagrams
 
 ### Advertisement
