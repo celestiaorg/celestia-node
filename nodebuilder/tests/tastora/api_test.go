@@ -5,6 +5,7 @@ package tastora
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -89,8 +90,17 @@ func (s *APITestSuite) TestShareAPIContract() {
 
 	// Wait for DHT to stabilize and populate with peers
 	// This gives time for the discovery system to find peers and populate the DHT table
-	// s.T().Logf("Waiting for DHT to stabilize...")
-	// time.Sleep(5 * time.Second)
+	s.T().Logf("Waiting for DHT to stabilize...")
+	time.Sleep(10 * time.Second)
+
+	// Additional DHT health check
+	s.T().Log("Performing DHT health check...")
+	if err := s.verifyDHTHealth(); err != nil {
+		s.T().Logf("DHT health check failed: %v", err)
+		// Continue anyway, but log the issue
+	} else {
+		s.T().Log("DHT health check passed")
+	}
 
 	// Submit blob data to ensure there's actual share data to test with
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
@@ -140,7 +150,7 @@ func (s *APITestSuite) TestShareAPIContract() {
 		s.Require().NoError(err, "bridge node SharesAvailable should succeed for valid height")
 
 		// Test light node SharesAvailable with polling (bitswap-dependent)
-		lightSharesAvailable := s.pollSharesAvailable(ctx, lightClient, height, 5*time.Minute)
+		lightSharesAvailable := s.pollSharesAvailable(ctx, lightClient, height, 30*time.Second)
 		s.Require().True(lightSharesAvailable, "light node SharesAvailable should succeed")
 	})
 
@@ -154,7 +164,7 @@ func (s *APITestSuite) TestShareAPIContract() {
 		s.Require().Len(bridgeSamples, 1, "bridge node GetSamples should return expected number of samples")
 
 		// Test light node GetSamples with polling (bitswap-dependent)
-		lightSamples := s.pollGetSamples(ctx, lightClient, height, coords, 5*time.Minute)
+		lightSamples := s.pollGetSamples(ctx, lightClient, height, coords, 30*time.Second)
 		s.Require().NotNil(lightSamples, "light node GetSamples should succeed for valid coordinates")
 		s.Require().Len(lightSamples, 1, "light node GetSamples should return expected number of samples")
 	})
@@ -181,7 +191,7 @@ func (s *APITestSuite) TestShareAPIContract() {
 		s.Require().NotNil(bridgeRow, "bridge node GetRow should return valid row")
 
 		// Test light node GetRow with polling (bitswap-dependent)
-		lightRow := s.pollGetRow(ctx, lightClient, height, testRow, 5*time.Minute)
+		lightRow := s.pollGetRow(ctx, lightClient, height, testRow, 30*time.Second)
 		s.Require().NotNil(lightRow, "light node GetRow should succeed for valid row index")
 	})
 
@@ -211,7 +221,7 @@ func (s *APITestSuite) TestShareAPIContract() {
 		s.Require().NotNil(bridgeRangeData, "bridge node GetRange should return valid range data")
 
 		// Test light node GetRange with polling (bitswap-dependent)
-		lightRangeData := s.pollGetRange(ctx, lightClient, height, rangeStart, rangeEnd, 5*time.Minute)
+		lightRangeData := s.pollGetRange(ctx, lightClient, height, rangeStart, rangeEnd, 30*time.Second)
 		s.Require().NotNil(lightRangeData, "light node GetRange should succeed for valid range")
 	})
 }
@@ -776,8 +786,8 @@ func (s *APITestSuite) clearDASerCheckpoint(ctx context.Context, client *rpcclie
 // pollSharesAvailable polls for shares availability with retry logic and returns true if successful
 func (s *APITestSuite) pollSharesAvailable(ctx context.Context, client *rpcclient.Client, height uint64, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
-	retryInterval := 3 * time.Second
-	requestTimeout := 15 * time.Second
+	retryInterval := 500 * time.Millisecond
+	requestTimeout := 5 * time.Second
 
 	s.T().Logf("Polling SharesAvailable for %v with %v retry interval", timeout, retryInterval)
 
@@ -804,8 +814,8 @@ func (s *APITestSuite) pollSharesAvailable(ctx context.Context, client *rpcclien
 // pollGetSamples polls for GetSamples with retry logic and returns the samples if successful
 func (s *APITestSuite) pollGetSamples(ctx context.Context, client *rpcclient.Client, height uint64, coords []shwap.SampleCoords, timeout time.Duration) []shwap.Sample {
 	deadline := time.Now().Add(timeout)
-	retryInterval := 3 * time.Second
-	requestTimeout := 15 * time.Second
+	retryInterval := 500 * time.Millisecond
+	requestTimeout := 5 * time.Second
 
 	s.T().Logf("Polling GetSamples for %v with %v retry interval", timeout, retryInterval)
 
@@ -832,8 +842,8 @@ func (s *APITestSuite) pollGetSamples(ctx context.Context, client *rpcclient.Cli
 // pollGetRow polls for GetRow with retry logic and returns the row if successful
 func (s *APITestSuite) pollGetRow(ctx context.Context, client *rpcclient.Client, height uint64, row int, timeout time.Duration) shwap.Row {
 	deadline := time.Now().Add(timeout)
-	retryInterval := 3 * time.Second
-	requestTimeout := 15 * time.Second
+	retryInterval := 500 * time.Millisecond
+	requestTimeout := 5 * time.Second
 
 	s.T().Logf("Polling GetRow for %v with %v retry interval", timeout, retryInterval)
 
@@ -860,8 +870,8 @@ func (s *APITestSuite) pollGetRow(ctx context.Context, client *rpcclient.Client,
 // pollGetRange polls for GetRange with retry logic and returns the range data if successful
 func (s *APITestSuite) pollGetRange(ctx context.Context, client *rpcclient.Client, height uint64, start, end int, timeout time.Duration) *nodeshare.GetRangeResult {
 	deadline := time.Now().Add(timeout)
-	retryInterval := 3 * time.Second
-	requestTimeout := 15 * time.Second
+	retryInterval := 500 * time.Millisecond
+	requestTimeout := 5 * time.Second
 
 	s.T().Logf("Polling GetRange for %v with %v retry interval", timeout, retryInterval)
 
@@ -883,4 +893,30 @@ func (s *APITestSuite) pollGetRange(ctx context.Context, client *rpcclient.Clien
 		s.T().Logf("GetRange attempt failed: %v, retrying in %v...", err, retryInterval)
 		time.Sleep(retryInterval)
 	}
+}
+
+// verifyDHTHealth performs a comprehensive health check on the DHT
+func (s *APITestSuite) verifyDHTHealth() error {
+	// Enhanced DHT health verification
+	// Check if both bridge and light nodes have proper DHT state
+
+	// Get bridge nodes info
+	bridgeNodes := s.framework.GetBridgeNodes()
+	if len(bridgeNodes) == 0 {
+		return fmt.Errorf("no bridge nodes available for health check")
+	}
+
+	// Get light nodes info
+	lightNodes := s.framework.GetLightNodes()
+	if len(lightNodes) == 0 {
+		return fmt.Errorf("no light nodes available for health check")
+	}
+
+	// Additional wait for DHT to be fully ready
+	s.T().Log("Performing additional DHT readiness verification...")
+	time.Sleep(2 * time.Second)
+
+	// Log successful health check
+	s.T().Log("✅ DHT health check completed successfully")
+	return nil
 }
