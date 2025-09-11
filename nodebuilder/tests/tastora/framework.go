@@ -583,25 +583,3 @@ func (f *Framework) ConnectNodes(ctx context.Context, nodes map[string]*rpcclien
 		}
 	}
 }
-
-// WaitPeersReady waits until the node reports at least one peer.
-func (f *Framework) WaitPeersReady(ctx context.Context, client *rpcclient.Client, label string, timeout time.Duration) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	// Keep checking for peers until timeout or success
-	for {
-		peers, err := client.P2P.Peers(timeoutCtx)
-		if err == nil && len(peers) > 0 {
-			return
-		}
-
-		// Check if context is done (timeout or cancellation)
-		if timeoutCtx.Err() != nil {
-			f.t.Logf("warning: %s has no peers yet (timeout after %v)", label, timeout)
-			return
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-}
