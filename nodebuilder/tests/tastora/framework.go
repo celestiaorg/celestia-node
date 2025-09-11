@@ -553,38 +553,29 @@ func (f *Framework) ConnectNodes(ctx context.Context, nodes map[string]*rpcclien
 		return
 	}
 
+	// Get P2P info for all nodes
 	nodeInfos := make(map[string]peer.AddrInfo)
 	infoCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	for label, client := range nodes {
-		info, err := client.P2P.Info(infoCtx)
-		if err != nil {
+		if info, err := client.P2P.Info(infoCtx); err != nil {
 			f.t.Logf("warning: failed to get P2P info for %s: %v", label, err)
-			continue
+		} else {
+			nodeInfos[label] = info
 		}
-		nodeInfos[label] = info
 	}
 
-	labels := make([]string, 0, len(nodes))
-	for label := range nodes {
-		labels = append(labels, label)
-	}
-
-	for i, sourceLabel := range labels {
-		sourceClient := nodes[sourceLabel]
-		for j := i + 1; j < len(labels); j++ {
-			targetLabel := labels[j]
-			targetInfo := nodeInfos[targetLabel]
-
-			if targetInfo.ID == "" {
+	// Connect each node to all others
+	for sourceLabel, sourceClient := range nodes {
+		for targetLabel, targetInfo := range nodeInfos {
+			if sourceLabel == targetLabel || targetInfo.ID == "" {
 				continue
 			}
 
 			_ = sourceClient.P2P.Connect(ctx, targetInfo)
 
-			state, _ := sourceClient.P2P.Connectedness(ctx, targetInfo.ID)
-			if state == network.Connected {
+			if state, _ := sourceClient.P2P.Connectedness(ctx, targetInfo.ID); state == network.Connected {
 				f.t.Logf("✓ %s ↔ %s", sourceLabel, targetLabel)
 			} else {
 				f.t.Logf("⚠ %s failed to connect to %s (state: %v)", sourceLabel, targetLabel, state)

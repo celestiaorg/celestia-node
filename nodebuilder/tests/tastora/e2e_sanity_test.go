@@ -35,7 +35,7 @@ func TestE2ESanityTestSuite(t *testing.T) {
 func (s *E2ESanityTestSuite) SetupSuite() {
 	// Setup with minimal topology: 1 Bridge Node + 1 Light Node
 	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(1))
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 
@@ -45,7 +45,7 @@ func (s *E2ESanityTestSuite) SetupSuite() {
 
 // TestBasicDASFlow validates basic Data Availability Sampling functionality on a single bridge node
 func (s *E2ESanityTestSuite) TestBasicDASFlow() {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
@@ -65,9 +65,7 @@ func (s *E2ESanityTestSuite) TestBasicDASFlow() {
 	_, err = bridgeClient.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err, "bridge node should be able to wait for block inclusion")
 
-	sharesCtx, sharesCancel := context.WithTimeout(ctx, 30*time.Second)
-	err = bridgeClient.Share.SharesAvailable(sharesCtx, height)
-	sharesCancel()
+	err = bridgeClient.Share.SharesAvailable(ctx, height)
 	s.Require().NoError(err, "bridge node should have shares available at height %d", height)
 }
 
@@ -107,9 +105,7 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 	_, err = bridgeClient.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err, "bridge node should be able to wait for block inclusion")
 
-	blobCtx, blobCancel := context.WithTimeout(ctx, 30*time.Second)
-	retrievedBlob, err := bridgeClient.Blob.Get(blobCtx, height, namespace, nodeBlobs[0].Commitment)
-	blobCancel()
+	retrievedBlob, err := bridgeClient.Blob.Get(ctx, height, namespace, nodeBlobs[0].Commitment)
 	s.Require().NoError(err, "bridge node should be able to retrieve blob within timeout")
 	s.Require().NotNil(retrievedBlob, "bridge node should return valid blob")
 
