@@ -22,7 +22,7 @@ func (p *Params) Validate() error {
 
 func DefaultParams() Params {
 	return Params{
-		pruneCycle: time.Minute * 5,
+		pruneCycle: time.Second * 30,
 	}
 }
 
