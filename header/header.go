@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	logging "github.com/ipfs/go-log/v2"
 	"time"
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -15,6 +16,8 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 )
+
+var log = logging.Logger("nodeheader")
 
 // ConstructFn aliases a function that creates an ExtendedHeader.
 type ConstructFn = func(
@@ -153,6 +156,14 @@ func (eh *ExtendedHeader) Validate() error {
 	err = eh.ValidatorSet.VerifyCommitLight(eh.ChainID(), eh.Commit.BlockID, int64(eh.Height()), eh.Commit)
 	if err != nil {
 		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
+	}
+
+	log.Info("\n\nvalidating DAH: ")
+	for _, root := range eh.DAH.RowRoots {
+		log.Info("row root: ", root, "  len: ", len(root))
+	}
+	for _, root := range eh.DAH.ColumnRoots {
+		log.Info("col root: ", root, "  len: ", len(root))
 	}
 
 	err = eh.DAH.ValidateBasic()
