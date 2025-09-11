@@ -50,7 +50,6 @@ func (s *APITestSuite) TestRPCEndpointCompliance() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create a light node for RPC compliance testing
 	lightNode := s.framework.NewLightNode(ctx)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
@@ -121,23 +120,19 @@ func (s *APITestSuite) TestShareAPIContract() {
 	s.Require().Greater(dahSize, 0, "DAH should have at least one row")
 
 	s.Run("GetNamespaceData", func() {
-		// Test bridge node first (always works)
 		bridgeData, err := bridgeClient.Share.GetNamespaceData(ctx, height, namespace)
 		s.Require().NoError(err, "bridge node GetNamespaceData should succeed for valid namespace")
 		s.Require().NotNil(bridgeData, "bridge node GetNamespaceData should return valid data")
 
-		// Test light node GetNamespaceData
 		lightData, err := lightClient.Share.GetNamespaceData(ctx, height, namespace)
 		s.Require().NoError(err, "light node GetNamespaceData should succeed for valid namespace")
 		s.Require().NotNil(lightData, "light node GetNamespaceData should return valid data")
 	})
 
 	s.Run("SharesAvailable", func() {
-		// Test bridge node SharesAvailable (always works)
 		err := bridgeClient.Share.SharesAvailable(ctx, height)
 		s.Require().NoError(err, "bridge node SharesAvailable should succeed for valid height")
 
-		// Test light node SharesAvailable with polling (bitswap-dependent)
 		lightSharesAvailable := s.pollSharesAvailable(ctx, lightClient, height, 45*time.Second)
 		s.Require().True(lightSharesAvailable, "light node SharesAvailable should succeed")
 	})
@@ -146,24 +141,20 @@ func (s *APITestSuite) TestShareAPIContract() {
 		// Use valid coordinates within the DAH size (0-based indexing)
 		coords := []shwap.SampleCoords{{Row: 0, Col: 0}}
 
-		// Test bridge node first (always works)
 		bridgeSamples, err := bridgeClient.Share.GetSamples(ctx, height, coords)
 		s.Require().NoError(err, "bridge node GetSamples should succeed for valid coordinates")
 		s.Require().Len(bridgeSamples, 1, "bridge node GetSamples should return expected number of samples")
 
-		// Test light node GetSamples with polling (bitswap-dependent)
 		lightSamples := s.pollGetSamples(ctx, lightClient, height, coords, 45*time.Second)
 		s.Require().NotNil(lightSamples, "light node GetSamples should succeed for valid coordinates")
 		s.Require().Len(lightSamples, 1, "light node GetSamples should return expected number of samples")
 	})
 
 	s.Run("GetEDS", func() {
-		// Test bridge node first (always works)
 		bridgeEds, err := bridgeClient.Share.GetEDS(ctx, height)
 		s.Require().NoError(err, "bridge node GetEDS should succeed for valid height")
 		s.Require().NotNil(bridgeEds, "bridge node GetEDS should return valid EDS")
 
-		// Test light node GetEDS
 		lightEds, err := lightClient.Share.GetEDS(ctx, height)
 		s.Require().NoError(err, "light node GetEDS should succeed for valid height")
 		s.Require().NotNil(lightEds, "light node GetEDS should return valid EDS")
@@ -173,12 +164,10 @@ func (s *APITestSuite) TestShareAPIContract() {
 		// Use valid row index (0-based indexing)
 		testRow := 0 // First row
 
-		// Test bridge node first (always works)
 		bridgeRow, err := bridgeClient.Share.GetRow(ctx, height, testRow)
 		s.Require().NoError(err, "bridge node GetRow should succeed for valid row index")
 		s.Require().NotNil(bridgeRow, "bridge node GetRow should return valid row")
 
-		// Test light node GetRow with polling (bitswap-dependent)
 		lightRow := s.pollGetRow(ctx, lightClient, height, testRow, 45*time.Second)
 		s.Require().NotNil(lightRow, "light node GetRow should succeed for valid row index")
 	})
@@ -202,13 +191,11 @@ func (s *APITestSuite) TestShareAPIContract() {
 		rangeStart := int(blobIndex)
 		rangeEnd := int(blobIndex + blobLength)
 
-		// Test bridge node first (always works)
 		var bridgeRangeData *nodeshare.GetRangeResult
 		bridgeRangeData, err = bridgeClient.Share.GetRange(ctx, height, rangeStart, rangeEnd)
 		s.Require().NoError(err, "bridge node GetRange should succeed for valid range")
 		s.Require().NotNil(bridgeRangeData, "bridge node GetRange should return valid range data")
 
-		// Test light node GetRange with polling (bitswap-dependent)
 		lightRangeData := s.pollGetRange(ctx, lightClient, height, rangeStart, rangeEnd, 45*time.Second)
 		s.Require().NotNil(lightRangeData, "light node GetRange should succeed for valid range")
 	})
@@ -222,7 +209,6 @@ func (s *APITestSuite) TestHeaderAPIContract() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create light node for testing
 	lightNode := s.framework.NewLightNode(ctx)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
@@ -333,8 +319,6 @@ func (s *APITestSuite) TestBlobAPIContract() {
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
-
-	// Create a light node for testing
 	lightNode := s.framework.NewLightNode(ctx)
 
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
@@ -356,7 +340,6 @@ func (s *APITestSuite) TestBlobAPIContract() {
 	_, err = bridgeClient.Header.WaitForHeight(ctx, height)
 	s.Require().NoError(err, "should wait for blob inclusion")
 
-	// Test Submit API
 	s.Run("Submit", func() {
 		testNamespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x02}, 10))
 		s.Require().NoError(err, "should create test namespace")
@@ -369,7 +352,6 @@ func (s *APITestSuite) TestBlobAPIContract() {
 		s.Require().NotZero(submitHeight, "bridge node Submit should return valid height")
 	})
 
-	// Test Get API
 	s.Run("Get", func() {
 		bridgeBlob, err := bridgeClient.Blob.Get(ctx, height, namespace, nodeBlobs[0].Commitment)
 		s.Require().NoError(err, "bridge node Get should succeed for valid parameters")
@@ -440,7 +422,6 @@ func (s *APITestSuite) TestStateAPIContract() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create light node for testing
 	lightNode := s.framework.NewLightNode(ctx)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
@@ -504,11 +485,9 @@ func (s *APITestSuite) TestP2PAPIContract() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Get nodes
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create light node for testing
 	lightNode := s.framework.NewLightNode(ctx)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
@@ -573,7 +552,6 @@ func (s *APITestSuite) TestNodeAPIContract() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create light node for testing
 	lightNode := s.framework.NewLightNode(ctx)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
@@ -626,7 +604,6 @@ func (s *APITestSuite) TestBlobstreamAPIContract() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create light node for testing
 	lightNode := s.framework.NewLightNode(ctx)
 	lightClient := s.framework.GetNodeRPCClient(ctx, lightNode)
 
