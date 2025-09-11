@@ -152,7 +152,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeededV2(uint32(len(blobs[i].Data())), blobs[i].HasSigner())
 				}
 			},
 		},
@@ -533,7 +533,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeededV2(uint32(len(blob.Data())), blob.HasSigner())
 	}
 }
 
@@ -595,7 +595,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeededV2(uint32(len(blob.Data())), blob.HasSigner())
 	}
 }
 
