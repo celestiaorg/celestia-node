@@ -141,6 +141,14 @@ func (eh *ExtendedHeader) Validate() error {
 
 	// ensure data root from raw header matches computed root
 	if !bytes.Equal(eh.DAH.Hash(), eh.DataHash) {
+		log.Info("\n\nvalidating DAH: ")
+		for _, root := range eh.DAH.RowRoots {
+			log.Info("row root: ", root, "  len: ", len(root))
+		}
+		for _, root := range eh.DAH.ColumnRoots {
+			log.Info("col root: ", root, "  len: ", len(root))
+		}
+
 		return fmt.Errorf("mismatch between data hash commitment from core header and computed data root "+
 			"at height %d: data hash: %X, computed root: %X", eh.Height(), eh.DataHash, eh.DAH.Hash())
 	}
@@ -160,14 +168,6 @@ func (eh *ExtendedHeader) Validate() error {
 
 	err = eh.DAH.ValidateBasic()
 	if err != nil {
-		log.Info("\n\nvalidating DAH: ")
-		for _, root := range eh.DAH.RowRoots {
-			log.Info("row root: ", root, "  len: ", len(root))
-		}
-		for _, root := range eh.DAH.ColumnRoots {
-			log.Info("col root: ", root, "  len: ", len(root))
-		}
-
 		return fmt.Errorf("ValidateBasic error on DAH at height %d: %w", eh.RawHeader.Height, err)
 	}
 	return nil
