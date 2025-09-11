@@ -40,7 +40,7 @@ ShrEx/Sub is built on libp2p's FloodSub router with the following characteristic
 
 ## Message Schema
 
-The notification message contains the EDS data hash and block height:
+The notification message MUST contain the EDS data hash and block height:
 
 ```text
 Notification {
@@ -51,9 +51,9 @@ Notification {
 
 **Properties:**
 
-- Fixed 40-byte payload (32 bytes hash + 8 bytes height)
-- Minimal serialization overhead
-- Single notification per EDS at specific height
+- Messages MUST have a fixed 40-byte payload (32 bytes hash + 8 bytes height)
+- Serialization overhead SHOULD be minimal
+- Each EDS at a specific height MUST generate only a single notification
 
 ## Protocol Components
 
@@ -71,6 +71,12 @@ Publish(context, dataHash []byte, height uint64) -> error
 Subscribe() -> (*Subscription, error)
 ```
 
+**Requirements:**
+
+- Publishers MUST use the topic ID `/eds-sub/0.0.1`
+- The Publish method MUST validate input parameters before publishing
+- The Subscribe method MUST return a valid subscription or an error
+
 ### Subscription Component
 
 The subscription component handles the receiving and processing of ShrEx/Sub notifications:
@@ -83,11 +89,11 @@ The subscription component handles the receiving and processing of ShrEx/Sub not
 Next(ctx context.Context) -> (Notification, error) 
 ```
 
-**Responsibilities:**
+**Requirements:**
 
-- Maintains active subscription to `/eds-sub/0.0.1` topic
-- Processes incoming notifications through validation pipeline
-- Distributes validated notifications to registered listeners
+- Implementations MUST maintain an active subscription to `/eds-sub/0.0.1` topic
+- Incoming notifications MUST be processed through the validation pipeline
+- Only validated notifications SHALL be distributed to registered listeners
 
 ## Message Verification
 
@@ -102,20 +108,20 @@ Validate(context, peerID PeerID, message []byte) -> ValidationResult
 
 **ValidationResult Values:**
 
-- `ACCEPT`: Message is valid and should be processed
-- `REJECT`: Message is invalid and should be discarded
-- `IGNORE`: Message is valid but duplicate/stale
+- `ACCEPT`: Message is valid and MUST be processed
+- `REJECT`: Message is invalid and MUST be discarded
+- `IGNORE`: Message is valid but duplicate/stale and SHOULD be ignored
 
 ### Validation Pipeline
 
-ShrEx/Sub implements a validation process:
+ShrEx/Sub implementations MUST implement the following validation process:
 
-**Format Validation:**
+**Format Validation Requirements:**
 
-- Hash length must be exactly 32 bytes
-- Hash must not be all zeros
-- Height must be a valid block height
-- Message must not exceed size limits
+- Hash length MUST be exactly 32 bytes
+- Hash MUST NOT be all zeros
+- Height MUST be a valid block height
+- Message size MUST NOT exceed protocol limits
 
 ### Component Interaction Flow
 
@@ -125,26 +131,21 @@ ShrEx/Sub implements a validation process:
 3. Validated messages sent to registered listeners
 ```
 
-**Lifecycle Management:**
-
-- All components must be started before message processing
-- Proper shutdown ensures cleanup of resources and connections
-
 ## Protocol Behavior
 
 ### Publisher Behavior (BN)
 
-- **Trigger**: New EDS becomes available locally
-- **Action**: Publish EDS hash and height to `/eds-sub/0.0.1` topic
-- **Frequency**: Once per new EDS
-- **Validation**: Only publish hashes for locally validated/available EDS
+- **Trigger**: Publishers MUST publish when a new EDS becomes available locally
+- **Action**: Publishers MUST publish EDS hash and height to `/eds-sub/0.0.1` topic
+- **Frequency**: Each EDS MUST be published exactly once per height
+- **Validation**: Publishers MUST only publish hashes for locally validated and available EDS
 
 ### Subscriber Behavior (LN)
 
-- **Subscription**: Maintain active subscription to `/eds-sub/0.0.1`
-- **Processing**: Validate received hash format and height
-- **Action**: Process notifications through registered listeners
-- **Deduplication**: Ignore duplicate notifications
+- **Subscription**: Subscribers MUST maintain an active subscription to `/eds-sub/0.0.1`
+- **Processing**: Subscribers MUST validate received hash format and height
+- **Action**: Subscribers MUST process notifications through registered listeners
+- **Deduplication**: Subscribers MUST ignore duplicate notifications
 
 ## FloodSub vs GossipSub Rationale
 
@@ -154,7 +155,7 @@ In celestia-node, we extensively use libp2p's GossipSub router, which provides b
 
 `GossipSub`'s efficacy comes from an overlay mesh network based on "physical" connections. Peers form logical links and every gossip is *pushed* only to these peers in the mesh. A new logical link is established on every new "physical" connection. When there are too many logical links (>DHi), random logical links are pruned. However, there is no differentiation between peer types so pruning can happen to any peer.
 
- `GossipSub` implements peer exchange with pruned peers - when BN has too many links, it may prune an LN and then send it a bunch of peers that are not guaranteed to be BNs. Therefore, the LN can end up isolated with other LNs from new EDS notifications.
+`GossipSub` implements peer exchange with pruned peers - when BN has too many links, it may prune an LN and then send it a bunch of peers that are not guaranteed to be BNs. Therefore, the LN can end up isolated with other LNs from new EDS notifications.
 
 ### Why FloodSub?
 
@@ -176,3 +177,7 @@ We could increase GossipFactor to 1, which means always sending `IHAVE` to every
 
 - [libp2p PubSub Overview](<https://github.com/libp2p/specs/blob/master/pubsub/README.md>)
 - [Shrex-Sub Implementation](<https://github.com/celestiaorg/celestia-node/tree/main/share/shwap/p2p/shrex/shrexsub>)
+
+## Requirements Language
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
