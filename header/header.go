@@ -158,16 +158,16 @@ func (eh *ExtendedHeader) Validate() error {
 		return fmt.Errorf("VerifyCommitLight error at height %d: %w", eh.Height(), err)
 	}
 
-	log.Info("\n\nvalidating DAH: ")
-	for _, root := range eh.DAH.RowRoots {
-		log.Info("row root: ", root, "  len: ", len(root))
-	}
-	for _, root := range eh.DAH.ColumnRoots {
-		log.Info("col root: ", root, "  len: ", len(root))
-	}
-
 	err = eh.DAH.ValidateBasic()
 	if err != nil {
+		log.Info("\n\nvalidating DAH: ")
+		for _, root := range eh.DAH.RowRoots {
+			log.Info("row root: ", root, "  len: ", len(root))
+		}
+		for _, root := range eh.DAH.ColumnRoots {
+			log.Info("col root: ", root, "  len: ", len(root))
+		}
+
 		return fmt.Errorf("ValidateBasic error on DAH at height %d: %w", eh.RawHeader.Height, err)
 	}
 	return nil
