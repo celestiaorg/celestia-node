@@ -71,6 +71,9 @@ type CoreAccessor struct {
 	estimatorServiceTLS  bool
 	estimatorConn        *grpc.ClientConn
 
+	// metrics tracks state-related metrics
+	metrics *StateMetrics
+
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
 	lastPayForBlob  int64
@@ -86,6 +89,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
+	metrics *StateMetrics,
 	opts ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier
@@ -110,6 +114,7 @@ func NewCoreAccessor(
 		prt:                  prt,
 		coreConns:            []*grpc.ClientConn{conn},
 		network:              network,
+		metrics:              metrics,
 	}
 
 	for _, opt := range opts {
@@ -166,12 +171,20 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	start := time.Now()
 	if len(libBlobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
 
+	// Calculate blob metrics
+	var totalSize int64
+	for _, blob := range libBlobs {
+		totalSize += int64(len(blob.Data()))
+	}
+
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
+		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
 		return nil, err
 	}
 
@@ -179,11 +192,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
+			ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
 			return nil, err
 		}
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
+	// Gas estimation with metrics
+	gasEstimationStart := time.Now()
 	gas := cfg.GasLimit()
 	if gas == 0 {
 		blobSizes := make([]uint32, len(libBlobs))
@@ -192,19 +208,33 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		gas = ca.estimateGasForBlobs(blobSizes)
 	}
+	gasEstimationDuration := time.Since(gasEstimationStart)
+	ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, nil)
 
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
+		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 		return nil, err
 	}
+
+	// Account query with metrics
+	accountQueryStart := time.Now()
 	account := ca.client.AccountByAddress(ctx, author)
+	ca.metrics.ObserveAccountQuery(ctx, time.Since(accountQueryStart), nil)
+
 	if account == nil {
-		return nil, fmt.Errorf("account for signer %s not found", author)
+		err := fmt.Errorf("account for signer %s not found", author)
+		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		return nil, err
 	}
 
+	// Gas price estimation with metrics
+	gasPriceEstimationStart := time.Now()
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
+	ca.metrics.ObserveGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
 	if err != nil {
+		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 		return nil, err
 	}
 
@@ -214,6 +244,11 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	duration := time.Since(start)
+
+	// Record comprehensive PFB submission metrics
+	ca.metrics.ObservePfbSubmission(ctx, duration, len(libBlobs), totalSize, gasEstimationDuration, gasPrice, err)
+
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
