@@ -39,6 +39,8 @@ func TestSubmitPayForBlob(t *testing.T) {
 	require.NoError(t, err)
 	blobbyTheBlob, err := libshare.NewV0Blob(ns, []byte("data"))
 	require.NoError(t, err)
+	msgPayforBlobs, err := apptypes.NewMsgPayForBlobs(ca.defaultSignerAddress.String(), 0, blobbyTheBlob)
+	require.NoError(t, err)
 
 	testcases := []struct {
 		name     string
@@ -58,7 +60,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 			name:     "good blob with user provided gas and fees",
 			blobs:    []*libshare.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(blobbyTheBlob.DataLen())}),
+			gasLim:   apptypes.DefaultEstimateGas(msgPayforBlobs),
 			expErr:   nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't

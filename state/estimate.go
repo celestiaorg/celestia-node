@@ -7,6 +7,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
 	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v2/share"
 )
 
 var ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
@@ -66,6 +67,10 @@ func (ca *CoreAccessor) estimateGasPriceAndUsage(
 }
 
 // estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
-func (ca *CoreAccessor) estimateGasForBlobs(blobSizes []uint32) uint64 {
-	return apptypes.DefaultEstimateGas(blobSizes)
+func (ca *CoreAccessor) estimateGasForBlobs(signer string, blobs []*libshare.Blob) (uint64, error) {
+	msgPayForBlobs, err := apptypes.NewMsgPayForBlobs(signer, 0, blobs...)
+	if err != nil {
+		return 0, err
+	}
+	return apptypes.DefaultEstimateGas(msgPayForBlobs), nil
 }
