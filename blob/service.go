@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -61,6 +62,8 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	// metrics tracks blob-related metrics
+	metrics *Metrics
 }
 
 func NewService(
@@ -68,12 +71,14 @@ func NewService(
 	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
+	metrics *Metrics,
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
 		headerSub:     headerSub,
+		metrics:       metrics,
 	}
 }
 
@@ -168,11 +173,19 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
+	start := time.Now()
 	log.Debugw("submitting blobs", "amount", len(blobs))
+
+	// Calculate total blob size for metrics
+	var totalSize int64
+	for _, blob := range blobs {
+		totalSize += int64(len(blob.Data()))
+	}
 
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
+			s.metrics.ObserveSubmission(ctx, time.Since(start), len(blobs), totalSize, err)
 			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
 		}
 
@@ -180,6 +193,11 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 	}
 
 	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
+	duration := time.Since(start)
+
+	// Record metrics
+	s.metrics.ObserveSubmission(ctx, duration, len(blobs), totalSize, err)
+
 	if err != nil {
 		return 0, err
 	}
@@ -196,9 +214,12 @@ func (s *Service) Get(
 	namespace libshare.Namespace,
 	commitment Commitment,
 ) (blob *Blob, err error) {
+	start := time.Now()
 	ctx, span := tracer.Start(ctx, "get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		// Record metrics
+		s.metrics.ObserveRetrieval(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
@@ -222,9 +243,12 @@ func (s *Service) GetProof(
 	namespace libshare.Namespace,
 	commitment Commitment,
 ) (proof *Proof, err error) {
+	start := time.Now()
 	ctx, span := tracer.Start(ctx, "get-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		// Record metrics
+		s.metrics.ObserveProof(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),

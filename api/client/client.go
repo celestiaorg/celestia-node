@@ -97,6 +97,7 @@ func (c *Client) initTxClient(
 		trustedHeadGetter{remote: c.Header},
 		conn,
 		submitCfg.Network.String(),
+		nil, // metrics not available in client context
 	)
 	if err != nil {
 		return err
@@ -108,7 +109,7 @@ func (c *Client) initTxClient(
 	c.State = core
 
 	// setup blob submission service using core
-	blobSvc := blob.NewService(core, nil, nil, nil)
+	blobSvc := blob.NewService(core, nil, nil, nil, nil) // metrics not available in client context
 	err = blobSvc.Start(ctx)
 	if err != nil {
 		return err

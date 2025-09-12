@@ -901,7 +901,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2, nil)
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -945,7 +945,7 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		return nil, fmt.Errorf("not implemented")
 	}
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2, nil)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.
