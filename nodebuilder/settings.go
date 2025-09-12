@@ -23,6 +23,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
 	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -91,6 +92,9 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 				return
 			}
 			state.WithMetrics(lc, ca)
+		}),
+		fx.Invoke(func(lc fx.Lifecycle) {
+			blob.WithMetrics(lc)
 		}),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),

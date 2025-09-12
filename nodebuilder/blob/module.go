@@ -24,14 +24,19 @@ func ConstructModule() fx.Option {
 				return service.Subscribe
 			},
 		),
+		fx.Provide(func() *blob.Metrics {
+			// Return nil metrics when not enabled - this will be overridden by WithMetrics in settings.go
+			return nil
+		}),
 		fx.Provide(fx.Annotate(
 			func(
 				state state.Module,
 				sGetter shwap.Getter,
 				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
 				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
+				metrics *blob.Metrics,
 			) *blob.Service {
-				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
+				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn, metrics)
 			},
 			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Start(ctx)
