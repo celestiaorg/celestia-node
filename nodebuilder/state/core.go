@@ -26,7 +26,7 @@ func coreAccessor(
 	network p2p.Network,
 	client *grpc.ClientConn,
 	additionalConns core.AdditionalCoreConns,
-	metrics *state.StateMetrics,
+	metrics *state.Metrics,
 ) (
 	*state.CoreAccessor,
 	Module,

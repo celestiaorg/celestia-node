@@ -29,7 +29,7 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
-		fx.Provide(func() *state.StateMetrics {
+		fx.Provide(func() *state.Metrics {
 			// Return nil metrics when not enabled - this will be overridden by WithMetrics in settings.go
 			return nil
 		}),

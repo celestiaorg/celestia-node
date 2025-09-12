@@ -72,7 +72,7 @@ type CoreAccessor struct {
 	estimatorConn        *grpc.ClientConn
 
 	// metrics tracks state-related metrics
-	metrics *StateMetrics
+	metrics *Metrics
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -89,7 +89,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
-	metrics *StateMetrics,
+	metrics *Metrics,
 	opts ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier

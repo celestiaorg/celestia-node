@@ -13,8 +13,8 @@ import (
 
 var meter = otel.Meter("state")
 
-// StateMetrics tracks state-related metrics
-type StateMetrics struct {
+// Metrics tracks state-related metrics
+type Metrics struct {
 	// PFB submission metrics
 	pfbSubmissionCounter     metric.Int64Counter
 	pfbSubmissionDuration    metric.Float64Histogram
@@ -50,7 +50,7 @@ type StateMetrics struct {
 	totalAccountQueryErrors       atomic.Int64
 }
 
-func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*StateMetrics, error) {
+func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*Metrics, error) {
 	// PFB submission metrics
 	pfbSubmissionCounter, err := meter.Int64Counter(
 		"state_pfb_submission_total",
@@ -189,7 +189,7 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*StateMetrics, error) {
 		return nil, err
 	}
 
-	metrics := &StateMetrics{
+	metrics := &Metrics{
 		pfbSubmissionCounter:       pfbSubmissionCounter,
 		pfbSubmissionDuration:      pfbSubmissionDuration,
 		pfbSubmissionErrors:        pfbSubmissionErrors,
@@ -242,7 +242,15 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*StateMetrics, error) {
 }
 
 // ObservePfbSubmission records PayForBlob submission metrics
-func (m *StateMetrics) ObservePfbSubmission(ctx context.Context, duration time.Duration, blobCount int, totalSize int64, gasEstimationDuration time.Duration, gasPrice float64, err error) {
+func (m *Metrics) ObservePfbSubmission(
+	ctx context.Context,
+	duration time.Duration,
+	blobCount int,
+	totalSize int64,
+	gasEstimationDuration time.Duration,
+	gasPrice float64,
+	err error,
+) {
 	if m == nil {
 		return
 	}
@@ -275,7 +283,7 @@ func (m *StateMetrics) ObservePfbSubmission(ctx context.Context, duration time.D
 }
 
 // ObserveGasEstimation records gas estimation metrics
-func (m *StateMetrics) ObserveGasEstimation(ctx context.Context, duration time.Duration, err error) {
+func (m *Metrics) ObserveGasEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -299,7 +307,7 @@ func (m *StateMetrics) ObserveGasEstimation(ctx context.Context, duration time.D
 }
 
 // ObserveGasPriceEstimation records gas price estimation metrics
-func (m *StateMetrics) ObserveGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
+func (m *Metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -323,7 +331,7 @@ func (m *StateMetrics) ObserveGasPriceEstimation(ctx context.Context, duration t
 }
 
 // ObserveAccountQuery records account query metrics
-func (m *StateMetrics) ObserveAccountQuery(ctx context.Context, duration time.Duration, err error) {
+func (m *Metrics) ObserveAccountQuery(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}

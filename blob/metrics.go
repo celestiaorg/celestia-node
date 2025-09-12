@@ -2,6 +2,7 @@ package blob
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"time"
 
@@ -208,7 +209,13 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 }
 
 // ObserveSubmission records blob submission metrics
-func (m *Metrics) ObserveSubmission(ctx context.Context, duration time.Duration, blobCount int, totalSize int64, err error) {
+func (m *Metrics) ObserveSubmission(
+	ctx context.Context,
+	duration time.Duration,
+	blobCount int,
+	totalSize int64,
+	err error,
+) {
 	if m == nil {
 		return
 	}
@@ -253,7 +260,7 @@ func (m *Metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 	attrs := []attribute.KeyValue{}
 	if err != nil {
 		attrs = append(attrs, attribute.String("error", err.Error()))
-		if err == ErrBlobNotFound {
+		if errors.Is(err, ErrBlobNotFound) {
 			m.retrievalNotFound.Add(ctx, 1, metric.WithAttributes(attrs...))
 		} else {
 			m.retrievalErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
