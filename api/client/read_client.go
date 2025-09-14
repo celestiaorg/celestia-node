@@ -34,7 +34,7 @@ type ReadClient struct {
 	Fraud      fraudapi.Module
 	Blobstream blobstreamapi.Module
 
-	chainCloser func() error
+	closer func() error
 }
 
 func (cfg ReadConfig) Validate() error {
@@ -103,7 +103,7 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*ReadClient, error) {
 	}
 
 	// pass prev func as value to avoid recursive call during unwrap
-	chainCloser := func() error {
+	closer := func() error {
 		shareCloser()
 		blobstreamCloser()
 		headerCloser()
@@ -113,15 +113,15 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*ReadClient, error) {
 	}
 
 	return &ReadClient{
-		Share:       &shareAPI,
-		Blobstream:  &blobstreamAPI,
-		Header:      &headerAPI,
-		Blob:        &readOnlyBlobAPI{&blobAPI},
-		chainCloser: chainCloser,
+		Share:      &shareAPI,
+		Blobstream: &blobstreamAPI,
+		Header:     &headerAPI,
+		Blob:       &readOnlyBlobAPI{&blobAPI},
+		closer:     closer,
 	}, nil
 }
 
 // Close closes all open connections to Celestia consensus nodes and Bridge nodes.
 func (c *ReadClient) Close() error {
-	return c.chainCloser()
+	return c.closer()
 }
