@@ -184,15 +184,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	gas := cfg.GasLimit()
-	if gas == 0 {
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
-			blobSizes[i] = uint32(len(blob.Data()))
-		}
-		gas = ca.estimateGasForBlobs(blobSizes)
-	}
-
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
@@ -201,6 +192,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	account := ca.client.AccountByAddress(ctx, author)
 	if account == nil {
 		return nil, fmt.Errorf("account for signer %s not found", author)
+	}
+
+	gas := cfg.GasLimit()
+	if gas == 0 {
+		gas, err = ca.estimateGasForBlobs(account.Address().String(), libBlobs)
+		if err != nil {
+			return nil, fmt.Errorf("cannot estimate gas for blobs:%w", err)
+		}
 	}
 
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
