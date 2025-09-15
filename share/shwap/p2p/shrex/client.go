@@ -50,7 +50,7 @@ func (c *Client) Get(
 	req request,
 	resp response,
 	peer peer.ID,
-) error {
+) (int64, error) {
 	logger := log.With(
 		"source", "client",
 		"name", req.Name(),
@@ -58,13 +58,13 @@ func (c *Client) Get(
 		"peer", peer.String(),
 	)
 	requestTime := time.Now()
-	status, err := c.doRequest(ctx, logger, req, resp, peer)
+	n, status, err := c.doRequest(ctx, logger, req, resp, peer)
 	if err != nil {
 		logger.Warnw("requesting data from peer failed", "error", err)
 	}
 	c.metrics.observeRequest(ctx, req.Name(), status, time.Since(requestTime))
 	logger.Debugw("requested data", "status", status, "duration", time.Since(requestTime))
-	return err
+	return n, err
 }
 
 // doRequest performs a request to the given peer
@@ -75,13 +75,13 @@ func (c *Client) doRequest(
 	req request,
 	resp response,
 	peer peer.ID,
-) (status, error) {
+) (int64, status, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ReadTimeout)
 	defer cancel()
 
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
-		return statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
+		return 0, statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
 	defer func() {
 		utils.CloseAndLog(log, "shrex/client stream", stream)
@@ -91,7 +91,7 @@ func (c *Client) doRequest(
 
 	_, err = req.WriteTo(stream)
 	if err != nil {
-		return statusSendReqErr, fmt.Errorf("writing request: %w", err)
+		return 0, statusSendReqErr, fmt.Errorf("writing request: %w", err)
 	}
 
 	err = stream.CloseWrite()
@@ -100,26 +100,26 @@ func (c *Client) doRequest(
 	}
 
 	var statusResp shrexpb.Response
-	_, err = serde.Read(stream, &statusResp)
+	statusLength, err := serde.Read(stream, &statusResp)
 	if err != nil {
-		return statusReadStatusErr, fmt.Errorf("unexpected error during reading the status from stream: %w", err)
+		return int64(statusLength), statusReadStatusErr, fmt.Errorf("unexpected error during reading the status from stream: %w", err)
 	}
 
 	switch statusResp.Status {
 	case shrexpb.Status_OK:
 	case shrexpb.Status_NOT_FOUND:
-		return statusNotFound, ErrNotFound
+		return 0, statusNotFound, ErrNotFound
 	case shrexpb.Status_INTERNAL:
-		return statusInternalErr, ErrInternalServer
+		return 0, statusInternalErr, ErrInternalServer
 	default:
-		return statusReadRespErr, ErrInvalidResponse
+		return 0, statusReadRespErr, ErrInvalidResponse
 	}
 
-	_, err = resp.ReadFrom(stream)
+	dataLength, err := resp.ReadFrom(stream)
 	if err != nil {
-		return statusReadRespErr, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
+		return 0, statusReadRespErr, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 	}
-	return statusSuccess, nil
+	return int64(statusLength) + dataLength, statusSuccess, nil
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogger, stream network.Stream) {
