@@ -6,7 +6,7 @@ block data by sampling shares of those blocks.
 
 Package das can confirm the availability of block data in the network via the
 Availability interface which is implemented both in `full` and `light` mode.
-`Full` availability ensures the full reparation of a block's data square (meaning
+`Full` availability ensures the full reconstruction of a block's data square (meaning
 the instance will sample for enough shares to be able to fully repair the block's
 data square) while `light` availability samples for shares randomly until it is
 sufficiently likely that all block data is available as it is assumed that there
