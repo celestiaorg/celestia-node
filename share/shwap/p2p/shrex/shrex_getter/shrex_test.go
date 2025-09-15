@@ -240,6 +240,133 @@ func TestShrexGetter(t *testing.T) {
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 
+	t.Run("Samples_Available", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 0},
+			{Row: 0, Col: 1},
+			{Row: 0, Col: 2},
+			{Row: 0, Col: 3},
+		}
+		got, err := getter.GetSamples(ctx, eh, coords)
+		require.NoError(t, err)
+		assert.Len(t, got, len(coords))
+	})
+
+	t.Run("Samples_Failed_coords_out_of_bound", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 10},
+		}
+
+		_, err := getter.GetSamples(ctx, eh, coords)
+		require.Error(t, err)
+	})
+
+	t.Run("Samples_Failed_no_partial_response", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 5},
+			{Row: 0, Col: 10},
+		}
+
+		_, err := getter.GetSamples(ctx, eh, coords)
+		require.Error(t, err)
+	})
+
+	t.Run("Row_Available", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		row, err := getter.GetRow(ctx, eh, 0)
+		require.NoError(t, err)
+		shrs, err := row.Shares()
+		require.NoError(t, err)
+		edsRow := randEDS.Row(0)
+		for i, shr := range shrs {
+			require.Equal(t, edsRow[i], shr.ToBytes())
+		}
+	})
+
+	t.Run("Row_Failed_row_index_out_of_bound", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		_, err := getter.GetRow(ctx, eh, 20)
+		require.Error(t, err)
+	})
+
 	// tests getPeer's ability to route requests based on whether
 	// they are historical or not
 	t.Run("routing_historical_requests", func(t *testing.T) {
