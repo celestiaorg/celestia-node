@@ -1,7 +1,10 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -10,6 +13,8 @@ import (
 // combining EdsIDSize size and 4 additional bytes
 // for the start and end ODS indexes of share of the range.
 const RangeNamespaceDataIDSize = EdsIDSize + 8
+
+const rangeNamespaceData = "rangeNamespaceData_v0"
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within an Original DataSquare (ODS)
 // The range is defined by the indexes of the first (`From`)
@@ -51,6 +56,41 @@ func NewRangeNamespaceDataID(
 		return RangeNamespaceDataID{}, fmt.Errorf("verifying range id: %w", err)
 	}
 	return rngid, nil
+}
+
+// MarshalJSON encodes RangeNamespaceDataID to the json encoded bytes.
+func (rngid RangeNamespaceDataID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Height uint64 `json:"height"`
+		From   int    `json:"from"`
+		To     int    `json:"to"`
+	}{
+		Height: rngid.height,
+		From:   rngid.From,
+		To:     rngid.To,
+	})
+}
+
+// UnmarshalJSON decodes json bytes to the RangeNamespaceDataID.
+func (rngid *RangeNamespaceDataID) UnmarshalJSON(data []byte) error {
+	jsonRngID := struct {
+		Height uint64 `json:"height"`
+		From   int    `json:"from"`
+		To     int    `json:"to"`
+	}{}
+
+	err := json.Unmarshal(data, &jsonRngID)
+	if err != nil {
+		return err
+	}
+	rngid.height = jsonRngID.Height
+	rngid.From = jsonRngID.From
+	rngid.To = jsonRngID.To
+	return nil
+}
+
+func (rngid RangeNamespaceDataID) Name() string {
+	return rangeNamespaceData
 }
 
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
@@ -154,4 +194,19 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	data = binary.BigEndian.AppendUint32(data, uint32(rngid.From))
 	data = binary.BigEndian.AppendUint32(data, uint32(rngid.To))
 	return data, nil
+}
+
+func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	rngdata, err := acc.RangeNamespaceData(ctx, rngid.From, rngid.To)
+	if err != nil {
+		return nil, fmt.Errorf("getting rngdata from accessor: %w", err)
+	}
+
+	// TODO(@vgonkivs): This is a temporary solution that will be reworked
+	buf := &bytes.Buffer{}
+	_, err = rngdata.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing rngData: %w", err)
+	}
+	return buf, nil
 }

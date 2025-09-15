@@ -1,7 +1,10 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -62,6 +65,41 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 		return SampleID{}, fmt.Errorf("verifying SampleID: %w", err)
 	}
 	return sid, nil
+}
+
+// MarshalJSON encodes SampleID to the json encoded bytes.
+func (sid SampleID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Height     uint64 `json:"height"`
+		RowIndex   int    `json:"row_index"`
+		ShareIndex int    `json:"share_index"`
+	}{
+		Height:     sid.height,
+		RowIndex:   sid.RowIndex,
+		ShareIndex: sid.ShareIndex,
+	})
+}
+
+// UnmarshalJSON decodes json bytes to the SampleID.
+func (sid *SampleID) UnmarshalJSON(data []byte) error {
+	jsonSid := struct {
+		Height     uint64 `json:"height"`
+		RowIndex   int    `json:"row_index"`
+		ShareIndex int    `json:"share_index"`
+	}{}
+
+	err := json.Unmarshal(data, &jsonSid)
+	if err != nil {
+		return err
+	}
+	sid.height = jsonSid.Height
+	sid.RowIndex = jsonSid.RowIndex
+	sid.ShareIndex = jsonSid.ShareIndex
+	return nil
+}
+
+func (sid SampleID) Name() string {
+	return sampleName
 }
 
 // SampleIDFromBinary deserializes a SampleID from binary data, ensuring the data length matches
@@ -161,4 +199,19 @@ func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex)), nil
+}
+
+func (sid SampleID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	sample, err := acc.Sample(ctx, SampleCoords{Row: sid.RowIndex, Col: sid.ShareIndex})
+	if err != nil {
+		return nil, fmt.Errorf("getting sample from accessor: %w", err)
+	}
+
+	// TODO(@vgonkivs): This is a temporary solution that will be reworked
+	buf := &bytes.Buffer{}
+	_, err = sample.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing sample: %w", err)
+	}
+	return buf, nil
 }

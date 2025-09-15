@@ -1,9 +1,14 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/celestiaorg/rsmt2d"
 )
 
 // RowIDSize defines the size in bytes of RowID, consisting of the size of EdsID and 2 bytes for
@@ -32,6 +37,37 @@ func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 	}
 
 	return rid, nil
+}
+
+// MarshalJSON encodes RowID to the json encoded bytes.
+func (rid RowID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Height   uint64 `json:"height"`
+		RowIndex int    `json:"row_index"`
+	}{
+		Height:   rid.height,
+		RowIndex: rid.RowIndex,
+	})
+}
+
+// UnmarshalJSON decodes json bytes to the RowID.
+func (rid *RowID) UnmarshalJSON(data []byte) error {
+	jsonRowID := struct {
+		Height   uint64 `json:"height"`
+		RowIndex int    `json:"row_index"`
+	}{}
+
+	err := json.Unmarshal(data, &jsonRowID)
+	if err != nil {
+		return err
+	}
+	rid.height = jsonRowID.Height
+	rid.RowIndex = jsonRowID.RowIndex
+	return nil
+}
+
+func (rid RowID) Name() string {
+	return rowName
 }
 
 // RowIDFromBinary decodes a RowID from its binary representation.
@@ -129,4 +165,19 @@ func (rid RowID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return binary.BigEndian.AppendUint16(data, uint16(rid.RowIndex)), nil
+}
+
+func (rid RowID) ResponseDataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	r := axisHalf.ToRow()
+	buf := &bytes.Buffer{}
+	_, err = r.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
