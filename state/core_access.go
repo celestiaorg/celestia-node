@@ -194,6 +194,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, fmt.Errorf("account for signer %s not found", author)
 	}
 
+	// TODO @renaynay: deduplicate this logic between node and TxClient in the future
+	// as `txClient.SubmitPayForBlobWithAccount` duplicates default gas price
+	// calculation - we just override it here with opts.
 	gas := cfg.GasLimit()
 	if gas == 0 {
 		gas, err = ca.estimateGasForBlobs(account.Address().String(), libBlobs)
