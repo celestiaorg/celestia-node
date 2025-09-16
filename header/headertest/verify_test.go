@@ -1,7 +1,6 @@
 package headertest
 
 import (
-	"errors"
 	"strconv"
 	"testing"
 
