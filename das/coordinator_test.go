@@ -614,7 +614,7 @@ func defaultTestParams() testParams {
 	dasParamsDefault := DefaultParameters()
 	return testParams{
 		networkHead:  uint64(500),
-		sampleFrom:   dasParamsDefault.SampleFrom,
+		sampleFrom:   1,
 		timeoutDelay: 5 * time.Second,
 		dasParams:    dasParamsDefault,
 	}

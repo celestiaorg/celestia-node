@@ -4,7 +4,6 @@ package tests
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -76,13 +75,10 @@ func TestFullDiscoveryViaBootstrapper(t *testing.T) {
 	sw := swamp.NewSwamp(t)
 
 	// create and start a BN
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
+	cfg := sw.DefaultTestConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
-	var err error
-	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
-	require.NoError(t, err)
 	bridge := sw.NewNodeWithConfig(node.Bridge, cfg)
-	err = bridge.Start(ctx)
+	err := bridge.Start(ctx)
 	require.NoError(t, err)
 
 	// use BN as the bootstrapper
@@ -91,18 +87,12 @@ func TestFullDiscoveryViaBootstrapper(t *testing.T) {
 	// create FN with BN as bootstrapper
 	cfg = sw.DefaultTestConfig(node.Full)
 	setTimeInterval(cfg, defaultTimeInterval)
-	full := sw.NewNodeWithConfig(
-		node.Full,
-		cfg,
-	)
+	full := sw.NewNodeWithConfig(node.Full, cfg)
 
 	// create LN with BN as bootstrapper
 	cfg = sw.DefaultTestConfig(node.Light)
 	setTimeInterval(cfg, defaultTimeInterval)
-	light := sw.NewNodeWithConfig(
-		node.Light,
-		cfg,
-	)
+	light := sw.NewNodeWithConfig(node.Light, cfg)
 
 	// start FN and LN and ensure they are both connected to BN as a bootstrapper
 	nodes := []*nodebuilder.Node{full, light}
@@ -155,11 +145,8 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	// create and start a BN as a bootstrapper
 	fullCfg := sw.DefaultTestConfig(node.Bridge)
 	setTimeInterval(fullCfg, defaultTimeInterval)
-	var err error
-	fullCfg.Core.IP, fullCfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
-	require.NoError(t, err)
 	bridge := sw.NewNodeWithConfig(node.Bridge, fullCfg)
-	err = bridge.Start(ctx)
+	err := bridge.Start(ctx)
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, bridge)
 
