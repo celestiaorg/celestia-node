@@ -36,7 +36,6 @@ type Metrics struct {
 
 // WithMetrics registers blob metrics
 func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
-
 	// Retrieval metrics
 	retrievalCounter, err := meter.Int64Counter(
 		"blob_retrieval_total",
