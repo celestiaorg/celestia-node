@@ -341,7 +341,6 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 				rttStatsMu.Lock()
 				rttStats[bootstrapper.ID.String()] = stats
 				rttStatsMu.Unlock()
-
 			}(bootstrapper)
 		}
 
