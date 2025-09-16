@@ -173,19 +173,11 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
-	start := time.Now()
 	log.Debugw("submitting blobs", "amount", len(blobs))
-
-	// Calculate total blob size for metrics
-	var totalSize int64
-	for _, blob := range blobs {
-		totalSize += int64(len(blob.Data()))
-	}
 
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
 		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
-			s.metrics.ObserveSubmission(ctx, time.Since(start), len(blobs), totalSize, err)
 			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
 		}
 
@@ -193,10 +185,6 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 	}
 
 	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
-	duration := time.Since(start)
-
-	// Record metrics
-	s.metrics.ObserveSubmission(ctx, duration, len(blobs), totalSize, err)
 
 	if err != nil {
 		return 0, err
