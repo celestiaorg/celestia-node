@@ -6,7 +6,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/header"
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -43,7 +42,7 @@ type Module interface {
 	// GetSamples retrieves multiple shares from the Extended Data Square (EDS) specified by the header
 	// at the given sample coordinates. Returns an array of samples containing the requested shares
 	// or an error if retrieval fails.
-	GetSamples(ctx context.Context, header *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error)
+	GetSamples(ctx context.Context, height uint64, indices []shwap.SampleCoords) ([]shwap.Sample, error)
 
 	// GetEDS retrieves the complete Extended Data Square (EDS) for the specified height.
 	// The EDS contains all shares organized in a 2D matrix format with erasure coding.
@@ -85,7 +84,7 @@ type API struct {
 		) (libshare.Share, error) `perm:"read"`
 		GetSamples func(
 			ctx context.Context,
-			header *header.ExtendedHeader,
+			height uint64,
 			indices []shwap.SampleCoords,
 		) ([]shwap.Sample, error) `perm:"read"`
 		GetEDS func(
@@ -118,10 +117,10 @@ func (api *API) GetShare(ctx context.Context, height uint64, row, col int) (libs
 	return api.Internal.GetShare(ctx, height, row, col)
 }
 
-func (api *API) GetSamples(ctx context.Context, header *header.ExtendedHeader,
+func (api *API) GetSamples(ctx context.Context, height uint64,
 	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
-	return api.Internal.GetSamples(ctx, header, indices)
+	return api.Internal.GetSamples(ctx, height, indices)
 }
 
 func (api *API) GetEDS(ctx context.Context, height uint64) (*rsmt2d.ExtendedDataSquare, error) {
@@ -167,9 +166,13 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 	return smpls[0].Share, nil
 }
 
-func (m module) GetSamples(ctx context.Context, header *header.ExtendedHeader,
+func (m module) GetSamples(ctx context.Context, height uint64,
 	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
+	header, err := m.hs.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
 	return m.getter.GetSamples(ctx, header, indices)
 }
 

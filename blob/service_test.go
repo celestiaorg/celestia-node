@@ -152,7 +152,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeededV2(uint32(len(blobs[i].Data())), blobs[i].HasSigner())
 				}
 			},
 		},
@@ -533,7 +533,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeededV2(uint32(len(blob.Data())), blob.HasSigner())
 	}
 }
 
@@ -595,7 +595,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeededV2(uint32(len(blob.Data())), blob.HasSigner())
 	}
 }
 
@@ -871,11 +871,10 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 		edsses[i] = eds
 	}
 	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
-
-	err = headerStore.Init(ctx, headers[0])
+	err = headerStore.Start(ctx)
 	require.NoError(t, err)
-
-	err = headerStore.Append(ctx, headers[1:]...)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, headers...)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -934,7 +933,10 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	err = headerStore.Init(ctx, h)
+	err = headerStore.Start(ctx)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, h)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
