@@ -132,7 +132,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
-	eds, err := extendBlock(&block.Data, block.Header.Version.App)
+	eds, err := extendBlock(&block.Data)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
@@ -170,7 +170,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64)
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := extendBlock(b.Data)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}

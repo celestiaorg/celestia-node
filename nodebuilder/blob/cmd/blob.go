@@ -179,14 +179,18 @@ var submitCmd = &cobra.Command{
 		jsonBlobs := make([]blobJSON, 0)
 		// In case of there is a file input, get the namespace and blob from the arguments
 		if path != "" {
-			paresdBlobs, err := parseSubmitBlobs(path)
+			parsedBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
 				return err
 			}
 
-			jsonBlobs = append(jsonBlobs, paresdBlobs...)
+			jsonBlobs = append(jsonBlobs, parsedBlobs...)
 		} else {
-			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: args[1]})
+			blobData, err := cmdnode.DecodeToBytes(args[1])
+			if err != nil { // can be simple text
+				blobData = []byte(args[1])
+			}
+			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: string(blobData)})
 		}
 
 		var resultBlobs []*blob.Blob
@@ -273,8 +277,8 @@ var getProofCmd = &cobra.Command{
 	},
 }
 
-func formatData(ns string) func(interface{}) interface{} {
-	return func(data interface{}) interface{} {
+func formatData(ns string) func(any) any {
+	return func(data any) any {
 		type tempBlob struct {
 			Namespace    string `json:"namespace"`
 			Data         string `json:"data"`

@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,7 +23,7 @@ const (
 	Mainnet Network = "celestia"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
-	BlockTime = time.Second * 10
+	BlockTime = time.Second * 6
 )
 
 // Network is a type definition for DA network run by Celestia Node.
@@ -79,7 +80,7 @@ var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
 
 // GetNetworks provides a list of all known networks in order of priority.
 func GetNetworks() []Network {
-	return append([]Network(nil), orderedNetworks...)
+	return slices.Clone(orderedNetworks)
 }
 
 // listAvailableNetworks provides a string listing all known long-standing networks for things

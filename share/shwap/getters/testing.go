@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -91,6 +91,14 @@ func (seg *SingleEDSGetter) GetEDS(
 func (seg *SingleEDSGetter) GetNamespaceData(context.Context, *header.ExtendedHeader, libshare.Namespace,
 ) (shwap.NamespaceData, error) {
 	panic("SingleEDSGetter: GetNamespaceData is not implemented")
+}
+
+func (seg *SingleEDSGetter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	panic("SingleEDSGetter: GetRangeNamespaceData is not implemented")
 }
 
 func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {

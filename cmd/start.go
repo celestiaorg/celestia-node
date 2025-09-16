@@ -10,8 +10,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v5/app"
+	"github.com/celestiaorg/celestia-app/v5/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
@@ -25,7 +25,12 @@ Options passed on start override configuration options only on start and are not
 		Aliases:      []string{"run", "daemon"},
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			err = ParseAllFlags(cmd, NodeType(cmd.Context()), args)
+			if err != nil {
+				return err
+			}
+
 			ctx := cmd.Context()
 
 			// override config with all modifiers passed on start

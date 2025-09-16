@@ -6,19 +6,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 )
 
-// appVersion is the current application version of celestia-app.
-const appVersion = appconsts.LatestVersion
-
 var errEmptyShares = errors.New("empty shares")
 
-var subtreeRootThreshold = appconsts.SubtreeRootThreshold(appVersion)
+var subtreeRootThreshold = appconsts.SubtreeRootThreshold
 
 // The Proof is a set of nmt proofs that can be verified only through
 // the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
@@ -118,7 +115,7 @@ func (b *Blob) Length() (int, error) {
 	if len(s) == 0 {
 		return 0, errors.New("blob with zero shares received")
 	}
-	return libshare.SparseSharesNeeded(s[0].SequenceLen()), nil
+	return libshare.SparseSharesNeededV2(s[0].SequenceLen(), b.HasSigner()), nil
 }
 
 // Signer returns blob's author.

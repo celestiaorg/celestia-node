@@ -47,8 +47,8 @@ type stubEdsAccessorCloser struct {
 	closed bool
 }
 
-func (s *stubEdsAccessorCloser) Size(context.Context) int {
-	return 0
+func (s *stubEdsAccessorCloser) Size(context.Context) (int, error) {
+	return 0, nil
 }
 
 func (s *stubEdsAccessorCloser) DataHash(context.Context) (share.DataHash, error) {
@@ -63,8 +63,8 @@ func (s *stubEdsAccessorCloser) Sample(context.Context, shwap.SampleCoords) (shw
 	return shwap.Sample{}, nil
 }
 
-func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (AxisHalf, error) {
-	return AxisHalf{}, nil
+func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (shwap.AxisHalf, error) {
+	return shwap.AxisHalf{}, nil
 }
 
 func (s *stubEdsAccessorCloser) RowNamespaceData(
@@ -73,6 +73,13 @@ func (s *stubEdsAccessorCloser) RowNamespaceData(
 	int,
 ) (shwap.RowNamespaceData, error) {
 	return shwap.RowNamespaceData{}, nil
+}
+
+func (s *stubEdsAccessorCloser) RangeNamespaceData(
+	_ context.Context,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, nil
 }
 
 func (s *stubEdsAccessorCloser) Shares(context.Context) ([]libshare.Share, error) {

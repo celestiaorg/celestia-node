@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -34,7 +34,15 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			extendedHeader: getExtendedHeader(t, 4),
-			wantErr: "has version 4, this node supports up to version 3. " +
+			wantErr:        "",
+		},
+		{
+			extendedHeader: getExtendedHeader(t, 5),
+			wantErr:        "",
+		},
+		{
+			extendedHeader: getExtendedHeader(t, 6),
+			wantErr: "has version 6, this node supports up to version 5. " +
 				"Please upgrade to support new version. Note, 0 is not a valid version",
 		},
 	}

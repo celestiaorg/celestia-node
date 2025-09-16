@@ -47,8 +47,8 @@ func (n NoopFile) Reader() (io.Reader, error) {
 	return noopReader{}, nil
 }
 
-func (n NoopFile) Size(context.Context) int {
-	return 0
+func (n NoopFile) Size(context.Context) (int, error) {
+	return 0, nil
 }
 
 func (n NoopFile) DataHash(context.Context) (share.DataHash, error) {
@@ -63,12 +63,19 @@ func (n NoopFile) Sample(context.Context, shwap.SampleCoords) (shwap.Sample, err
 	return shwap.Sample{}, nil
 }
 
-func (n NoopFile) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf, error) {
-	return eds.AxisHalf{}, nil
+func (n NoopFile) AxisHalf(context.Context, rsmt2d.Axis, int) (shwap.AxisHalf, error) {
+	return shwap.AxisHalf{}, nil
 }
 
 func (n NoopFile) RowNamespaceData(context.Context, libshare.Namespace, int) (shwap.RowNamespaceData, error) {
 	return shwap.RowNamespaceData{}, nil
+}
+
+func (n NoopFile) RangeNamespaceData(
+	_ context.Context,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
+	return shwap.RangeNamespaceData{}, nil
 }
 
 func (n NoopFile) Shares(context.Context) ([]libshare.Share, error) {

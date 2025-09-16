@@ -3,7 +3,7 @@ package blob
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v5/pkg/proof"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"
 )

@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -21,7 +20,6 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		MiscFlags(),
 		core.Flags(),
 		rpc.Flags(),
-		gateway.Flags(),
 		state.Flags(),
 		pruner.Flags(),
 	}
@@ -29,8 +27,11 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		Use:   "bridge [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Bridge node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Bridge, args)
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := WithNodeType(cmd.Context(), node.Bridge)
+			cmd.SetContext(ctx)
+
+			return nil
 		},
 	}
 	for _, option := range options {
@@ -47,7 +48,6 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		MiscFlags(),
 		core.Flags(),
 		rpc.Flags(),
-		gateway.Flags(),
 		state.Flags(),
 		pruner.Flags(),
 	}
@@ -55,8 +55,10 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		Use:   "light [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Light node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Light, args)
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := WithNodeType(cmd.Context(), node.Light)
+			cmd.SetContext(ctx)
+			return nil
 		},
 	}
 	for _, option := range options {
@@ -73,7 +75,6 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		MiscFlags(),
 		core.Flags(),
 		rpc.Flags(),
-		gateway.Flags(),
 		state.Flags(),
 		pruner.Flags(),
 	}
@@ -81,8 +82,14 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		Use:   "full [subcommand]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Full node",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return PersistentPreRunEnv(cmd, node.Full, args)
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			log.Error(
+				"DEPRECATION NOTICE: FULL NODE MODE WILL BE DEPRECATED SOON." +
+					" NODE OPERATORS SHOULD CONSIDER RUNNING A BRIDGE NODE INSTEAD IF THEY REQUIRE FULL DATA STORAGE FUNCTIONALITY.",
+			)
+			ctx := WithNodeType(cmd.Context(), node.Full)
+			cmd.SetContext(ctx)
+			return nil
 		},
 	}
 	for _, option := range options {

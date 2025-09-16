@@ -15,6 +15,10 @@ type SampleCoords struct {
 	Col int `json:"col"`
 }
 
+func (s SampleCoords) String() string {
+	return fmt.Sprintf("(%d:%d)", s.Row, s.Col)
+}
+
 func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {
 	if idx.Row < 0 || idx.Col < 0 {
 		return 0, fmt.Errorf("negative row or col index: %w", ErrInvalidID)
@@ -47,7 +51,7 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
-				Height: height,
+				height: height,
 			},
 			RowIndex: idx.Row,
 		},
@@ -112,7 +116,11 @@ func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (sid SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
-	return sid.appendTo(data), nil
+	data, err := sid.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteTo writes the binary form of SampleID to the provided writer.
@@ -145,9 +153,12 @@ func (sid SampleID) Validate() error {
 	return sid.RowID.Validate()
 }
 
-// appendTo helps in constructing the binary representation by appending the encoded ShareIndex to
+// AppendBinary helps in constructing the binary representation by appending the encoded ShareIndex to
 // the serialized RowID.
-func (sid SampleID) appendTo(data []byte) []byte {
-	data = sid.RowID.appendTo(data)
-	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex))
+func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
+	data, err := sid.RowID.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex)), nil
 }

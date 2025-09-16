@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/v5/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -65,6 +66,11 @@ func TestSuiteAccessor(
 			t.Run(fmt.Sprintf("Shares:%s", name), func(t *testing.T) {
 				t.Parallel()
 				testAccessorShares(ctx, t, createAccessor, eds)
+			})
+
+			t.Run(fmt.Sprintf("RangeNamespaceData:%s", name), func(t *testing.T) {
+				t.Parallel()
+				testRangeNamespaceData(ctx, t, createAccessor, size)
 			})
 		}
 	}
@@ -146,8 +152,8 @@ func testAccessorSample(
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		// t.Parallel() this fails the test for some reason
-		for rowIdx := 0; rowIdx < width; rowIdx++ {
-			for colIdx := 0; colIdx < width; colIdx++ {
+		for rowIdx := range width {
+			for colIdx := range width {
 				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 				testSample(ctx, t, acc, roots, idx)
 			}
@@ -160,8 +166,8 @@ func testAccessorSample(
 		roots, err := share.NewAxisRoots(eds)
 		require.NoError(t, err)
 		wg := sync.WaitGroup{}
-		for rowIdx := 0; rowIdx < width; rowIdx++ {
-			for colIdx := 0; colIdx < width; colIdx++ {
+		for rowIdx := range width {
+			for colIdx := range width {
 				wg.Add(1)
 				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 				go func(idx shwap.SampleCoords) {
@@ -283,6 +289,38 @@ func testAccessorRowNamespaceData(
 	})
 }
 
+func testRangeNamespaceData(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	sharesAmount := odsSize * odsSize
+	namespace := libshare.RandomNamespace()
+	eds, _ := edstest.RandEDSWithNamespace(t, namespace, sharesAmount, odsSize)
+	acc := createAccessor(t, eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	for startIdx := 0; startIdx < sharesAmount; startIdx++ {
+		from, err := shwap.SampleCoordsFrom1DIndex(startIdx, odsSize)
+		require.NoError(t, err)
+		for endIdx := sharesAmount; endIdx < startIdx; endIdx-- {
+			rngData, err := acc.RangeNamespaceData(ctx, startIdx, endIdx)
+			require.NoError(t, err)
+			to, err := shwap.SampleCoordsFrom1DIndex(endIdx-1, odsSize)
+			require.NoError(t, err)
+			err = rngData.VerifyInclusion(
+				shwap.SampleCoords{Row: from.Row, Col: from.Col},
+				shwap.SampleCoords{Row: to.Row, Col: to.Col},
+				len(dah.RowRoots)/2,
+				dah.RowRoots[from.Row:to.Row+1],
+			)
+			require.NoError(t, err)
+		}
+	}
+}
+
 func testAccessorAxisHalf(
 	ctx context.Context,
 	t *testing.T,
@@ -294,7 +332,7 @@ func testAccessorAxisHalf(
 
 	t.Run("single thread", func(t *testing.T) {
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-			for axisIdx := 0; axisIdx < int(eds.Width()); axisIdx++ {
+			for axisIdx := range int(eds.Width()) {
 				half, err := acc.AxisHalf(ctx, axisType, axisIdx)
 				require.NoError(t, err)
 				require.Len(t, half.Shares, odsSize)
@@ -319,7 +357,7 @@ func testAccessorAxisHalf(
 		t.Parallel()
 		wg := sync.WaitGroup{}
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
-			for i := 0; i < int(eds.Width()); i++ {
+			for i := range int(eds.Width()) {
 				wg.Add(1)
 				go func(axisType rsmt2d.Axis, idx int) {
 					defer wg.Done()
@@ -354,7 +392,7 @@ func testAccessorShares(
 	acc := createAccessor(t, eds)
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -380,7 +418,7 @@ func testAccessorReader(
 	// verify that the reader represented by accessor can be read from
 	// multiple times, without exhausting the underlying reader.
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -418,12 +456,16 @@ func BenchGetHalfAxisFromAccessor(
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					// warm up cache
-					_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
+					size, err := acc.Size(ctx)
+					require.NoError(b, err)
+					_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
 					require.NoError(b, err)
 
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						_, err := acc.AxisHalf(ctx, axisType, acc.Size(ctx)/2*(squareHalf))
+						size, err := acc.Size(ctx)
+						require.NoError(b, err)
+						_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
 						require.NoError(b, err)
 					}
 				})
@@ -446,11 +488,13 @@ func BenchGetSampleFromAccessor(
 		for _, q := range quadrants {
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
-				rowIdx, colIdx := q.coordinates(acc.Size(ctx))
+				edsSize, err := acc.Size(ctx)
+				require.NoError(b, err)
+				rowIdx, colIdx := q.coordinates(edsSize)
 				idx := shwap.SampleCoords{Row: rowIdx, Col: colIdx}
 
 				// warm up cache
-				_, err := acc.Sample(ctx, idx)
+				_, err = acc.Sample(ctx, idx)
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()

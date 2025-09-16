@@ -14,6 +14,7 @@ import (
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/gofrs/flock"
 	"github.com/ipfs/go-datastore"
+	contextds "github.com/ipfs/go-datastore/context"
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
@@ -134,8 +135,8 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
 	}
 
-	f.data = ds
-	return ds, nil
+	f.data = contextds.WrapDatastore(ds).(datastore.Batching)
+	return f.data, nil
 }
 
 func (f *fsStore) Close() (err error) {
@@ -283,9 +284,14 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time
-	opts.GcInterval = time.Minute * 1
+	// somewhat aligned with pruner default
+	opts.GcInterval = time.Second * 30
 	// default 0.5 => 0.125 - makes sure value log GC is more aggressive on reclaiming disk space
 	opts.GcDiscardRatio = 0.125
+	// removes the pause in between GC rounds
+	// empirically, it doesn't cause any noticeable performance impact
+	// while it significantly speeds up disk space reclaimation for deleted data
+	opts.GcSleep = 0
 
 	// badger stores checksum for every value, but doesn't verify it by default
 	// enabling this option may allow us to see detect corrupted data
@@ -309,16 +315,11 @@ func constraintBadgerConfig() *dsbadger.Options {
 
 	// Compaction:
 	// Dynamic compactor allocation
-	compactors := runtime.NumCPU() / 2
-	if compactors < 2 {
-		compactors = 2 // can't be less than 2
-	}
-	if compactors > opts.MaxLevels { // ensure there is no more compactors than db table levels
-		compactors = opts.MaxLevels
-	}
+	compactors := min(max(runtime.NumCPU()/2, 2), opts.MaxLevels)
 	opts.NumCompactors = compactors
-	// makes sure badger is always compacted on shutdown
-	opts.CompactL0OnClose = true
+	// don't compact on close
+	// this adds up to closing time, potentially exceeding StopTimeout
+	opts.CompactL0OnClose = false
 
 	return &opts
 }

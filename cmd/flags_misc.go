@@ -125,7 +125,7 @@ and their lower-case forms`,
 func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	logLevel := cmd.Flag(LogLevelFlag).Value.String()
 	if logLevel != "" {
-		level, err := logging.LevelFromString(logLevel)
+		level, err := logging.Parse(logLevel)
 		if err != nil {
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", LogLevelFlag, err)
 		}

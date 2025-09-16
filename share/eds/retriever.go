@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -227,7 +227,7 @@ func (rs *retrievalSession) close(success bool) {
 func (rs *retrievalSession) request(ctx context.Context) {
 	t := time.NewTicker(RetrieveQuadrantTimeout)
 	defer t.Stop()
-	for retry := 0; retry < len(rs.squareQuadrants); retry++ {
+	for retry := range rs.squareQuadrants {
 		q := rs.squareQuadrants[retry]
 		log.Debugw("requesting quadrant",
 			"axis", q.source,
