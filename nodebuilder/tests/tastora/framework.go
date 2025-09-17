@@ -31,14 +31,14 @@ import (
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
 	defaultCelestiaTag = "v5.0.1"
-	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
+	nodeImage          = "celestia-node-local"
 	testChainID        = "test"
 )
 
 var (
 	// defaultNodeTag can be overridden at build time using ldflags
 	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultNodeTag = "5b96c43" // fallback if not set via ldflags
+	defaultNodeTag = "6bc23167" // fallback if not set via ldflags
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
