@@ -24,10 +24,7 @@ func ConstructModule() fx.Option {
 				return service.Subscribe
 			},
 		),
-		fx.Provide(func() *blob.Metrics {
-			// Return nil metrics when not enabled - this will be overridden by WithMetrics in settings.go
-			return nil
-		}),
+		// Metrics will be provided by settings.go when enabled
 		fx.Provide(fx.Annotate(
 			func(
 				state state.Module,

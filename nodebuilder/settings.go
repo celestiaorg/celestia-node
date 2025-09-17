@@ -101,11 +101,8 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 				ca.SetMetrics(metrics)
 			}
 		}),
-		fx.Invoke(func(lc fx.Lifecycle) {
-			_, err := blob.WithMetrics(lc)
-			if err != nil {
-				log.Warnf("failed to initialize blob metrics: %v", err)
-			}
+		fx.Provide(func(lc fx.Lifecycle) (*blob.Metrics, error) {
+			return blob.WithMetrics(lc)
 		}),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
