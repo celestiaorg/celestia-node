@@ -536,6 +536,13 @@ func (ca *CoreAccessor) PayForBlobCount() int64 {
 	return ca.payForBlobCount
 }
 
+// SetMetrics updates the metrics for the CoreAccessor
+func (ca *CoreAccessor) SetMetrics(metrics *Metrics) {
+	ca.lock.Lock()
+	defer ca.lock.Unlock()
+	ca.metrics = metrics
+}
+
 func (ca *CoreAccessor) markSuccessfulPFB() {
 	ca.lock.Lock()
 	defer ca.lock.Unlock()

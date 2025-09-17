@@ -208,6 +208,39 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*Metrics, error) {
 		accountQueryErrors:         accountQueryErrors,
 	}
 
+	// Register observable metrics for OTLP export
+	pfbSubmissionObservable, err := meter.Int64ObservableCounter(
+		"state_pfb_submission_total_observable",
+		metric.WithDescription("Observable total number of PayForBlob submissions"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	gasEstimationObservable, err := meter.Int64ObservableCounter(
+		"state_gas_estimation_total_observable",
+		metric.WithDescription("Observable total number of gas estimation operations"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	gasPriceEstimationObservable, err := meter.Int64ObservableCounter(
+		"state_gas_price_estimation_total_observable",
+		metric.WithDescription("Observable total number of gas price estimation operations"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	accountQueryObservable, err := meter.Int64ObservableCounter(
+		"state_account_query_total_observable",
+		metric.WithDescription("Observable total number of account query operations"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	// Register observable metrics for backward compatibility
 	pfbCounter, _ := meter.Int64ObservableCounter(
 		"pfb_count",
@@ -219,13 +252,21 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*Metrics, error) {
 	)
 
 	callback := func(_ context.Context, observer metric.Observer) error {
+		// New observable metrics
+		observer.ObserveInt64(pfbSubmissionObservable, metrics.totalPfbSubmissions.Load())
+		observer.ObserveInt64(gasEstimationObservable, metrics.totalGasEstimations.Load())
+		observer.ObserveInt64(gasPriceEstimationObservable, metrics.totalGasPriceEstimations.Load())
+		observer.ObserveInt64(accountQueryObservable, metrics.totalAccountQueries.Load())
+
+		// Legacy observable metrics
 		observer.ObserveInt64(pfbCounter, ca.PayForBlobCount())
 		observer.ObserveInt64(lastPfbTimestamp, ca.LastPayForBlob())
 		return nil
 	}
 
-	clientReg, err := meter.RegisterCallback(callback, pfbCounter, lastPfbTimestamp)
+	clientReg, err := meter.RegisterCallback(callback, pfbSubmissionObservable, gasEstimationObservable, gasPriceEstimationObservable, accountQueryObservable, pfbCounter, lastPfbTimestamp)
 	if err != nil {
+		log.Errorf("Failed to register metrics callback: %v", err)
 		return nil, err
 	}
 
@@ -237,6 +278,9 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*Metrics, error) {
 			return nil
 		},
 	})
+
+	// Update the CoreAccessor with the new metrics
+	ca.SetMetrics(metrics)
 
 	return metrics, nil
 }
