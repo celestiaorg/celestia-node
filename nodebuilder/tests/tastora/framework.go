@@ -360,7 +360,7 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 
 	err = bridgeNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--metrics", "--p2p.metrics"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM":       tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
@@ -392,7 +392,7 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradocke
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex].(*tastoradockertypes.DANode)
 	err = lightNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--metrics", "--p2p.metrics"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),

@@ -202,3 +202,7 @@ func (w *BlockstoreWithMetrics) AllKeysChan(ctx context.Context) (<-chan cid.Cid
 	))
 	return ch, err
 }
+
+func (w *BlockstoreWithMetrics) HashOnRead(enabled bool) {
+	w.bs.HashOnRead(enabled)
+}
