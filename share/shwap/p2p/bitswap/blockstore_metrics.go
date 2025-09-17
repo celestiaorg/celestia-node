@@ -20,8 +20,7 @@ const (
 )
 
 var (
-	meter                   = otel.Meter("bitswap_blockstore")
-	_     bstore.Blockstore = (*BlockstoreWithMetrics)(nil)
+	meter = otel.Meter("bitswap_blockstore")
 )
 
 // BlockstoreWithMetrics is a blockstore that collects metrics on blockstore operations.
@@ -202,4 +201,3 @@ func (w *BlockstoreWithMetrics) AllKeysChan(ctx context.Context) (<-chan cid.Cid
 	))
 	return ch, err
 }
-
