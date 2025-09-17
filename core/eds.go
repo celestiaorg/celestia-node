@@ -4,20 +4,12 @@ import (
 	"context"
 	"time"
 
-	coretypes "github.com/cometbft/cometbft/types"
-
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/store"
 )
-
-// isEmptyBlockRef returns true if the application considers the given block data
-// empty at a given version.
-func isEmptyBlockRef(data *coretypes.Data) bool {
-	return len(data.Txs) == 0
-}
 
 // storeEDS will only store extended block if it is not empty and doesn't already exist.
 func storeEDS(
