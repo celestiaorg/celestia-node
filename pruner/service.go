@@ -254,7 +254,7 @@ func (s *Service) retryFailed(ctx context.Context) {
 // * If Pruner prunes a header first - Syncer only removes the header
 //   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
 func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
-	if s.ctx.Err() != nil {
+	if s.ctx != nil && s.ctx.Err() != nil {
 		return fmt.Errorf("pruner service is closed")
 	}
 
