@@ -184,7 +184,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
+		ca.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
 		return nil, err
 	}
 
@@ -192,7 +192,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
-			ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
+			ca.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
 			return nil, err
 		}
 		feeGrant = user.SetFeeGranter(granter)
@@ -209,32 +209,32 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		gas = ca.estimateGasForBlobs(blobSizes)
 	}
 	gasEstimationDuration := time.Since(gasEstimationStart)
-	ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, nil)
+	ca.observeGasEstimation(ctx, gasEstimationDuration, nil)
 
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		ca.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 		return nil, err
 	}
 
 	// Account query with metrics
 	accountQueryStart := time.Now()
 	account := ca.client.AccountByAddress(ctx, author)
-	ca.metrics.ObserveAccountQuery(ctx, time.Since(accountQueryStart), nil)
+	ca.observeAccountQuery(ctx, time.Since(accountQueryStart), nil)
 
 	if account == nil {
 		err := fmt.Errorf("account for signer %s not found", author)
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		ca.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 		return nil, err
 	}
 
 	// Gas price estimation with metrics
 	gasPriceEstimationStart := time.Now()
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
-	ca.metrics.ObserveGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
+	ca.observeGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
 	if err != nil {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		ca.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 		return nil, err
 	}
 
@@ -247,7 +247,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	duration := time.Since(start)
 
 	// Record comprehensive PFB submission metrics
-	ca.metrics.ObservePfbSubmission(ctx, duration, len(libBlobs), totalSize, gasEstimationDuration, gasPrice, err)
+	ca.observePfbSubmission(ctx, duration, len(libBlobs), totalSize, gasEstimationDuration, gasPrice, err)
 
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
@@ -548,6 +548,31 @@ func (ca *CoreAccessor) markSuccessfulPFB() {
 	defer ca.lock.Unlock()
 	ca.lastPayForBlob = time.Now().UnixMilli()
 	ca.payForBlobCount++
+}
+
+// Helper methods to safely call metrics methods
+func (ca *CoreAccessor) observePfbSubmission(ctx context.Context, duration time.Duration, blobCount int, totalSize int64, gasEstimationDuration time.Duration, gasPrice float64, err error) {
+	if ca.metrics != nil {
+		ca.metrics.ObservePfbSubmission(ctx, duration, blobCount, totalSize, gasEstimationDuration, gasPrice, err)
+	}
+}
+
+func (ca *CoreAccessor) observeGasEstimation(ctx context.Context, duration time.Duration, err error) {
+	if ca.metrics != nil {
+		ca.metrics.ObserveGasEstimation(ctx, duration, err)
+	}
+}
+
+func (ca *CoreAccessor) observeAccountQuery(ctx context.Context, duration time.Duration, err error) {
+	if ca.metrics != nil {
+		ca.metrics.ObserveAccountQuery(ctx, duration, err)
+	}
+}
+
+func (ca *CoreAccessor) observeGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
+	if ca.metrics != nil {
+		ca.metrics.ObserveGasPriceEstimation(ctx, duration, err)
+	}
 }
 
 func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {

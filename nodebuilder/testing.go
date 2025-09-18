@@ -19,7 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	stateModule "github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
 const (
@@ -61,7 +61,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	_, _, err = kr.NewMnemonic(TestKeyringName, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	cfg.State.DefaultKeyName = TestKeyringName
-	_, accName, err := state.Keyring(cfg.State, ks)
+	_, accName, err := stateModule.Keyring(cfg.State, ks)
 	require.NoError(t, err)
 	require.Equal(t, TestKeyringName, string(accName))
 

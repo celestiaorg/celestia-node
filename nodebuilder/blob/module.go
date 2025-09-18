@@ -24,16 +24,14 @@ func ConstructModule() fx.Option {
 				return service.Subscribe
 			},
 		),
-		// Metrics will be provided by settings.go when enabled
 		fx.Provide(fx.Annotate(
 			func(
 				state state.Module,
 				sGetter shwap.Getter,
 				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
 				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
-				metrics *blob.Metrics,
 			) *blob.Service {
-				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn, metrics)
+				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn, nil)
 			},
 			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Start(ctx)

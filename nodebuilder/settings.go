@@ -87,9 +87,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Provide(func() *state.Metrics {
-			return nil
-		}),
 		fx.Invoke(func(lc fx.Lifecycle, ca *state.CoreAccessor) {
 			if ca == nil {
 				return
@@ -101,9 +98,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 				ca.SetMetrics(metrics)
 			}
 		}),
-		fx.Provide(func(lc fx.Lifecycle) (*blob.Metrics, error) {
-			return blob.WithMetrics(lc)
-		}),
+		fx.Provide(blob.WithMetrics),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(share.WithDiscoveryMetrics),

@@ -20,7 +20,8 @@ const (
 )
 
 var (
-	meter = otel.Meter("bitswap_blockstore")
+	meter                   = otel.Meter("bitswap_blockstore")
+	_     bstore.Blockstore = (*BlockstoreWithMetrics)(nil)
 )
 
 // BlockstoreWithMetrics is a blockstore that collects metrics on blockstore operations.

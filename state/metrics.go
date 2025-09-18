@@ -264,7 +264,15 @@ func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*Metrics, error) {
 		return nil
 	}
 
-	clientReg, err := meter.RegisterCallback(callback, pfbSubmissionObservable, gasEstimationObservable, gasPriceEstimationObservable, accountQueryObservable, pfbCounter, lastPfbTimestamp)
+	clientReg, err := meter.RegisterCallback(
+		callback,
+		pfbSubmissionObservable,
+		gasEstimationObservable,
+		gasPriceEstimationObservable,
+		accountQueryObservable,
+		pfbCounter,
+		lastPfbTimestamp,
+	)
 	if err != nil {
 		log.Errorf("Failed to register metrics callback: %v", err)
 		return nil, err
