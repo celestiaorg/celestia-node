@@ -50,7 +50,8 @@ type Metrics struct {
 	totalAccountQueryErrors       atomic.Int64
 }
 
-func WithMetrics(lc fx.Lifecycle, ca *CoreAccessor) (*Metrics, error) {
+// WithMetrics initializes metrics for the CoreAccessor
+func (ca *CoreAccessor) WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 	// PFB submission metrics
 	pfbSubmissionCounter, err := meter.Int64Counter(
 		"state_pfb_submission_total",
