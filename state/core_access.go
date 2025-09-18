@@ -551,7 +551,15 @@ func (ca *CoreAccessor) markSuccessfulPFB() {
 }
 
 // Helper methods to safely call metrics methods
-func (ca *CoreAccessor) observePfbSubmission(ctx context.Context, duration time.Duration, blobCount int, totalSize int64, gasEstimationDuration time.Duration, gasPrice float64, err error) {
+func (ca *CoreAccessor) observePfbSubmission(
+	ctx context.Context,
+	duration time.Duration,
+	blobCount int,
+	totalSize int64,
+	gasEstimationDuration time.Duration,
+	gasPrice float64,
+	err error,
+) {
 	if ca.metrics != nil {
 		ca.metrics.ObservePfbSubmission(ctx, duration, blobCount, totalSize, gasEstimationDuration, gasPrice, err)
 	}
