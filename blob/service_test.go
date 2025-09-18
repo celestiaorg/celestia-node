@@ -24,8 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -152,7 +152,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())), false)
 				}
 			},
 		},
@@ -533,7 +533,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -595,7 +595,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
