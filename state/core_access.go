@@ -161,10 +161,8 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 	}
 
 	// Stop metrics if they exist
-	if ca.metrics != nil {
-		if err := ca.metrics.Stop(); err != nil {
-			return err
-		}
+	if err := ca.metrics.Stop(); err != nil {
+		return err
 	}
 
 	return nil
@@ -541,13 +539,6 @@ func (ca *CoreAccessor) PayForBlobCount() int64 {
 	ca.lock.Lock()
 	defer ca.lock.Unlock()
 	return ca.payForBlobCount
-}
-
-// SetMetrics updates the metrics for the CoreAccessor
-func (ca *CoreAccessor) SetMetrics(metrics *metrics) {
-	ca.lock.Lock()
-	defer ca.lock.Unlock()
-	ca.metrics = metrics
 }
 
 func (ca *CoreAccessor) markSuccessfulPFB() {

@@ -63,7 +63,7 @@ type Service struct {
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 	// metrics tracks blob-related metrics
-	metrics *Metrics
+	metrics *metrics
 }
 
 func NewService(
@@ -71,7 +71,7 @@ func NewService(
 	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
-	metrics *Metrics,
+	metrics *metrics,
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
@@ -89,6 +89,10 @@ func (s *Service) Start(context.Context) error {
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
+	// Stop metrics if they exist
+	if err := s.metrics.Stop(); err != nil {
+		return err
+	}
 	return nil
 }
 

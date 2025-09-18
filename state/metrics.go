@@ -282,7 +282,7 @@ func (ca *CoreAccessor) WithMetrics() error {
 	}
 
 	// Update the CoreAccessor with the new metrics
-	ca.SetMetrics(m)
+	ca.metrics = m
 
 	// Store the client registration for cleanup
 	m.clientReg = clientReg

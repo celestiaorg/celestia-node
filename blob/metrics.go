@@ -9,13 +9,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.uber.org/fx"
 )
 
 var meter = otel.Meter("blob")
 
-// Metrics tracks blob-related metrics
-type Metrics struct {
+// metrics tracks blob-related metrics
+type metrics struct {
 	// Retrieval metrics
 	retrievalCounter  metric.Int64Counter
 	retrievalDuration metric.Float64Histogram
@@ -32,17 +31,20 @@ type Metrics struct {
 	totalRetrievalErrors atomic.Int64
 	totalProofs          atomic.Int64
 	totalProofErrors     atomic.Int64
+
+	// Client registration for cleanup
+	clientReg metric.Registration
 }
 
-// WithMetrics registers blob metrics
-func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
+// WithMetrics initializes metrics for the Service
+func (s *Service) WithMetrics() error {
 	// Retrieval metrics
 	retrievalCounter, err := meter.Int64Counter(
 		"blob_retrieval_total",
 		metric.WithDescription("Total number of blob retrieval operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	retrievalDuration, err := meter.Float64Histogram(
@@ -51,7 +53,7 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	retrievalErrors, err := meter.Int64Counter(
@@ -59,7 +61,7 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithDescription("Total number of blob retrieval errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	retrievalNotFound, err := meter.Int64Counter(
@@ -67,7 +69,7 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithDescription("Total number of blob not found errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Proof metrics
@@ -76,7 +78,7 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithDescription("Total number of blob proof operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	proofDuration, err := meter.Float64Histogram(
@@ -85,7 +87,7 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	proofErrors, err := meter.Int64Counter(
@@ -93,10 +95,10 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithDescription("Total number of blob proof errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	metrics := &Metrics{
+	m := &metrics{
 		retrievalCounter:  retrievalCounter,
 		retrievalDuration: retrievalDuration,
 		retrievalErrors:   retrievalErrors,
@@ -112,7 +114,7 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithDescription("Observable total number of blob retrievals"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	proofTotal, err := meter.Int64ObservableCounter(
@@ -120,31 +122,35 @@ func WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		metric.WithDescription("Observable total number of blob proofs"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	callback := func(_ context.Context, observer metric.Observer) error {
-		observer.ObserveInt64(retrievalTotal, metrics.totalRetrievals.Load())
-		observer.ObserveInt64(proofTotal, metrics.totalProofs.Load())
+		observer.ObserveInt64(retrievalTotal, m.totalRetrievals.Load())
+		observer.ObserveInt64(proofTotal, m.totalProofs.Load())
 		return nil
 	}
 
 	clientReg, err := meter.RegisterCallback(callback, retrievalTotal, proofTotal)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	lc.Append(fx.Hook{
-		OnStop: func(context.Context) error {
-			return clientReg.Unregister()
-		},
-	})
+	m.clientReg = clientReg
+	s.metrics = m
+	return nil
+}
 
-	return metrics, nil
+// Stop cleans up metrics resources
+func (m *metrics) Stop() error {
+	if m == nil || m.clientReg == nil {
+		return nil
+	}
+	return m.clientReg.Unregister()
 }
 
 // ObserveRetrieval records blob retrieval metrics
-func (m *Metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -172,7 +178,7 @@ func (m *Metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 }
 
 // ObserveProof records blob proof metrics
-func (m *Metrics) ObserveProof(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
