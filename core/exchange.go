@@ -133,7 +133,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
 	}
 
-	eds, err := da.ConstructEDS(block.Txs.ToSliceOfBytes(), block.Header.Version.App, -1)
+	eds, err := da.ConstructEDS(block.Txs.ToSliceOfBytes(), block.Version.App, -1)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
 	}
