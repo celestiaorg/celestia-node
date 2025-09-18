@@ -381,7 +381,7 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35
 )
 
-replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork
+replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork-4
 
 replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4
 
