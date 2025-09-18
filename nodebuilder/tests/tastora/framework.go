@@ -31,14 +31,14 @@ import (
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
 	defaultCelestiaTag = "v5.0.1"
-	nodeImage          = "celestia-node-local"
+	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
 	testChainID        = "test"
 )
 
 var (
 	// defaultNodeTag can be overridden at build time using ldflags
 	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultNodeTag = "6bc23167" // fallback if not set via ldflags
+	defaultNodeTag = "5b96c43" // fallback if not set via ldflags
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
@@ -360,7 +360,7 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 
 	err = bridgeNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--metrics", "--p2p.metrics", "--metrics.endpoint", "host.docker.internal:4318", "--metrics.tls=false"),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM":       tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
@@ -392,7 +392,7 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradocke
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex].(*tastoradockertypes.DANode)
 	err = lightNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--metrics", "--p2p.metrics", "--metrics.endpoint", "host.docker.internal:4318", "--metrics.tls=false"),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
