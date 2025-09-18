@@ -53,14 +53,14 @@ type metrics struct {
 }
 
 // WithMetrics initializes metrics for the CoreAccessor
-func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
+func (ca *CoreAccessor) WithMetrics() error {
 	// PFB submission metrics
 	pfbSubmissionCounter, err := meter.Int64Counter(
 		"state_pfb_submission_total",
 		metric.WithDescription("Total number of PayForBlob submissions"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pfbSubmissionDuration, err := meter.Float64Histogram(
@@ -69,7 +69,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pfbSubmissionErrors, err := meter.Int64Counter(
@@ -77,7 +77,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of PayForBlob submission errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pfbSubmissionBlobCount, err := meter.Int64Counter(
@@ -85,7 +85,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of blobs in PayForBlob submissions"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pfbSubmissionBlobSize, err := meter.Int64Counter(
@@ -93,7 +93,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total size of blobs in PayForBlob submissions in bytes"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pfbGasEstimationDuration, err := meter.Float64Histogram(
@@ -102,7 +102,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pfbGasPriceEstimation, err := meter.Float64Histogram(
@@ -111,7 +111,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithUnit("utia"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Gas estimation metrics
@@ -120,7 +120,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of gas estimation operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	gasEstimationDuration, err := meter.Float64Histogram(
@@ -129,7 +129,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	gasEstimationErrors, err := meter.Int64Counter(
@@ -137,7 +137,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of gas estimation errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Gas price estimation metrics
@@ -146,7 +146,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of gas price estimation operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	gasPriceEstimationDuration, err := meter.Float64Histogram(
@@ -155,7 +155,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	gasPriceEstimationErrors, err := meter.Int64Counter(
@@ -163,7 +163,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of gas price estimation errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Account operations metrics
@@ -172,7 +172,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of account query operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	accountQueryDuration, err := meter.Float64Histogram(
@@ -181,7 +181,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	accountQueryErrors, err := meter.Int64Counter(
@@ -189,7 +189,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Total number of account query errors"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	m := &metrics{
@@ -217,7 +217,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Observable total number of PayForBlob submissions"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	gasEstimationObservable, err := meter.Int64ObservableCounter(
@@ -225,7 +225,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Observable total number of gas estimation operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	gasPriceEstimationObservable, err := meter.Int64ObservableCounter(
@@ -233,7 +233,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Observable total number of gas price estimation operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	accountQueryObservable, err := meter.Int64ObservableCounter(
@@ -241,7 +241,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 		metric.WithDescription("Observable total number of account query operations"),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Register observable metrics for backward compatibility
@@ -278,7 +278,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 	)
 	if err != nil {
 		log.Errorf("Failed to register metrics callback: %v", err)
-		return nil, err
+		return err
 	}
 
 	// Update the CoreAccessor with the new metrics
@@ -287,7 +287,7 @@ func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 	// Store the client registration for cleanup
 	m.clientReg = clientReg
 
-	return m, nil
+	return nil
 }
 
 // Stop cleans up the metrics resources

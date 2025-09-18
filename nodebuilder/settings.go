@@ -91,7 +91,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			if ca == nil {
 				return
 			}
-			_, err := ca.WithMetrics()
+			err := ca.WithMetrics()
 			if err != nil {
 				log.Warnf("failed to initialize state metrics: %v", err)
 			}
