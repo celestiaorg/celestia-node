@@ -26,7 +26,6 @@ func coreAccessor(
 	network p2p.Network,
 	client *grpc.ClientConn,
 	additionalConns core.AdditionalCoreConns,
-	metrics *state.Metrics,
 ) (
 	*state.CoreAccessor,
 	Module,
@@ -45,7 +44,7 @@ func coreAccessor(
 		}
 	}
 
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), metrics, opts...)
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), nil, opts...)
 	if err != nil {
 		return nil, nil, nil, err
 	}

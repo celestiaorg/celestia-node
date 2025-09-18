@@ -29,10 +29,6 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
-		// Provide nil metrics as fallback for tests when WithMetrics() is not called
-		fx.Provide(func() *state.Metrics {
-			return nil
-		}),
 		// Metrics will be provided by settings.go when enabled
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
