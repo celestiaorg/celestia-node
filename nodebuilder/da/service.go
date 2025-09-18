@@ -12,7 +12,7 @@ import (
 	"github.com/rollkit/go-da"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"

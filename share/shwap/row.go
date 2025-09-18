@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
