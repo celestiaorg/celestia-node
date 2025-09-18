@@ -8,13 +8,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.uber.org/fx"
 )
 
 var meter = otel.Meter("state")
 
-// Metrics tracks state-related metrics
-type Metrics struct {
+// metrics tracks state-related metrics
+type metrics struct {
 	// PFB submission metrics
 	pfbSubmissionCounter     metric.Int64Counter
 	pfbSubmissionDuration    metric.Float64Histogram
@@ -48,10 +47,13 @@ type Metrics struct {
 	totalGasPriceEstimationErrors atomic.Int64
 	totalAccountQueries           atomic.Int64
 	totalAccountQueryErrors       atomic.Int64
+
+	// Client registration for cleanup
+	clientReg metric.Registration
 }
 
 // WithMetrics initializes metrics for the CoreAccessor
-func (ca *CoreAccessor) WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
+func (ca *CoreAccessor) WithMetrics() (*metrics, error) {
 	// PFB submission metrics
 	pfbSubmissionCounter, err := meter.Int64Counter(
 		"state_pfb_submission_total",
@@ -190,7 +192,7 @@ func (ca *CoreAccessor) WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		return nil, err
 	}
 
-	metrics := &Metrics{
+	m := &metrics{
 		pfbSubmissionCounter:       pfbSubmissionCounter,
 		pfbSubmissionDuration:      pfbSubmissionDuration,
 		pfbSubmissionErrors:        pfbSubmissionErrors,
@@ -254,10 +256,10 @@ func (ca *CoreAccessor) WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 
 	callback := func(_ context.Context, observer metric.Observer) error {
 		// New observable metrics
-		observer.ObserveInt64(pfbSubmissionObservable, metrics.totalPfbSubmissions.Load())
-		observer.ObserveInt64(gasEstimationObservable, metrics.totalGasEstimations.Load())
-		observer.ObserveInt64(gasPriceEstimationObservable, metrics.totalGasPriceEstimations.Load())
-		observer.ObserveInt64(accountQueryObservable, metrics.totalAccountQueries.Load())
+		observer.ObserveInt64(pfbSubmissionObservable, m.totalPfbSubmissions.Load())
+		observer.ObserveInt64(gasEstimationObservable, m.totalGasEstimations.Load())
+		observer.ObserveInt64(gasPriceEstimationObservable, m.totalGasPriceEstimations.Load())
+		observer.ObserveInt64(accountQueryObservable, m.totalAccountQueries.Load())
 
 		// Legacy observable metrics
 		observer.ObserveInt64(pfbCounter, ca.PayForBlobCount())
@@ -279,23 +281,29 @@ func (ca *CoreAccessor) WithMetrics(lc fx.Lifecycle) (*Metrics, error) {
 		return nil, err
 	}
 
-	lc.Append(fx.Hook{
-		OnStop: func(context.Context) error {
-			if err := clientReg.Unregister(); err != nil {
-				log.Warnw("failed to close metrics", "err", err)
-			}
-			return nil
-		},
-	})
-
 	// Update the CoreAccessor with the new metrics
-	ca.SetMetrics(metrics)
+	ca.SetMetrics(m)
 
-	return metrics, nil
+	// Store the client registration for cleanup
+	m.clientReg = clientReg
+
+	return m, nil
+}
+
+// Stop cleans up the metrics resources
+func (m *metrics) Stop() error {
+	if m == nil || m.clientReg == nil {
+		return nil
+	}
+	if err := m.clientReg.Unregister(); err != nil {
+		log.Warnw("failed to close metrics", "err", err)
+		return err
+	}
+	return nil
 }
 
 // ObservePfbSubmission records PayForBlob submission metrics
-func (m *Metrics) ObservePfbSubmission(
+func (m *metrics) ObservePfbSubmission(
 	ctx context.Context,
 	duration time.Duration,
 	blobCount int,
@@ -336,7 +344,7 @@ func (m *Metrics) ObservePfbSubmission(
 }
 
 // ObserveGasEstimation records gas estimation metrics
-func (m *Metrics) ObserveGasEstimation(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) ObserveGasEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -360,7 +368,7 @@ func (m *Metrics) ObserveGasEstimation(ctx context.Context, duration time.Durati
 }
 
 // ObserveGasPriceEstimation records gas price estimation metrics
-func (m *Metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -384,7 +392,7 @@ func (m *Metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.D
 }
 
 // ObserveAccountQuery records account query metrics
-func (m *Metrics) ObserveAccountQuery(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) ObserveAccountQuery(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}

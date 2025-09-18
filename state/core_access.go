@@ -72,7 +72,7 @@ type CoreAccessor struct {
 	estimatorConn        *grpc.ClientConn
 
 	// metrics tracks state-related metrics
-	metrics *Metrics
+	metrics *metrics
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -89,7 +89,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
-	metrics *Metrics,
+	metrics *metrics,
 	opts ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier
@@ -158,6 +158,13 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 			return err
 		}
 		ca.estimatorConn = nil
+	}
+
+	// Stop metrics if they exist
+	if ca.metrics != nil {
+		if err := ca.metrics.Stop(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -537,7 +544,7 @@ func (ca *CoreAccessor) PayForBlobCount() int64 {
 }
 
 // SetMetrics updates the metrics for the CoreAccessor
-func (ca *CoreAccessor) SetMetrics(metrics *Metrics) {
+func (ca *CoreAccessor) SetMetrics(metrics *metrics) {
 	ca.lock.Lock()
 	defer ca.lock.Unlock()
 	ca.metrics = metrics

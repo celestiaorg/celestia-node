@@ -87,11 +87,11 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(func(lc fx.Lifecycle, ca *state.CoreAccessor) {
+		fx.Invoke(func(ca *state.CoreAccessor) {
 			if ca == nil {
 				return
 			}
-			_, err := ca.WithMetrics(lc)
+			_, err := ca.WithMetrics()
 			if err != nil {
 				log.Warnf("failed to initialize state metrics: %v", err)
 			}
