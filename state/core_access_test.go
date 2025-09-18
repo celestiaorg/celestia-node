@@ -16,7 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
@@ -58,8 +58,11 @@ func TestSubmitPayForBlob(t *testing.T) {
 			name:     "good blob with user provided gas and fees",
 			blobs:    []*libshare.Blob{blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(blobbyTheBlob.DataLen())}),
-			expErr:   nil,
+			gasLim: apptypes.DefaultEstimateGas(&apptypes.MsgPayForBlobs{
+				BlobSizes:     []uint32{uint32(blobbyTheBlob.DataLen())},
+				ShareVersions: []uint32{uint32(blobbyTheBlob.ShareVersion())},
+			}),
+			expErr: nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't
 		// correctly construct the node (doesn't pass the min gas price) hence the price on

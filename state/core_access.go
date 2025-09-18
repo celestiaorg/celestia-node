@@ -33,7 +33,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -190,7 +190,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		for i, blob := range libBlobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
-		gas = ca.estimateGasForBlobs(blobSizes)
+		gas = ca.estimateGasForBlobs(blobSizes, uint32(libBlobs[0].ShareVersion()))
 	}
 
 	// get tx signer account name
