@@ -169,7 +169,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			logger.Warn("file not found in store")
+			logger.Warn("EDS not found in local store")
 			return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream)
 		}
 		logger.Errorf("getting header %w", err)
