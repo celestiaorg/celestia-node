@@ -59,6 +59,11 @@ var headerStoreReset = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer func() {
+			if err := s.Close(); err != nil {
+				fmt.Printf("Error closing node store: %v\n", err)
+			}
+		}()
 
 		ds, err := s.Datastore()
 		if err != nil {
@@ -69,6 +74,14 @@ var headerStoreReset = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("opening header store: %w", err)
 		}
+		if err = hstore.Start(ctx); err != nil {
+			return err
+		}
+		defer func() {
+			if err := hstore.Stop(ctx); err != nil {
+				fmt.Printf("Error stopping header store: %v\n", err)
+			}
+		}()
 
 		if head != 0 {
 			err := store.UnsafeResetHead(ctx, hstore, head)
@@ -85,7 +98,7 @@ var headerStoreReset = &cobra.Command{
 			fmt.Println("Reset header store tail to height", tail)
 		}
 
-		return s.Close()
+		return nil
 	},
 }
 
@@ -111,6 +124,11 @@ var headerStoreRecover = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer func() {
+			if err := s.Close(); err != nil {
+				fmt.Printf("Error closing node store: %v\n", err)
+			}
+		}()
 		ds, err := s.Datastore()
 		if err != nil {
 			return err
@@ -120,6 +138,14 @@ var headerStoreRecover = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("opening header store: %w", err)
 		}
+		if err = hstore.Start(ctx); err != nil {
+			return err
+		}
+		defer func() {
+			if err := hstore.Stop(ctx); err != nil {
+				fmt.Printf("Error stopping header store: %v\n", err)
+			}
+		}()
 
 		startFrom, err := cmd.Flags().GetUint64(startFromFlag)
 		if err != nil {
@@ -138,6 +164,6 @@ var headerStoreRecover = &cobra.Command{
 		}
 		fmt.Println("Reset header store tail to height", hdr.Height())
 
-		return s.Close()
+		return nil
 	},
 }
