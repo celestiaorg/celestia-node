@@ -379,8 +379,8 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/celestia-app/v6 => github.com/celestiaorg/celestia-app/v6 v6.0.2-rc1
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
+	github.com/celestiaorg/celestia-app/v6 => github.com/celestiaorg/celestia-app/v6 v6.0.2-rc1
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.4
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.2
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
