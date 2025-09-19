@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -61,6 +62,8 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	// metrics tracks blob-related metrics
+	metrics *metrics
 }
 
 func NewService(
@@ -68,12 +71,14 @@ func NewService(
 	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
+	metrics *metrics,
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
 		headerSub:     headerSub,
+		metrics:       metrics,
 	}
 }
 
@@ -84,6 +89,10 @@ func (s *Service) Start(context.Context) error {
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
+	// Stop metrics if they exist
+	if err := s.metrics.Stop(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -196,9 +205,12 @@ func (s *Service) Get(
 	namespace libshare.Namespace,
 	commitment Commitment,
 ) (blob *Blob, err error) {
+	start := time.Now()
 	ctx, span := tracer.Start(ctx, "get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		// Record metrics
+		s.metrics.ObserveRetrieval(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
@@ -210,7 +222,7 @@ func (s *Service) Get(
 	}}
 
 	blob, _, err = s.retrieve(ctx, height, namespace, sharesParser)
-	return
+	return blob, err
 }
 
 // GetProof returns an NMT inclusion proof for a specified namespace to the respective row roots
@@ -222,9 +234,12 @@ func (s *Service) GetProof(
 	namespace libshare.Namespace,
 	commitment Commitment,
 ) (proof *Proof, err error) {
+	start := time.Now()
 	ctx, span := tracer.Start(ctx, "get-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		// Record metrics
+		s.metrics.ObserveProof(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
