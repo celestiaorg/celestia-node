@@ -244,26 +244,12 @@ func (ca *CoreAccessor) WithMetrics() error {
 		return err
 	}
 
-	// Register observable metrics for backward compatibility
-	pfbCounter, _ := meter.Int64ObservableCounter(
-		"pfb_count",
-		metric.WithDescription("Total count of submitted PayForBlob transactions"),
-	)
-	lastPfbTimestamp, _ := meter.Int64ObservableCounter(
-		"last_pfb_timestamp",
-		metric.WithDescription("Timestamp of the last submitted PayForBlob transaction"),
-	)
-
 	callback := func(_ context.Context, observer metric.Observer) error {
-		// New observable metrics
+		// Observable metrics for OTLP export
 		observer.ObserveInt64(pfbSubmissionObservable, m.totalPfbSubmissions.Load())
 		observer.ObserveInt64(gasEstimationObservable, m.totalGasEstimations.Load())
 		observer.ObserveInt64(gasPriceEstimationObservable, m.totalGasPriceEstimations.Load())
 		observer.ObserveInt64(accountQueryObservable, m.totalAccountQueries.Load())
-
-		// Legacy observable metrics
-		observer.ObserveInt64(pfbCounter, ca.PayForBlobCount())
-		observer.ObserveInt64(lastPfbTimestamp, ca.LastPayForBlob())
 		return nil
 	}
 
@@ -273,8 +259,6 @@ func (ca *CoreAccessor) WithMetrics() error {
 		gasEstimationObservable,
 		gasPriceEstimationObservable,
 		accountQueryObservable,
-		pfbCounter,
-		lastPfbTimestamp,
 	)
 	if err != nil {
 		log.Errorf("Failed to register metrics callback: %v", err)
