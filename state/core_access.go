@@ -175,7 +175,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
-) (*TxResponse, error) {
+) (resp *TxResponse, err error) {
 	start := time.Now()
 	if len(libBlobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
@@ -187,18 +187,15 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		totalSize += int64(len(blob.Data()))
 	}
 
-	// Track final error and gas estimation duration for metrics
-	var finalErr error
 	var gasEstimationDuration time.Duration
 
 	// Use defer to ensure metrics are recorded exactly once at the end
 	defer func() {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, finalErr)
+		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 	}()
 
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
-		finalErr = err
 		return nil, err
 	}
 
@@ -206,7 +203,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
-			finalErr = err
 			return nil, err
 		}
 		feeGrant = user.SetFeeGranter(granter)
@@ -228,7 +224,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
-		finalErr = err
 		return nil, err
 	}
 
@@ -238,8 +233,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ca.metrics.ObserveAccountQuery(ctx, time.Since(accountQueryStart), nil)
 
 	if account == nil {
-		finalErr = fmt.Errorf("account for signer %s not found", author)
-		return nil, finalErr
+		err = fmt.Errorf("account for signer %s not found", author)
+		return nil, err
 	}
 
 	// Gas price estimation with metrics
@@ -247,7 +242,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
 	ca.metrics.ObserveGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
 	if err != nil {
-		finalErr = err
 		return nil, err
 	}
 
@@ -257,7 +251,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
-	finalErr = err
 
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
