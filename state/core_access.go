@@ -175,7 +175,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
-) (resp *TxResponse, err error) {
+) (_ *TxResponse, err error) {
 	start := time.Now()
 	if len(libBlobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
