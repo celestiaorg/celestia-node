@@ -97,9 +97,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			}
 		}),
 		fx.Invoke(func(serv *blob.Service) {
-			if serv == nil {
-				return
-			}
 			err := serv.WithMetrics()
 			if err != nil {
 				log.Warnf("failed to initialize blob metrics: %v", err)
