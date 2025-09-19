@@ -161,16 +161,26 @@ func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 		m.totalRetrievalErrors.Add(1)
 	}
 
-	// Record metrics
+	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
 	if err != nil {
-		attrs = append(attrs, attribute.String("error", err.Error()))
+		errorType := "unknown"
+		if errors.Is(err, ErrBlobNotFound) {
+			errorType = "not_found"
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			errorType = "timeout"
+		} else if errors.Is(err, context.Canceled) {
+			errorType = "cancelled"
+		}
+		attrs = append(attrs, attribute.String("error_type", errorType))
+
 		if errors.Is(err, ErrBlobNotFound) {
 			m.retrievalNotFound.Add(ctx, 1, metric.WithAttributes(attrs...))
 		} else {
 			m.retrievalErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 		}
 	} else {
+		attrs = append(attrs, attribute.String("error_type", "none"))
 		m.retrievalCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
@@ -189,12 +199,19 @@ func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err 
 		m.totalProofErrors.Add(1)
 	}
 
-	// Record metrics
+	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
 	if err != nil {
-		attrs = append(attrs, attribute.String("error", err.Error()))
+		errorType := "unknown"
+		if errors.Is(err, context.DeadlineExceeded) {
+			errorType = "timeout"
+		} else if errors.Is(err, context.Canceled) {
+			errorType = "cancelled"
+		}
+		attrs = append(attrs, attribute.String("error_type", errorType))
 		m.proofErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	} else {
+		attrs = append(attrs, attribute.String("error_type", "none"))
 		m.proofCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 

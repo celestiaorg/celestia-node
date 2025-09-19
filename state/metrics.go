@@ -311,10 +311,10 @@ func (m *metrics) ObservePfbSubmission(
 		attribute.Int("blob_count", blobCount),
 		attribute.Int64("total_size_bytes", totalSize),
 		attribute.Float64("gas_price_utia", gasPrice),
+		attribute.Bool("success", err == nil),
 	}
 
 	if err != nil {
-		attrs = append(attrs, attribute.String("error", err.Error()))
 		m.pfbSubmissionErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	} else {
 		m.pfbSubmissionCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
@@ -340,9 +340,10 @@ func (m *metrics) ObserveGasEstimation(ctx context.Context, duration time.Durati
 	}
 
 	// Record metrics
-	attrs := []attribute.KeyValue{}
+	attrs := []attribute.KeyValue{
+		attribute.Bool("success", err == nil),
+	}
 	if err != nil {
-		attrs = append(attrs, attribute.String("error", err.Error()))
 		m.gasEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	} else {
 		m.gasEstimationCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
@@ -364,9 +365,10 @@ func (m *metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.D
 	}
 
 	// Record metrics
-	attrs := []attribute.KeyValue{}
+	attrs := []attribute.KeyValue{
+		attribute.Bool("success", err == nil),
+	}
 	if err != nil {
-		attrs = append(attrs, attribute.String("error", err.Error()))
 		m.gasPriceEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	} else {
 		m.gasPriceEstimationCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
@@ -388,9 +390,10 @@ func (m *metrics) ObserveAccountQuery(ctx context.Context, duration time.Duratio
 	}
 
 	// Record metrics
-	attrs := []attribute.KeyValue{}
+	attrs := []attribute.KeyValue{
+		attribute.Bool("success", err == nil),
+	}
 	if err != nil {
-		attrs = append(attrs, attribute.String("error", err.Error()))
 		m.accountQueryErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	} else {
 		m.accountQueryCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
