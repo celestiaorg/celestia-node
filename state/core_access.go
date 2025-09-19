@@ -181,15 +181,24 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, errors.New("state: no blobs provided")
 	}
 
-	// Calculate blob metrics
-	var totalSize int64
+	// Calculate blob metrics - optimized single pass
+	totalSize := int64(0)
 	for _, blob := range libBlobs {
 		totalSize += int64(len(blob.Data()))
 	}
 
+	// Track final error and gas estimation duration for metrics
+	var finalErr error
+	var gasEstimationDuration time.Duration
+
+	// Use defer to ensure metrics are recorded exactly once at the end
+	defer func() {
+		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, finalErr)
+	}()
+
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
+		finalErr = err
 		return nil, err
 	}
 
@@ -197,29 +206,29 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if cfg.FeeGranterAddress() != "" {
 		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
 		if err != nil {
-			ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, 0, 0, err)
+			finalErr = err
 			return nil, err
 		}
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	// Gas estimation with metrics
-	gasEstimationStart := time.Now()
+	// Gas estimation with metrics - only record when actual estimation occurs
 	gas := cfg.GasLimit()
 	if gas == 0 {
+		gasEstimationStart := time.Now()
 		blobSizes := make([]uint32, len(libBlobs))
 		for i, blob := range libBlobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
 		gas = ca.estimateGasForBlobs(blobSizes)
+		gasEstimationDuration = time.Since(gasEstimationStart)
+		ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, nil)
 	}
-	gasEstimationDuration := time.Since(gasEstimationStart)
-	ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, nil)
 
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		finalErr = err
 		return nil, err
 	}
 
@@ -229,9 +238,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ca.metrics.ObserveAccountQuery(ctx, time.Since(accountQueryStart), nil)
 
 	if account == nil {
-		err := fmt.Errorf("account for signer %s not found", author)
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
-		return nil, err
+		finalErr = fmt.Errorf("account for signer %s not found", author)
+		return nil, finalErr
 	}
 
 	// Gas price estimation with metrics
@@ -239,7 +247,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
 	ca.metrics.ObserveGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
 	if err != nil {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		finalErr = err
 		return nil, err
 	}
 
@@ -249,10 +257,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
-	duration := time.Since(start)
-
-	// Record comprehensive PFB submission metrics
-	ca.metrics.ObservePfbSubmission(ctx, duration, len(libBlobs), totalSize, gasEstimationDuration, gasPrice, err)
+	finalErr = err
 
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
