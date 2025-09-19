@@ -18,13 +18,10 @@ type metrics struct {
 	// Retrieval metrics
 	retrievalCounter  metric.Int64Counter
 	retrievalDuration metric.Float64Histogram
-	retrievalErrors   metric.Int64Counter
-	retrievalNotFound metric.Int64Counter
 
 	// Proof metrics
 	proofCounter  metric.Int64Counter
 	proofDuration metric.Float64Histogram
-	proofErrors   metric.Int64Counter
 
 	// Internal counters (thread-safe)
 	totalRetrievals      atomic.Int64
@@ -56,22 +53,6 @@ func (s *Service) WithMetrics() error {
 		return err
 	}
 
-	retrievalErrors, err := meter.Int64Counter(
-		"blob_retrieval_errors_total",
-		metric.WithDescription("Total number of blob retrieval errors"),
-	)
-	if err != nil {
-		return err
-	}
-
-	retrievalNotFound, err := meter.Int64Counter(
-		"blob_retrieval_not_found_total",
-		metric.WithDescription("Total number of blob not found errors"),
-	)
-	if err != nil {
-		return err
-	}
-
 	// Proof metrics
 	proofCounter, err := meter.Int64Counter(
 		"blob_proof_total",
@@ -90,22 +71,11 @@ func (s *Service) WithMetrics() error {
 		return err
 	}
 
-	proofErrors, err := meter.Int64Counter(
-		"blob_proof_errors_total",
-		metric.WithDescription("Total number of blob proof errors"),
-	)
-	if err != nil {
-		return err
-	}
-
 	m := &metrics{
 		retrievalCounter:  retrievalCounter,
 		retrievalDuration: retrievalDuration,
-		retrievalErrors:   retrievalErrors,
-		retrievalNotFound: retrievalNotFound,
 		proofCounter:      proofCounter,
 		proofDuration:     proofDuration,
-		proofErrors:       proofErrors,
 	}
 
 	// Register observable metrics
@@ -174,16 +144,12 @@ func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 			errorType = "canceled"
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
-
-		if errors.Is(err, ErrBlobNotFound) {
-			m.retrievalNotFound.Add(ctx, 1, metric.WithAttributes(attrs...))
-		} else {
-			m.retrievalErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
 	} else {
 		attrs = append(attrs, attribute.String("error_type", "none"))
-		m.retrievalCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
+
+	// Use single counter with error_type enum
+	m.retrievalCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 
 	m.retrievalDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
@@ -211,11 +177,12 @@ func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err 
 			errorType = "canceled"
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
-		m.proofErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	} else {
 		attrs = append(attrs, attribute.String("error_type", "none"))
-		m.proofCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
+
+	// Use single counter with error_type enum
+	m.proofCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 
 	m.proofDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
