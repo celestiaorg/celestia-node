@@ -165,12 +165,13 @@ func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 	attrs := []attribute.KeyValue{}
 	if err != nil {
 		errorType := "unknown"
-		if errors.Is(err, ErrBlobNotFound) {
+		switch {
+		case errors.Is(err, ErrBlobNotFound):
 			errorType = "not_found"
-		} else if errors.Is(err, context.DeadlineExceeded) {
+		case errors.Is(err, context.DeadlineExceeded):
 			errorType = "timeout"
-		} else if errors.Is(err, context.Canceled) {
-			errorType = "cancelled"
+		case errors.Is(err, context.Canceled):
+			errorType = "canceled"
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
 
@@ -203,10 +204,11 @@ func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err 
 	attrs := []attribute.KeyValue{}
 	if err != nil {
 		errorType := "unknown"
-		if errors.Is(err, context.DeadlineExceeded) {
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
 			errorType = "timeout"
-		} else if errors.Is(err, context.Canceled) {
-			errorType = "cancelled"
+		case errors.Is(err, context.Canceled):
+			errorType = "canceled"
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
 		m.proofErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
