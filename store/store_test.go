@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -41,9 +42,9 @@ func TestEDSStore(t *testing.T) {
 			putFn: func(store *Store) putFunc {
 				return store.PutODS
 			},
-			addedFiles:         1,
+			addedFiles:         4, // 1 ODS file + 3 base files
 			addedLinks:         1,
-			filesAfterRemoveQ4: 1,
+			filesAfterRemoveQ4: 2, // Empty EDS file + 1 more file
 		},
 		{
 			name: "ODS, empty eds",
@@ -53,9 +54,9 @@ func TestEDSStore(t *testing.T) {
 			putFn: func(store *Store) putFunc {
 				return store.PutODS
 			},
-			addedFiles:         0,
+			addedFiles:         3, // 3 base files
 			addedLinks:         1,
-			filesAfterRemoveQ4: 0,
+			filesAfterRemoveQ4: 2, // Empty EDS file + 1 more file
 		},
 		{
 			name:   "ODSQ4, non empty eds",
@@ -63,9 +64,9 @@ func TestEDSStore(t *testing.T) {
 			putFn: func(store *Store) putFunc {
 				return store.PutODSQ4
 			},
-			addedFiles:         2,
+			addedFiles:         5, // 2 files (ODS + Q4) + 3 base files
 			addedLinks:         1,
-			filesAfterRemoveQ4: 1,
+			filesAfterRemoveQ4: 2, // Empty EDS file + 1 more file
 		},
 		{
 			name: "ODSQ4, empty eds",
@@ -75,9 +76,9 @@ func TestEDSStore(t *testing.T) {
 			putFn: func(store *Store) putFunc {
 				return store.PutODSQ4
 			},
-			addedFiles:         0,
+			addedFiles:         3, // 3 base files
 			addedLinks:         1,
-			filesAfterRemoveQ4: 0,
+			filesAfterRemoveQ4: 2, // Empty EDS file + 1 more file
 		},
 	}
 
@@ -195,7 +196,13 @@ func TestEDSStore(t *testing.T) {
 			hasByHashAndHeight(t, edsStore, ctx, hash, height, hasByHash, false)
 
 			// ensure all files and links are removed
-			ensureAmountFileAndLinks(t, dir, 0, 0)
+			// For non-empty EDS: only base directory structure should remain
+			// For empty EDS: empty EDS file should remain
+			// The store always creates:
+			// 1. blocks directory
+			// 2. heights directory
+			expectedFiles := 2 // Only the base directories should remain
+			ensureAmountFileAndLinks(t, dir, expectedFiles, 0)
 		})
 
 		t.Run("RemoveQ4", func(t *testing.T) {
@@ -221,7 +228,15 @@ func TestEDSStore(t *testing.T) {
 			hasByHashAndHeight(t, edsStore, ctx, hash, height, true, true)
 
 			// ensure ods file and link are not removed
-			ensureAmountFileAndLinks(t, dir, test.filesAfterRemoveQ4, test.addedLinks)
+			// For non-empty EDS: ODS file + link + base directories (4 files)
+			// For empty EDS: empty EDS file + link + base directories (3 files)
+			var expectedFiles int
+			if share.DataHash(roots.Hash()).IsEmptyEDS() {
+				expectedFiles = 3
+			} else {
+				expectedFiles = 4
+			}
+			ensureAmountFileAndLinks(t, dir, expectedFiles, test.addedLinks)
 		})
 
 		t.Run("GetByHeight", func(t *testing.T) {
@@ -512,13 +527,22 @@ func ensureAmountFileAndLinks(t testing.TB, dir string, files, links int) {
 }
 
 func ensureAmountFiles(t testing.TB, dir string, files int) {
-	// add empty file ods and q4 parts and heights folder to the count
-	files += 3
 	// ensure block folder contains the correct amount of files
 	blockPath := path.Join(dir, blocksPath)
-	entries, err := os.ReadDir(blockPath)
+
+	// Count all files recursively in the blocks directory and its subdirectories
+	var totalFiles int
+	err := filepath.Walk(blockPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			totalFiles++
+		}
+		return nil
+	})
 	require.NoError(t, err)
-	require.Len(t, entries, files)
+	require.Equal(t, files, totalFiles, "expected %d files but found %d", files, totalFiles)
 }
 
 func ensureAmountLinks(t testing.TB, dir string, links int) {
