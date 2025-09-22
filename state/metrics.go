@@ -12,6 +12,14 @@ import (
 
 var meter = otel.Meter("state")
 
+// Attribute name constants for metrics labels
+const (
+	attrBlobCount = "blob_count"
+	attrTotalSize = "total_size_bytes"
+	attrGasPrice  = "gas_price_utia"
+	attrSuccess   = "success"
+)
+
 // metrics tracks state-related metrics
 type metrics struct {
 	// PFB submission metrics
@@ -308,10 +316,10 @@ func (m *metrics) ObservePfbSubmission(
 
 	// Record metrics
 	attrs := []attribute.KeyValue{
-		attribute.Int("blob_count", blobCount),
-		attribute.Int64("total_size_bytes", totalSize),
-		attribute.Float64("gas_price_utia", gasPrice),
-		attribute.Bool("success", err == nil),
+		attribute.Int(attrBlobCount, blobCount),
+		attribute.Int64(attrTotalSize, totalSize),
+		attribute.Float64(attrGasPrice, gasPrice),
+		attribute.Bool(attrSuccess, err == nil),
 	}
 
 	if err != nil {
@@ -341,7 +349,7 @@ func (m *metrics) ObserveGasEstimation(ctx context.Context, duration time.Durati
 
 	// Record metrics
 	attrs := []attribute.KeyValue{
-		attribute.Bool("success", err == nil),
+		attribute.Bool(attrSuccess, err == nil),
 	}
 	if err != nil {
 		m.gasEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
@@ -366,7 +374,7 @@ func (m *metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.D
 
 	// Record metrics
 	attrs := []attribute.KeyValue{
-		attribute.Bool("success", err == nil),
+		attribute.Bool(attrSuccess, err == nil),
 	}
 	if err != nil {
 		m.gasPriceEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
@@ -391,7 +399,7 @@ func (m *metrics) ObserveAccountQuery(ctx context.Context, duration time.Duratio
 
 	// Record metrics
 	attrs := []attribute.KeyValue{
-		attribute.Bool("success", err == nil),
+		attribute.Bool(attrSuccess, err == nil),
 	}
 	if err != nil {
 		m.accountQueryErrors.Add(ctx, 1, metric.WithAttributes(attrs...))

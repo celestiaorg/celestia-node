@@ -13,6 +13,15 @@ import (
 
 var meter = otel.Meter("blob")
 
+// Error type constants for metrics labels
+const (
+	errorTypeNone     = "none"
+	errorTypeNotFound = "not_found"
+	errorTypeTimeout  = "timeout"
+	errorTypeCanceled = "canceled"
+	errorTypeUnknown  = "unknown"
+)
+
 // metrics tracks blob-related metrics
 type metrics struct {
 	// Retrieval metrics
@@ -134,18 +143,18 @@ func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
 	if err != nil {
-		errorType := "unknown"
+		errorType := errorTypeUnknown
 		switch {
 		case errors.Is(err, ErrBlobNotFound):
-			errorType = "not_found"
+			errorType = errorTypeNotFound
 		case errors.Is(err, context.DeadlineExceeded):
-			errorType = "timeout"
+			errorType = errorTypeTimeout
 		case errors.Is(err, context.Canceled):
-			errorType = "canceled"
+			errorType = errorTypeCanceled
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
 	} else {
-		attrs = append(attrs, attribute.String("error_type", "none"))
+		attrs = append(attrs, attribute.String("error_type", errorTypeNone))
 	}
 
 	// Use single counter with error_type enum
@@ -169,16 +178,16 @@ func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err 
 	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
 	if err != nil {
-		errorType := "unknown"
+		errorType := errorTypeUnknown
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
-			errorType = "timeout"
+			errorType = errorTypeTimeout
 		case errors.Is(err, context.Canceled):
-			errorType = "canceled"
+			errorType = errorTypeCanceled
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
 	} else {
-		attrs = append(attrs, attribute.String("error_type", "none"))
+		attrs = append(attrs, attribute.String("error_type", errorTypeNone))
 	}
 
 	// Use single counter with error_type enum
