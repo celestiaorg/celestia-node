@@ -12,11 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 )
 
-func init() {
-	headerCmd.AddCommand(headerStoreReset)
-	headerCmd.AddCommand(headerStoreRecover)
-}
-
 var headerCmd = &cobra.Command{
 	Use:   "header [subcommand]",
 	Short: "Collection of header module related utilities",
@@ -27,10 +22,7 @@ const (
 	tailFlag = "tail"
 )
 
-func init() {
-	headerStoreReset.Flags().Uint64(headFlag, 0, "desired head height")
-	headerStoreReset.Flags().Uint64(tailFlag, 0, "desired tail height")
-}
+const startFromFlag = "start-from"
 
 var headerStoreReset = &cobra.Command{
 	Use:          "store-reset <node_store_path> [--head <num>] [--tail <num>]",
@@ -102,12 +94,6 @@ var headerStoreReset = &cobra.Command{
 	},
 }
 
-const startFromFlag = "start-from"
-
-func init() {
-	headerStoreRecover.Flags().Uint64(startFromFlag, 1, "starts iterating from the given block height")
-}
-
 var headerStoreRecover = &cobra.Command{
 	Use: "store-recover <node_store_path> [--start-from <num>]",
 	Short: `Recovers header store tail by forward iterating over the store until some header is found to be the new tail.
@@ -166,4 +152,13 @@ var headerStoreRecover = &cobra.Command{
 
 		return nil
 	},
+}
+
+func init() {
+	headerCmd.AddCommand(headerStoreReset)
+	headerCmd.AddCommand(headerStoreRecover)
+
+	headerStoreReset.Flags().Uint64(headFlag, 0, "desired head height")
+	headerStoreReset.Flags().Uint64(tailFlag, 0, "desired tail height")
+	headerStoreRecover.Flags().Uint64(startFromFlag, 1, "starts iterating from the given block height")
 }

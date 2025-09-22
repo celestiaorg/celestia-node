@@ -353,7 +353,8 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 		return false
 	}
 
-	switch d.host.Network().Connectedness(peer.ID) {
+	connectedness := d.host.Network().Connectedness(peer.ID)
+	switch connectedness {
 	case network.Connected:
 		d.connector.Backoff(peer.ID) // we still have to backoff the connected peer
 	case network.NotConnected:
@@ -365,11 +366,13 @@ func (d *Discovery) handleDiscoveredPeer(ctx context.Context, peer peer.AddrInfo
 		}
 		if err != nil {
 			d.metrics.observeHandlePeer(ctx, handlePeerConnErr)
-			logger.Debugw("unable to connect", "err", err)
+			logger.Debugw("skip handle: unable to connect", "err", err)
 			return false
 		}
 	default:
-		panic("unknown connectedness")
+		logger.Warnw("skip handle: unsupported status", "peer", peer.ID.String(), "status", connectedness.String())
+		d.metrics.observeHandlePeer(ctx, handlePeerUnknownStatus)
+		return false
 	}
 
 	if !d.set.Add(peer.ID) {
