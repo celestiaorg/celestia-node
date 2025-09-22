@@ -1,8 +1,15 @@
 # ShrEx/Sub Protocol Specification
 
+## Motivation
+
+ShrEx/Sub allows to increase efficiency of the data retrieval in the data availability network. The protocol enables the Peer Manager to build and maintain pools of reliable peers for optimal data access:
+
+- Peer Pool Management: The Peer Manager collects peer IDs from ShrEx/Sub notifications and organizes them into pools based on the data hashes they advertise, enabling targeted peer selection when specific EDS data is needed
+- Peer Quality Assessment: Through the validation interface, the Peer Manager can assess the validity of individual notifications and collect peers that send valid data into appropriate pools for reliable data retrieval
+
 ## Abstract
 
-**ShrEx/Sub** (Share Exchange/Subscribe) is a push-based notification protocol implementing the publish-subscribe pattern for Extended Data Square (EDS) hash distribution in the Celestia data availability network. The protocol enables efficient dissemination of new EDS availability notifications across different node types.
+**ShrEx/Sub** (Share Exchange/Subscribe) is a push-based notification protocol implementing the publish-subscribe pattern for new block availability notifications in the data availability network. The protocol enables efficient dissemination of new block availability notifications.
 
 ## Table of Contents
 
@@ -31,7 +38,6 @@ ShrEx/Sub is built on libp2p's FloodSub router with the following characteristic
 
 - **Topic ID**: `/eds-sub/0.0.1`
 - **Message Distribution**: Flood-based (sends to all connected peers)
-- **Overlay**: No mesh topology (unlike GossipSub)
 
 ### Node Roles
 
@@ -44,16 +50,18 @@ The notification message MUST contain the EDS data hash and block height:
 
 ```text
 Notification {
-    data_hash: bytes[32]  // EDS root hash
-    height: uint64        // Block height
+    data_hash: bytes[32]  // root hash
+    height: uint64        // block height
 }
 ```
+
+**Encoding**: Protocol Buffers (protobuf) serialization
 
 **Properties:**
 
 - Messages MUST have a fixed 40-byte payload (32 bytes hash + 8 bytes height)
 - Serialization overhead SHOULD be minimal
-- Each EDS at a specific height MUST generate only a single notification
+- Each EDS at a specific height SHOULD produce only a single notification
 
 ## Protocol Components
 
@@ -111,6 +119,8 @@ Validate(context, peerID PeerID, message []byte) -> ValidationResult
 - `ACCEPT`: Message is valid and MUST be processed
 - `REJECT`: Message is invalid and MUST be discarded
 - `IGNORE`: Message is valid but duplicate/stale and SHOULD be ignored
+
+The validation interface is exposed specifically for integration with the Peer Manager, which implements this interface to validate incoming ShrEx/Sub notifications. The Peer Manager uses validation results to add the announcing peer to the appropriate data hash pool, making them available for future data requests
 
 ### Validation Pipeline
 
@@ -177,6 +187,7 @@ We could increase GossipFactor to 1, which means always sending `IHAVE` to every
 
 - [libp2p PubSub Overview](<https://github.com/libp2p/specs/blob/master/pubsub/README.md>)
 - [Shrex-Sub Implementation](<https://github.com/celestiaorg/celestia-node/tree/main/share/shwap/p2p/shrex/shrexsub>)
+- [Peer Manager Implementation](<https://github.com/celestiaorg/celestia-node/blob/main/share/shwap/p2p/shrex/peers/manager.go>)
 
 ## Requirements Language
 
