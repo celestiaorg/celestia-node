@@ -8,8 +8,7 @@ ARG TARGETARCH
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 
-# hadolint ignore=DL3018
-RUN uname -a && apk update && apk add --no-cache \
+RUN apk update && apk upgrade && apk add --no-cache \
     bash \
     gcc \
     git \
@@ -27,7 +26,7 @@ RUN uname -a && \
     make cel-key && \
     make cel-shed
 
-FROM docker.io/alpine:3.20.2
+FROM docker.io/alpine:3.20
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
@@ -39,9 +38,7 @@ ENV CELESTIA_HOME=/home/${USER_NAME}
 ENV NODE_TYPE=bridge
 ENV P2P_NETWORK=mocha
 
-# hadolint ignore=DL3018
-RUN uname -a &&\
-    apk update && apk add --no-cache \
+RUN apk update && apk upgrade && apk add --no-cache \
     bash \
     curl \
     jq \
@@ -59,6 +56,9 @@ COPY --from=builder /src/./cel-key /bin/cel-key
 COPY --from=builder /src/./cel-shed /bin/cel-shed
 
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
+
+# Set proper permissions
+RUN chmod 755 /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
