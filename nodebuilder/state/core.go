@@ -44,7 +44,10 @@ func coreAccessor(
 		}
 	}
 
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), opts...)
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), nil, opts...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,

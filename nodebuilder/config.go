@@ -86,7 +86,7 @@ func LoadConfig(path string) (*Config, error) {
 func RemoveConfig(path string) (err error) {
 	path, err = storePath(path)
 	if err != nil {
-		return
+		return err
 	}
 
 	flk := flock.New(lockPath(path))
