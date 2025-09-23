@@ -59,13 +59,13 @@ func (p *parser) addShares(shares []libshare.Share) (shrs []libshare.Share, isCo
 	}
 
 	if index == -1 {
-		return shrs, false
+		return shrs, isComplete
 	}
 
 	if index+1 >= len(shares) {
-		return shrs, true
+		return shrs, isComplete
 	}
-	return shares[index+1:], true
+	return shares[index+1:], isComplete
 }
 
 // parse ensures that correct amount of shares was collected and create a blob from the existing
