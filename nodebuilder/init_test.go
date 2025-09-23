@@ -79,7 +79,7 @@ func TestInit_generateNewKey(t *testing.T) {
 	ring, err := keyring.New(app.Name, cfg.State.DefaultBackendName, t.TempDir(), os.Stdin, encConf.Codec)
 	require.NoError(t, err)
 
-	originalKey, mn, err := generateNewKey(ring)
+	originalKey, mn, err := generateNewKey(ring, cfg.State.DefaultKeyName)
 	require.NoError(t, err)
 
 	// check ring and make sure it generated + stored key

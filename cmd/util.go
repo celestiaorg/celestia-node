@@ -126,7 +126,11 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 		return err
 	}
 
-	state.ParseFlags(cmd, &cfg.State)
+	err = state.ParseFlags(cmd, &cfg.State)
+	if err != nil {
+		return err
+	}
+
 	if err = rpc_cfg.ParseFlags(cmd, &cfg.RPC); err != nil {
 		return err
 	}

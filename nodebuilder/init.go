@@ -15,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
 // PrintKeyringInfo whether to print keyring information during init.
@@ -208,11 +207,23 @@ func generateKeys(cfg Config, ksPath string) error {
 		// at least one key is already present
 		return nil
 	}
-	log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ksPath)
-	keyInfo, mn, err := generateNewKey(ring)
-	if err != nil {
-		return err
+	var keyInfo *keyring.Record
+	var mn string
+	if cfg.State.Seeds != "" {
+		log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY WITH SEEDS...", "path", ksPath)
+		keyInfo, err = generateNewKeyWithSeeds(ring, cfg.State.Seeds, cfg.State.DefaultKeyName)
+		if err != nil {
+			return err
+		}
+		mn = cfg.State.Seeds
+	} else {
+		log.Infow("NO KEY FOUND IN STORE, GENERATING NEW KEY...", "path", ksPath)
+		keyInfo, mn, err = generateNewKey(ring, cfg.State.DefaultKeyName)
+		if err != nil {
+			return err
+		}
 	}
+
 	log.Info("NEW KEY GENERATED...")
 	addr, err := keyInfo.GetAddress()
 	if err != nil {
@@ -227,7 +238,16 @@ func generateKeys(cfg Config, ksPath string) error {
 
 // generateNewKey generates and returns a new key on the given keyring called
 // "my_celes_key".
-func generateNewKey(ring keyring.Keyring) (*keyring.Record, string, error) {
-	return ring.NewMnemonic(state.DefaultKeyName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
+func generateNewKey(ring keyring.Keyring, name string) (*keyring.Record, string, error) {
+	return ring.NewMnemonic(name, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+}
+
+// generateNewKeyWithSeeds generates a new key on the given keyring called
+func generateNewKeyWithSeeds(ring keyring.Keyring, seeds string, name string) (*keyring.Record, error) {
+	k, err := ring.NewAccount(name, seeds, keyring.DefaultBIP39Passphrase, sdk.GetConfig().GetFullBIP44Path(), hd.Secp256k1)
+	if err != nil {
+		return nil, err
+	}
+	return k, nil
 }

@@ -37,7 +37,7 @@ func MockStore(t *testing.T, cfg *Config) Store {
 
 	ks, err := store.Keystore()
 	require.NoError(t, err)
-	_, _, err = generateNewKey(ks.Keyring())
+	_, _, err = generateNewKey(ks.Keyring(), cfg.State.DefaultKeyName)
 	require.NoError(t, err)
 
 	return store

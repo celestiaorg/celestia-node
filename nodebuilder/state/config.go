@@ -13,6 +13,7 @@ var defaultBackendName = keyring.BackendTest
 type Config struct {
 	DefaultKeyName     string
 	DefaultBackendName string
+	Seeds              string
 	// EstimatorAddress specifies a third-party endpoint that will be used to
 	// calculate gas price and gas usage
 	EstimatorAddress string
@@ -25,6 +26,7 @@ func DefaultConfig() Config {
 	return Config{
 		DefaultKeyName:     DefaultKeyName,
 		DefaultBackendName: defaultBackendName,
+		Seeds:              "",
 		EstimatorAddress:   "",
 	}
 }

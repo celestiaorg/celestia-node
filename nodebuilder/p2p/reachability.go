@@ -10,6 +10,7 @@ import (
 const reachabilityCheckTick = 10 * time.Second
 
 func reachabilityCheck(ctx context.Context, host HostBase) {
+	log.Info("reachabilityCheck", "host", host)
 	getter, ok := host.(autoNatGetter)
 	if !ok {
 		panic("host does not implement autoNatGetter")
@@ -20,6 +21,7 @@ func reachabilityCheck(ctx context.Context, host HostBase) {
 		log.Error("autoNAT is nil on host")
 		return
 	}
+	log.Info("autoNAT", "autoNAT", autoNAT)
 
 	go func() {
 		ticker := time.NewTicker(reachabilityCheckTick)
@@ -29,13 +31,17 @@ func reachabilityCheck(ctx context.Context, host HostBase) {
 			select {
 			case <-ticker.C:
 				reachability := autoNAT.Status()
+				log.Info("reachability", "reachability", reachability, network.ReachabilityPublic)
 				if reachability == network.ReachabilityPublic {
 					return
 				}
 
-				log.Error(`Host is not reachable from the public network!
-See https://docs.celestia.org/how-to-guides/celestia-node-troubleshooting#ports
-`)
+				log.Warn("Host is not reachable from the public network!")
+				return
+
+				// log.Error(`Host is not reachable from the public network!
+				//See https://docs.celestia.org/how-to-guides/celestia-node-troubleshooting#ports
+				//`)
 			case <-ctx.Done():
 				return
 			}
