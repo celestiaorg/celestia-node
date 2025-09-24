@@ -126,12 +126,18 @@ The validation interface is exposed specifically for integration with the Peer M
 
 ShrEx/Sub implementations MUST implement the following validation process:
 
-**Format Validation Requirements:**
+**Sanity Checks:**
 
 - Hash length MUST be exactly 32 bytes
 - Hash MUST NOT be all zeros
-- Height MUST be a valid block height
 - Message size MUST NOT exceed protocol limits
+- Height MUST be a non-zero positive integer
+
+**Verification Checks:**
+
+- Height MUST correspond to a block header that is fully verified by the implementation
+- The block header at the given height MUST be included as part of the implementation's subjective chain
+- The data hash MUST match the data root hash from the verified header at the specified height
 
 ### Component Interaction Flow
 
