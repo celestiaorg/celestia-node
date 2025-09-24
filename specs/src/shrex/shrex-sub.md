@@ -73,7 +73,7 @@ The core publish-subscribe functionality for message distribution:
 
 ```text
 // Publish publishes data hash and height to the topic
-Publish(context, dataHash []byte, height uint64) -> error
+Publish(dataHash []byte, height uint64) -> error
 
 // Subscribe creates a new subscription to the topic
 Subscribe() -> (*Subscription, error)
@@ -94,7 +94,7 @@ The subscription component handles the receiving and processing of ShrEx/Sub not
 ```text
 // Next blocks the caller until any new EDS DataHash notification arrives.
 // Returns only notifications which successfully pass validation.
-Next(ctx context.Context) -> (Notification, error) 
+Next() -> (Notification, error) 
 ```
 
 **Requirements:**
@@ -111,7 +111,7 @@ Next(ctx context.Context) -> (Notification, error)
 
 ```text
 // Validate validates a message from a peer
-Validate(context, peerID PeerID, message []byte) -> ValidationResult
+Validate(peerID PeerID, message []byte) -> ValidationResult
 ```
 
 **ValidationResult Values:**
