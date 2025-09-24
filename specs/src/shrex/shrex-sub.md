@@ -41,7 +41,7 @@ ShrEx/Sub is built on libp2p's FloodSub router with the following characteristic
 
 ### Node Roles
 
-- **Light Nodes (LN)**: Subscribers that receive EDS notifications for data availability sampling
+- **Light Nodes (LN)**: Subscribers that receive EDS notifications for data availability sampling, blob retrieval, and other share-related requests (e.g. row retrieval).
 - **Bridge Nodes (BN)**: Publishers that announce new EDS availability from consensus layer
 
 ## Message Schema
