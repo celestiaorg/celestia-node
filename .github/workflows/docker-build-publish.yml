@@ -21,6 +21,8 @@ jobs:
     permissions:
       contents: write
       packages: write
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)
+            || github.event_name == 'push' }}
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.6.4 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
