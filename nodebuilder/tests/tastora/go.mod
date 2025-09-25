@@ -6,7 +6,7 @@ toolchain go1.24.7
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v6 v6.0.5-arabica
+	github.com/celestiaorg/celestia-app/v6 v6.0.5-mocha
 	github.com/celestiaorg/celestia-node v0.23.2-mocha
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.1
