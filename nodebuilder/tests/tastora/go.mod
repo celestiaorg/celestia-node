@@ -81,7 +81,7 @@ require (
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/celestiaorg/celestia-app/v4 v4.0.6-mocha // indirect
 	github.com/celestiaorg/go-fraud v0.2.3 // indirect
-	github.com/celestiaorg/go-header v0.7.1 // indirect
+	github.com/celestiaorg/go-header v0.7.3 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
