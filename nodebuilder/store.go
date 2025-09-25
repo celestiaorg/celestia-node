@@ -146,7 +146,7 @@ func (f *fsStore) Close() (err error) {
 		err = errors.Join(err, f.data.Close())
 	}
 	f.dataMu.Unlock()
-	return
+	return err
 }
 
 type fsStore struct {
