@@ -101,15 +101,15 @@ GetByHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 // by the node's header store or until context deadline is exceeded.
 WaitForHeight(ctx context.Context, height uint64) (*header.ExtendedHeader, error)
 // GetRangeByHeight returns the given range (from:to) of ExtendedHeaders
-// from the node's header store and verifies that the returned headers are 
+// from the node's header store and verifies that the returned headers are
 // adjacent to each other.
 GetRangeByHeight(ctx context.Context, from, to uint64) ([]*ExtendedHeader, error)
-// Subscribe creates long-living Subscription for newly validated 
+// Subscribe creates long-living Subscription for newly validated
 // ExtendedHeaders. Multiple Subscriptions can be created.
 Subscribe(context.Context) (<-chan *header.ExtendedHeader, error)
-// SyncState returns the current state of the header Syncer. 
+// SyncState returns the current state of the header Syncer.
 SyncState(context.Context) (sync.State, error)
-// SyncWait blocks until the header Syncer is synced to network head. 
+// SyncWait blocks until the header Syncer is synced to network head.
 SyncWait(ctx context.Context) error
 // NetworkHead provides the Syncer's view of the current network head.
 NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
@@ -130,11 +130,11 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     // Shares are returned in a row-by-row order if the namespace spans multiple rows.
     GetSharesByNamespace(
       ctx context.Context,
-      root *Root, 
-      nID namespace.ID, 
+      root *Root,
+      nID namespace.ID,
     ) (share.NamespacedShares, error)
     // SharesAvailable subjectively validates if Shares committed to the given data
-    // Root are available on the network. 
+    // Root are available on the network.
     SharesAvailable(ctx context.Context, root *Root) error
     // ProbabilityOfAvailability calculates the probability of the data square
     // being available based on the number of samples collected.
@@ -153,17 +153,17 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     // PeerInfo returns a small slice of information Peerstore has on the
     // given peer.
     PeerInfo(context.Context, peer.ID) (peer.AddrInfo, error)
-   
+
     // Connect ensures there is a connection between this host and the peer with
     // given peer.
     Connect(ctx context.Context, pi peer.AddrInfo) error
-    // ClosePeer closes the connection to a given peer. 
+    // ClosePeer closes the connection to a given peer.
     ClosePeer(ctx context.Context, id peer.ID) error
     // Connectedness returns a state signaling connection capabilities.
     Connectedness(ctx context.Context, id peer.ID) network.Connectedness
     // NATStatus returns the current NAT status.
     NATStatus(context.Context) network.Reachability
-   
+
     // BlockPeer adds a peer to the set of blocked peers.
     BlockPeer(ctx context.Context, p peer.ID) error
     // UnblockPeer removes a peer from the set of blocked peers.
@@ -182,22 +182,22 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     MutualRm(ctx context.Context, id peer.ID, tag string) bool
     // IsMutual returns whether the given peer is a mutual peer.
     IsMutual(ctx context.Context, id peer.ID, tag string) bool
-  
+
     // BandwidthStats returns a Stats struct with bandwidth metrics for all
-    // data sent/received by the local peer, regardless of protocol or remote 
+    // data sent/received by the local peer, regardless of protocol or remote
     // peer IDs.
     BandwidthStats(context.Context) Stats
     // BandwidthForPeer returns a Stats struct with bandwidth metrics associated
     // with the given peer.ID. The metrics returned include all traffic sent /
     // received for the peer, regardless of protocol.
     BandwidthForPeer(ctx context.Context, id peer.ID) Stats
-    // BandwidthForProtocol returns a Stats struct with bandwidth metrics 
+    // BandwidthForProtocol returns a Stats struct with bandwidth metrics
     // associated with the given protocol.ID.
     BandwidthForProtocol(ctx context.Context, proto protocol.ID) Stats
-   
+
     // ResourceState returns the state of the resource manager.
     ResourceState(context.Context) rcmgr.ResourceManagerStat
-   
+
     // PubSubPeers returns the peer IDs of the peers joined on
     // the given topic.
     PubSubPeers(ctx context.Context, topic string) ([]peer.ID, error)
@@ -211,7 +211,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
   type NodeModule interface {
     // Info returns administrative information about the node.
     Info(context.Context) (Info, error)
- 
+
     // LogLevelSet sets the given component log level to the given level.
     LogLevelSet(ctx context.Context, name, level string) error
 
@@ -220,7 +220,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     // AuthNew signs and returns a new token with the given permissions.
     AuthNew(ctx context.Context, perms []auth.Permission) ([]byte, error)
   }
-  
+
 ```
 
 #### DAS
@@ -241,7 +241,7 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     // Balance retrieves the Celestia coin balance for the node's account/signer
     // and verifies it against the corresponding block's AppHash.
     Balance(ctx context.Context) (*state.Balance, error)
-    // BalanceForAddress retrieves the Celestia coin balance for the given 
+    // BalanceForAddress retrieves the Celestia coin balance for the given
     // address and verifies the returned balance against the corresponding
     // block's AppHash.
     BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
@@ -250,15 +250,15 @@ NetworkHead(ctx context.Context) (*header.ExtendedHeader, error)
     SubmitTx(ctx context.Context, tx state.Tx) (*state.TxResponse, error)
     // SubmitPayForBlob builds, signs and submits a PayForBlob transaction.
     SubmitPayForBlob(
-      ctx context.Context, 
-      nID namespace.ID, 
+      ctx context.Context,
+      nID namespace.ID,
       data []byte,
       config *state.TxConfig,
     ) (*state.TxResponse, error)
-    // Transfer sends the given amount of coins from default wallet of the node 
+    // Transfer sends the given amount of coins from default wallet of the node
     // to the given account address.
     Transfer(
-      ctx context.Context, 
+      ctx context.Context,
       to types.Address,
       amount types.Int,
       config *state.TxConfig,
@@ -279,8 +279,8 @@ yet.
   type StakingModule interface {
     // Delegate sends a user's liquid tokens to a validator for delegation.
     Delegate(
-        ctx context.Context, 
-        delAddr state.ValAddress, 
+        ctx context.Context,
+        delAddr state.ValAddress,
         amount state.Int,
         config *state.TxConfig,
     ) (*state.TxResponse, error)
@@ -290,18 +290,18 @@ yet.
         srcValAddr,
         dstValAddr state.ValAddress,
         amount state.Int,
-        config *state.TxConfig, 
+        config *state.TxConfig,
     ) (*state.TxResponse, error)
     // Undelegate undelegates a user's delegated tokens, unbonding them from the
     // current validator.
     Undelegate(
-        ctx context.Context, 
+        ctx context.Context,
         delAddr state.ValAddress,
         amount state.Int,
         config *state.TxConfig,
     ) (*state.TxResponse, error)
 
-    // CancelUnbondingDelegation cancels a user's pending undelegation from a 
+    // CancelUnbondingDelegation cancels a user's pending undelegation from a
     // validator.
     CancelUnbondingDelegation(
         ctx context.Context,
@@ -314,8 +314,8 @@ yet.
     // QueryDelegation retrieves the delegation information between a delegator
     // and a validator.
     QueryDelegation(
-        ctx context.Context, 
-        valAddr state.ValAddress, 
+        ctx context.Context,
+        valAddr state.ValAddress,
     ) (*types.QueryDelegationResponse, error)
     // QueryRedelegations retrieves the status of the redelegations between a
     // delegator and a validator.
@@ -354,11 +354,11 @@ yet.
   type MetricsModule interface {
     // List shows all the registered meters.
     List(ctx) (string[], error)
-    
+
     // Enable turns on the specific meter.
     Enable(string) error
     Disable(string) error
-    
+
     // ExportTo  sets the endpoint the metrics should be exported to
     ExportTo(string)
   }
@@ -376,7 +376,7 @@ Eventually, it would be nice to break up `StateModule` into `StateModule`,
 ```go
 type StateModule interface {
     // QueryABCI proxies a generic ABCI query to the core endpoint.
-    QueryABCI(ctx context.Context, request abci.RequestQuery) 
+    QueryABCI(ctx context.Context, request abci.RequestQuery)
       (*coretypes.ResultABCIQuery, error)
     // SubmitTx submits the given transaction/message to the Celestia network
     // and blocks until the tx is included in a block.
@@ -391,7 +391,7 @@ type BankModule interface {
   // Balance retrieves the Celestia coin balance for the node's account/signer
   // and verifies it against the corresponding block's AppHash.
   Balance(ctx context.Context) (*state.Balance, error)
-  // BalanceForAddress retrieves the Celestia coin balance for the given 
+  // BalanceForAddress retrieves the Celestia coin balance for the given
   // address and verifies the returned balance against the corresponding
   // block's AppHash.
   BalanceForAddress(ctx context.Context, addr state.Address) (*state.Balance, error)
@@ -399,9 +399,9 @@ type BankModule interface {
   SubmitPayForBlob(
     ctx context.Context,
     blobs []*state.Blob,
-    config *state.TxConfig, 
+    config *state.TxConfig,
   ) (*state.TxResponse, error)
-  // Transfer sends the given amount of coins from default wallet of the node 
+  // Transfer sends the given amount of coins from default wallet of the node
   // to the given account address.
   Transfer(
     ctx context.Context,
@@ -420,7 +420,7 @@ type BankModule interface {
     Redelegate
     Unbond
     CancelUnbond
-    
+
     QueryDelegation
     QueryRedelegation
     QueryUnbondingDelegation

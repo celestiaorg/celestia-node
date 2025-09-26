@@ -51,6 +51,15 @@ type CoreAccessor struct {
 
 	keyring keyring.Keyring
 	client  *user.TxClient
+	// workerAccounts defines how many accounts the tx client manages for
+	// PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	workerAccounts int
 
 	// TODO @renaynay: clean this up -- only one!!!!
 	defaultSignerAccount string
@@ -213,7 +222,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	var response *user.TxResponse
+	if ca.workerAccounts > 0 {
+		// submit through parallel transaction submission lane
+		response, err = client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
+	} else {
+		// otherwise, use the account-specific submission path
+		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	}
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
@@ -221,7 +237,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		return convertToSdkTxResponse(response), nil
 	}
-	// TODO @renaynay: use new rachid named func
+
 	if apperrors.IsInsufficientFee(err) {
 		if cfg.isGasPriceSet {
 			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
@@ -522,6 +538,10 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 
 		opts = append(opts, user.WithEstimatorService(estimatorConn))
 		ca.estimatorConn = estimatorConn
+	}
+
+	if ca.workerAccounts > 1 {
+		opts = append(opts, user.WithTxWorkers(ca.workerAccounts))
 	}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)

@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -12,6 +13,7 @@ var (
 	keyringBackendFlag          = "keyring.backend"
 	estimatorServiceAddressFlag = "estimator.service.address"
 	estimatorServiceTLSFlag     = "estimator.service.tls"
+	txWorkerAccountsFlag        = "tx.worker.accounts"
 )
 
 // Flags gives a set of hardcoded State flags.
@@ -36,6 +38,13 @@ func Flags() *flag.FlagSet {
 		false,
 		"enables TLS for the estimator service gRPC connection",
 	)
+	flags.Int(
+		txWorkerAccountsFlag,
+		1,
+		"specifies how many accounts the TxClient manages for PayForBlob submission.\n"+
+			"0 disables parallel submission. Values greater than 1 automatically create "+
+			"\"parallel-worker-*\" accounts and grant them fees using the default signer.",
+	)
 
 	return flags
 }
@@ -55,5 +64,12 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 
 	if cmd.Flag(estimatorServiceTLSFlag).Changed {
 		cfg.EnableEstimatorTLS = true
+	}
+
+	if cmd.Flag(txWorkerAccountsFlag).Changed {
+		value, err := strconv.Atoi(cmd.Flag(txWorkerAccountsFlag).Value.String())
+		if err == nil {
+			cfg.TxWorkerAccounts = value
+		}
 	}
 }
