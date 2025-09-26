@@ -28,3 +28,12 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 		ca.coreConns = append(ca.coreConns, conns...)
 	}
 }
+
+// WithWorkerAccounts configures the CoreAccessor to manage the provided number of
+// worker accounts via the TxClient. A value of zero leaves parallel
+// submission disabled.
+func WithWorkerAccounts(workerAccounts int) Option {
+	return func(ca *CoreAccessor) {
+		ca.workerAccounts = workerAccounts
+	}
+}

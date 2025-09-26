@@ -412,6 +412,14 @@ type BankModule interface {
 }
 ```
 
+Nodes can enable parallel PayForBlob submission by configuring `state.WorkerAccounts`.
+The default value of `1` retains the existing single-account behaviour, while setting
+`0` disables the parallel pool entirely. Values greater than `1` cause the node to
+automatically create `parallel-worker-*` accounts and issue fee grants so the default
+signer pays their transaction fees. Parallel submission currently only applies when
+the default signer and fee granter are used; specifying alternate values in
+`TxConfig` falls back to the single-account path.
+
 ##### Staking (same as pre-mainnet staking module)
 
 ```go
