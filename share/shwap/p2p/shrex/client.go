@@ -84,6 +84,12 @@ func (c *Client) doRequest(
 	if err != nil {
 		return statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
+	defer func() {
+		err = stream.Close()
+		if err != nil {
+			log.Errorw("closing stream", "err", err, "peer", peer.String())
+		}
+	}()
 
 	c.setStreamDeadlines(ctx, logger, stream)
 
