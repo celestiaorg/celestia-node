@@ -87,7 +87,7 @@ func (c *Client) doRequest(
 	defer func() {
 		err = stream.Close()
 		if err != nil {
-			log.Errorw("closing stream", "err", err, "peer", peer.String())
+			log.Warnw("closing stream", "err", err, "peer", peer.String())
 		}
 	}()
 
