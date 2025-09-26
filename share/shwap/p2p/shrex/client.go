@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
 
@@ -85,10 +86,7 @@ func (c *Client) doRequest(
 		return statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
 	defer func() {
-		err = stream.Close()
-		if err != nil {
-			log.Warnw("closing stream", "err", err, "peer", peer.String())
-		}
+		utils.CloseAndLog(log, "shrex/client stream", stream)
 	}()
 
 	c.setStreamDeadlines(ctx, logger, stream)
