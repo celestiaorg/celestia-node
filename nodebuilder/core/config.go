@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
@@ -19,6 +20,10 @@ type Config struct {
 	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints to be used for
 	// transaction submission. Must be provided as `host:port` pairs.
 	AdditionalCoreEndpoints []EndpointConfig
+	// ConcurrencyLimit specifies the maximum number of concurrent requests to the Celestia-Core
+	// node. The default is 16. NOTE: anything above 16 will require changes to hardware resource
+	// requirements.
+	ConcurrencyLimit int
 }
 
 type EndpointConfig struct {
@@ -42,11 +47,17 @@ func DefaultConfig() Config {
 			Port: DefaultPort,
 		},
 		AdditionalCoreEndpoints: make([]EndpointConfig, 0),
+		ConcurrencyLimit:        16,
 	}
 }
 
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
+	if cfg.ConcurrencyLimit < core.DefaultConcurrencyLimit {
+		// override anything below the default limit
+		cfg.ConcurrencyLimit = core.DefaultConcurrencyLimit
+	}
+
 	if !cfg.IsEndpointConfigured() {
 		return nil
 	}
