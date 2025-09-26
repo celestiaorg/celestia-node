@@ -21,3 +21,4 @@ vendor
 coverage.txt
 go.work
 go.work.sum
+.gocache/
