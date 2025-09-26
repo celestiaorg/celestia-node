@@ -167,7 +167,7 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 	cfg.Core.IP = ip
 	cfg.Core.Port = port
 	// set port to zero so that OS allocates one
-	// this avoids port collissions between nodes and tests
+	// this avoids port collisions between nodes and tests
 	cfg.RPC.Port = "0"
 
 	for _, bootstrapper := range s.Bootstrappers {

@@ -290,7 +290,7 @@ func constraintBadgerConfig() *dsbadger.Options {
 	opts.GcDiscardRatio = 0.125
 	// removes the pause in between GC rounds
 	// empirically, it doesn't cause any noticeable performance impact
-	// while it significantly speeds up disk space reclaimation for deleted data
+	// while it significantly speeds up disk space reclamation for deleted data
 	opts.GcSleep = 0
 
 	// badger stores checksum for every value, but doesn't verify it by default
