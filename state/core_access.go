@@ -241,7 +241,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 				if cfg.isGasPriceSet {
 					return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", result.Error)
 				}
-				return nil, fmt.Errorf("failed to submit blobs due to insufficient estimated gas price %f: %w", gasPrice, result.Error)
+				return nil, fmt.Errorf("failed to submit blobs due to insufficient estimated gas price %f: %w",
+					gasPrice, result.Error)
 			}
 			return nil, fmt.Errorf("failed to submit blobs: %w", result.Error)
 		}
@@ -300,7 +301,9 @@ func (ca *CoreAccessor) canUseParallel(cfg *TxConfig) bool {
 	return true
 }
 
-func (ca *CoreAccessor) waitForParallelResult(ctx context.Context, resultsC chan user.SubmissionResult) (user.SubmissionResult, error) {
+func (ca *CoreAccessor) waitForParallelResult(
+	ctx context.Context, resultsC chan user.SubmissionResult,
+) (user.SubmissionResult, error) {
 	if resultsC == nil {
 		return user.SubmissionResult{}, fmt.Errorf("failed to submit blobs: parallel submission not configured")
 	}

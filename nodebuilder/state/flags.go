@@ -42,7 +42,8 @@ func Flags() *flag.FlagSet {
 		txWorkerAccountsFlag,
 		1,
 		"specifies how many accounts the TxClient manages for PayForBlob submission.\n"+
-			"0 disables parallel submission. Values greater than 1 automatically create \"parallel-worker-*\" accounts and grant them fees using the default signer.",
+			"0 disables parallel submission. Values greater than 1 automatically create "+
+			"\"parallel-worker-*\" accounts and grant them fees using the default signer.",
 	)
 
 	return flags

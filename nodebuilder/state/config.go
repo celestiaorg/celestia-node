@@ -24,13 +24,13 @@ type Config struct {
 	// WorkerAccounts defines how many accounts the TxClient should manage for
 	// PayForBlob submissions. A value of 0 disables queued submission entirely, which
 	// results in submitting blobs immediately without waiting for previous blobs to be
-	// confirmed. This is not reccomended at this time. Setting the value to a value of
+	// confirmed. This is not recommended at this time. Setting the value to a value of
 	// 1 enables queued submission, which means blobs are added to a queue and submitted
 	// one after another. No additional accounts are initialized. Values greater than 1
 	// enable automatic creation and management of additional worker accounts for
 	// parallel submissions. This means that blobs can be submitted by multiple different
 	// signers, and that blobs will not be submitted on chain in the original sending order.
-	// This is highly reccomended for high throughput chains.
+	// This is highly recommended for high throughput chains.
 	WorkerAccounts int
 }
 

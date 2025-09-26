@@ -12,13 +12,13 @@ import (
 	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
-	"golang.org/x/sync/errgroup"
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
