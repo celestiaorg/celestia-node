@@ -27,7 +27,7 @@ RUN uname -a && \
     make cel-key && \
     make cel-shed
 
-FROM docker.io/alpine:3.20.2
+FROM docker.io/alpine:3.22.1
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
