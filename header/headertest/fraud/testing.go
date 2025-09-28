@@ -55,6 +55,9 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) head
 			return header.MakeExtendedHeader(h, comm, vals, eds)
 		}
 
+		// Save the hash of the original header before any modifications
+		f.prevHash = h.Hash()
+
 		hdr := *h
 		if h.Height == f.height {
 			adder := ipld.NewProofsAdder(odsSize, false)
@@ -80,7 +83,6 @@ func (f *FraudMaker) MakeExtendedHeader(odsSize int, edsStore *store.Store) head
 
 		*h = hdr
 		*comm = *commit
-		f.prevHash = h.Hash()
 		return header.MakeExtendedHeader(h, comm, vals, eds)
 	}
 }
