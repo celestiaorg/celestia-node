@@ -2,6 +2,7 @@ package tastora
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -64,6 +65,9 @@ type Framework struct {
 	bridgeNodes []*tastoradockertypes.DANode // Bridge nodes (bridgeNodes[0] created by default)
 	lightNodes  []*tastoradockertypes.DANode // Light nodes
 
+	// Bootstrapper configuration (similar to swamp)
+	bootstrappers []string // P2P addresses of bootstrapper nodes
+
 	// Private funding infrastructure (not exposed to tests)
 	fundingWallet        tastoratypes.Wallet
 	defaultFundingAmount int64
@@ -72,6 +76,9 @@ type Framework struct {
 // NewFramework creates a new Tastora testing framework instance.
 // Similar to swamp.NewSwamp(), this sets up the complete testing environment.
 func NewFramework(t *testing.T, options ...Option) *Framework {
+	// Set test environment flag for discovery optimizations
+	os.Setenv("CELESTIA_TEST_ENV", "1")
+
 	f := &Framework{
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
@@ -119,6 +126,9 @@ func (f *Framework) SetupNetwork(ctx context.Context) error {
 	defaultBridgeNode := f.newBridgeNode(ctx)
 	f.bridgeNodes = append(f.bridgeNodes, defaultBridgeNode)
 	f.logger.Info("Default bridge node created and funded automatically")
+
+	// 4. Setup bootstrapper for P2P network discovery
+	f.SetBootstrapper(ctx, defaultBridgeNode)
 
 	return nil
 }
@@ -405,16 +415,27 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 
 	err = bridgeNode.Start(ctx,
 		tastoratypes.WithChainID(testChainID),
-		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+		tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--archival", "--log.level", "debug"),
 		tastoratypes.WithEnvironmentVariables(
 			map[string]string{
-				"CELESTIA_CUSTOM":       tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"CELESTIA_CUSTOM":       fmt.Sprintf("%s:%s", testChainID, genesisHash), // Bridge node doesn't need bootstrappers
 				"P2P_NETWORK":           testChainID,
-				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
+				"CELESTIA_BOOTSTRAPPER": "true",  // Make bridge node act as DHT bootstrapper
+				"GOLOG_LOG_LEVEL":       "debug", // Enable debug logging
 			},
 		),
 	)
 	require.NoError(f.t, err, "failed to start bridge node")
+
+	// Get bridge node P2P address and add to bootstrappers list for future light nodes
+	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
+	require.NoError(f.t, err, "failed to get bridge node p2p info")
+
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	require.NoError(f.t, err, "failed to get bridge node p2p address")
+
+	f.bootstrappers = append(f.bootstrappers, p2pAddr)
+
 	return bridgeNode
 }
 
@@ -422,11 +443,7 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain tastoratypes.Chai
 func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradockertypes.DANode, chain tastoratypes.Chain) *tastoradockertypes.DANode {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
-	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
-	require.NoError(f.t, err, "failed to get bridge node p2p info")
-
-	p2pAddr, err := p2pInfo.GetP2PAddress()
-	require.NoError(f.t, err, "failed to get bridge node p2p address")
+	// Bridge node P2P address is already in f.bootstrappers from startBridgeNode
 
 	// Get the core node hostname for state access
 	hostname, err := chain.GetNodes()[0].GetInternalHostName(ctx)
@@ -440,20 +457,75 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *tastoradocke
 	}
 	lightNode := allLightNodes[lightNodeIndex].(*tastoradockertypes.DANode)
 
+	// Build environment variables with bootstrapper configuration
+	// The key fix: Use CELESTIA_CUSTOM format to properly configure bootstrappers
+	envVars := map[string]string{
+		"P2P_NETWORK": testChainID,
+	}
+
+	// Configure bootstrappers using CELESTIA_CUSTOM format
+	if len(f.bootstrappers) > 0 {
+		// Join all bootstrapper addresses with comma separator
+		bootstrapperList := ""
+		for i, bootstrapper := range f.bootstrappers {
+			if i > 0 {
+				bootstrapperList += ","
+			}
+			bootstrapperList += bootstrapper
+		}
+		// Use CELESTIA_CUSTOM format: <netID>:<genesisBlockHash>:<bootstrapPeerList>
+		envVars["CELESTIA_CUSTOM"] = fmt.Sprintf("%s:%s:%s", testChainID, genesisHash, bootstrapperList)
+	} else {
+		// No bootstrappers, just set network and genesis
+		envVars["CELESTIA_CUSTOM"] = fmt.Sprintf("%s:%s", testChainID, genesisHash)
+	}
+
+	// Enable debug logging
+	envVars["GOLOG_LOG_LEVEL"] = "debug"
+
+	// Build start arguments with trusted peers configuration
+	startArgs := []string{
+		"--p2p.network", testChainID,
+		"--core.ip", hostname,
+		"--rpc.addr", "0.0.0.0",
+		"--log.level", "debug", // Enable debug logging
+	}
+
+	// Add trusted peers (bootstrappers) to start arguments
+	if len(f.bootstrappers) > 0 {
+		// Join all bootstrapper addresses with comma separator for --headers.trusted-peers
+		trustedPeersList := ""
+		for i, bootstrapper := range f.bootstrappers {
+			if i > 0 {
+				trustedPeersList += ","
+			}
+			trustedPeersList += bootstrapper
+		}
+		startArgs = append(startArgs, "--headers.trusted-peers", trustedPeersList)
+
+		// Also add as mutual peers for P2P connectivity (needed for bitswap and share exchange)
+		startArgs = append(startArgs, "--p2p.mutual", trustedPeersList)
+	}
+
 	// Try starting the light node, with a retry to avoid occasional docker flakiness
 	var lastErr error
 	for attempt := 1; attempt <= 2; attempt++ {
 		err = lightNode.Start(ctx,
 			tastoratypes.WithChainID(testChainID),
-			tastoratypes.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
-			tastoratypes.WithEnvironmentVariables(
-				map[string]string{
-					"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-					"P2P_NETWORK":     testChainID,
-				},
-			),
+			tastoratypes.WithAdditionalStartArguments(startArgs...),
+			tastoratypes.WithEnvironmentVariables(envVars),
 		)
 		if err == nil {
+			// Use the existing ConnectNodes method to establish P2P connections
+			nodes := map[string]*rpcclient.Client{
+				"bridge": f.GetNodeRPCClient(ctx, bridgeNode),
+				"light":  f.GetNodeRPCClient(ctx, lightNode),
+			}
+			f.ConnectNodes(ctx, nodes, 30*time.Second)
+
+			// Wait for P2P connections to be properly established for bitswap
+			f.waitForP2PConnectivity(ctx, bridgeNode, lightNode)
+
 			return lightNode
 		}
 		lastErr = err
@@ -582,4 +654,85 @@ func (f *Framework) ConnectNodes(ctx context.Context, nodes map[string]*rpcclien
 			}
 		}
 	}
+}
+
+// SetBootstrapper sets the given bridge node as a bootstrapper for the network.
+// Every new light node created afterwards will automatically add the bootstrapper as a trusted peer.
+// This matches the swamp.SetBootstrapper behavior.
+func (f *Framework) SetBootstrapper(ctx context.Context, bridgeNode *tastoradockertypes.DANode) {
+	bridgeClient := f.GetNodeRPCClient(ctx, bridgeNode)
+
+	// Get the bridge node's P2P info
+	info, err := bridgeClient.P2P.Info(ctx)
+	if err != nil {
+		f.t.Logf("warning: failed to get bridge node P2P info for bootstrapper setup: %v", err)
+		return
+	}
+
+	// Store the bootstrapper address (similar to swamp implementation)
+	bootstrapperAddr := info.Addrs[0].String() + "/p2p/" + info.ID.String()
+	f.bootstrappers = append(f.bootstrappers, bootstrapperAddr)
+
+	f.t.Logf("Bridge node configured as bootstrapper: %s", bootstrapperAddr)
+}
+
+// waitForP2PConnectivity waits for P2P connections to be properly established for bitswap.
+// This ensures that the light node can discover and connect to the bridge node for share data exchange.
+func (f *Framework) waitForP2PConnectivity(ctx context.Context, bridgeNode, lightNode *tastoradockertypes.DANode) {
+	f.t.Logf("Waiting for P2P connectivity to be established...")
+
+	// Get RPC clients for both nodes
+	bridgeClient := f.GetNodeRPCClient(ctx, bridgeNode)
+	lightClient := f.GetNodeRPCClient(ctx, lightNode)
+
+	// Wait for both nodes to have proper P2P connections
+	timeout := 60 * time.Second
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		// Check bridge node P2P info
+		bridgeInfo, err := bridgeClient.P2P.Info(ctx)
+		if err != nil {
+			f.t.Logf("Bridge node P2P info check failed: %v", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		// Check light node P2P info
+		lightInfo, err := lightClient.P2P.Info(ctx)
+		if err != nil {
+			f.t.Logf("Light node P2P info check failed: %v", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		// Check if light node has connected to bridge node
+		lightPeers, err := lightClient.P2P.Peers(ctx)
+		if err != nil {
+			f.t.Logf("Light node peers check failed: %v", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		// Look for bridge node in light node's peer list
+		bridgeConnected := false
+		for _, peerID := range lightPeers {
+			if peerID.String() == bridgeInfo.ID.String() {
+				bridgeConnected = true
+				break
+			}
+		}
+
+		if bridgeConnected {
+			f.t.Logf("✓ P2P connectivity established - light node connected to bridge node")
+			f.t.Logf("  Bridge node ID: %s", bridgeInfo.ID)
+			f.t.Logf("  Light node ID:  %s", lightInfo.ID)
+			return
+		}
+
+		f.t.Logf("P2P connectivity not yet established, waiting...")
+		time.Sleep(2 * time.Second)
+	}
+
+	f.t.Logf("warning: P2P connectivity timeout after %v - bitswap may not work properly", timeout)
 }
