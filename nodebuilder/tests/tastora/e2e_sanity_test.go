@@ -23,19 +23,34 @@ import (
 type E2ESanityTestSuite struct {
 	suite.Suite
 	framework *Framework
+	timeout   time.Duration
 }
 
 func TestE2ESanityTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E sanity integration tests in short mode")
 	}
-	suite.Run(t, &E2ESanityTestSuite{})
+	suite.Run(t, &E2ESanityTestSuite{
+		timeout: 2 * time.Minute, // Default timeout
+	})
+}
+
+// NewE2ESanityTestSuite creates a new test suite with custom timeout
+func NewE2ESanityTestSuite(timeout time.Duration) *E2ESanityTestSuite {
+	return &E2ESanityTestSuite{
+		timeout: timeout,
+	}
+}
+
+// withTimeout creates a context with the suite's configured timeout
+func (s *E2ESanityTestSuite) withTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), s.timeout)
 }
 
 func (s *E2ESanityTestSuite) SetupSuite() {
 	// Setup with minimal topology: 1 Bridge Node + 1 Light Node
 	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(1))
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := s.withTimeout()
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 
@@ -45,7 +60,7 @@ func (s *E2ESanityTestSuite) SetupSuite() {
 
 // TestBasicDASFlow validates basic Data Availability Sampling functionality on a single bridge node
 func (s *E2ESanityTestSuite) TestBasicDASFlow() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := s.withTimeout()
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
@@ -85,7 +100,7 @@ func (s *E2ESanityTestSuite) createBlobsForSubmission(ctx context.Context, clien
 
 // TestBasicBlobLifecycle tests the complete blob lifecycle workflow on a bridge node
 func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := s.withTimeout()
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
@@ -136,7 +151,7 @@ func (s *E2ESanityTestSuite) TestBasicBlobLifecycle() {
 
 // TestHeaderSyncSanity tests end-to-end header synchronization workflow
 func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := s.withTimeout()
 	defer cancel()
 
 	// Get nodes
@@ -211,7 +226,7 @@ func (s *E2ESanityTestSuite) TestHeaderSyncSanity() {
 
 // TestP2PConnectivity tests end-to-end P2P network connectivity workflow
 func (s *E2ESanityTestSuite) TestP2PConnectivity() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := s.withTimeout()
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
