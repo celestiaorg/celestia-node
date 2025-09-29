@@ -59,7 +59,7 @@ func (p *parser) addShares(shares []libshare.Share) (shrs []libshare.Share, isCo
 	}
 
 	if index == -1 {
-		return
+		return shrs, isComplete
 	}
 
 	if index+1 >= len(shares) {
