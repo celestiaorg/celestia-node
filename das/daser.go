@@ -27,7 +27,7 @@ type DASer struct {
 	da     share.Availability
 	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
-	getter libhead.Getter[*header.ExtendedHeader]     // retrieves past headers
+	getter libhead.Store[*header.ExtendedHeader]      // retrieves past headers
 
 	sampler    *samplingCoordinator
 	store      checkpointStore
@@ -47,7 +47,7 @@ type (
 func NewDASer(
 	da share.Availability,
 	hsub libhead.Subscriber[*header.ExtendedHeader],
-	getter libhead.Getter[*header.ExtendedHeader],
+	getter libhead.Store[*header.ExtendedHeader],
 	dstore datastore.Datastore,
 	bcast fraud.Broadcaster[*header.ExtendedHeader],
 	shrexBroadcast shrexsub.BroadcastFn,
@@ -83,28 +83,15 @@ func (d *DASer) Start(ctx context.Context) error {
 		return errors.New("da: DASer already started")
 	}
 
-	sub, err := d.hsub.Subscribe()
+	cp, err := d.checkpoint(ctx)
 	if err != nil {
 		return err
 	}
 
-	// load latest DASed checkpoint
-	cp, err := d.store.load(ctx)
+	sub, err := d.hsub.Subscribe()
 	if err != nil {
-		log.Warnw("checkpoint not found, initializing with height 1")
-
-		cp = checkpoint{
-			SampleFrom:  d.params.SampleFrom,
-			NetworkHead: d.params.SampleFrom,
-		}
-
-		// attempt to get head info. No need to handle error, later DASer
-		// will be able to find new head from subscriber after it is started
-		if h, err := d.getter.Head(ctx); err == nil {
-			cp.NetworkHead = h.Height()
-		}
+		return err
 	}
-	log.Info("starting DASer from checkpoint: ", cp.String())
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
@@ -114,6 +101,64 @@ func (d *DASer) Start(ctx context.Context) error {
 	go d.store.runBackgroundStore(runCtx, d.params.BackgroundStoreInterval, d.sampler.getCheckpoint)
 
 	return nil
+}
+
+func (d *DASer) checkpoint(ctx context.Context) (checkpoint, error) {
+	tail, err := d.getter.Tail(ctx)
+	if err != nil {
+		return checkpoint{}, err
+	}
+
+	head, err := d.getter.Head(ctx)
+	if err != nil {
+		return checkpoint{}, err
+	}
+
+	// load latest DASed checkpoint
+	cp, err := d.store.load(ctx)
+	switch {
+	case errors.Is(err, datastore.ErrNotFound):
+		log.Warnf("checkpoint not found, initializing with Tail (%d) and Head (%d)", tail.Height(), head.Height())
+
+		cp = checkpoint{
+			SampleFrom:  tail.Height(),
+			NetworkHead: head.Height(),
+		}
+	case err != nil:
+		return checkpoint{}, err
+	default:
+		if cp.SampleFrom < tail.Height() {
+			cp.SampleFrom = tail.Height()
+		}
+		if cp.NetworkHead < head.Height() {
+			cp.NetworkHead = head.Height()
+		}
+
+		for height := range cp.Failed {
+			if height < tail.Height() {
+				// means the sample status is outdated and we don't need to sample it again
+				delete(cp.Failed, height)
+			}
+		}
+
+		if len(cp.Workers) > 0 {
+			wrkrs := make([]workerCheckpoint, 0, len(cp.Workers))
+			for _, wrk := range cp.Workers {
+				if wrk.To >= tail.Height() {
+					if wrk.From < tail.Height() {
+						wrk.From = tail.Height()
+					}
+
+					wrkrs = append(wrkrs, wrk)
+				}
+			}
+
+			cp.Workers = wrkrs
+		}
+	}
+
+	log.Info("starting DASer from checkpoint: ", cp.String())
+	return cp, nil
 }
 
 // Stop stops sampling.

@@ -75,7 +75,7 @@ type Node struct {
 	BlobServ      blob.Module   // not optional
 	DASer         das.Module    // not optional
 	AdminServ     node.Module   // not optional
-	DAMod         da.Module     // not optional
+	DAMod         da.Module     //nolint: staticcheck // not optional
 	BlobstreamMod blobstream.Module
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
