@@ -12,8 +12,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -533,53 +531,4 @@ func (f *Framework) getOrCreateFundingWallet(ctx context.Context) tastoratypes.W
 		f.t.Logf("Created funding wallet for automatic node funding")
 	}
 	return f.fundingWallet
-}
-
-// Robust waiting and P2P connectivity helpers
-
-// ConnectNodes ensures that all provided nodes are connected to each other in a mesh topology.
-// It takes a map of node labels to RPC clients and establishes P2P connections between them.
-//
-// Example usage:
-//
-//	nodes := map[string]*rpcclient.Client{
-//	    "bridge": bridgeClient,
-//	    "light1": lightClient1,
-//	    "light2": lightClient2,
-//	}
-//	f.ConnectNodes(ctx, nodes, 30*time.Second)
-func (f *Framework) ConnectNodes(ctx context.Context, nodes map[string]*rpcclient.Client, timeout time.Duration) {
-	if len(nodes) < 2 {
-		return
-	}
-
-	// Get P2P info for all nodes
-	nodeInfos := make(map[string]peer.AddrInfo)
-	infoCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	for label, client := range nodes {
-		if info, err := client.P2P.Info(infoCtx); err != nil {
-			f.t.Logf("warning: failed to get P2P info for %s: %v", label, err)
-		} else {
-			nodeInfos[label] = info
-		}
-	}
-
-	// Connect each node to all others
-	for sourceLabel, sourceClient := range nodes {
-		for targetLabel, targetInfo := range nodeInfos {
-			if sourceLabel == targetLabel || targetInfo.ID == "" {
-				continue
-			}
-
-			_ = sourceClient.P2P.Connect(ctx, targetInfo)
-
-			if state, _ := sourceClient.P2P.Connectedness(ctx, targetInfo.ID); state == network.Connected {
-				f.t.Logf("✓ %s ↔ %s", sourceLabel, targetLabel)
-			} else {
-				f.t.Logf("⚠ %s failed to connect to %s (state: %v)", sourceLabel, targetLabel, state)
-			}
-		}
-	}
 }

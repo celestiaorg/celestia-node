@@ -243,30 +243,66 @@ func (s *E2ESanityTestSuite) TestP2PConnectivity() {
 	s.Require().NoError(err, "light node should be able to provide P2P info")
 	s.Require().NotNil(lightInfo, "light P2P info should not be nil")
 
-	bridgePeers, err := bridgeClient.P2P.Peers(ctx)
-	s.Require().NoError(err, "bridge node should be able to discover peers")
-	s.Require().NotNil(bridgePeers, "bridge peer list should not be nil")
-
-	lightPeers, err := lightClient.P2P.Peers(ctx)
-	s.Require().NoError(err, "light node should be able to discover peers")
-	s.Require().NotNil(lightPeers, "light peer list should not be nil")
-
-	s.Assert().GreaterOrEqual(len(bridgePeers), 1, "bridge node should have discovered at least one peer")
-	s.Assert().GreaterOrEqual(len(lightPeers), 1, "light node should have discovered at least one peer")
-
+	// Verify initial connectivity
 	bridgeConnectivity, err := bridgeClient.P2P.Connectedness(ctx, lightInfo.ID)
 	s.Require().NoError(err, "bridge node should be able to check connectivity")
-	s.Assert().Equal(1, int(bridgeConnectivity), "bridge node should be connected to light node")
+	s.Assert().Equal(1, int(bridgeConnectivity), "bridge node should be connected to light node initially")
 
 	lightConnectivity, err := lightClient.P2P.Connectedness(ctx, bridgeInfo.ID)
 	s.Require().NoError(err, "light node should be able to check connectivity")
-	s.Assert().Equal(1, int(lightConnectivity), "light node should be connected to bridge node")
+	s.Assert().Equal(1, int(lightConnectivity), "light node should be connected to bridge node initially")
 
+	// Test disconnect operation - close connection from bridge to light node
+	s.T().Log("Testing P2P disconnect operation")
+	err = bridgeClient.P2P.ClosePeer(ctx, lightInfo.ID)
+	s.Require().NoError(err, "bridge node should be able to close connection to light node")
+
+	// Wait a moment for the disconnect to propagate
+	time.Sleep(3 * time.Second)
+
+	// Verify disconnect was successful (or at least attempted)
+	bridgeConnectivity, err = bridgeClient.P2P.Connectedness(ctx, lightInfo.ID)
+	s.Require().NoError(err, "bridge node should be able to check connectivity after disconnect")
+
+	// Note: In some P2P configurations, connections may auto-reconnect
+	// We'll test that the ClosePeer operation succeeds and then test Connect
+	s.T().Logf("Bridge connectivity after ClosePeer: %d", int(bridgeConnectivity))
+
+	// Test connect operation - ensure we can explicitly connect
+	s.T().Log("Testing P2P connect operation")
+	err = bridgeClient.P2P.Connect(ctx, lightInfo)
+	s.Require().NoError(err, "bridge node should be able to connect to light node")
+
+	// Wait a moment for the connection to establish
+	time.Sleep(3 * time.Second)
+
+	// Verify connect operation was successful
+	bridgeConnectivity, err = bridgeClient.P2P.Connectedness(ctx, lightInfo.ID)
+	s.Require().NoError(err, "bridge node should be able to check connectivity after connect")
+	s.Assert().Equal(1, int(bridgeConnectivity), "bridge node should be connected to light node after explicit connect")
+
+	lightConnectivity, err = lightClient.P2P.Connectedness(ctx, bridgeInfo.ID)
+	s.Require().NoError(err, "light node should be able to check connectivity after connect")
+	s.Assert().Equal(1, int(lightConnectivity), "light node should be connected to bridge node after explicit connect")
+
+	// Verify peer information exchange still works after connect
 	bridgePeerInfo, err := bridgeClient.P2P.PeerInfo(ctx, lightInfo.ID)
-	s.Require().NoError(err, "bridge node should be able to exchange peer information")
-	s.Require().NotNil(bridgePeerInfo, "bridge should receive valid peer info")
+	s.Require().NoError(err, "bridge node should be able to exchange peer information after connect")
+	s.Require().NotNil(bridgePeerInfo, "bridge should receive valid peer info after connect")
 
 	lightPeerInfo, err := lightClient.P2P.PeerInfo(ctx, bridgeInfo.ID)
-	s.Require().NoError(err, "light node should be able to exchange peer information")
-	s.Require().NotNil(lightPeerInfo, "light should receive valid peer info")
+	s.Require().NoError(err, "light node should be able to exchange peer information after connect")
+	s.Require().NotNil(lightPeerInfo, "light should receive valid peer info after connect")
+
+	// Verify peers are listed correctly
+	bridgePeers, err := bridgeClient.P2P.Peers(ctx)
+	s.Require().NoError(err, "bridge node should be able to discover peers after connect")
+	s.Require().NotNil(bridgePeers, "bridge peer list should not be nil after connect")
+
+	lightPeers, err := lightClient.P2P.Peers(ctx)
+	s.Require().NoError(err, "light node should be able to discover peers after connect")
+	s.Require().NotNil(lightPeers, "light peer list should not be nil after connect")
+
+	s.Assert().GreaterOrEqual(len(bridgePeers), 1, "bridge node should have discovered at least one peer after connect")
+	s.Assert().GreaterOrEqual(len(lightPeers), 1, "light node should have discovered at least one peer after connect")
 }
