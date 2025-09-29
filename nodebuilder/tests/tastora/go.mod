@@ -12,7 +12,6 @@ require (
 	github.com/celestiaorg/tastora v0.0.4
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
-	github.com/libp2p/go-libp2p v0.43.0
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
@@ -227,6 +226,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.3.0 // indirect
+	github.com/libp2p/go-libp2p v0.43.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-kad-dht v0.34.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.7.0 // indirect
