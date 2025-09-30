@@ -225,40 +225,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	if ca.canUseParallel(cfg) {
-		resultsC, err := client.SubmitPayForBlobParallel(ctx, libBlobs, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to submit blobs: %w", err)
-		}
-
-		result, err := ca.waitForParallelResult(ctx, resultsC)
-		if err != nil {
-			return nil, err
-		}
-
-		if result.Error != nil {
-			if apperrors.IsInsufficientFee(result.Error) {
-				if cfg.isGasPriceSet {
-					return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", result.Error)
-				}
-				return nil, fmt.Errorf("failed to submit blobs due to insufficient estimated gas price %f: %w",
-					gasPrice, result.Error)
-			}
-			return nil, fmt.Errorf("failed to submit blobs: %w", result.Error)
-		}
-
-		if result.TxResponse == nil {
-			return nil, fmt.Errorf("failed to submit blobs: parallel submission returned nil response")
-		}
-
-		if result.TxResponse.Code == 0 {
-			ca.markSuccessfulPFB()
-		}
-
-		return convertToSdkTxResponse(result.TxResponse), nil
-	}
-
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	response, err := client.SubmitPayForBlob(ctx, libBlobs, opts...)
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
@@ -276,47 +243,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	return nil, fmt.Errorf("failed to submit blobs: %w", err)
-}
-
-func (ca *CoreAccessor) canUseParallel(cfg *TxConfig) bool {
-	if ca.workerAccounts <= 0 {
-		return false
-	}
-	if cfg == nil {
-		return true
-	}
-
-	defaultAddr := ca.defaultSignerAddress.String()
-
-	if signer := cfg.SignerAddress(); signer != "" && signer != defaultAddr {
-		return false
-	}
-	if key := cfg.KeyName(); key != "" && key != ca.defaultSignerAccount {
-		return false
-	}
-	if granter := cfg.FeeGranterAddress(); granter != "" && granter != defaultAddr {
-		return false
-	}
-
-	return true
-}
-
-func (ca *CoreAccessor) waitForParallelResult(
-	ctx context.Context, resultsC chan user.SubmissionResult,
-) (user.SubmissionResult, error) {
-	if resultsC == nil {
-		return user.SubmissionResult{}, fmt.Errorf("failed to submit blobs: parallel submission not configured")
-	}
-
-	select {
-	case <-ctx.Done():
-		return user.SubmissionResult{}, fmt.Errorf("failed to submit blobs: %w", ctx.Err())
-	case result, ok := <-resultsC:
-		if !ok {
-			return user.SubmissionResult{}, fmt.Errorf("failed to submit blobs: parallel submission results channel closed")
-		}
-		return result, nil
-	}
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
