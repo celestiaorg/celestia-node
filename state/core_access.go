@@ -161,12 +161,6 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 		ca.estimatorConn = nil
 	}
 
-	if ca.client != nil {
-		if pool := ca.client.ParallelPool(); pool != nil {
-			pool.Stop()
-		}
-	}
-
 	return nil
 }
 
