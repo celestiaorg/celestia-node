@@ -97,7 +97,7 @@ echo "🔍 Checking critical indirect dependencies..."
 # List of critical dependencies that should match
 CRITICAL_DEPS=(
     "github.com/cosmos/cosmos-sdk"
-    "github.com/celestiaorg/celestia-app"
+    "github.com/celestiaorg/celestia-app/v5"
     "github.com/cometbft/cometbft"
     "github.com/gogo/protobuf"
     "github.com/syndtr/goleveldb"
