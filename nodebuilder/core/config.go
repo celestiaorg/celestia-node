@@ -54,8 +54,8 @@ func DefaultConfig() Config {
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate() error {
 	if cfg.ConcurrencyLimit < core.DefaultConcurrencyLimit {
-		// override anything below the default limit
-		cfg.ConcurrencyLimit = core.DefaultConcurrencyLimit
+		return fmt.Errorf("nodebuilder/core: concurrency limit must be at least %d, got %d",
+			core.DefaultConcurrencyLimit, cfg.ConcurrencyLimit)
 	}
 
 	if !cfg.IsEndpointConfigured() {
