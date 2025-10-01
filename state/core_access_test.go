@@ -56,11 +56,11 @@ func TestSubmitPayForBlob(t *testing.T) {
 		},
 		{
 			name:     "good blob with user provided gas and fees",
-			blobs:    []*libshare.Blob{blobbyTheBlob},
+			blobs:    []*libshare.Blob{blobbyTheBlob, blobbyTheBlob},
 			gasPrice: 0.005,
 			gasLim: apptypes.DefaultEstimateGas(&apptypes.MsgPayForBlobs{
-				BlobSizes:     []uint32{uint32(blobbyTheBlob.DataLen())},
-				ShareVersions: []uint32{uint32(blobbyTheBlob.ShareVersion())},
+				BlobSizes:     []uint32{uint32(blobbyTheBlob.DataLen()), uint32(blobbyTheBlob.DataLen())},
+				ShareVersions: []uint32{uint32(blobbyTheBlob.ShareVersion()), uint32(blobbyTheBlob.ShareVersion())},
 			}),
 			expErr: nil,
 		},
