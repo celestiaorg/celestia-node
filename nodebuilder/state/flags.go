@@ -69,7 +69,7 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) {
 	if cmd.Flag(txWorkerAccountsFlag).Changed {
 		value, err := strconv.Atoi(cmd.Flag(txWorkerAccountsFlag).Value.String())
 		if err == nil {
-			cfg.WorkerAccounts = value
+			cfg.TxWorkerAccounts = value
 		}
 	}
 }

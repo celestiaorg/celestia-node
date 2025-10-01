@@ -274,7 +274,7 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithWorkerAccounts(workerAccounts))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(workerAccounts))
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)

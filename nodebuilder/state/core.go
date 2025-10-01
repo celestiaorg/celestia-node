@@ -43,8 +43,9 @@ func coreAccessor(
 			opts = append(opts, state.WithEstimatorServiceTLS())
 		}
 	}
-	if cfg.WorkerAccounts > 0 {
-		opts = append(opts, state.WithWorkerAccounts(cfg.WorkerAccounts))
+
+	if cfg.TxWorkerAccounts > 0 {
+		opts = append(opts, state.WithTxWorkerAccounts(cfg.TxWorkerAccounts))
 	}
 
 	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), opts...)

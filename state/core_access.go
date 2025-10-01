@@ -219,7 +219,15 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	response, err := client.SubmitPayForBlob(ctx, libBlobs, opts...)
+	var response *user.TxResponse
+	if account.Name() == ca.defaultSignerAccount {
+		// if the author is the default signer address, use default
+		// submission path
+		response, err = client.SubmitPayForBlob(ctx, libBlobs, opts...)
+	} else {
+		// otherwise, use the account-specific submission path
+		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	}
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
@@ -227,7 +235,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		return convertToSdkTxResponse(response), nil
 	}
-	// TODO @renaynay: use new rachid named func
+
 	if apperrors.IsInsufficientFee(err) {
 		if cfg.isGasPriceSet {
 			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
@@ -530,7 +538,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 		ca.estimatorConn = estimatorConn
 	}
 
-	if ca.workerAccounts > 0 {
+	if ca.workerAccounts > 1 {
 		opts = append(opts, user.WithTxWorkers(ca.workerAccounts))
 	}
 
