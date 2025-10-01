@@ -32,7 +32,6 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 
@@ -197,11 +196,10 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	gas := cfg.GasLimit()
 	if gas == 0 {
-		msg, err := apptypes.NewMsgPayForBlobs(author.String(), appconsts.Version, libBlobs...)
+		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create msg pay-for-blobs: %w", err)
+			return nil, err
 		}
-		gas = ca.estimateGasForBlobs(msg)
 	}
 
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
