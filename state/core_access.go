@@ -32,6 +32,7 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 
@@ -184,15 +185,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	gas := cfg.GasLimit()
-	if gas == 0 {
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
-			blobSizes[i] = uint32(len(blob.Data()))
-		}
-		gas = ca.estimateGasForBlobs(blobSizes, uint32(libBlobs[0].ShareVersion()))
-	}
-
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
@@ -201,6 +193,15 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	account := ca.client.AccountByAddress(ctx, author)
 	if account == nil {
 		return nil, fmt.Errorf("account for signer %s not found", author)
+	}
+
+	gas := cfg.GasLimit()
+	if gas == 0 {
+		msg, err := apptypes.NewMsgPayForBlobs(author.String(), appconsts.Version, libBlobs...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create msg pay-for-blobs: %w", err)
+		}
+		gas = ca.estimateGasForBlobs(msg)
 	}
 
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)

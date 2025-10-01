@@ -66,9 +66,6 @@ func (ca *CoreAccessor) estimateGasPriceAndUsage(
 }
 
 // estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
-func (ca *CoreAccessor) estimateGasForBlobs(blobSizes []uint32, shareVersion uint32) uint64 {
-	return apptypes.DefaultEstimateGas(&apptypes.MsgPayForBlobs{
-		BlobSizes:     blobSizes,
-		ShareVersions: []uint32{shareVersion},
-	})
+func (ca *CoreAccessor) estimateGasForBlobs(msg *apptypes.MsgPayForBlobs) uint64 {
+	return apptypes.DefaultEstimateGas(msg)
 }
