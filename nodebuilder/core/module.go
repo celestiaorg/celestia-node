@@ -48,6 +48,9 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
+					if cfg.ConcurrencyLimit > core.DefaultConcurrencyLimit {
+						opts = append(opts, core.WithConcurrencyLimit(cfg.ConcurrencyLimit))
+					}
 
 					return core.NewExchange(fetcher, store, construct, opts...)
 				},

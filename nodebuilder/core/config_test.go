@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestValidate(t *testing.T) {
@@ -19,12 +21,13 @@ func TestValidate(t *testing.T) {
 					IP:   "127.0.0.1",
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: false,
 		},
 		{
 			name:      "empty config, no endpoint",
-			cfg:       Config{},
+			cfg:       DefaultConfig(),
 			expectErr: false,
 		},
 		{
@@ -34,6 +37,7 @@ func TestValidate(t *testing.T) {
 					IP:   "celestia.org",
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: false,
 		},
@@ -43,6 +47,7 @@ func TestValidate(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					IP: "127.0.0.1",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: true,
 		},
@@ -53,6 +58,7 @@ func TestValidate(t *testing.T) {
 					IP:   "invalid-ip",
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: false,
 		},
@@ -63,6 +69,7 @@ func TestValidate(t *testing.T) {
 					IP:   "127.0.0.1",
 					Port: "invalid-port",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: true,
 		},
@@ -83,6 +90,7 @@ func TestValidate(t *testing.T) {
 						Port: DefaultPort,
 					},
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: false,
 		},
@@ -103,8 +111,30 @@ func TestValidate(t *testing.T) {
 						Port: DefaultPort,
 					},
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectErr: true,
+		},
+		{
+			name: "concurrency limit too low",
+			cfg: Config{
+				ConcurrencyLimit: 2,
+			},
+			expectErr: true,
+		},
+		{
+			name: "concurrency limit == default",
+			cfg: Config{
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
+			},
+			expectErr: false,
+		},
+		{
+			name: "concurrency limit exceeds default",
+			cfg: Config{
+				ConcurrencyLimit: 32,
+			},
+			expectErr: false,
 		},
 	}
 
