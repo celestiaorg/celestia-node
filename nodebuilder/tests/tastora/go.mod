@@ -2,8 +2,6 @@ module github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 
 go 1.24.6
 
-toolchain go1.24.7
-
 replace github.com/celestiaorg/celestia-node => ../../..
 
 require (
