@@ -21,13 +21,14 @@ type Config struct {
 	// EnableEstimatorTLS specifies whether to use TLS for the gRPC connection to the
 	// estimator service
 	EnableEstimatorTLS bool
-	// TxWorkerAccounts defines how many accounts the TxClient should manage for
-	// PayForBlob submissions. Setting the value to a value of 1 enables queued submission,
-	// which means blobs are added to a queue and submitted one after another. No additional
-	// accounts are initialized. Values greater than 1 enable automatic creation and management
-	// of additional worker accounts for parallel submissions. This means that blobs can be
-	// submitted by multiple different signers, and that blobs will not be submitted on chain in
-	// the original sending order. This is highly recommended for high throughput chains.
+	// TxWorkerAccounts defines how many accounts the tx client manages for
+	// PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
 	TxWorkerAccounts int
 }
 
@@ -36,7 +37,7 @@ func DefaultConfig() Config {
 		DefaultKeyName:     DefaultKeyName,
 		DefaultBackendName: defaultBackendName,
 		EstimatorAddress:   "",
-		TxWorkerAccounts:   1,
+		TxWorkerAccounts:   0,
 	}
 }
 

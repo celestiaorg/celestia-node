@@ -52,10 +52,13 @@ type CoreAccessor struct {
 	keyring keyring.Keyring
 	client  *user.TxClient
 	// workerAccounts defines how many accounts the tx client manages for
-	// PayForBlob submissions. A value of zero keeps async submission.
-	// Value of 1 uses synchonous submission. Value of > 1 uses parallel
-	// submission. Parallel and async submission are not guaranteed to
-	// include blobs in the same order as they were submitted.
+	// PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
 	workerAccounts int
 
 	// TODO @renaynay: clean this up -- only one!!!!
@@ -220,10 +223,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	var response *user.TxResponse
-	if account.Name() == ca.defaultSignerAccount {
-		// if the author is the default signer address, use default
-		// submission path
-		response, err = client.SubmitPayForBlob(ctx, libBlobs, opts...)
+	if ca.workerAccounts > 0 {
+		// submit through parallel transaction submission lane
+		response, err = client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
 	} else {
 		// otherwise, use the account-specific submission path
 		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
