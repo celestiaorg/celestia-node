@@ -1,6 +1,8 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -62,6 +64,10 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 		return SampleID{}, fmt.Errorf("verifying SampleID: %w", err)
 	}
 	return sid, nil
+}
+
+func (sid SampleID) Name() string {
+	return sampleName
 }
 
 // SampleIDFromBinary deserializes a SampleID from binary data, ensuring the data length matches
@@ -161,4 +167,19 @@ func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex)), nil
+}
+
+func (sid SampleID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	sample, err := acc.Sample(ctx, SampleCoords{Row: sid.RowIndex, Col: sid.ShareIndex})
+	if err != nil {
+		return nil, fmt.Errorf("getting sample from accessor: %w", err)
+	}
+
+	// TODO(@vgonkivs): This is a temporary solution that will be reworked
+	buf := &bytes.Buffer{}
+	_, err = sample.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing sample: %w", err)
+	}
+	return buf, nil
 }
