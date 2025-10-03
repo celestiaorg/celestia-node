@@ -24,7 +24,7 @@ type fsKeystore struct {
 // NewFSKeystore creates a new Keystore over OS filesystem.
 // The path must point to a directory. It is created automatically if necessary.
 func NewFSKeystore(path string, ring keyring.Keyring) (Keystore, error) {
-	err := os.Mkdir(path, 0o755)
+	err := os.Mkdir(path, 0o700)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("keystore: failed to make a dir: %w", err)
 	}
@@ -115,7 +115,11 @@ func (f *fsKeystore) List() ([]KeyName, error) {
 			return nil, err
 		}
 
-		if err := checkPerms(e.Type()); err != nil {
+		info, err := e.Info()
+		if err != nil {
+			return nil, err
+		}
+		if err := checkPerms(info.Mode()); err != nil {
 			return nil, fmt.Errorf("keystore: permissions of key '%s' are too relaxed: %w", kn, err)
 		}
 
