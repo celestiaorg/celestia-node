@@ -170,6 +170,11 @@ test-blob:
 	@echo "--> Running blob module tests"
 	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -run TestBlobTestSuite ./...
 
+## test-e2e-sanity: Run just the E2ESanityTestSuite suite
+test-e2e-sanity:
+	@echo "--> Running E2ESanityTestSuite"
+	cd nodebuilder/tests/tastora && go test -v -tags integration -run TestE2ESanityTestSuite -timeout 10m
+
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
 	@echo "--> Running all Tastora tests"
@@ -306,4 +311,4 @@ jemalloc:
 	fi
 .PHONY: jemalloc
 
-.PHONY: test-blob test-tastora
+.PHONY: test-blob test-tastora test-e2e-sanity
