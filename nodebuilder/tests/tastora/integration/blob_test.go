@@ -1,6 +1,6 @@
 //go:build integration
 
-package tastora
+package integration
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -20,7 +21,7 @@ import (
 // Tests blob submission, retrieval, and validation functionality.
 type BlobTestSuite struct {
 	suite.Suite
-	framework *Framework
+	framework *tastora.Framework
 }
 
 func TestBlobTestSuite(t *testing.T) {
@@ -31,7 +32,7 @@ func TestBlobTestSuite(t *testing.T) {
 }
 
 func (s *BlobTestSuite) SetupSuite() {
-	s.framework = NewFramework(s.T(), WithValidators(1))
+	s.framework = tastora.NewFramework(s.T(), tastora.WithValidators(1))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
