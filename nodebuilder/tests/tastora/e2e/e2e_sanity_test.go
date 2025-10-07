@@ -1,6 +1,6 @@
 //go:build integration
 
-package tastora
+package e2e
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -22,7 +23,7 @@ import (
 // Focuses on core functionality validation with minimal setup (1 BN + 1 LN).
 type E2ESanityTestSuite struct {
 	suite.Suite
-	framework *Framework
+	framework *tastora.Framework
 	timeout   time.Duration
 }
 
@@ -49,7 +50,7 @@ func (s *E2ESanityTestSuite) withTimeout() (context.Context, context.CancelFunc)
 
 func (s *E2ESanityTestSuite) SetupSuite() {
 	// Setup with minimal topology: 1 Bridge Node + 1 Light Node
-	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(1))
+	s.framework = tastora.NewFramework(s.T(), tastora.WithValidators(1), tastora.WithBridgeNodes(1), tastora.WithLightNodes(1))
 	ctx, cancel := s.withTimeout()
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
