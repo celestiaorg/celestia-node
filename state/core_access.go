@@ -21,6 +21,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -36,7 +38,10 @@ import (
 	libshare "github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
+
+var tracer = otel.Tracer("state/service")
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
@@ -163,12 +168,62 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 // TxResponse. The user can specify additional options that can bee applied to the Tx.
 func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
-	libBlobs []*libshare.Blob,
+	blobs []*libshare.Blob,
 	cfg *TxConfig,
-) (*TxResponse, error) {
-	if len(libBlobs) == 0 {
+) (_ *TxResponse, err error) {
+	if len(blobs) == 0 {
 		return nil, errors.New("state: no blobs provided")
 	}
+
+	ctx, span := tracer.Start(ctx, "submit")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	span.SetAttributes(
+		attribute.Float64("gas-price", cfg.GasPrice()),
+		attribute.Int64("gas-limit", int64(cfg.GasLimit())),
+		attribute.String("signer", cfg.SignerAddress()),
+		attribute.String("fee-granter", cfg.FeeGranterAddress()),
+		attribute.String("key-name", cfg.KeyName()),
+		attribute.Int("tx-priority", int(cfg.TxPriority())),
+	)
+
+	ids := make([]string, len(blobs))
+	dataLengths := make([]int, len(blobs))
+	for i := range blobs {
+		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
+			return nil, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
+		}
+
+		ids[i] = blobs[i].Namespace().String()
+		dataLengths[i] = blobs[i].DataLen()
+	}
+
+	span.SetAttributes(attribute.StringSlice("namespaces", ids))
+	span.SetAttributes(attribute.IntSlice("blob-data-lengths", dataLengths))
+
+	log.Infow("submitting blobs",
+		"amount", len(blobs),
+		"namespaces", ids,
+		"data-lengths", dataLengths,
+		"signer", cfg.SignerAddress(),
+		"key-name", cfg.KeyName(),
+		"gas-price", cfg.GasPrice(),
+		"gas-limit", cfg.GasLimit(),
+		"fee-granter", cfg.FeeGranterAddress(),
+		"tx-priority", int(cfg.TxPriority()),
+	)
+	defer func() {
+		if err != nil {
+			log.Errorw("submitting blobs",
+				"err", err,
+				"namespaces", ids,
+				"signer", cfg.SignerAddress(),
+				"key-name", cfg.KeyName(),
+			)
+		}
+	}()
 
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
@@ -186,8 +241,8 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	gas := cfg.GasLimit()
 	if gas == 0 {
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
+		blobSizes := make([]uint32, len(blobs))
+		for i, blob := range blobs {
 			blobSizes[i] = uint32(len(blob.Data()))
 		}
 		gas = ca.estimateGasForBlobs(blobSizes)
@@ -213,7 +268,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), blobs, opts...)
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
