@@ -2,286 +2,118 @@
 
 ## Abstract
 
-This specification defines the Peer Manager component for the SHREX protocol in the Celestia network. The Peer Manager is responsible for collecting, organizing, validating, and selecting peers for efficient data retrieval operations based on data availability notifications and peer discovery.
-
-## Table of Contents
-
-- [Terminology](#terminology)
-- [Overview](#overview)
-- [Core Components](#core-components)
-- [Protocol Specification](#protocol-specification)
-  - [Peer Pools](#peer-pools)
-  - [Parameters](#parameters)
-  - [Result Types](#result-types)
-- [Manager Operations](#manager-operations)
-  - [Peer Selection](#peer-selection)
-  - [Pool Management](#pool-management)
-  - [Validation](#validation)
-  - [Garbage Collection](#garbage-collection)
-  - [Blacklisting](#blacklisting)
-- [References](#references)
-- [Requirements Language](#requirements-language)
-
-## Terminology
-
-- **Peer Manager**: The component responsible for collecting, organizing, and providing peers for data retrieval operations
-- **Peer Pool**: A collection of peer IDs organized by data hash, storing peers known to have specific data
-- **Sync Pool**: A pool with additional metadata including validation status, height, and creation time
-- **Validated Pool**: A peer pool that has been confirmed through header subscription to contain legitimate data
-- **Cooldown**: A temporary state where a peer is unavailable for selection but not permanently blocked
-- **Blacklist**: A permanent block list preventing all future communication with specific peers
-- **Discovered Nodes**: Peers found through the discovery service, independent of specific data hashes
-- **Initial Height**: The height of the first header received from header subscription, used as a validation baseline
-- **Store From**: The biggest height received from header subscription
+This specification defines the Peer Manager component for the SHREX protocol in the Celestia network. The Peer Manager collects, organizes, and provides peers for efficient data retrieval based on data availability notifications and peer discovery.
 
 ## Overview
 
 The Peer Manager serves as the central coordination point for peer selection in the SHREX protocol. It aggregates peers from two primary sources:
 
-1. **ShrEx/Sub notifications**: Peers that announce specific data availability through the pubsub system
-2. **Discovery service**: Peers found through DHT-based discovery mechanisms
+1. **ShrEx/Sub notifications**: Peers announcing specific data availability through pubsub
+2. **Discovery service**: Peers found through DHT-based discovery
 
-The Peer Manager maintains data-hash-specific pools and a general pool of discovered nodes, enabling efficient peer selection for data retrieval while implementing validation, cooldown, and blacklisting mechanisms to maintain network quality.
+The manager maintains data-hash-specific pools and validates them against headers from header subscription, implementing mechanisms to ensure network quality.
 
 ## Core Components
 
 ### Header Subscription
 
-1. **Subscription Setup**: Manager MUST subscribe to header updates during start
-2. **Pool Validation**: Each received header MUST trigger validation of corresponding pool
-3. **Height Tracking**:
-    - First header sets `initialHeight`
-    - Each header updates `storeFrom`
+The manager MUST subscribe to header updates to validate peer pools:
 
-### ShrEx/Sub
+- Pools MUST be validated by matching received headers against announced data hashes
+- The manager MUST track the initial header height and maintain a threshold for valid pools
+- Only pools validated through header subscription are considered trusted
 
-1. **Validator Registration**: Manager MUST register as message validator
-2. **Message Processing**: All ShrEx/Sub notifications MUST pass through manager validation
-3. **Peer Collection**: Valid notifications MUST add peers to appropriate pools
+### ShrEx/Sub Integration
 
-### Discovery
+The manager MUST act as a message validator for ShrEx/Sub:
 
-The Peer Manager MUST expose `UpdateNodePool` for discovery:
+- All incoming data availability notifications MUST be validated
+- Peers MUST be added to data-hash-specific pools based on valid notifications
+- If the data hash pool is already validated, the peer MUST be immediately added to discovered nodes pool
+- Notifications from blacklisted peers or containing blacklisted hashes MUST be rejected
 
-1. **Peer Addition**: Discovery MUST call `UpdateNodePool` with `isAdded=true` for new peers
-2. **Peer Removal**: Discovery MUST call `UpdateNodePool` with `isAdded=false` for removed peers
-3. **Blacklist Check**: Blacklisted peers MUST NOT be added to discovered nodes pool
+### Discovery Integration
 
-## Protocol Specification
+The manager MUST provide an `UpdateNodePool` interface for the discovery service:
 
-### Peer Pools
+- Discovery MUST add newly found peers via `UpdateNodePool(peerID, isAdded=true)`
+- Discovery MUST remove disconnected peers via `UpdateNodePool(peerID, isAdded=false)`
+- Blacklisted peers MUST NOT be added to the discovered nodes pool
 
-The Peer Manager maintains two distinct types of peer collections:
+## Peer Pools
 
-#### Data Hash Pools
+### Data Hash Pools
 
-- **Purpose**: Store peers organized by specific data hashes they have announced
-- **Structure**: Map of data hash strings to sync pools
-- **Validation**: Each pool tracks whether its associated data hash has been validated
-- **Lifecycle**: Pools are created on-demand when notifications arrive and removed during garbage collection
-- **Capacity**: The manager stores pools for the most recent heights only (controlled by `storedPoolsAmount`, default: 10)
+Peers are organized by the data hashes they announce:
 
-#### Discovered Nodes Pool
+- **Creation**: Pools MUST be created when ShrEx/Sub notifications arrive for a data hash
+- **Population**: Peers MUST be added to pools when they announce specific data hashes via ShrEx/Sub
+- **Validation**: Pools MUST track validation status until a matching header arrives from header subscription
+- **Promotion**: When a pool becomes validated (or is already validated), peers MUST be added to the discovered nodes pool
+- **Storage**: Only recent pools MUST be kept (based on configurable depth from latest header)
+- **Cleanup**: Unvalidated pools that timeout MUST have their data hash and peers blacklisted
 
-- **Purpose**: Store peers found through discovery service, independent of specific data
-- **Usage**: Fallback option when no data-hash-specific peers are available
-- **Management**: Peers are added from discovery and removed on disconnection
+### Discovered Nodes Pool
 
-### Parameters
+A general pool of peers available for data retrieval:
 
-The Peer Manager operates with the following configurable parameters:
+- **From Discovery**: Peers found through the discovery service MUST be added directly
+- **From Validated Pools**: Peers from data hash pools MUST be promoted here once their pool is validated
+- **Removal**: Peers MUST be removed when they disconnect or are blacklisted
 
-#### PoolValidationTimeout
+## Peer Selection
 
-- **Type**: Duration
-- **Purpose**: Maximum time allowed for a pool to receive validation through header subscription
-- **Rationale**: Pools that do not receive corresponding headers within this timeout are considered invalid, and their peers are blacklisted
+The manager MUST implement prioritized peer selection:
 
-#### PeerCooldown
+1. **First Priority**: Peers from validated data-hash-specific pools
+2. **Second Priority**: Peers from discovered nodes pool
+3. **Blocking**: Wait for peers if none available (subject to context timeout)
 
-- **Type**: Duration
-- **Purpose**: Duration a peer remains unavailable after being marked for cooldown
-- **Rationale**: Allows temporary removal of unreliable peers without permanent blacklisting
+Before returning any peer, the manager MUST verify the peer is not blacklisted and has an active connection.
 
-#### GcInterval
+## Validation and Quality Control
 
-- **Type**: Duration
-- **Purpose**: Interval between garbage collection cycles
-- **Rationale**: Regular cleanup prevents memory growth from outdated or invalid pools
+### Pool Validation
 
-#### EnableBlackListing
-
-- **Type**: Boolean
-- **Purpose**: Feature flag to enable or disable peer blacklisting functionality
-- **Rationale**: Allows testing and gradual rollout of blacklisting mechanisms
+- Pools MUST be validated through header subscription within a configurable timeout
+- Validated pools indicate their peers likely have legitimate data
+- Peers from validated pools MUST be added to the discovered nodes pool
+- Unvalidated pools that timeout MUST result in blacklisting their data hash and peers
 
 ### Result Types
 
-#### ResultNoop
+Operations return one of three results to callers:
 
-- **Value**: "result_noop"
-- **Meaning**: Operation completed successfully with no additional action required
-- **Effect**: No state changes in the Peer Manager
-
-#### ResultCooldownPeer
-
-- **Value**: "result_cooldown_peer"
-- **Meaning**: Peer should be temporarily unavailable for selection
-- **Effect**: Peer is placed on cooldown for the configured duration
-- **Use Case**: Temporary issues like timeouts or transient errors
-
-#### ResultBlacklistPeer
-
-- **Value**: "result_blacklist_peer"
-- **Meaning**: Peer has misbehaved and should be permanently blocked
-- **Effect**: Peer is added to blacklist, disconnected, and blocked from future connections
-- **Use Case**: Malicious behavior, invalid data, or protocol violations
-
-## Manager Operations
-
-### Peer Selection
-
-The Peer Manager implements a prioritized peer selection strategy:
-
-#### Selection Priority
-
-1. **First Priority**: Peers from validated data hash pool
-   - Peers that have announced the specific data hash being requested
-   - Must be from a pool validated through header subscription
-   - Provides highest confidence of data availability
-
-2. **Second Priority**: Discovered nodes pool
-   - General-purpose peers found through discovery
-   - Used when no data-hash-specific peers are available
-   - May or may not have the requested data
-
-3. **Blocking Wait**: If no peers available from either source
-   - Block until a peer becomes available from either source
-   - Return first available peer
-   - Subject to context timeout
-
-#### Peer Validation Before Return
-
-Before returning a peer, the manager MUST verify:
-
-- Peer is not blacklisted
-- Peer has an active connection
-- If validation fails, peer is removed from pool and selection is retried
-
-### Pool Management
-
-#### Pool Creation
-
-- Pools MUST be created lazily when first notification arrives for a data hash
-- Each pool MUST store the associated height and creation timestamp
-- Pools MUST initialize with unvalidated status
-
-#### Pool Validation
-
-- Pools MUST be validated when a corresponding header arrives from header subscription
-- Validation MUST be performed by comparing data hash and height
-- Once validated, all peers in the pool MUST be added to discovered nodes pool
-- Validation status MUST be atomic to prevent race conditions
-
-#### Pool Storage Limits
-
-- The manager MUST only store pools for recent heights
-- The `storeFrom` threshold MUST be updated based on latest header height
-- Pools below the threshold MUST be removed during garbage collection
-- Default storage depth is 10 most recent heights (`storedPoolsAmount`)
-
-### Validation
-
-The Peer Manager implements the `MessageValidator` interface for ShrEx/Sub:
-
-#### Validation Rules
-
-1. **Self Messages**: Messages from the node itself MUST be accepted without validation
-
-2. **Blacklisted Hash Check**: Messages containing blacklisted hashes MUST be rejected
-
-3. **Blacklisted Peer Check**: Messages from blacklisted peers MUST be rejected
-
-4. **Height Check**: Messages for heights below `storeFrom` threshold MUST be ignored
-
-5. **Peer Collection**: Valid messages MUST result in peer being added to corresponding pool
-
-6. **Discovered Nodes Addition**: If pool is already validated, peer MUST be immediately added to discovered nodes pool
-
-#### Validation Results
-
-- **Accept**: Only for self-originated messages
-- **Reject**: For blacklisted peers or hashes
-- **Ignore**: For all other cases (valid messages and old heights)
-
-### Garbage Collection
-
-The Peer Manager MUST implement periodic garbage collection:
-
-#### GC Trigger
-
-- Garbage collection MUST run at intervals specified by `GcInterval` parameter
-- GC MUST continue until manager shutdown
-
-#### GC Operations
-
-1. **Validated Pool Cleanup**:
-   - Remove pools for heights below `storeFrom` threshold
-   - Keep recently validated pools
-
-2. **Unvalidated Pool Timeout**:
-   - Identify pools older than `PoolValidationTimeout`
-   - Pools below `initialHeight` cannot be validated and MUST be removed
-   - Timeout pools that should have been validated but were not
-
-3. **Blacklisting**:
-   - Timed-out pool data hashes MUST be blacklisted
-   - All peers from timed-out pools MUST be collected for blacklisting
-   - Blacklisting MUST occur after GC cycle completes
-
-#### Initial Height Requirement
-
-- GC MUST NOT blacklist peers until `initialHeight` is set
+- **ResultNoop**: Operation completed successfully, no action needed
+- **ResultCooldownPeer**: Peer temporarily unavailable (transient issues)
+- **ResultBlacklistPeer**: Peer permanently blocked (malicious behavior)
 
 ### Blacklisting
 
-The Peer Manager implements a blacklisting mechanism for misbehaving peers:
+When enabled, the manager blacklists peers for:
 
-#### Blacklist Reasons
+- **Misbehavior**: Reported through `ResultBlacklistPeer`
+- **Invalid announcements**: Announced data that never validated
 
-- **reasonMisbehave**: Peer reported as misbehaving through `ResultBlacklistPeer`
-- **reasonInvalidHash**: Peer announced data hash that was never validated
+Blacklisted peers MUST be disconnected, blocked from future connections, and removed from all pools.
 
-#### Blacklist Actions
+### Garbage Collection
 
-When blacklisting is enabled:
+Periodic cleanup MUST remove:
 
-1. Peer MUST be removed from discovered nodes pool
-2. Peer MUST be blocked via connection gater to prevent future connections
-3. All existing connections to peer MUST be closed
-4. Peer MUST remain blocked permanently (until node restart)
+- Validated pools for heights below the storage threshold
+- Unvalidated pools that exceed the validation timeout
+- Disconnected peers from the discovered nodes pool
 
-### Connection Management
+Peers from timed-out pools MUST be blacklisted to maintain network quality.
 
-The Peer Manager MUST monitor peer connectivity:
+## Parameters
 
-#### Disconnection Handling
-
-- Manager MUST subscribe to libp2p connectedness events
-- When peer disconnects (connectedness becomes `NotConnected`):
-  - Peer MUST be removed from discovered nodes pool
-  - Peer remains in data hash pools until GC or validation failure
-  
-#### Connection Validation
-
-- Before returning a peer, manager MUST verify active connection exists
-- Disconnected peers MUST be removed from pools and selection retried
-
-## References
-
-1**ShrEx/Sub Specification**: (see shrex-sub.md)
-2**Discovery Specification**: (see discovery.md)
-3**libp2p Connection Gater**: <https://github.com/libp2p/go-libp2p/blob/master/core/connmgr/gater.go>
+- **PoolValidationTimeout**: Maximum time for pool to receive validation
+- **PeerCooldown**: Duration peer remains unavailable after cooldown
+- **GcInterval**: Time between garbage collection cycles
+- **EnableBlackListing**: Feature flag for blacklisting functionality
+- **StoredPoolsAmount**: Number of recent height pools to maintain (default: 10)
 
 ## Requirements Language
 
