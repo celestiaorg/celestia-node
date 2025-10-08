@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 func FuzzBlobUnmarshal(f *testing.F) {

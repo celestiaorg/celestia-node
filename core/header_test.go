@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -39,7 +40,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, height)
 	require.NoError(t, err)
 
-	eds, err := extendBlock(b.Data)
+	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	require.NoError(t, err)
 
 	headerExt, err := header.MakeExtendedHeader(b.Header, comm, val, eds)
