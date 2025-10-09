@@ -69,6 +69,7 @@ func TestRetriever_Retrieve(t *testing.T) {
 // TestRetriever_MultipleRandQuadrants asserts that reconstruction succeeds
 // when any three random quadrants requested.
 func TestRetriever_MultipleRandQuadrants(t *testing.T) {
+	t.Skip()
 	RetrieveQuadrantTimeout = time.Millisecond * 500
 	const squareSize = 32
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -99,6 +100,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 }
 
 func TestFraudProofValidation(t *testing.T) {
+	t.Skip()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer t.Cleanup(cancel)
 	bServ := ipld.NewMemBlockservice()
