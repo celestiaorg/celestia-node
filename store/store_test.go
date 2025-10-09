@@ -456,7 +456,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			roots := edstest.RandomAxisRoots(b, 1)
 			_ = edsStore.PutODSQ4(ctx, roots, uint64(i), eds)
 		}
@@ -473,7 +473,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			f, err := edsStore.GetByHeight(ctx, height)
 			require.NoError(b, err)
 			require.NoError(b, f.Close())
@@ -490,7 +490,7 @@ func BenchmarkStore(b *testing.B) {
 		require.NoError(b, err)
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			f, err := edsStore.GetByHash(ctx, roots.Hash())
 			require.NoError(b, err)
 			require.NoError(b, f.Close())
