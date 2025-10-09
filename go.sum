@@ -828,6 +828,8 @@ github.com/celestiaorg/nmt v0.24.1 h1:MhGKqp257eq2EQQKcva1H/BSYFqIt0Trk8/t3IWfWS
 github.com/celestiaorg/nmt v0.24.1/go.mod h1:IhLnJDgCdP70crZFpgihFmU6G+PGeXN37tnMRm+/4iU=
 github.com/celestiaorg/rsmt2d v0.15.0 h1:iCw+ghtH+xUK0dFIVZv4dGptoXJK/76UBj6aVsu9h7w=
 github.com/celestiaorg/rsmt2d v0.15.0/go.mod h1:E1GzIiYgMw1mPVWXyQSCSOFVGXoTMHQouh4C6fj5IT0=
+github.com/celestiaorg/tastora v0.7.0 h1:40TzJUP8qVhpeuyaAsAS4Kp3SNGHUDZUd6Rw8UhXm8k=
+github.com/celestiaorg/tastora v0.7.0/go.mod h1:Xw44XeRN2T/kSdopVCJjNhwFwRSO58wTW8GrVP7OWFI=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
@@ -1574,8 +1576,6 @@ github.com/mitchellh/gox v0.4.0/go.mod h1:Sd9lOJ0+aimLBi73mGofS1ycjY8lL3uZM3JPS4
 github.com/mitchellh/iochan v1.0.0/go.mod h1:JwYml1nuB7xOzsp52dPpHFffvOCDupsG0QubkSMEySY=
 github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
-github.com/moby/term v0.5.2 h1:6qk3FJAFDs6i/q3W/pQ97SX192qKfZgGjCQqfCJkgzQ=
-github.com/moby/term v0.5.2/go.mod h1:d3djjFCrjnB+fl8NJux+EJzu0msscUP+f8it8hPkFLc=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
