@@ -49,6 +49,7 @@ func init() {
 	edsStoreStress.Flags().String(pyroscopeEndpointFlag, "",
 		"Pyroscope address. If no address provided, pyroscope will be disabled")
 	edsStoreStress.Flags().Int(edsWritesFlag, math.MaxInt, "Total EDS writes to make. MaxInt by default.")
+	edsStoreStress.Flags().Int(edsWriteFrom, 0, "Initial block height to start writing from. 0 by default.")
 	edsStoreStress.Flags().Int(edsSizeFlag, 128, "Chooses EDS size. 128 by default.")
 	edsStoreStress.Flags().Bool(edsDisableLogFlag, false, "Disables logging. Enabled by default.")
 	edsStoreStress.Flags().Int(edsLogStatFreqFlag, 10, "Write statistic logging frequency. 10 by default.")
@@ -153,7 +154,7 @@ var edsStoreStress = &cobra.Command{
 		}
 
 		stats, err := stresser.Run(cmd.Context())
-		if !errors.Is(err, context.Canceled) {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			return err
 		}
 
