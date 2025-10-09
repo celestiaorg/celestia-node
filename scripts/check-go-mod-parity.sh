@@ -63,7 +63,20 @@ extract_modules() {
 get_module_version() {
     local deps_file="$1"
     local module="$2"
-    grep "^$module " "$deps_file" | head -1 | awk '{print $2}'
+    local line=$(grep "^$module " "$deps_file" | head -1)
+    if [[ -z "$line" ]]; then
+        echo ""
+        return
+    fi
+    
+    # Check if this is a replace directive (contains "=>")
+    if [[ "$line" == *"=>"* ]]; then
+        # Extract the version after "=>" (the actual resolved version)
+        echo "$line" | awk -F'=> ' '{print $2}' | awk '{print $1}'
+    else
+        # Regular version (no replace directive)
+        echo "$line" | awk '{print $2}'
+    fi
 }
 
 # Extract module names from both files
