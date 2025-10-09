@@ -25,30 +25,47 @@ func main() {
 		return
 	}
 
-	// Configure client
+	// Configure client with multiple endpoints for failover
 	cfg := client.Config{
 		ReadConfig: client.ReadConfig{
 			BridgeDAAddr: "http://localhost:26658",
-			DAAuthToken:  "token",
+			AdditionalBridgeDAAddrs: []string{
+				"http://backup-bridge-1:26658",
+				"http://backup-bridge-2:26658",
+			},
+			DAAuthToken: "token",
 		},
 		SubmitConfig: client.SubmitConfig{
 			DefaultKeyName: keyname,
 			Network:        "mocha-4",
 			CoreGRPCConfig: client.CoreGRPCConfig{
-				Addr:       "celestia-testnet-consensus.itrocket.net:9090",
+				Addr: "celestia-testnet-consensus.itrocket.net:9090",
+				AdditionalCoreGRPCConfigs: []client.CoreGRPCConfig{
+					{
+						Addr:       "backup-consensus-1.itrocket.net:9090",
+						TLSEnabled: false,
+						AuthToken:  "",
+					},
+					{
+						Addr:       "backup-consensus-2.itrocket.net:9090",
+						TLSEnabled: false,
+						AuthToken:  "",
+					},
+				},
 				TLSEnabled: false,
 				AuthToken:  "",
 			},
 		},
 	}
 
-	// Create client with full submission capabilities
+	// Create multi-endpoint client with failover capabilities
 	ctx := context.Background()
-	client, err := client.New(ctx, cfg, kr)
+	celestiaClient, err := client.NewMultiEndpoint(ctx, cfg, kr)
 	if err != nil {
-		fmt.Println("failed to create client:", err)
+		fmt.Println("failed to create multi-endpoint client:", err)
 		return
 	}
+	defer celestiaClient.Close()
 
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -60,7 +77,7 @@ func main() {
 		fmt.Println("failed to create blob:", err)
 		return
 	}
-	height, err := client.Blob.Submit(ctx, []*blob.Blob{b}, nil)
+	height, err := celestiaClient.Blob.Submit(ctx, []*blob.Blob{b}, nil)
 	if err != nil {
 		fmt.Println("failed to submit blob:", err)
 		return
@@ -68,10 +85,14 @@ func main() {
 	fmt.Println("submitted blob", height)
 
 	// Retrieve a blob
-	retrievedBlob, err := client.Blob.Get(ctx, height, namespace, b.Commitment)
+	retrievedBlob, err := celestiaClient.Blob.Get(ctx, height, namespace, b.Commitment)
 	if err != nil {
 		fmt.Println("failed to retrieve blob:", err)
 		return
 	}
 	fmt.Println("retrieved blob", string(retrievedBlob.Data()))
+
+	// Demonstrate access to multiple connections
+	fmt.Printf("Available read clients: %d\n", len(celestiaClient.GetReadClients()))
+	fmt.Printf("Available gRPC connections: %d\n", len(celestiaClient.GetGRPCConnections()))
 }
