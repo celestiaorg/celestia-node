@@ -5,6 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/core"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -18,12 +20,14 @@ func TestParseFlags(t *testing.T) {
 		{
 			name:     "no flags",
 			args:     []string{},
-			inputCfg: Config{},
+			inputCfg: DefaultConfig(),
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "",
-					Port: "",
+					Port: DefaultPort,
 				},
+				AdditionalCoreEndpoints: []EndpointConfig{},
+				ConcurrencyLimit:        core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
@@ -34,24 +38,28 @@ func TestParseFlags(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
 		{
 			name:     "only core.ip, empty port values",
 			args:     []string{"--core.ip=127.0.0.1"},
-			inputCfg: Config{},
+			inputCfg: DefaultConfig(),
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: DefaultPort,
 				},
+				AdditionalCoreEndpoints: []EndpointConfig{},
+				ConcurrencyLimit:        core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
@@ -63,12 +71,14 @@ func TestParseFlags(t *testing.T) {
 					IP:   "127.162.36.1",
 					Port: "5678",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.162.36.1",
 					Port: "5678",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
@@ -79,12 +89,14 @@ func TestParseFlags(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					Port: "5678",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: "5678", // Config value preserved when flag not changed
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
@@ -95,12 +107,14 @@ func TestParseFlags(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: "54321",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
@@ -111,12 +125,14 @@ func TestParseFlags(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					Port: "",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: DefaultPort,
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
@@ -127,19 +143,21 @@ func TestParseFlags(t *testing.T) {
 				EndpointConfig: EndpointConfig{
 					Port: "5678",
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectedCfg: Config{
 				EndpointConfig: EndpointConfig{
 					IP:   "127.0.0.1",
 					Port: "8080", // Explicit flag overrides config
 				},
+				ConcurrencyLimit: core.DefaultConcurrencyLimit,
 			},
 			expectError: false,
 		},
 		{
 			name:        "core.port without core.ip",
 			args:        []string{"--core.port=54321"},
-			expectedCfg: Config{},
+			expectedCfg: DefaultConfig(),
 			expectError: true,
 		},
 	}
