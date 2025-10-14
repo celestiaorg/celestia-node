@@ -1,0 +1,89 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+README.md
+CONTRIBUTING.md
+LICENSE
+NOTICE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Test files
+*_test.go
+test_*.go
+*_test.go.bak
+testdata/
+coverage.txt
+
+# Build artifacts (will be built in container)
+build/
+celestia
+cel-key
+cel-shed
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Node modules (if any)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Metrics and monitoring
+grafana-dashboards/
+grafana-datasources/
+prometheus.yml
+otel-collector-config.yaml
+docker-compose-grafana.yml
+docker-compose-otel.yml
+
+# Scripts
+*.sh
+capture_metrics.sh
+run_*.sh
+test_*.sh
