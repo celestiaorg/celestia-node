@@ -547,7 +547,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 		opts = append(opts, user.WithAdditionalCoreEndpoints(ca.coreConns[1:]))
 	}
 
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
+	client, err := user.SetupTxClient(ca.ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
