@@ -9,7 +9,7 @@ import (
 	math "math"
 	math_bits "math/bits"
 
-	da "github.com/celestiaorg/celestia-app/v5/proto/celestia/core/v1/da"
+	da "github.com/celestiaorg/celestia-app/v6/proto/celestia/core/v1/da"
 	types "github.com/cometbft/cometbft/proto/tendermint/types"
 	proto "github.com/gogo/protobuf/proto"
 )
