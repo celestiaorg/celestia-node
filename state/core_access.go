@@ -211,7 +211,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	// Gas estimation with metrics - only record when actual estimation occurs
 	gas := cfg.GasLimit()
 	var author AccAddress
-	
+
 	if gas == 0 {
 		gasEstimationStart := time.Now()
 		// get tx signer account name first for gas estimation
