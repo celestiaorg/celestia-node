@@ -5,24 +5,17 @@ package tastora
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-
+	"github.com/celestiaorg/go-square/v3/share"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/go-square/v3/share"
-
+	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
-
-const numParallelWorkers = 8
 
 type TransactionTestSuite struct {
 	suite.Suite
@@ -37,100 +30,88 @@ func TestTransactionTestSuite(t *testing.T) {
 }
 
 func (s *TransactionTestSuite) SetupSuite() {
-	s.framework = NewFramework(s.T(), WithValidators(1), WithTxWorkerAccounts(numParallelWorkers))
+	s.framework = NewFramework(s.T(), WithValidators(1), WithTxWorkerAccounts(8))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
-
-	// spawn routine that keeps filling blocks
-
-	fromAddr := s.framework.fundingWallet.Address
-	wal, err := s.framework.GetBridgeNodes()[0].GetWallet()
-	require.NoError(s.T(), err)
-	toAddr := wal.Address
-
-	bankSend := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(1))))
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				_, _ = s.framework.celestia.BroadcastMessages(ctx, s.framework.fundingWallet, bankSend)
-			}
-		}
-	}()
-}
-
-func (s *TransactionTestSuite) TearDownSuite() {
-	if s.framework != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		s.framework.Stop(ctx)
-	}
 }
 
 func (s *TransactionTestSuite) TestSubmitParallelTxs() {
-	defer s.TearDownSuite()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	// Create and submit blob
-	nodeBlobs, err := s.createTestBlob()
+	_, err := client.Header.WaitForHeight(ctx, 1)
 	require.NoError(s.T(), err)
 
-	// TODO @renaynay: this  is a very ugly hack that
-	//  waits for tx client to be ready
-	for i := 0; i < 3; i++ {
-		height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
-		if err == nil && height > 0 {
-			break
-		}
-	}
+	const numWorkers = 8
+	const numRounds = 3
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	successCount := 0
+	failureCount := 0
 
-	var (
-		numRounds    = 5
-		failureCount atomic.Int32
-		wg           sync.WaitGroup
-	)
 	for round := 0; round < numRounds; round++ {
-		s.T().Logf("Starting round %d with %d parallel workers", round+1, numParallelWorkers)
-		for worker := 0; worker < numParallelWorkers; worker++ {
+		s.T().Logf("Starting round %d with %d parallel workers", round+1, numWorkers)
+
+		for worker := 0; worker < numWorkers; worker++ {
 			wg.Add(1)
 			go func(roundNum, workerNum int) {
 				defer wg.Done()
 
-				height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
+				// Create a unique blob for this worker/round
+				nodeBlobs, err := s.createTestBlob(ctx, client)
+				require.NoError(s.T(), err)
+
+				txConfig := state.NewTxConfig(
+					state.WithGas(200_000),
+					state.WithGasPrice(5000),
+				)
+
+				// Submit the blob
+				height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+
+				mu.Lock()
 				if err != nil {
-					failureCount.Add(1)
+					failureCount++
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
-					return
+				} else {
+					successCount++
+					s.T().Logf("Round %d, Worker %d: SUCCESS - height %d", roundNum+1, workerNum+1, height)
 				}
-				s.T().Logf("Round %d, Worker %d: SUCCESS - height %d", roundNum+1, workerNum+1, height)
+				mu.Unlock()
 			}(round, worker)
 		}
 
+		// Wait for all workers in this round to complete
 		wg.Wait()
 		s.T().Logf("Round %d completed", round+1)
+
+		// Small delay between rounds
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	// Verify all submissions succeeded
-	s.Require().Equal(int32(0), failureCount.Load(), "No parallel submissions should fail")
-	s.T().Logf("Parallel submission test completed: %d failed", failureCount.Load())
+	// Verify results
+	totalSubmissions := numWorkers * numRounds
+	s.Require().Equal(totalSubmissions, successCount+failureCount, "All submissions should be accounted for")
+	s.Require().Equal(totalSubmissions, successCount, "All parallel submissions should succeed")
+	s.Require().Equal(0, failureCount, "No parallel submissions should fail")
+
+	s.T().Logf("Parallel submission test completed: %d/%d successful, %d failed", successCount, totalSubmissions, failureCount)
 }
 
-// createTestBlob creates a test blob for parallel worker testing
-func (s *TransactionTestSuite) createTestBlob() ([]*nodeblob.Blob, error) {
-	// Create namespace (10 bytes for V0)
+// createTestBlob creates a test blob with unique data
+func (s *TransactionTestSuite) createTestBlob(ctx context.Context, client *rpcclient.Client) ([]*nodeblob.Blob, error) {
+	// Create namespace with proper format (10 bytes for version 0)
 	namespaceBytes := make([]byte, 10)
+	// Fill with test data
 	for i := 0; i < 10; i++ {
 		namespaceBytes[i] = byte(i)
 	}
 
+	// Create namespace from bytes
 	namespace, err := share.NewV0Namespace(namespaceBytes)
 	if err != nil {
 		return nil, err
@@ -139,13 +120,18 @@ func (s *TransactionTestSuite) createTestBlob() ([]*nodeblob.Blob, error) {
 	// Create test data
 	data := []byte("parallel test blob data")
 
-	// Use V0 blob (no signer required - worker accounts handle signing)
-	shareBlob, err := share.NewV0Blob(namespace, data)
+	// Get the actual node address as the signer
+	nodeAddr, err := client.State.AccountAddress(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to nodeblob.Blob
+	shareBlob, err := share.NewV1Blob(namespace, data, nodeAddr.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to nodeblob.Blob using ToNodeBlobs
 	nodeBlobs, err := nodeblob.ToNodeBlobs(shareBlob)
 	if err != nil {
 		return nil, err
