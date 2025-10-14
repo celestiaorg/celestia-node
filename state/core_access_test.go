@@ -242,8 +242,6 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
-	chainID := "private"
-
 	t.Helper()
 	accounts := []string{
 		"jimmy", "carl", "sheen", "cindy",
@@ -311,9 +309,15 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	}
 }
 
-func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
-	chainID := "private"
+// TestTxWorkerSetup ensures that the tx worker setup works properly
+// despite having some pre-existing parallel worker accounts existing
+// in the node's keyring, both funded and unfunded.
+// Ref: https://github.com/celestiaorg/celestia-app/pull/6014
+func TestTxWorkerSetup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
 
+<<<<<<< HEAD
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
@@ -392,6 +396,8 @@ func TestTxWorkerSetup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
+=======
+>>>>>>> df2e63b8 (fix(state): pass long lived core accessor ctx into txclient setup as ctx is now used to control lifecycle of tx workers (#4634))
 	accounts := []string{
 		// fund a parallel tx worker account so it exists in account state
 		"jimmy", "carl", "sheen", "cindy", "parallel-worker-5",
@@ -412,7 +418,11 @@ func TestTxWorkerSetup(t *testing.T) {
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	require.NoError(t, err)
 
+<<<<<<< HEAD
 	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(8))
+=======
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(8))
+>>>>>>> df2e63b8 (fix(state): pass long lived core accessor ctx into txclient setup as ctx is now used to control lifecycle of tx workers (#4634))
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
