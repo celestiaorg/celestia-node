@@ -210,21 +210,27 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	// Gas estimation with metrics - only record when actual estimation occurs
 	gas := cfg.GasLimit()
+	var author AccAddress
+	
 	if gas == 0 {
 		gasEstimationStart := time.Now()
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
-			blobSizes[i] = uint32(len(blob.Data()))
+		// get tx signer account name first for gas estimation
+		author, err = ca.getTxAuthorAccAddress(cfg)
+		if err != nil {
+			return nil, err
 		}
-		gas = ca.estimateGasForBlobs(blobSizes)
+		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
 		gasEstimationDuration = time.Since(gasEstimationStart)
-		ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, nil)
-	}
-
-	// get tx signer account name
-	author, err := ca.getTxAuthorAccAddress(cfg)
-	if err != nil {
-		return nil, err
+		ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, err)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// get tx signer account name
+		author, err = ca.getTxAuthorAccAddress(cfg)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Account query with metrics
