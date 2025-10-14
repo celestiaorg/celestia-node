@@ -241,7 +241,7 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, nil, opts...)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, opts...)
 	require.NoError(t, err)
 	return ca, accounts
 }
