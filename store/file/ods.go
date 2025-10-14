@@ -9,7 +9,7 @@ import (
 	"os"
 	"sync"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -260,13 +260,13 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
 // implementation. Implementations should indicate the side in the returned AxisHalf.
-func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
 	// axis is a column and from the left half of the square.
 	if axisIdx < o.size()/2 {
 		half, err := o.readAxisHalf(axisType, axisIdx)
 		if err != nil {
-			return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
+			return shwap.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
 		}
 		return half, nil
 	}
@@ -274,12 +274,12 @@ func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (ed
 	// if axis is from the second half of the square, read full ODS and compute the axis half
 	ods, err := o.readODS()
 	if err != nil {
-		return eds.AxisHalf{}, err
+		return shwap.AxisHalf{}, err
 	}
 
 	half, err := ods.computeAxisHalf(axisType, axisIdx)
 	if err != nil {
-		return eds.AxisHalf{}, fmt.Errorf("computing axis half: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("computing axis half: %w", err)
 	}
 	return half, nil
 }
@@ -322,6 +322,42 @@ func (o *ODS) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
+func (o *ODS) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	size, err := o.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// to is an exclusive index.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	shares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
+		half, err := o.readAxisHalf(rsmt2d.Row, row)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("reading axis half: %w", err)
+		}
+
+		sh, err := half.Extended()
+		if err != nil {
+			return shwap.RangeNamespaceData{}, fmt.Errorf("extending the data: %w", err)
+		}
+		shares[idx] = sh
+		idx++
+	}
+	return shwap.RangeNamespaceDataFromShares(shares, fromCoords, toCoords)
+}
+
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	half, err := o.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
@@ -336,7 +372,7 @@ func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]li
 	return axis, nil
 }
 
-func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	o.lock.RLock()
 	ods := o.ods
 	o.lock.RUnlock()
@@ -346,10 +382,10 @@ func (o *ODS) readAxisHalf(axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, err
 
 	axisHalf, err := readAxisHalf(o.fl, axisType, axisIdx, o.hdr, o.hdr.OffsetWithRoots())
 	if err != nil {
-		return eds.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("reading axis half: %w", err)
 	}
 
-	return eds.AxisHalf{
+	return shwap.AxisHalf{
 		Shares:   axisHalf,
 		IsParity: false,
 	}, nil

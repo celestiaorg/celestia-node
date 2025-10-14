@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -50,14 +50,15 @@ func (f validation) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.S
 	return f.Accessor.Sample(ctx, idx)
 }
 
-func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	size, err := f.Size(ctx)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("getting size: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("getting size: %w", err)
 	}
+
 	_, err = shwap.NewRowID(1, axisIdx, size)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("axis half validation: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("axis half validation: %w", err)
 	}
 	return f.Accessor.AxisHalf(ctx, axisType, axisIdx)
 }
@@ -76,4 +77,36 @@ func (f validation) RowNamespaceData(
 		return shwap.RowNamespaceData{}, fmt.Errorf("row namespace data validation: %w", err)
 	}
 	return f.Accessor.RowNamespaceData(ctx, namespace, rowIdx)
+}
+
+func (f validation) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	if from >= to {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: `from` %d is >= than `to %d", from, to,
+		)
+	}
+	// Size() always returns EDS size
+	edsSize, err := f.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, fmt.Errorf("getting size: %w", err)
+	}
+	odsSize := edsSize / 2
+	odsSharesAmount := odsSize * odsSize
+
+	if from > odsSharesAmount {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: invalid start index of the range:%d. ODS shares amount %d",
+			from, odsSharesAmount,
+		)
+	}
+	if to > odsSharesAmount {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: invalid end coordinates of the range:%d. ODS shares amount %d",
+			to, odsSharesAmount,
+		)
+	}
+	return f.Accessor.RangeNamespaceData(ctx, from, to)
 }

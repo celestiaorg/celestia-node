@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
@@ -179,14 +179,18 @@ var submitCmd = &cobra.Command{
 		jsonBlobs := make([]blobJSON, 0)
 		// In case of there is a file input, get the namespace and blob from the arguments
 		if path != "" {
-			paresdBlobs, err := parseSubmitBlobs(path)
+			parsedBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
 				return err
 			}
 
-			jsonBlobs = append(jsonBlobs, paresdBlobs...)
+			jsonBlobs = append(jsonBlobs, parsedBlobs...)
 		} else {
-			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: args[1]})
+			blobData, err := cmdnode.DecodeToBytes(args[1])
+			if err != nil { // can be simple text
+				blobData = []byte(args[1])
+			}
+			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: string(blobData)})
 		}
 
 		var resultBlobs []*blob.Blob

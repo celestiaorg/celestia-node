@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
-func FuzzProofEqual(f *testing.F) {
+func FuzzBlobUnmarshal(f *testing.F) {
 	if testing.Short() {
 		f.Skip("in -short mode")
 	}

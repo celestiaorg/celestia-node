@@ -23,7 +23,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -318,6 +318,14 @@ func (g successGetter) GetNamespaceData(
 	_ *header.ExtendedHeader,
 	_ libshare.Namespace,
 ) (shwap.NamespaceData, error) {
+	panic("not implemented")
+}
+
+func (g successGetter) GetRangeNamespaceData(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
 	panic("not implemented")
 }
 

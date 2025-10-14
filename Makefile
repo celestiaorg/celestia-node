@@ -2,13 +2,18 @@ SHELL=/usr/bin/env bash
 PROJECTNAME=$(shell basename "$(PWD)")
 DIR_FULLPATH=$(shell pwd)
 versioningPath := github.com/celestiaorg/celestia-node/nodebuilder/node
+tastoraPath := github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 OS := $(shell uname -s)
 LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
                     -X $(versioningPath).semanticVersion=$(shell \
                       git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
                       git describe --tags --dirty=-dev 2>/dev/null || \
-                      git rev-parse --short HEAD)"
+                      git rev-parse --short HEAD) \
+                    -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(shell \
+                      git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
+                      git describe --tags --dirty=-dev 2>/dev/null || \
+                      git rev-parse --short HEAD))"
 TAGS=integration
 SHORT=
 ifeq (${PREFIX},)
@@ -121,7 +126,7 @@ install-key:
 # Runs `gofmt & goimports` internally.
 fmt: sort-imports
 	@find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
-	@go mod tidy -compat=1.20
+	@find . -name 'go.mod' -execdir go mod tidy \;
 	@cfmt -w -m=120 ./...
 	@gofumpt -w -extra .
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
@@ -159,6 +164,21 @@ test-integration-race:
 	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
 	@go test -race -tags=$(TAGS) ./nodebuilder/tests
 .PHONY: test-integration-race
+
+## test-blob: Run blob module tests via Tastora framework.
+test-blob:
+	@echo "--> Running blob module tests"
+	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -run TestBlobTestSuite ./...
+
+## test-e2e-sanity: Run just the E2ESanityTestSuite suite
+test-e2e-sanity:
+	@echo "--> Running E2ESanityTestSuite"
+	cd nodebuilder/tests/tastora && go test -v -tags integration -run TestE2ESanityTestSuite -timeout 10m
+
+## test-tastora: Run all Tastora framework tests.
+test-tastora:
+	@echo "--> Running all Tastora tests"
+	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:
@@ -290,3 +310,5 @@ jemalloc:
 		rm -rf /tmp/jemalloc-temp ; \
 	fi
 .PHONY: jemalloc
+
+.PHONY: test-blob test-tastora test-e2e-sanity

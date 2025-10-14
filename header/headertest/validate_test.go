@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -38,7 +38,15 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			extendedHeader: getExtendedHeader(t, 5),
-			wantErr: "has version 5, this node supports up to version 4. " +
+			wantErr:        "",
+		},
+		{
+			extendedHeader: getExtendedHeader(t, 6),
+			wantErr:        "",
+		},
+		{
+			extendedHeader: getExtendedHeader(t, 7),
+			wantErr: "has version 7, this node supports up to version 6. " +
 				"Please upgrade to support new version. Note, 0 is not a valid version",
 		},
 	}

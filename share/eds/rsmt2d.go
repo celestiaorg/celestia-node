@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -84,13 +84,13 @@ func (eds *Rsmt2D) SampleForProofAxis(
 }
 
 // AxisHalf returns Shares for the first half of the axis of the given type and index.
-func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (eds *Rsmt2D) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	shares, err := getAxis(eds.ExtendedDataSquare, axisType, axisIdx)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("while getting axis share: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("while getting axis share: %w", err)
 	}
 	halfShares := shares[:eds.Width()/2]
-	return AxisHalf{
+	return shwap.AxisHalf{
 		Shares:   halfShares,
 		IsParity: false,
 	}, nil
@@ -114,6 +114,41 @@ func (eds *Rsmt2D) RowNamespaceData(
 		return shwap.RowNamespaceData{}, fmt.Errorf("while converting shares from bytes: %w", err)
 	}
 	return shwap.RowNamespaceDataFromShares(sh, namespace, rowIdx)
+}
+
+// RangeNamespaceData builds a namespace range from the given indexes.
+func (eds *Rsmt2D) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	size, err := eds.Size(ctx)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	// get coords based on the odsSize
+	odsSize := size / 2
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+	// `to` is an exclusive index. Getting inclusive coordinates of the last share.
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, odsSize)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	rawShares := make([][]libshare.Share, toCoords.Row-fromCoords.Row+1)
+	for row, idx := fromCoords.Row, 0; row <= toCoords.Row; row++ {
+		rawShare := eds.Row(uint(row))
+		sh, err := libshare.FromBytes(rawShare)
+		if err != nil {
+			return shwap.RangeNamespaceData{}, err
+		}
+		rawShares[idx] = sh
+		idx++
+	}
+	return shwap.RangeNamespaceDataFromShares(rawShares, fromCoords, toCoords)
 }
 
 // Shares returns data (ODS) shares extracted from the EDS. It returns new copy of the shares each

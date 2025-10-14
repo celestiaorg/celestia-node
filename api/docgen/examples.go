@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -23,7 +24,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -187,6 +188,7 @@ func init() {
 	))
 
 	add(network.DirUnknown)
+	add(bytes.HexBytes(hash))
 }
 
 func exampleValue(t, parent reflect.Type) (any, error) {

@@ -12,8 +12,8 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -49,7 +49,7 @@ type proofsCache struct {
 
 // axisWithProofs is used to cache the extended axis Shares and proofs.
 type axisWithProofs struct {
-	half AxisHalf
+	half shwap.AxisHalf
 	// shares are the extended axis Shares
 	shares []libshare.Share
 	// root caches the root of the tree. It will be set only when proofs are calculated
@@ -203,7 +203,7 @@ func (c *proofsCache) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, 
 	return ax, nil
 }
 
-func (c *proofsCache) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (c *proofsCache) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	// return axis from cache if possible
 	ax, ok := c.getAxisFromCache(axisType, axisIdx)
 	if ok {
@@ -213,7 +213,7 @@ func (c *proofsCache) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisId
 	// read axis from inner accessor if axis is in the first quadrant
 	half, err := c.inner.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("reading axis from inner accessor: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("reading axis from inner accessor: %w", err)
 	}
 
 	if !c.disableCache {
@@ -242,7 +242,6 @@ func (c *proofsCache) RowNamespaceData(
 	if err != nil {
 		return shwap.RowNamespaceData{}, fmt.Errorf("shares by namespace %s for row %v: %w", namespace.String(), rowIdx, err)
 	}
-
 	return shwap.RowNamespaceData{
 		Shares: row,
 		Proof:  proof,
@@ -274,6 +273,15 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 		shares = append(shares, half...)
 	}
 	return shares, nil
+}
+
+// RangeNamespaceData tries to find all complete rows in cache. For all incomplete rows,
+// it uses the inner accessor to build the namespace data
+func (c *proofsCache) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	return c.inner.RangeNamespaceData(ctx, from, to)
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {

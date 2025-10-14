@@ -3,10 +3,8 @@ package swamp
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"maps"
 	"net"
-	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -17,27 +15,21 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/logs"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	coremodule "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/store"
 )
-
-var blackholeIP6 = net.ParseIP("100::")
 
 // DefaultTestTimeout should be used as the default timeout on all the Swamp tests.
 // It's generously set to 10 minutes to give enough time for CI.
@@ -60,8 +52,6 @@ type Swamp struct {
 
 	nodesMu sync.Mutex
 	nodes   map[*nodebuilder.Node]struct{}
-
-	genesis *header.ExtendedHeader
 }
 
 // NewSwamp creates a new instance of Swamp.
@@ -90,7 +80,7 @@ func NewSwamp(t *testing.T, options ...Option) *Swamp {
 	}
 
 	swp.t.Cleanup(swp.cleanup)
-	swp.setupGenesis()
+	swp.WaitTillHeight(context.Background(), 1)
 	return swp
 }
 
@@ -152,57 +142,20 @@ func (s *Swamp) createPeer(ks keystore.Keystore) host.Host {
 	key, err := p2p.Key(ks)
 	require.NoError(s.t, err)
 
-	// IPv6 will be starting with 100:0
-	token := make([]byte, 12)
-	_, _ = rand.Read(token)
-	ip := slices.Clone(blackholeIP6)
-	copy(ip[net.IPv6len-len(token):], token)
+	addr := &net.TCPAddr{
+		IP:   make(net.IP, 4),
+		Port: 4242,
+	}
+	rand.Read(addr.IP) //nolint:errcheck
 
-	// reference to GenPeer func in libp2p/p2p/net/mock/mock_net.go
-	// on how we generate new multiaddr for new peer
-	a, err := ma.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/4242", ip))
+	ma, err := manet.FromNetAddr(addr)
 	require.NoError(s.t, err)
 
-	host, err := s.Network.AddPeer(key, a)
+	host, err := s.Network.AddPeer(key, ma)
 	require.NoError(s.t, err)
 
 	require.NoError(s.t, s.Network.LinkAll())
 	return host
-}
-
-// setupGenesis sets up genesis Header.
-// This is required to initialize and start correctly.
-func (s *Swamp) setupGenesis() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	// ensure core has surpassed genesis block
-	s.WaitTillHeight(ctx, 2)
-
-	store, err := store.NewStore(store.DefaultParameters(), s.t.TempDir())
-	require.NoError(s.t, err)
-
-	host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
-	require.NoError(s.t, err)
-	addr := net.JoinHostPort(host, port)
-	con, err := grpc.NewClient(
-		addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	require.NoError(s.t, err)
-	fetcher, err := core.NewBlockFetcher(con)
-	require.NoError(s.t, err)
-
-	ex, err := core.NewExchange(
-		fetcher,
-		store,
-		header.MakeExtendedHeader,
-	)
-	require.NoError(s.t, err)
-
-	h, err := ex.GetByHeight(ctx, 1)
-	require.NoError(s.t, err)
-	s.genesis = h
 }
 
 // DefaultTestConfig creates a test config with the access to the core node for the tp
@@ -211,9 +164,15 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 
 	ip, port, err := net.SplitHostPort(s.cfg.AppConfig.GRPC.Address)
 	require.NoError(s.t, err)
-
 	cfg.Core.IP = ip
 	cfg.Core.Port = port
+	// set port to zero so that OS allocates one
+	// this avoids port collissions between nodes and tests
+	cfg.RPC.Port = "0"
+
+	for _, bootstrapper := range s.Bootstrappers {
+		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
+	}
 	return cfg
 }
 
@@ -221,53 +180,25 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
-	var err error
-	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(s.ClientContext.GRPCClient.Target())
-	require.NoError(s.t, err)
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Bridge, store, options...)
+	return s.NewNodeWithConfig(node.Bridge, cfg, options...)
 }
 
 // NewFullNode creates a new instance of a FullNode providing a default config
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Full)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Full, store, options...)
+	return s.NewNodeWithConfig(node.Full, cfg, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config
 // and a mockstore to the MustNewNodeWithStore method
 func (s *Swamp) NewLightNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Light)
-	cfg.Header.TrustedPeers = []string{
-		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
-	}
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
-
-	store := nodebuilder.MockStore(s.t, cfg)
-
-	return s.MustNewNodeWithStore(node.Light, store, options...)
+	return s.NewNodeWithConfig(node.Light, cfg, options...)
 }
 
 func (s *Swamp) NewNodeWithConfig(nodeType node.Type, cfg *nodebuilder.Config, options ...fx.Option) *nodebuilder.Node {
 	store := nodebuilder.MockStore(s.t, cfg)
-	// add all bootstrappers in suite as trusted peers
-	for _, bootstrapper := range s.Bootstrappers {
-		cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, bootstrapper.String())
-	}
 	return s.MustNewNodeWithStore(nodeType, store, options...)
 }
 
@@ -288,33 +219,11 @@ func (s *Swamp) NewNodeWithStore(
 	store nodebuilder.Store,
 	options ...fx.Option,
 ) (*nodebuilder.Node, error) {
-	options = append(options,
-		state.WithKeyring(s.ClientContext.Keyring),
-		state.WithKeyName(state.AccountName(s.Accounts[0])),
-	)
-
-	switch tp {
-	case node.Bridge:
-		host, port, err := net.SplitHostPort(s.ClientContext.GRPCClient.Target())
-		if err != nil {
-			return nil, err
-		}
-		addr := net.JoinHostPort(host, port)
-		con, err := grpc.NewClient(
-			addr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		require.NoError(s.t, err)
-		options = append(options,
-			coremodule.WithConnection(con),
-		)
-	default:
-	}
-
 	nd, err := s.newNode(tp, store, options...)
 	if err != nil {
 		return nil, err
 	}
+
 	s.nodesMu.Lock()
 	s.nodes[nd] = struct{}{}
 	s.nodesMu.Unlock()
@@ -327,20 +236,12 @@ func (s *Swamp) newNode(t node.Type, store nodebuilder.Store, options ...fx.Opti
 		return nil, err
 	}
 
-	// TODO(@Bidon15): If for some reason, we receive one of existing options
-	// like <core, host, hash> from the test case, we need to check them and not use
-	// default that are set here
-	cfg, _ := store.Config()
-	cfg.RPC.Port = "0"
-
-	// tempDir is used for the eds.Store
-	tempDir := s.t.TempDir()
-	options = append(options,
+	options = append(
+		options,
 		p2p.WithHost(s.createPeer(ks)),
-		fx.Replace(node.StorePath(tempDir)),
-		fx.Invoke(func(ctx context.Context, store libhead.Store[*header.ExtendedHeader]) error {
-			return store.Init(ctx, s.genesis)
-		}),
+		fx.Replace(node.StorePath(s.t.TempDir())),
+		state.WithKeyring(s.ClientContext.Keyring),
+		state.WithKeyName(state.AccountName(s.Accounts[0])),
 	)
 	return nodebuilder.New(t, p2p.Private, store, options...)
 }

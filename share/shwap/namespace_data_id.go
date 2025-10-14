@@ -1,10 +1,16 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"golang.org/x/sync/errgroup"
+
+	libshare "github.com/celestiaorg/go-square/v3/share"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // NamespaceDataIDSize defines the total size of a NamespaceDataID in bytes, combining the
@@ -24,7 +30,7 @@ type NamespaceDataID struct {
 func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceDataID, error) {
 	ndid := NamespaceDataID{
 		EdsID: EdsID{
-			Height: height,
+			height: height,
 		},
 		DataNamespace: namespace,
 	}
@@ -33,6 +39,10 @@ func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceD
 		return NamespaceDataID{}, err
 	}
 	return ndid, nil
+}
+
+func (ndid NamespaceDataID) Name() string {
+	return namespaceDataName
 }
 
 // NamespaceDataIDFromBinary deserializes a NamespaceDataID from its binary form. It returns
@@ -129,4 +139,41 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return append(data, ndid.DataNamespace.Bytes()...), nil
+}
+
+func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	roots, err := acc.AxisRoots(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get AxisRoots: %w", err)
+	}
+
+	rowIdxs, err := share.RowsWithNamespace(roots, ndid.DataNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get row indexes: %w", err)
+	}
+
+	rows := make(NamespaceData, len(rowIdxs))
+
+	errGroup, ctx := errgroup.WithContext(ctx)
+	for i, idx := range rowIdxs {
+		errGroup.Go(func() error {
+			rowData, err := acc.RowNamespaceData(ctx, ndid.DataNamespace, idx)
+			if err != nil {
+				return fmt.Errorf("failed to process row %d: %w", idx, err)
+			}
+			rows[i] = rowData
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to process rows: %w", err)
+	}
+
+	buf := &bytes.Buffer{}
+	_, err = rows.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }

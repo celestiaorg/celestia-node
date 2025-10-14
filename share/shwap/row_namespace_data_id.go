@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // RowNamespaceDataIDSize defines the total size of a RowNamespaceDataID in bytes, combining the
@@ -30,7 +30,7 @@ func NewRowNamespaceDataID(
 	did := RowNamespaceDataID{
 		RowID: RowID{
 			EdsID: EdsID{
-				Height: height,
+				height: height,
 			},
 			RowIndex: rowIdx,
 		},

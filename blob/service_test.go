@@ -19,13 +19,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v4/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -152,7 +152,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())), false)
 				}
 			},
 		},
@@ -533,7 +533,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -595,7 +595,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -792,32 +792,40 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	subCh2, err := service.Subscribe(ctx, ns2)
 	require.NoError(t, err)
 
-	for i := uint64(0); i < uint64(len(allBlobs)); i++ {
+	var i int
+	for ; i < len(blobs1); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, i+1, resp.Height)
-			if i < uint64(len(blobs1)) {
-				assert.NotEmpty(t, resp.Blobs)
-				for _, b := range resp.Blobs {
-					assert.Equal(t, ns1, b.Namespace())
-				}
-			} else {
-				assert.Empty(t, resp.Blobs)
-			}
-		case resp := <-subCh2:
-			assert.Equal(t, i+1, resp.Height)
-			if i >= uint64(len(blobs1)) {
-				assert.NotEmpty(t, resp.Blobs)
-				for _, b := range resp.Blobs {
-					assert.Equal(t, ns2, b.Namespace())
-				}
-			} else {
-				assert.Empty(t, resp.Blobs)
+			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.NotEmpty(t, resp.Blobs)
+			for _, b := range resp.Blobs {
+				assert.Equal(t, ns1, b.Namespace())
 			}
 		case <-time.After(time.Second * 2):
 			t.Fatalf("timeout waiting for subscription responses %d", i)
 		}
 	}
+
+	for ; i < len(blobs2); i++ {
+		select {
+		case resp := <-subCh2:
+			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.NotEmpty(t, resp.Blobs)
+			for _, b := range resp.Blobs {
+				assert.Equal(t, ns2, b.Namespace())
+			}
+		case <-time.After(time.Second * 2):
+			t.Fatalf("timeout waiting for subscription responses %d", i)
+		}
+	}
+
+	emptyBlobResponse := <-subCh1
+	assert.NotNil(t, emptyBlobResponse)
+	assert.Empty(t, emptyBlobResponse.Blobs)
+
+	emptyBlobResponse = <-subCh2
+	assert.NotNil(t, emptyBlobResponse)
+	assert.Empty(t, emptyBlobResponse.Blobs)
 }
 
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
@@ -863,11 +871,10 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 		edsses[i] = eds
 	}
 	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
-
-	err = headerStore.Init(ctx, headers[0])
+	err = headerStore.Start(ctx)
 	require.NoError(t, err)
-
-	err = headerStore.Append(ctx, headers[1:]...)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, headers...)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -926,7 +933,10 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	err = headerStore.Init(ctx, h)
+	err = headerStore.Start(ctx)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, h)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {

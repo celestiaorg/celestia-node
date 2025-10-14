@@ -4,8 +4,8 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.
@@ -51,5 +51,5 @@ func ToNodeBlobs(blobs ...*libshare.Blob) ([]*Blob, error) {
 func calculateIndex(rowLength, blobIndex int) (row, col int) {
 	row = blobIndex / rowLength
 	col = blobIndex - (row * rowLength)
-	return
+	return row, col
 }

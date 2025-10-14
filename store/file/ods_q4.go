@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -136,10 +136,10 @@ func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.S
 	return shwap.SampleFromShares(shares, rsmt2d.Row, idx)
 }
 
-func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (eds.AxisHalf, error) {
+func (odsq4 *ODSQ4) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	size, err := odsq4.Size(ctx)
 	if err != nil {
-		return eds.AxisHalf{}, fmt.Errorf("getting size: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("getting size: %w", err)
 	}
 
 	if axisIdx >= size/2 {
@@ -191,4 +191,11 @@ func (odsq4 *ODSQ4) Close() error {
 		}
 	}
 	return err
+}
+
+func (odsq4 *ODSQ4) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	return odsq4.ods.RangeNamespaceData(ctx, from, to)
 }

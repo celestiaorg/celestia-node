@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -91,23 +91,33 @@ func (s Sample) ToProto() *pb.Sample {
 
 // MarshalJSON encodes sample to the json encoded bytes.
 func (s Sample) MarshalJSON() ([]byte, error) {
-	pbSample := s.ToProto()
-	return json.Marshal(*pbSample)
+	jsonSample := struct {
+		Share     libshare.Share `json:"share"`
+		Proof     *nmt.Proof     `json:"proof"`
+		ProofType rsmt2d.Axis    `json:"proof_type"`
+	}{
+		Share:     s.Share,
+		Proof:     s.Proof,
+		ProofType: s.ProofType,
+	}
+	return json.Marshal(&jsonSample)
 }
 
 // UnmarshalJSON decodes bytes to the Sample.
 func (s *Sample) UnmarshalJSON(data []byte) error {
-	var ss pb.Sample
-	err := json.Unmarshal(data, &ss)
-	if err != nil {
+	var jsonSample struct {
+		Share     libshare.Share `json:"share"`
+		Proof     *nmt.Proof     `json:"proof"`
+		ProofType rsmt2d.Axis    `json:"proof_type"`
+	}
+	if err := json.Unmarshal(data, &jsonSample); err != nil {
 		return err
 	}
 
-	sample, err := SampleFromProto(&ss)
-	if err != nil {
-		return err
-	}
-	*s = sample
+	s.Share = jsonSample.Share
+	s.Proof = jsonSample.Proof
+	s.ProofType = jsonSample.ProofType
+
 	return nil
 }
 

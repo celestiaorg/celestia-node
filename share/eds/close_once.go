@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -68,9 +68,9 @@ func (c *closeOnce) AxisHalf(
 	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
-) (AxisHalf, error) {
+) (shwap.AxisHalf, error) {
 	if c.closed.Load() {
-		return AxisHalf{}, errAccessorClosed
+		return shwap.AxisHalf{}, errAccessorClosed
 	}
 	return c.f.AxisHalf(ctx, axisType, axisIdx)
 }
@@ -91,6 +91,16 @@ func (c *closeOnce) Shares(ctx context.Context) ([]libshare.Share, error) {
 		return nil, errAccessorClosed
 	}
 	return c.f.Shares(ctx)
+}
+
+func (c *closeOnce) RangeNamespaceData(
+	ctx context.Context,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	if c.closed.Load() {
+		return shwap.RangeNamespaceData{}, errAccessorClosed
+	}
+	return c.f.RangeNamespaceData(ctx, from, to)
 }
 
 func (c *closeOnce) Reader() (io.Reader, error) {
