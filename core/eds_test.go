@@ -11,7 +11,6 @@ import (
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v3/share"
@@ -53,7 +52,7 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 	rawEmptyShares := libshare.ToBytes(emptyShares)
 
 	// extend the empty shares
-	manualEds, err := extendShares(rawEmptyShares)
+	manualEds, err := da.ExtendShares(rawEmptyShares)
 	require.NoError(t, err)
 
 	// verify the manually extended EDS equals the empty EDS
@@ -73,6 +72,12 @@ var testBlock2800000Data []byte
 
 //go:embed testdata/test_block_4000000.json
 var testBlock4000000Data []byte
+
+//go:embed testdata/test_block_5000000.json
+var testBlock5000000Data []byte
+
+//go:embed testdata/test_block_6000000.json
+var testBlock6000000Data []byte
 
 func TestExtendBlock_MainnetBlocks(t *testing.T) {
 	type testBlockData struct {
@@ -99,6 +104,14 @@ func TestExtendBlock_MainnetBlocks(t *testing.T) {
 			name:     "Block_4000000_AppV3",
 			testData: testBlock4000000Data,
 		},
+		{
+			name:     "Block_5000000_AppV4",
+			testData: testBlock5000000Data,
+		},
+		{
+			name:     "Block_6000000_AppV5",
+			testData: testBlock6000000Data,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -107,24 +120,14 @@ func TestExtendBlock_MainnetBlocks(t *testing.T) {
 			err := json.Unmarshal(tc.testData, &blockData)
 			require.NoError(t, err)
 
-			allTxs := make([]types.Tx, len(blockData.Txs))
+			allTxs := make(types.Txs, len(blockData.Txs))
 			for i, txBase64 := range blockData.Txs {
 				tx, err := base64.StdEncoding.DecodeString(txBase64)
 				require.NoError(t, err, "Failed to decode transaction %d", i)
 				allTxs[i] = tx
 			}
 
-			nmtOptions := []nmt.Option{
-				nmt.NamespaceIDSize(8),
-				nmt.IgnoreMaxNamespace(true),
-			}
-
-			data := &types.Data{
-				Txs:        allTxs,
-				SquareSize: blockData.SquareSize,
-			}
-
-			eds, err := extendBlock(data, nmtOptions...)
+			eds, err := da.ConstructEDS(allTxs.ToSliceOfBytes(), uint64(blockData.AppVersion), -1)
 			require.NoError(t, err)
 
 			roots, err := share.NewAxisRoots(eds)
@@ -135,3 +138,4 @@ func TestExtendBlock_MainnetBlocks(t *testing.T) {
 		})
 	}
 }
+
