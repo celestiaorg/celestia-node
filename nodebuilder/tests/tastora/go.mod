@@ -19,6 +19,8 @@ require (
 	google.golang.org/grpc v1.76.0
 )
 
+replace github.com/celestiaorg/tastora => github.com/celestiaorg/tastora v0.0.0-20251014065031-b39f25c36a8e
+
 require (
 	github.com/avast/retry-go/v4 v4.6.1 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
