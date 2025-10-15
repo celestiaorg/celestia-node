@@ -5,6 +5,7 @@ package tastora
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
+
+const numParallelWorkers = 8
 
 type TransactionTestSuite struct {
 	suite.Suite
@@ -31,7 +34,7 @@ func TestTransactionTestSuite(t *testing.T) {
 }
 
 func (s *TransactionTestSuite) SetupSuite() {
-	s.framework = NewFramework(s.T(), WithValidators(1), WithTxWorkerAccounts(8))
+	s.framework = NewFramework(s.T(), WithValidators(1), WithTxWorkerAccounts(numParallelWorkers))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
@@ -47,16 +50,14 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	_, err := client.Header.WaitForHeight(ctx, 1)
 	require.NoError(s.T(), err)
 
-	const numWorkers = 8
-	const numRounds = 3
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	successCount := 0
-	failureCount := 0
+	var (
+		numRounds    = 3
+		wg           sync.WaitGroup
+		failureCount atomic.Int32
+	)
 
 	for round := 0; round < numRounds; round++ {
 		s.T().Logf("Starting round %d with %d parallel workers", round+1, numWorkers)
-
 		for worker := 0; worker < numWorkers; worker++ {
 			wg.Add(1)
 			go func(roundNum, workerNum int) {
@@ -71,36 +72,22 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 					state.WithGasPrice(5000),
 				)
 
-				// Submit the blob
 				height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
-
-				mu.Lock()
 				if err != nil {
-					failureCount++
+					failureCount.Add(1)
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
-				} else {
-					successCount++
-					s.T().Logf("Round %d, Worker %d: SUCCESS - height %d", roundNum+1, workerNum+1, height)
 				}
-				mu.Unlock()
 			}(round, worker)
 		}
 
 		// Wait for all workers in this round to complete
 		wg.Wait()
 		s.T().Logf("Round %d completed", round+1)
-
-		// Small delay between rounds
-		time.Sleep(500 * time.Millisecond)
 	}
 
 	// Verify results
-	totalSubmissions := numWorkers * numRounds
-	s.Require().Equal(totalSubmissions, successCount+failureCount, "All submissions should be accounted for")
-	s.Require().Equal(totalSubmissions, successCount, "All parallel submissions should succeed")
 	s.Require().Equal(0, failureCount, "No parallel submissions should fail")
-
-	s.T().Logf("Parallel submission test completed: %d/%d successful, %d failed", successCount, totalSubmissions, failureCount)
+	s.T().Logf("Parallel submission test completed with failed submissions: %d", failureCount)
 }
 
 // createTestBlob creates a test blob with unique data
