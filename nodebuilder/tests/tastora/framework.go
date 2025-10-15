@@ -46,7 +46,7 @@ const (
 var (
 	// defaultNodeTag can be overridden at build time using ldflags
 	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultNodeTag = "v0.28.0-arabica" // Official release with queued submission feature
+	defaultNodeTag = "v0.28.1-arabica" // Official release with queued submission feature and fixes
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
