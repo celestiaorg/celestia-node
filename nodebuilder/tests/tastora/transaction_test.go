@@ -4,8 +4,8 @@ package tastora
 
 import (
 	"context"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -40,6 +40,14 @@ func (s *TransactionTestSuite) SetupSuite() {
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 
+func (s *TransactionTestSuite) TearDownSuite() {
+	if s.framework != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		s.framework.Stop(ctx)
+	}
+}
+
 func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -50,11 +58,17 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	_, err := client.Header.WaitForHeight(ctx, 1)
 	require.NoError(s.T(), err)
 
-	var (
-		numRounds    = 3
-		wg           sync.WaitGroup
-		failureCount atomic.Int32
-	)
+	// This test is designed to verify that the --tx.worker.accounts feature works correctly.
+	// The node should create and manage worker accounts for parallel transaction submission.
+	// If this test fails with "parallel-worker-X not found" errors, it indicates that
+	// the worker account creation logic is broken in the celestia-node implementation.
+
+	const numWorkers = numParallelWorkers
+	const numRounds = 2
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	successCount := 0
+	failureCount := 0
 
 	for round := 0; round < numRounds; round++ {
 		s.T().Logf("Starting round %d with %d parallel workers", round+1, numParallelWorkers)
@@ -72,23 +86,40 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 					state.WithGasPrice(5000),
 				)
 
+				// Submit the blob
 				height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+
+				mu.Lock()
 				if err != nil {
-					failureCount.Add(1)
+					failureCount++
+					// Log detailed error information to help diagnose the worker account issue
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
+					if strings.Contains(err.Error(), "parallel-worker") {
+						s.T().Logf("WORKER ACCOUNT ERROR: %v", err)
+					}
+				} else {
+					successCount++
+					s.T().Logf("Round %d, Worker %d: SUCCESS - height %d", roundNum+1, workerNum+1, height)
 				}
-				s.T().Logf("Round %d, Worker %d: Submitted blob in tx at height %d", roundNum+1, workerNum+1, height)
+				mu.Unlock()
 			}(round, worker)
 		}
 
 		// Wait for all workers in this round to complete
 		wg.Wait()
 		s.T().Logf("Round %d completed", round+1)
+
+		// Small delay between rounds
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	// Verify results
+	totalSubmissions := numWorkers * numRounds
+	s.Require().Equal(totalSubmissions, successCount+failureCount, "All submissions should be accounted for")
+	s.Require().Equal(totalSubmissions, successCount, "All parallel submissions should succeed")
 	s.Require().Equal(0, failureCount, "No parallel submissions should fail")
-	s.T().Logf("Parallel submission test completed with failed submissions: %d", failureCount)
+
+	s.T().Logf("Parallel submission test completed: %d/%d successful, %d failed", successCount, totalSubmissions, failureCount)
 }
 
 // createTestBlob creates a test blob with unique data

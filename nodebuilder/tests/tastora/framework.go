@@ -2,15 +2,16 @@ package tastora
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	cometcfg "github.com/cometbft/cometbft/config"
+	"github.com/containerd/errdefs"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -26,6 +27,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/dataavailability"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	"github.com/celestiaorg/tastora/framework/testutil/wallet"
@@ -35,18 +37,16 @@ import (
 )
 
 const (
-	defaultCelestiaAppTag = "v6.1.2-arabica"
-	celestiaAppImage      = "ghcr.io/celestiaorg/celestia-app"
-	// defaultNodeTag can be overridden at build time using ldflags
-	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultCelestiaNodeTag = "v0.28.2-arabica"
-	nodeImage              = "ghcr.io/celestiaorg/celestia-node"
-
-	testChainID = "test"
+	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
+	defaultCelestiaTag = "v5.0.1"
+	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
+	testChainID        = "test"
 )
 
 var (
-	defaultNodeTag = "v0.28.2-arabica" // Official release with queued submission feature and fixes
+	// defaultNodeTag can be overridden at build time using ldflags
+	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
+	defaultNodeTag = "v0.28.0-arabica" // Official release with queued submission feature
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
@@ -83,7 +83,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
-		defaultFundingAmount: 100_000_000_000, // 100 billion utia
+		defaultFundingAmount: 10_000_000_000, // 10 billion utia - enough for multiple blob transactions
 	}
 
 	// Apply configuration options
@@ -94,34 +94,37 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f.config = cfg
 
 	f.logger.Info("Setting up Tastora framework", zap.String("test", t.Name()))
-
-	// Simple cleanup: use Docker's built-in cleanup to remove all unused resources
-	f.dockerCleanup()
-
-	// Setup Docker client and network - should work reliably with proper cleanup
-	cli, netID := docker.DockerSetup(t)
-	f.client, f.network = cli, netID
-	// Ensure cleanup runs even if tests fail midway
-	t.Cleanup(func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-		_ = f.Stop(cleanupCtx)
-	})
-
+	f.client, f.network = docker.DockerSetup(t)
 	f.chainBuilder, f.daNetworkBuilder = f.createBuilders(cfg)
 
 	return f
 }
 
-// SetupNetwork initializes the Celestia chain, DA network, and default bridge node.
+// SetupNetwork initializes the basic network infrastructure.
+// This includes starting the Celestia chain, DA network infrastructure,
+// and ALWAYS creates the main bridge node (minimum viable DA network).
 func (f *Framework) SetupNetwork(ctx context.Context) error {
+	// 1. Create and start Celestia chain
 	f.celestia = f.createAndStartCelestiaChain(ctx)
 
-	// Build DA network - should work reliably with proper resource isolation
-	daNetwork, err := f.daNetworkBuilder.Build(ctx)
-	require.NoError(f.t, err, "failed to build DA network")
+	// 2. Setup DA network infrastructure (retry once on transient docker errors)
+	var daNetwork *dataavailability.Network
+	var err error
+	for attempt := 1; attempt <= 2; attempt++ {
+		daNetwork, err = f.daNetworkBuilder.Build(ctx)
+		if err == nil {
+			break
+		}
+		if errdefs.IsNotFound(err) {
+			f.t.Logf("retrying DA network setup due to missing container (attempt %d/2): %v", attempt, err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		return err
+	}
 	f.daNetwork = daNetwork
 
+	// 3. ALWAYS create default bridge node (minimum viable DA network)
 	defaultBridgeNode := f.newBridgeNode(ctx)
 	f.bridgeNodes = append(f.bridgeNodes, defaultBridgeNode)
 	f.logger.Info("Default bridge node created and funded automatically")
@@ -139,25 +142,28 @@ func (f *Framework) GetLightNodes() []*dataavailability.Node {
 	return f.lightNodes
 }
 
-// NewBridgeNode creates and starts a new bridge node.
+// NewBridgeNode creates, starts and appends a new bridge node.
 func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)
 	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
 	return bridgeNode
 }
 
-// NewLightNode creates and starts a new light node.
+// NewLightNode creates, starts and appends a new light node.
 func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
+	// Get the next available light node from the DA network
 	allLightNodes := f.daNetwork.GetLightNodes()
 	if len(f.lightNodes) >= len(allLightNodes) {
 		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
 	}
 
+	// Use the first bridge node as the connection point
 	bridgeNode := f.bridgeNodes[0]
 	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia)
 	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
+	// Verify funds are available by checking balance
 	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
 
 	f.lightNodes = append(f.lightNodes, lightNode)
@@ -186,7 +192,7 @@ func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailabili
 	return rpcClient
 }
 
-// CreateTestWallet creates a new test wallet with the specified amount.
+// CreateTestWallet creates a new test wallet on the chain, funding it with the specified amount.
 func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.Wallet {
 	sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount)))
 	testWallet, err := wallet.CreateAndFund(ctx, "test", sendAmount, f.celestia)
@@ -195,18 +201,38 @@ func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.W
 	return testWallet
 }
 
+// queryBalance fetches the balance of a given address.
+func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	grpcAddr := fmt.Sprintf("%s:%s", networkInfo.External.Hostname, networkInfo.External.Ports.GRPC)
+
+	grpcCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	grpcConn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(f.t, err, "failed to connect to gRPC")
+
+	defer grpcConn.Close()
+
+	bankClient := banktypes.NewQueryClient(grpcConn)
+	req := &banktypes.QueryBalanceRequest{
+		Address: addr,
+		Denom:   "utia",
+	}
+
+	res, err := bankClient.Balance(grpcCtx, req)
+	require.NoError(f.t, err, "failed to query balance for address %s", addr)
+	return *res.Balance
+}
+
 // newBridgeNode creates and starts a bridge node.
 func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.startBridgeNode(ctx, f.celestia)
-
-	if f.config.TxWorkerAccounts > 0 {
-		f.t.Logf("Waiting for bridge node with %d worker accounts to initialize...", f.config.TxWorkerAccounts)
-		time.Sleep(10 * time.Second)
-	}
-
 	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
 	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
 
+	// Verify funds are available by checking balance
 	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "bridge node")
 
 	return bridgeNode
@@ -220,105 +246,73 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 	f.t.Logf("sending funds from %s to %s", fromAddr.String(), toAddr.String())
 
 	bankSend := banktypes.NewMsgSend(fromAddr, toAddr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount))))
-
-	// Broadcast transaction
 	resp, err := f.celestia.BroadcastMessages(ctx, fromWallet, bankSend)
-	if err != nil {
-		f.t.Fatalf("Failed to broadcast funding transaction: %v", err)
-	}
+	require.NoError(f.t, err)
+	require.Equal(f.t, resp.Code, uint32(0), "resp: %v", resp)
 
-	// Wait for transaction to be confirmed
-	if err := f.waitForTransactionInclusion(ctx, resp.TxHash); err != nil {
-		f.t.Fatalf("Failed to wait for transaction inclusion: %v", err)
-	}
+	waitCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	f.t.Logf("Funding transaction completed for %s", toAddr.String())
-}
-
-// waitForTransactionInclusion polls for a transaction hash to verify it was included in a block.
-func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash string) error {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	node := f.celestia.GetNodes()[0]
-	rpcClient, err := node.GetRPCClient()
-	if err != nil {
-		return fmt.Errorf("failed to get RPC client: %w", err)
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			// Query the transaction to see if it was included in a block
-			txHashBytes, err := hex.DecodeString(txHash)
-			if err != nil {
-				f.t.Logf("Failed to decode transaction hash %s: %v", txHash, err)
-				continue
-			}
-			resp, err := rpcClient.Tx(ctx, txHashBytes, false)
-			if err == nil && resp != nil {
-				f.t.Logf("Transaction %s confirmed at height %d", txHash, resp.Height)
-				return nil
-			}
-			// Continue polling if transaction not found yet
+	maxRetries := 3
+	for retry := 0; retry < maxRetries; retry++ {
+		err = wait.ForBlocks(waitCtx, 3, f.celestia) // Increased from 2 to 3 blocks
+		if err == nil {
+			break
+		}
+		if retry < maxRetries-1 {
+			f.t.Logf("Failed to wait for blocks (attempt %d/%d): %v, retrying...", retry+1, maxRetries, err)
+			time.Sleep(2 * time.Second)
 		}
 	}
+	require.NoError(f.t, err, "failed to wait for blocks after funding transaction")
+
+	for attempt := 1; attempt <= 5; attempt++ {
+		bal := f.queryBalance(waitCtx, toAddr.String())
+		if bal.Amount.Int64() >= amount {
+			f.t.Logf("Successfully verified funding: %d utia transferred to %s", bal.Amount.Int64(), toAddr.String())
+			return
+		}
+		if attempt < 5 {
+			f.t.Logf("Balance check attempt %d/5: expected %d utia, got %d utia, retrying...",
+				attempt, amount, bal.Amount.Int64())
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	bal := f.queryBalance(waitCtx, toAddr.String())
+	require.GreaterOrEqual(f.t, bal.Amount.Int64(), amount, "balance is not sufficient after funding")
 }
 
 // verifyNodeBalance verifies that a DA node has the expected balance after funding.
+// This function provides deterministic balance verification with retries and waiting.
+// It should be called after fundNodeAccount to ensure funding was successful.
 func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailability.Node, expectedAmount int64, nodeType string) {
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get %s account address", nodeType)
 
-	// Verify balance - should work reliably with proper synchronization
-	bal := f.queryBalanceWithFallback(ctx, nodeAddr.String(), nodeType)
-	if bal.Amount.Int64() == 0 {
-		f.t.Logf("Skipping balance verification for %s due to Docker timeout issues", nodeType)
-		return
+	maxRetries := 5
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		bal := f.queryBalance(ctx, nodeAddr.String())
+		if bal.Amount.Int64() >= expectedAmount {
+			f.t.Logf("Successfully verified %s balance: %d utia (expected: %d)", nodeType, bal.Amount.Int64(), expectedAmount)
+			return
+		}
+
+		if attempt < maxRetries {
+			f.t.Logf("Balance check attempt %d/%d for %s: expected %d utia, got %d utia, retrying...",
+				attempt, maxRetries, nodeType, expectedAmount, bal.Amount.Int64())
+			time.Sleep(2 * time.Second)
+		}
 	}
 
-	// Allow small tolerance for gas fees
+	bal := f.queryBalance(ctx, nodeAddr.String())
+	// Allow small tolerance for gas fees but ensure we have sufficient balance
+	// The node should have at least 95% of expected amount (allowing for minor gas fees)
 	minExpected := int64(float64(expectedAmount) * 0.95)
 	require.GreaterOrEqual(f.t, bal.Amount.Int64(), minExpected,
 		"%s should have sufficient balance after funding (got %d, expected at least %d)",
 		nodeType, bal.Amount.Int64(), minExpected)
-}
-
-// queryBalanceWithFallback attempts to query balance but returns zero balance on timeout instead of failing
-func (f *Framework) queryBalanceWithFallback(ctx context.Context, addr string, nodeType string) sdk.Coin {
-	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
-	if err != nil {
-		f.t.Logf("Failed to get network info for %s, skipping balance verification: %v", nodeType, err)
-		return sdk.Coin{Amount: sdkmath.NewInt(0), Denom: "utia"}
-	}
-
-	grpcAddr := fmt.Sprintf("%s:%s", networkInfo.External.Hostname, networkInfo.External.Ports.GRPC)
-	grpcCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	grpcConn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		f.t.Logf("Failed to connect to gRPC for %s, skipping balance verification: %v", nodeType, err)
-		return sdk.Coin{Amount: sdkmath.NewInt(0), Denom: "utia"}
-	}
-	defer grpcConn.Close()
-
-	bankClient := banktypes.NewQueryClient(grpcConn)
-	req := &banktypes.QueryBalanceRequest{
-		Address: addr,
-		Denom:   "utia",
-	}
-
-	res, err := bankClient.Balance(grpcCtx, req)
-	if err != nil {
-		f.t.Logf("Failed to query balance for %s, skipping balance verification: %v", nodeType, err)
-		return sdk.Coin{Amount: sdkmath.NewInt(0), Denom: "utia"}
-	}
-
-	return *res.Balance
 }
 
 // fundNodeAccount funds a specific DA node account using the default wallet.
@@ -326,11 +320,17 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *dataavailabilit
 	fundingWallet := f.getOrCreateFundingWallet(ctx)
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 
-	// Get the node's account address - should work reliably with proper synchronization
+	// Get the node's account address
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get node account address")
 
 	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
+
+	current := f.queryBalance(ctx, nodeAccAddr.String())
+	if current.Amount.Int64() >= amount {
+		f.t.Logf("Skipping funding for %s: current balance %d >= %d", nodeAccAddr.String(), current.Amount.Int64(), amount)
+		return
+	}
 
 	f.t.Logf("Funding node account %s with %d utia", nodeAddr.String(), amount)
 
@@ -348,9 +348,7 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		UIDGID:     "10001:10001",
 	}
 
-	// Use a more unique test name with timestamp and random component
-	testName := fmt.Sprintf("%s-%d-%d", f.t.Name(), time.Now().UnixNano(), time.Now().Unix())
-	chainBuilder := cosmos.NewChainBuilderWithTestName(f.t, testName).
+	chainBuilder := cosmos.NewChainBuilderWithTestName(f.t, fmt.Sprintf("%s-%d", f.t.Name(), time.Now().UnixNano())).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(chainImage).
@@ -360,9 +358,18 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 			"--grpc.enable",
 			"--grpc.address", "0.0.0.0:9090",
 			"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
-			"--minimum-gas-prices", "0.004utia",
 			"--timeout-commit", "1s",
-		)
+		).
+		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
+			if err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+				cfg.TxIndex.Indexer = "kv"
+			}); err != nil {
+				return err
+			}
+			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+				cfg.GRPC.Enable = true
+			})
+		})
 
 	// Add validator nodes based on config
 	for i := 0; i < cfg.NumValidators; i++ {
@@ -382,22 +389,11 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		WithNodeType(types.BridgeNode).
 		Build()
 
-	// Add light nodes based on configuration
-	var nodeConfigs []dataavailability.NodeConfig
-	nodeConfigs = append(nodeConfigs, bridgeNodeConfig)
-
-	for i := 0; i < cfg.LightNodeCount; i++ {
-		lightNodeConfig := dataavailability.NewNodeBuilder().
-			WithNodeType(types.LightNode).
-			Build()
-		nodeConfigs = append(nodeConfigs, lightNodeConfig)
-	}
-
-	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, testName).
+	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, fmt.Sprintf("%s-%d", f.t.Name(), time.Now().UnixNano())).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(daImage).
-		WithNodes(nodeConfigs...).
+		WithNodes(bridgeNodeConfig).
 		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
 		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
 
@@ -406,22 +402,12 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 
 // createAndStartCelestiaChain initializes and starts the Celestia chain.
 func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Chain {
-	var celestia *cosmos.Chain
-	var err error
-	// Build and start chain - should work reliably with proper resource isolation
-	celestia, err = f.chainBuilder.Build(ctx)
+	celestia, err := f.chainBuilder.Build(ctx)
 	require.NoError(f.t, err, "failed to build celestia chain")
-
-	// Use a longer timeout for chain startup to handle slow chain initialization
-	chainStartCtx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
-	defer cancel()
-	err = celestia.Start(chainStartCtx)
+	err = celestia.Start(ctx)
 	require.NoError(f.t, err, "failed to start celestia chain")
 
-	// Use a longer timeout for waiting for blocks after chain startup
-	blockWaitCtx, cancel2 := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel2()
-	require.NoError(f.t, wait.ForBlocks(blockWaitCtx, 2, celestia))
+	require.NoError(f.t, wait.ForBlocks(ctx, 2, celestia))
 	return celestia
 }
 
@@ -441,13 +427,12 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 	require.NoError(f.t, err, "failed to get network info")
 	hostname := networkInfo.Internal.Hostname
 
-	// Build start arguments with explicit core port
-	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
+	// Build start arguments including TxWorkerAccounts if configured
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
 	if f.config.TxWorkerAccounts > 0 {
 		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
 	}
 
-	// Start bridge node - should work reliably with proper resource isolation
 	err = bridgeNode.Start(ctx,
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(startArgs...),
@@ -488,19 +473,33 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
 
-	// Start light node - should work reliably with proper resource isolation
-	err = lightNode.Start(ctx,
-		dataavailability.WithChainID(testChainID),
-		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-				"P2P_NETWORK":     testChainID,
-			},
-		),
-	)
-	require.NoError(f.t, err, "failed to start light node")
-	return lightNode
+	// Try starting the light node, with a retry to avoid occasional docker flakiness
+	var lastErr error
+	for attempt := 1; attempt <= 2; attempt++ {
+		err = lightNode.Start(ctx,
+			dataavailability.WithChainID(testChainID),
+			dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+			dataavailability.WithEnvironmentVariables(
+				map[string]string{
+					"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+					"P2P_NETWORK":     testChainID,
+				},
+			),
+		)
+		if err == nil {
+			return lightNode
+		}
+		lastErr = err
+		// Retry only for transient docker/container races
+		if errdefs.IsNotFound(err) {
+			f.t.Logf("retrying light node start due to missing container (attempt %d/2): %v", attempt, err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		require.NoError(f.t, err, "failed to start light node")
+	}
+	require.NoError(f.t, lastErr, "failed to start light node after retries")
+	return nil
 }
 
 // getGenesisHash returns the genesis hash of the chain.
@@ -523,7 +522,7 @@ func getCelestiaTag() string {
 	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
 		return tag
 	}
-	return defaultCelestiaAppTag
+	return defaultCelestiaTag
 }
 
 // getNodeTag returns the Celestia node image tag.
@@ -531,7 +530,7 @@ func getNodeTag() string {
 	if tag := os.Getenv("CELESTIA_NODE_TAG"); tag != "" {
 		return tag
 	}
-	return defaultCelestiaNodeTag
+	return defaultNodeTag
 }
 
 // getNodeImage returns the Celestia node image.
@@ -545,7 +544,7 @@ func getNodeImage() string {
 // getOrCreateFundingWallet returns the framework's funding wallet, creating it if needed.
 func (f *Framework) getOrCreateFundingWallet(ctx context.Context) *types.Wallet {
 	if f.fundingWallet == nil {
-		f.fundingWallet = f.CreateTestWallet(ctx, 200_000_000_000)
+		f.fundingWallet = f.CreateTestWallet(ctx, 50_000_000_000)
 		f.t.Logf("Created funding wallet for automatic node funding")
 	}
 	return f.fundingWallet
@@ -560,14 +559,10 @@ func (f *Framework) Stop(ctx context.Context) error {
 		if node != nil {
 			f.logger.Info("Stopping bridge node", zap.Int("index", i))
 			if err := node.Stop(ctx); err != nil {
-				if !strings.Contains(err.Error(), "No such container") {
-					f.logger.Warn("Failed to stop bridge node", zap.Int("index", i), zap.Error(err))
-				}
+				f.logger.Warn("Failed to stop bridge node", zap.Int("index", i), zap.Error(err))
 			}
 			if err := node.Remove(ctx); err != nil {
-				if !strings.Contains(err.Error(), "No such container") {
-					f.logger.Warn("Failed to remove bridge node", zap.Int("index", i), zap.Error(err))
-				}
+				f.logger.Warn("Failed to remove bridge node", zap.Int("index", i), zap.Error(err))
 			}
 		}
 	}
@@ -577,14 +572,10 @@ func (f *Framework) Stop(ctx context.Context) error {
 		if node != nil {
 			f.logger.Info("Stopping light node", zap.Int("index", i))
 			if err := node.Stop(ctx); err != nil {
-				if !strings.Contains(err.Error(), "No such container") {
-					f.logger.Warn("Failed to stop light node", zap.Int("index", i), zap.Error(err))
-				}
+				f.logger.Warn("Failed to stop light node", zap.Int("index", i), zap.Error(err))
 			}
 			if err := node.Remove(ctx); err != nil {
-				if !strings.Contains(err.Error(), "No such container") {
-					f.logger.Warn("Failed to remove light node", zap.Int("index", i), zap.Error(err))
-				}
+				f.logger.Warn("Failed to remove light node", zap.Int("index", i), zap.Error(err))
 			}
 		}
 	}
@@ -599,73 +590,21 @@ func (f *Framework) Stop(ctx context.Context) error {
 			nodeNames[i] = node.Name()
 		}
 		if err := f.daNetwork.RemoveNodes(ctx, nodeNames...); err != nil {
-			if !strings.Contains(err.Error(), "No such container") {
-				f.logger.Warn("Failed to remove DA network nodes", zap.Error(err))
-			}
+			f.logger.Warn("Failed to remove DA network nodes", zap.Error(err))
 		}
 	}
 
-	// Stop Celestia chain (validator containers)
+	// Stop Celestia chain
 	if f.celestia != nil {
 		f.logger.Info("Stopping Celestia chain")
 		if err := f.celestia.Stop(ctx); err != nil {
-			if !strings.Contains(err.Error(), "No such container") {
-				f.logger.Warn("Failed to stop Celestia chain", zap.Error(err))
-			}
+			f.logger.Warn("Failed to stop Celestia chain", zap.Error(err))
 		}
 		if err := f.celestia.Remove(ctx); err != nil {
-			if !strings.Contains(err.Error(), "No such container") {
-				f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
-			}
-		}
-
-	}
-
-	if f.client != nil && f.network != "" {
-		if err := f.client.NetworkRemove(ctx, f.network); err != nil {
-			if !strings.Contains(err.Error(), "No such network") && !strings.Contains(err.Error(), "has active endpoints") {
-				f.logger.Warn("Failed to remove docker network", zap.String("network", f.network), zap.Error(err))
-			}
+			f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
 		}
 	}
-
-	// Use Docker's built-in cleanup commands for comprehensive cleanup
-	f.dockerCleanup()
 
 	f.logger.Info("Framework cleanup completed")
 	return nil
-}
-
-// dockerCleanup uses Docker's built-in commands to clean up unused resources
-func (f *Framework) dockerCleanup() {
-	// Clean up containers with Tastora test-related names (da-* and test-val-*)
-	f.cleanupContainersByPattern("da-")
-	f.cleanupContainersByPattern("test-val-")
-
-	// Use Docker's built-in cleanup commands for comprehensive cleanup
-	exec.Command("docker", "system", "prune", "-f").Run()
-	exec.Command("docker", "volume", "prune", "-f").Run()
-}
-
-// cleanupContainersByPattern stops and removes containers matching the given name pattern
-func (f *Framework) cleanupContainersByPattern(pattern string) {
-	cmd := exec.Command("docker", "ps", "-a", "--filter", "name="+pattern, "--format", "{{.Names}}")
-	output, err := cmd.Output()
-	if err == nil && len(output) > 0 {
-		containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
-
-		// Stop all containers
-		for _, name := range containerNames {
-			if name != "" {
-				exec.Command("docker", "stop", name).Run()
-			}
-		}
-
-		// Remove all containers
-		for _, name := range containerNames {
-			if name != "" {
-				exec.Command("docker", "rm", name).Run()
-			}
-		}
-	}
 }
