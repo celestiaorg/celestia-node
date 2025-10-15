@@ -549,3 +549,62 @@ func (f *Framework) getOrCreateFundingWallet(ctx context.Context) *types.Wallet 
 	}
 	return f.fundingWallet
 }
+
+// Stop cleans up all Docker containers and resources created by the framework.
+func (f *Framework) Stop(ctx context.Context) error {
+	f.logger.Info("Stopping framework and cleaning up containers")
+
+	// Stop all bridge nodes
+	for i, node := range f.bridgeNodes {
+		if node != nil {
+			f.logger.Info("Stopping bridge node", zap.Int("index", i))
+			if err := node.Stop(ctx); err != nil {
+				f.logger.Warn("Failed to stop bridge node", zap.Int("index", i), zap.Error(err))
+			}
+			if err := node.Remove(ctx); err != nil {
+				f.logger.Warn("Failed to remove bridge node", zap.Int("index", i), zap.Error(err))
+			}
+		}
+	}
+
+	// Stop all light nodes
+	for i, node := range f.lightNodes {
+		if node != nil {
+			f.logger.Info("Stopping light node", zap.Int("index", i))
+			if err := node.Stop(ctx); err != nil {
+				f.logger.Warn("Failed to stop light node", zap.Int("index", i), zap.Error(err))
+			}
+			if err := node.Remove(ctx); err != nil {
+				f.logger.Warn("Failed to remove light node", zap.Int("index", i), zap.Error(err))
+			}
+		}
+	}
+
+	// Stop DA network
+	if f.daNetwork != nil {
+		f.logger.Info("Stopping DA network")
+		// Get all node names to remove
+		allNodes := f.daNetwork.GetNodes()
+		nodeNames := make([]string, len(allNodes))
+		for i, node := range allNodes {
+			nodeNames[i] = node.Name()
+		}
+		if err := f.daNetwork.RemoveNodes(ctx, nodeNames...); err != nil {
+			f.logger.Warn("Failed to remove DA network nodes", zap.Error(err))
+		}
+	}
+
+	// Stop Celestia chain
+	if f.celestia != nil {
+		f.logger.Info("Stopping Celestia chain")
+		if err := f.celestia.Stop(ctx); err != nil {
+			f.logger.Warn("Failed to stop Celestia chain", zap.Error(err))
+		}
+		if err := f.celestia.Remove(ctx); err != nil {
+			f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
+		}
+	}
+
+	f.logger.Info("Framework cleanup completed")
+	return nil
+}
