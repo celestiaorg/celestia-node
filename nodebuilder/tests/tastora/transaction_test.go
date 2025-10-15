@@ -57,8 +57,8 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	)
 
 	for round := 0; round < numRounds; round++ {
-		s.T().Logf("Starting round %d with %d parallel workers", round+1, numWorkers)
-		for worker := 0; worker < numWorkers; worker++ {
+		s.T().Logf("Starting round %d with %d parallel workers", round+1, numParallelWorkers)
+		for worker := 0; worker < numParallelWorkers; worker++ {
 			wg.Add(1)
 			go func(roundNum, workerNum int) {
 				defer wg.Done()
@@ -77,6 +77,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 					failureCount.Add(1)
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
 				}
+				s.T().Logf("Round %d, Worker %d: Submitted blob in tx at height %d", roundNum+1, workerNum+1, height)
 			}(round, worker)
 		}
 
