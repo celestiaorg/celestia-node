@@ -83,7 +83,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 
 				txConfig := state.NewTxConfig(
 					state.WithGas(200_000),
-					state.WithGasPrice(5000),
+					state.WithGasPrice(25000), // 0.025 utia per gas unit (minimum required)
 				)
 
 				// Submit the blob

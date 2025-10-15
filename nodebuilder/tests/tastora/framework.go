@@ -11,7 +11,6 @@ import (
 	sdkmath "cosmossdk.io/math"
 	cometcfg "github.com/cometbft/cometbft/config"
 	"github.com/containerd/errdefs"
-	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -23,6 +22,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-node/state"
 	"github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -83,7 +83,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
-		defaultFundingAmount: 10_000_000_000, // 10 billion utia - enough for multiple blob transactions
+		defaultFundingAmount: 100_000_000_000, // 100 billion utia - enough for worker account initialization and multiple blob transactions
 	}
 
 	// Apply configuration options
@@ -229,6 +229,13 @@ func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 // newBridgeNode creates and starts a bridge node.
 func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.startBridgeNode(ctx, f.celestia)
+
+	// Add a delay to allow the node to fully initialize, especially when using worker accounts
+	if f.config.TxWorkerAccounts > 0 {
+		f.t.Logf("Waiting for bridge node with %d worker accounts to initialize...", f.config.TxWorkerAccounts)
+		time.Sleep(10 * time.Second)
+	}
+
 	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
 	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
 
@@ -246,9 +253,23 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 	f.t.Logf("sending funds from %s to %s", fromAddr.String(), toAddr.String())
 
 	bankSend := banktypes.NewMsgSend(fromAddr, toAddr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount))))
-	resp, err := f.celestia.BroadcastMessages(ctx, fromWallet, bankSend)
-	require.NoError(f.t, err)
-	require.Equal(f.t, resp.Code, uint32(0), "resp: %v", resp)
+
+	// Retry transaction broadcasting with exponential backoff
+	var resp sdk.TxResponse
+	broadcastRetries := 3
+	for attempt := 1; attempt <= broadcastRetries; attempt++ {
+		resp, err = f.celestia.BroadcastMessages(ctx, fromWallet, bankSend)
+		if err == nil && resp.Code == uint32(0) {
+			break
+		}
+		if attempt < broadcastRetries {
+			f.t.Logf("Transaction broadcast failed (attempt %d/%d): err=%v, resp=%v, retrying...",
+				attempt, broadcastRetries, err, resp)
+			time.Sleep(time.Duration(attempt) * 2 * time.Second) // Exponential backoff
+		}
+	}
+	require.NoError(f.t, err, "failed to broadcast funding transaction after %d attempts", broadcastRetries)
+	require.Equal(f.t, resp.Code, uint32(0), "transaction failed with code %d: %v", resp.Code, resp)
 
 	waitCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -320,9 +341,21 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *dataavailabilit
 	fundingWallet := f.getOrCreateFundingWallet(ctx)
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 
-	// Get the node's account address
-	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
-	require.NoError(f.t, err, "failed to get node account address")
+	// Get the node's account address with retry logic
+	var nodeAddr state.Address
+	var err error
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		nodeAddr, err = nodeClient.State.AccountAddress(ctx)
+		if err == nil {
+			break
+		}
+		if attempt < maxRetries {
+			f.t.Logf("Failed to get node account address (attempt %d/%d): %v, retrying...", attempt, maxRetries, err)
+			time.Sleep(2 * time.Second)
+		}
+	}
+	require.NoError(f.t, err, "failed to get node account address after %d attempts", maxRetries)
 
 	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
 
@@ -361,13 +394,8 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 			"--timeout-commit", "1s",
 		).
 		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			if err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+			return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 				cfg.TxIndex.Indexer = "kv"
-			}); err != nil {
-				return err
-			}
-			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-				cfg.GRPC.Enable = true
 			})
 		})
 
@@ -441,6 +469,9 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
 				"P2P_NETWORK":           testChainID,
 				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
+				// Add environment variables to configure gas price for worker account initialization
+				"CELESTIA_GAS_PRICE":     "0.025",
+				"CELESTIA_MIN_GAS_PRICE": "0.025",
 			},
 		),
 	)
@@ -544,7 +575,7 @@ func getNodeImage() string {
 // getOrCreateFundingWallet returns the framework's funding wallet, creating it if needed.
 func (f *Framework) getOrCreateFundingWallet(ctx context.Context) *types.Wallet {
 	if f.fundingWallet == nil {
-		f.fundingWallet = f.CreateTestWallet(ctx, 50_000_000_000)
+		f.fundingWallet = f.CreateTestWallet(ctx, 200_000_000_000)
 		f.t.Logf("Created funding wallet for automatic node funding")
 	}
 	return f.fundingWallet
