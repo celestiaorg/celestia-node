@@ -125,4 +125,4 @@ balance, err := celestiaClient.State.Balance(ctx)
 
 ## Example
 
-See [example.go](https://github.com/celestiaorg/celestia-node/blob/light-lib/api/client/example/example.go) for a complete example of creating a client, submitting a blob, and retrieving it.
+See [example.go](https://github.com/celestiaorg/celestia-node/blob/main/api/client/example/example.go) for a complete example of creating a client, submitting a blob, and retrieving it.
