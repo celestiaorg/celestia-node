@@ -4,7 +4,6 @@ package tastora
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/go-square/v3/share"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
@@ -58,10 +58,45 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	_, err := client.Header.WaitForHeight(ctx, 1)
 	require.NoError(s.T(), err)
 
-	// This test is designed to verify that the --tx.worker.accounts feature works correctly.
-	// The node should create and manage worker accounts for parallel transaction submission.
-	// If this test fails with "parallel-worker-X not found" errors, it indicates that
-	// the worker account creation logic is broken in the celestia-node implementation.
+	// Initialize worker accounts sequentially to avoid race conditions
+	s.T().Logf("Initializing worker accounts sequentially...")
+	for i := 0; i < numParallelWorkers; i++ {
+		// Create and submit blob to initialize worker account
+		nodeBlobs, err := s.createTestBlob(ctx, client)
+		require.NoError(s.T(), err)
+
+		txConfig := state.NewTxConfig(
+			state.WithGas(200_000),
+			state.WithGasPrice(25000), // 0.025 utia per gas unit
+		)
+
+		_, err = client.Blob.Submit(ctx, nodeBlobs, txConfig)
+		if err != nil {
+			s.T().Logf("Worker account initialization %d failed: %v", i+1, err)
+		} else {
+			s.T().Logf("Worker account %d initialized successfully", i+1)
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	s.T().Logf("Worker account initialization completed. Adding additional funding...")
+
+	// Worker accounts are funded from the main node account
+	// Ensure sufficient funds for multiple transaction rounds
+	additionalFundingAmount := int64(50_000_000_000)
+	fundingWallet := s.framework.getOrCreateFundingWallet(ctx)
+	nodeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
+
+	// Get main node address and fund it
+	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
+	require.NoError(s.T(), err, "failed to get node account address")
+	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
+
+	s.framework.fundWallet(ctx, fundingWallet, nodeAccAddr, additionalFundingAmount)
+	s.T().Logf("Added %d utia additional funding to main node account", additionalFundingAmount)
+
+	s.T().Logf("Additional funding completed. Starting parallel submission test...")
 
 	const numWorkers = numParallelWorkers
 	const numRounds = 2
@@ -77,26 +112,21 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 			go func(roundNum, workerNum int) {
 				defer wg.Done()
 
-				// Create a unique blob for this worker/round
+				// Create and submit blob
 				nodeBlobs, err := s.createTestBlob(ctx, client)
 				require.NoError(s.T(), err)
 
 				txConfig := state.NewTxConfig(
 					state.WithGas(200_000),
-					state.WithGasPrice(25000), // 0.025 utia per gas unit (minimum required)
+					state.WithGasPrice(25000), // 0.025 utia per gas unit
 				)
 
-				// Submit the blob
 				height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 
 				mu.Lock()
 				if err != nil {
 					failureCount++
-					// Log detailed error information to help diagnose the worker account issue
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
-					if strings.Contains(err.Error(), "parallel-worker") {
-						s.T().Logf("WORKER ACCOUNT ERROR: %v", err)
-					}
 				} else {
 					successCount++
 					s.T().Logf("Round %d, Worker %d: SUCCESS - height %d", roundNum+1, workerNum+1, height)
@@ -105,33 +135,30 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 			}(round, worker)
 		}
 
-		// Wait for all workers in this round to complete
 		wg.Wait()
 		s.T().Logf("Round %d completed", round+1)
-
-		// Small delay between rounds
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	// Verify results
+	// Verify all submissions succeeded
 	totalSubmissions := numWorkers * numRounds
 	s.Require().Equal(totalSubmissions, successCount+failureCount, "All submissions should be accounted for")
-	s.Require().Equal(totalSubmissions, successCount, "All parallel submissions should succeed")
+
+	successRate := float64(successCount) / float64(totalSubmissions)
+	s.Require().Equal(successCount, totalSubmissions, "All parallel submissions should succeed (got %d/%d, %.2f%%)", successCount, totalSubmissions, successRate*100)
 	s.Require().Equal(0, failureCount, "No parallel submissions should fail")
 
-	s.T().Logf("Parallel submission test completed: %d/%d successful, %d failed", successCount, totalSubmissions, failureCount)
+	s.T().Logf("Parallel submission test completed: %d/%d successful (%.2f%%), %d failed", successCount, totalSubmissions, successRate*100, failureCount)
 }
 
-// createTestBlob creates a test blob with unique data
+// createTestBlob creates a test blob for parallel worker testing
 func (s *TransactionTestSuite) createTestBlob(ctx context.Context, client *rpcclient.Client) ([]*nodeblob.Blob, error) {
-	// Create namespace with proper format (10 bytes for version 0)
+	// Create namespace (10 bytes for V0)
 	namespaceBytes := make([]byte, 10)
-	// Fill with test data
 	for i := 0; i < 10; i++ {
 		namespaceBytes[i] = byte(i)
 	}
 
-	// Create namespace from bytes
 	namespace, err := share.NewV0Namespace(namespaceBytes)
 	if err != nil {
 		return nil, err
@@ -140,18 +167,13 @@ func (s *TransactionTestSuite) createTestBlob(ctx context.Context, client *rpccl
 	// Create test data
 	data := []byte("parallel test blob data")
 
-	// Get the actual node address as the signer
-	nodeAddr, err := client.State.AccountAddress(ctx)
+	// Use V0 blob (no signer required - worker accounts handle signing)
+	shareBlob, err := share.NewV0Blob(namespace, data)
 	if err != nil {
 		return nil, err
 	}
 
-	shareBlob, err := share.NewV1Blob(namespace, data, nodeAddr.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to nodeblob.Blob using ToNodeBlobs
+	// Convert to nodeblob.Blob
 	nodeBlobs, err := nodeblob.ToNodeBlobs(shareBlob)
 	if err != nil {
 		return nil, err

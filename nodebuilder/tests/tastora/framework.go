@@ -11,6 +11,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	cometcfg "github.com/cometbft/cometbft/config"
 	"github.com/containerd/errdefs"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -83,7 +84,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
-		defaultFundingAmount: 100_000_000_000, // 100 billion utia - enough for worker account initialization and multiple blob transactions
+		defaultFundingAmount: 100_000_000_000, // 100 billion utia
 	}
 
 	// Apply configuration options
@@ -230,7 +231,7 @@ func (f *Framework) queryBalance(ctx context.Context, addr string) sdk.Coin {
 func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.startBridgeNode(ctx, f.celestia)
 
-	// Add a delay to allow the node to fully initialize, especially when using worker accounts
+	// Allow time for worker account initialization
 	if f.config.TxWorkerAccounts > 0 {
 		f.t.Logf("Waiting for bridge node with %d worker accounts to initialize...", f.config.TxWorkerAccounts)
 		time.Sleep(10 * time.Second)
@@ -254,39 +255,38 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 
 	bankSend := banktypes.NewMsgSend(fromAddr, toAddr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount))))
 
-	// Retry transaction broadcasting with exponential backoff
+	// Broadcast transaction with retry logic
 	var resp sdk.TxResponse
-	broadcastRetries := 3
-	for attempt := 1; attempt <= broadcastRetries; attempt++ {
+	for attempt := 1; attempt <= 3; attempt++ {
 		resp, err = f.celestia.BroadcastMessages(ctx, fromWallet, bankSend)
 		if err == nil && resp.Code == uint32(0) {
 			break
 		}
-		if attempt < broadcastRetries {
-			f.t.Logf("Transaction broadcast failed (attempt %d/%d): err=%v, resp=%v, retrying...",
-				attempt, broadcastRetries, err, resp)
-			time.Sleep(time.Duration(attempt) * 2 * time.Second) // Exponential backoff
+		if attempt < 3 {
+			f.t.Logf("Transaction broadcast failed (attempt %d/3): %v, retrying...", attempt, err)
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
 		}
 	}
-	require.NoError(f.t, err, "failed to broadcast funding transaction after %d attempts", broadcastRetries)
-	require.Equal(f.t, resp.Code, uint32(0), "transaction failed with code %d: %v", resp.Code, resp)
+	require.NoError(f.t, err, "failed to broadcast funding transaction")
+	require.Equal(f.t, resp.Code, uint32(0), "transaction failed with code %d", resp.Code)
 
 	waitCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	maxRetries := 3
-	for retry := 0; retry < maxRetries; retry++ {
-		err = wait.ForBlocks(waitCtx, 3, f.celestia) // Increased from 2 to 3 blocks
+	// Wait for transaction confirmation
+	for retry := 0; retry < 3; retry++ {
+		err = wait.ForBlocks(waitCtx, 3, f.celestia)
 		if err == nil {
 			break
 		}
-		if retry < maxRetries-1 {
-			f.t.Logf("Failed to wait for blocks (attempt %d/%d): %v, retrying...", retry+1, maxRetries, err)
+		if retry < 2 {
+			f.t.Logf("Failed to wait for blocks (attempt %d/3): %v, retrying...", retry+1, err)
 			time.Sleep(2 * time.Second)
 		}
 	}
 	require.NoError(f.t, err, "failed to wait for blocks after funding transaction")
 
+	// Verify funding was successful
 	for attempt := 1; attempt <= 5; attempt++ {
 		bal := f.queryBalance(waitCtx, toAddr.String())
 		if bal.Amount.Int64() >= amount {
@@ -305,8 +305,6 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 }
 
 // verifyNodeBalance verifies that a DA node has the expected balance after funding.
-// This function provides deterministic balance verification with retries and waiting.
-// It should be called after fundNodeAccount to ensure funding was successful.
 func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailability.Node, expectedAmount int64, nodeType string) {
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
@@ -328,8 +326,7 @@ func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailabil
 	}
 
 	bal := f.queryBalance(ctx, nodeAddr.String())
-	// Allow small tolerance for gas fees but ensure we have sufficient balance
-	// The node should have at least 95% of expected amount (allowing for minor gas fees)
+	// Allow small tolerance for gas fees
 	minExpected := int64(float64(expectedAmount) * 0.95)
 	require.GreaterOrEqual(f.t, bal.Amount.Int64(), minExpected,
 		"%s should have sufficient balance after funding (got %d, expected at least %d)",
@@ -344,18 +341,17 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *dataavailabilit
 	// Get the node's account address with retry logic
 	var nodeAddr state.Address
 	var err error
-	maxRetries := 3
-	for attempt := 1; attempt <= maxRetries; attempt++ {
+	for attempt := 1; attempt <= 3; attempt++ {
 		nodeAddr, err = nodeClient.State.AccountAddress(ctx)
 		if err == nil {
 			break
 		}
-		if attempt < maxRetries {
-			f.t.Logf("Failed to get node account address (attempt %d/%d): %v, retrying...", attempt, maxRetries, err)
+		if attempt < 3 {
+			f.t.Logf("Failed to get node account address (attempt %d/3): %v, retrying...", attempt, err)
 			time.Sleep(2 * time.Second)
 		}
 	}
-	require.NoError(f.t, err, "failed to get node account address after %d attempts", maxRetries)
+	require.NoError(f.t, err, "failed to get node account address")
 
 	nodeAccAddr := sdk.AccAddress(nodeAddr.Bytes())
 
@@ -394,8 +390,15 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 			"--timeout-commit", "1s",
 		).
 		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			return config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
+			if err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
 				cfg.TxIndex.Indexer = "kv"
+			}); err != nil {
+				return err
+			}
+			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+				cfg.GRPC.Enable = true
+				// Set minimum gas price for worker account compatibility
+				cfg.MinGasPrices = "0.004utia"
 			})
 		})
 
@@ -455,7 +458,7 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 	require.NoError(f.t, err, "failed to get network info")
 	hostname := networkInfo.Internal.Hostname
 
-	// Build start arguments including TxWorkerAccounts if configured
+	// Build start arguments
 	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
 	if f.config.TxWorkerAccounts > 0 {
 		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
@@ -469,9 +472,6 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
 				"P2P_NETWORK":           testChainID,
 				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
-				// Add environment variables to configure gas price for worker account initialization
-				"CELESTIA_GAS_PRICE":     "0.025",
-				"CELESTIA_MIN_GAS_PRICE": "0.025",
 			},
 		),
 	)
@@ -504,8 +504,7 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
 
-	// Try starting the light node, with a retry to avoid occasional docker flakiness
-	var lastErr error
+	// Start light node with retry logic
 	for attempt := 1; attempt <= 2; attempt++ {
 		err = lightNode.Start(ctx,
 			dataavailability.WithChainID(testChainID),
@@ -520,16 +519,13 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 		if err == nil {
 			return lightNode
 		}
-		lastErr = err
-		// Retry only for transient docker/container races
-		if errdefs.IsNotFound(err) {
+		if errdefs.IsNotFound(err) && attempt < 2 {
 			f.t.Logf("retrying light node start due to missing container (attempt %d/2): %v", attempt, err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 		require.NoError(f.t, err, "failed to start light node")
 	}
-	require.NoError(f.t, lastErr, "failed to start light node after retries")
 	return nil
 }
 
@@ -590,10 +586,14 @@ func (f *Framework) Stop(ctx context.Context) error {
 		if node != nil {
 			f.logger.Info("Stopping bridge node", zap.Int("index", i))
 			if err := node.Stop(ctx); err != nil {
-				f.logger.Warn("Failed to stop bridge node", zap.Int("index", i), zap.Error(err))
+				if !strings.Contains(err.Error(), "No such container") {
+					f.logger.Warn("Failed to stop bridge node", zap.Int("index", i), zap.Error(err))
+				}
 			}
 			if err := node.Remove(ctx); err != nil {
-				f.logger.Warn("Failed to remove bridge node", zap.Int("index", i), zap.Error(err))
+				if !strings.Contains(err.Error(), "No such container") {
+					f.logger.Warn("Failed to remove bridge node", zap.Int("index", i), zap.Error(err))
+				}
 			}
 		}
 	}
@@ -603,10 +603,14 @@ func (f *Framework) Stop(ctx context.Context) error {
 		if node != nil {
 			f.logger.Info("Stopping light node", zap.Int("index", i))
 			if err := node.Stop(ctx); err != nil {
-				f.logger.Warn("Failed to stop light node", zap.Int("index", i), zap.Error(err))
+				if !strings.Contains(err.Error(), "No such container") {
+					f.logger.Warn("Failed to stop light node", zap.Int("index", i), zap.Error(err))
+				}
 			}
 			if err := node.Remove(ctx); err != nil {
-				f.logger.Warn("Failed to remove light node", zap.Int("index", i), zap.Error(err))
+				if !strings.Contains(err.Error(), "No such container") {
+					f.logger.Warn("Failed to remove light node", zap.Int("index", i), zap.Error(err))
+				}
 			}
 		}
 	}
@@ -621,7 +625,9 @@ func (f *Framework) Stop(ctx context.Context) error {
 			nodeNames[i] = node.Name()
 		}
 		if err := f.daNetwork.RemoveNodes(ctx, nodeNames...); err != nil {
-			f.logger.Warn("Failed to remove DA network nodes", zap.Error(err))
+			if !strings.Contains(err.Error(), "No such container") {
+				f.logger.Warn("Failed to remove DA network nodes", zap.Error(err))
+			}
 		}
 	}
 
@@ -629,10 +635,14 @@ func (f *Framework) Stop(ctx context.Context) error {
 	if f.celestia != nil {
 		f.logger.Info("Stopping Celestia chain")
 		if err := f.celestia.Stop(ctx); err != nil {
-			f.logger.Warn("Failed to stop Celestia chain", zap.Error(err))
+			if !strings.Contains(err.Error(), "No such container") {
+				f.logger.Warn("Failed to stop Celestia chain", zap.Error(err))
+			}
 		}
 		if err := f.celestia.Remove(ctx); err != nil {
-			f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
+			if !strings.Contains(err.Error(), "No such container") {
+				f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
+			}
 		}
 	}
 
