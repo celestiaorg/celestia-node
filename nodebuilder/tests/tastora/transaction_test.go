@@ -98,10 +98,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 				nodeBlobs, err := s.createTestBlob()
 				require.NoError(s.T(), err)
 
-				txConfig := state.NewTxConfig(
-					state.WithGas(200_000),
-					state.WithGasPrice(25000), // 0.025 utia per gas unit
-				)
+				txConfig := state.NewTxConfig(state.WithGasPrice(0.04))
 
 				height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
 				if err != nil {
