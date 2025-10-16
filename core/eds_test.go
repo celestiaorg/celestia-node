@@ -180,4 +180,3 @@ func TestExtendBlock_MainnetBlocks(t *testing.T) {
 		})
 	}
 }
-
