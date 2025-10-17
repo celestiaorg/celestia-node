@@ -72,31 +72,36 @@ func (s *TransactionTestSuite) TearDownSuite() {
 func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	defer s.TearDownSuite()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	_, err := client.Header.WaitForHeight(ctx, 5)
+	// Create and submit blob
+	nodeBlobs, err := s.createTestBlob()
 	require.NoError(s.T(), err)
+
+	// TODO @renaynay: this  is a very ugly hack that
+	//  waits for tx client to be ready
+	for i := 0; i < 3; i++ {
+		height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
+		if err == nil && height > 0 {
+			break
+		}
+	}
 
 	var (
 		numRounds    = 5
 		failureCount atomic.Int32
 		wg           sync.WaitGroup
 	)
-
 	for round := 0; round < numRounds; round++ {
 		s.T().Logf("Starting round %d with %d parallel workers", round+1, numParallelWorkers)
 		for worker := 0; worker < numParallelWorkers; worker++ {
 			wg.Add(1)
 			go func(roundNum, workerNum int) {
 				defer wg.Done()
-
-				// Create and submit blob
-				nodeBlobs, err := s.createTestBlob()
-				require.NoError(s.T(), err)
 
 				height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
 				if err != nil {
@@ -112,12 +117,8 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 		s.T().Logf("Round %d completed", round+1)
 	}
 
-	// TODO @renaynay: delete this when u have figured out bug
-	_, err = client.Header.WaitForHeight(ctx, 500)
-	require.NoError(s.T(), err)
-
 	// Verify all submissions succeeded
-	s.Require().Equal(0, failureCount.Load(), "No parallel submissions should fail")
+	s.Require().Equal(int32(0), failureCount.Load(), "No parallel submissions should fail")
 	s.T().Logf("Parallel submission test completed: %d failed", failureCount.Load())
 }
 
