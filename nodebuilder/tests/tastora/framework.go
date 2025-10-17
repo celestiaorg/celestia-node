@@ -23,7 +23,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-node/state"
 	"github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -34,19 +33,23 @@ import (
 	"github.com/celestiaorg/tastora/framework/testutil/wallet"
 	"github.com/celestiaorg/tastora/framework/types"
 
+	"github.com/celestiaorg/celestia-node/state"
+
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 )
 
 const (
-	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v5.0.1"
-	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
-	testChainID        = "test"
+	defaultCelestiaAppTag = "v6.1.2-arabica"
+	celestiaAppImage      = "ghcr.io/celestiaorg/celestia-app"
+	// defaultNodeTag can be overridden at build time using ldflags
+	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
+	defaultCelestiaNodeTag = "v0.28.1-arabica"
+	nodeImage              = "ghcr.io/celestiaorg/celestia-node"
+
+	testChainID = "test"
 )
 
 var (
-	// defaultNodeTag can be overridden at build time using ldflags
-	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
 	defaultNodeTag = "v0.28.1-arabica" // Official release with queued submission feature and fixes
 )
 
@@ -549,7 +552,7 @@ func getCelestiaTag() string {
 	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
 		return tag
 	}
-	return defaultCelestiaTag
+	return defaultCelestiaAppTag
 }
 
 // getNodeTag returns the Celestia node image tag.
@@ -557,7 +560,7 @@ func getNodeTag() string {
 	if tag := os.Getenv("CELESTIA_NODE_TAG"); tag != "" {
 		return tag
 	}
-	return defaultNodeTag
+	return defaultCelestiaNodeTag
 }
 
 // getNodeImage returns the Celestia node image.
