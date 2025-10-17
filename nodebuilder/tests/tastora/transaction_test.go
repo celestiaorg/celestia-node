@@ -78,7 +78,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 
-	_, err := client.Header.WaitForHeight(ctx, 2)
+	_, err := client.Header.WaitForHeight(ctx, 5)
 	require.NoError(s.T(), err)
 
 	var (
@@ -98,9 +98,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 				nodeBlobs, err := s.createTestBlob()
 				require.NoError(s.T(), err)
 
-				txConfig := state.NewTxConfig(state.WithGasPrice(0.04))
-
-				height, err := client.Blob.Submit(ctx, nodeBlobs, txConfig)
+				height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
 				if err != nil {
 					failureCount.Add(1)
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
