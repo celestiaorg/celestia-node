@@ -37,6 +37,12 @@ func (s *BlobTestSuite) SetupSuite() {
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 
+func (s *BlobTestSuite) TearDownSuite() {
+	if s.framework != nil {
+		s.framework.Cleanup()
+	}
+}
+
 // TestBlobSubmit_SingleBlob tests blob submission API with a single blob
 func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
