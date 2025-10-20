@@ -137,3 +137,5 @@ make light-arabica-up CORE_IP=<ip>     # Use custom core IP
 ## Code of Conduct
 
 See our Code of Conduct [here](https://docs.celestia.org/community/coc).
+## Data Availability Layer Notes
+Celestia's DAS enables scalable rollups—integrate with namespaces for efficient data posting. Check the SDK for quick starts! 🚀
