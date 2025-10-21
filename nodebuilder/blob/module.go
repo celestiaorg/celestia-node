@@ -31,7 +31,7 @@ func ConstructModule() fx.Option {
 				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
 				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
 			) *blob.Service {
-				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn, nil)
+				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
 			},
 			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Start(ctx)

@@ -32,17 +32,14 @@ type metrics struct {
 	pfbGasPriceEstimation    metric.Float64Histogram
 
 	// Gas estimation metrics
-	gasEstimationCounter  metric.Int64Counter
 	gasEstimationDuration metric.Float64Histogram
 	gasEstimationErrors   metric.Int64Counter
 
 	// Gas price estimation metrics
-	gasPriceEstimationCounter  metric.Int64Counter
 	gasPriceEstimationDuration metric.Float64Histogram
 	gasPriceEstimationErrors   metric.Int64Counter
 
 	// Account operations metrics
-	accountQueryCounter  metric.Int64Counter
 	accountQueryDuration metric.Float64Histogram
 	accountQueryErrors   metric.Int64Counter
 
@@ -123,14 +120,6 @@ func (ca *CoreAccessor) WithMetrics() error {
 	}
 
 	// Gas estimation metrics
-	gasEstimationCounter, err := meter.Int64Counter(
-		"state_gas_estimation_total",
-		metric.WithDescription("Total number of gas estimation operations"),
-	)
-	if err != nil {
-		return err
-	}
-
 	gasEstimationDuration, err := meter.Float64Histogram(
 		"state_gas_estimation_duration_seconds",
 		metric.WithDescription("Duration of gas estimation operations"),
@@ -149,14 +138,6 @@ func (ca *CoreAccessor) WithMetrics() error {
 	}
 
 	// Gas price estimation metrics
-	gasPriceEstimationCounter, err := meter.Int64Counter(
-		"state_gas_price_estimation_total",
-		metric.WithDescription("Total number of gas price estimation operations"),
-	)
-	if err != nil {
-		return err
-	}
-
 	gasPriceEstimationDuration, err := meter.Float64Histogram(
 		"state_gas_price_estimation_duration_seconds",
 		metric.WithDescription("Duration of gas price estimation operations"),
@@ -175,14 +156,6 @@ func (ca *CoreAccessor) WithMetrics() error {
 	}
 
 	// Account operations metrics
-	accountQueryCounter, err := meter.Int64Counter(
-		"state_account_query_total",
-		metric.WithDescription("Total number of account query operations"),
-	)
-	if err != nil {
-		return err
-	}
-
 	accountQueryDuration, err := meter.Float64Histogram(
 		"state_account_query_duration_seconds",
 		metric.WithDescription("Duration of account query operations"),
@@ -208,13 +181,10 @@ func (ca *CoreAccessor) WithMetrics() error {
 		pfbSubmissionBlobSize:      pfbSubmissionBlobSize,
 		pfbGasEstimationDuration:   pfbGasEstimationDuration,
 		pfbGasPriceEstimation:      pfbGasPriceEstimation,
-		gasEstimationCounter:       gasEstimationCounter,
 		gasEstimationDuration:      gasEstimationDuration,
 		gasEstimationErrors:        gasEstimationErrors,
-		gasPriceEstimationCounter:  gasPriceEstimationCounter,
 		gasPriceEstimationDuration: gasPriceEstimationDuration,
 		gasPriceEstimationErrors:   gasPriceEstimationErrors,
-		accountQueryCounter:        accountQueryCounter,
 		accountQueryDuration:       accountQueryDuration,
 		accountQueryErrors:         accountQueryErrors,
 	}
@@ -353,8 +323,6 @@ func (m *metrics) ObserveGasEstimation(ctx context.Context, duration time.Durati
 	}
 	if err != nil {
 		m.gasEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
-	} else {
-		m.gasEstimationCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.gasEstimationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
@@ -378,8 +346,6 @@ func (m *metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.D
 	}
 	if err != nil {
 		m.gasPriceEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
-	} else {
-		m.gasPriceEstimationCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.gasPriceEstimationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
@@ -403,8 +369,6 @@ func (m *metrics) ObserveAccountQuery(ctx context.Context, duration time.Duratio
 	}
 	if err != nil {
 		m.accountQueryErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
-	} else {
-		m.accountQueryCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.accountQueryDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))

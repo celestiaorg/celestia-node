@@ -18,16 +18,3 @@ func TestMetricsMethodsExist(t *testing.T) {
 
 	t.Log("✅ All metrics methods exist and handle nil metrics correctly")
 }
-
-func TestMetricsStruct(t *testing.T) {
-	// Test that the metrics struct has all the expected fields
-	metrics := &metrics{}
-
-	// Verify the struct has the expected atomic counters
-	_ = metrics.totalRetrievals
-	_ = metrics.totalRetrievalErrors
-	_ = metrics.totalProofs
-	_ = metrics.totalProofErrors
-
-	t.Log("✅ Metrics struct has all expected fields")
-}

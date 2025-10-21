@@ -71,14 +71,13 @@ func NewService(
 	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
-	metrics *metrics,
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
 		headerSub:     headerSub,
-		metrics:       metrics,
+		metrics:       nil, // Will be initialized via WithMetrics() if needed
 	}
 }
 
@@ -90,8 +89,10 @@ func (s *Service) Start(context.Context) error {
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	// Stop metrics if they exist
-	if err := s.metrics.Stop(); err != nil {
-		return err
+	if s.metrics != nil {
+		if err := s.metrics.Stop(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

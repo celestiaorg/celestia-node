@@ -15,7 +15,6 @@ var meter = otel.Meter("blob")
 
 // Error type constants for metrics labels
 const (
-	errorTypeNone     = "none"
 	errorTypeNotFound = "not_found"
 	errorTypeTimeout  = "timeout"
 	errorTypeCanceled = "canceled"
@@ -153,8 +152,6 @@ func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 			errorType = errorTypeCanceled
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
-	} else {
-		attrs = append(attrs, attribute.String("error_type", errorTypeNone))
 	}
 
 	// Use single counter with error_type enum
@@ -186,8 +183,6 @@ func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err 
 			errorType = errorTypeCanceled
 		}
 		attrs = append(attrs, attribute.String("error_type", errorType))
-	} else {
-		attrs = append(attrs, attribute.String("error_type", errorTypeNone))
 	}
 
 	// Use single counter with error_type enum
