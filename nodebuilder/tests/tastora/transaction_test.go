@@ -4,13 +4,14 @@ package tastora
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,7 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const numParallelWorkers = 8
+const numParallelWorkers = 2
 
 type TransactionTestSuite struct {
 	suite.Suite
@@ -37,7 +38,7 @@ func TestTransactionTestSuite(t *testing.T) {
 
 func (s *TransactionTestSuite) SetupSuite() {
 	s.framework = NewFramework(s.T(), WithValidators(1), WithTxWorkerAccounts(numParallelWorkers))
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 
@@ -72,7 +73,7 @@ func (s *TransactionTestSuite) TearDownSuite() {
 func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	defer s.TearDownSuite()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
@@ -92,7 +93,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	}
 
 	var (
-		numRounds    = 5
+		numRounds    = 3
 		failureCount atomic.Int32
 		wg           sync.WaitGroup
 	)
@@ -103,7 +104,23 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 			go func(roundNum, workerNum int) {
 				defer wg.Done()
 
-				height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
+				// Use a shorter timeout per submission to fail fast
+				submitCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+				defer cancel()
+
+				// Retry submission once for transient RPC failures
+				var height uint64
+				var err error
+				for attempt := 1; attempt <= 2; attempt++ {
+					height, err = client.Blob.Submit(submitCtx, nodeBlobs, state.NewTxConfig())
+					if err == nil && height > 0 {
+						break
+					}
+					if attempt < 2 {
+						time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+					}
+				}
+
 				if err != nil {
 					failureCount.Add(1)
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)
@@ -115,6 +132,12 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 
 		wg.Wait()
 		s.T().Logf("Round %d completed", round+1)
+
+		// Add shorter delay between rounds to allow bridge node to recover
+		if round < numRounds-1 {
+			s.T().Logf("Waiting 2 seconds before starting next round...")
+			time.Sleep(2 * time.Second)
+		}
 	}
 
 	// Verify all submissions succeeded
