@@ -7,7 +7,7 @@ toolchain go1.24.7
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v6 v6.1.2-arabica
-	github.com/celestiaorg/celestia-node v0.23.2-mocha
+	github.com/celestiaorg/celestia-node v0.28.1-arabica
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/tastora v0.7.0
 	github.com/cometbft/cometbft v0.38.17
@@ -18,6 +18,8 @@ require (
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.76.0
 )
+
+replace github.com/celestiaorg/tastora => github.com/celestiaorg/tastora v0.0.0-20251014065031-b39f25c36a8e
 
 require (
 	github.com/avast/retry-go/v4 v4.6.1 // indirect
