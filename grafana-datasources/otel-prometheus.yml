@@ -1,9 +1,0 @@
-apiVersion: 1
-
-datasources:
-  - name: Celestia-OTLP-Prometheus
-    type: prometheus
-    access: proxy
-    url: http://otel-collector:8889
-    isDefault: true
-    editable: true
