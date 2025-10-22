@@ -42,14 +42,13 @@ func (m *fetcherMetrics) observe(ctx context.Context, observeFn func(ctx context
 func (m *fetcherMetrics) observeReceiveBlock(ctx context.Context, duration time.Duration, numParts int) {
 	m.observe(ctx, func(ctx context.Context) {
 		m.receiveBlockDuration.Record(ctx, float64(duration.Milliseconds()),
-			metric.WithAttributes(blockSizeAttribute(numParts)))
+			metric.WithAttributes(numPartsAttribute(numParts)))
 	})
 }
 
-// blockSizeAttribute creates an attribute for the block size in MB
-// Each part is roughly 64KB, so numParts * 64KB / 1024 = numParts * 0.0625 MB
-// NOTE: this is an approximation and not 100% accurate.
-func blockSizeAttribute(numParts int) attribute.KeyValue {
-	sizeInMB := float64(numParts) * 64.0 / 1024.0
-	return attribute.Float64("approx_block_size_mb", sizeInMB)
+// numPartsAttribute creates an attribute for the number of parts in a block.
+// This can be used to approximate the block size (with each part being roughly
+// 64KB).
+func numPartsAttribute(numParts int) attribute.KeyValue {
+	return attribute.Int("num_parts", numParts)
 }
