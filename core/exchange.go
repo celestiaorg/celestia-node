@@ -39,11 +39,15 @@ func NewExchange(
 		opt(&p)
 	}
 
-	var (
-		metrics *exchangeMetrics
-		err     error
-	)
+	var metrics *exchangeMetrics
 	if p.metrics {
+		// set metrics for fetcher
+		fetcherMetrics, err := newFetcherMetrics()
+		if err != nil {
+			return nil, err
+		}
+		fetcher.metrics = fetcherMetrics
+
 		metrics, err = newExchangeMetrics()
 		if err != nil {
 			return nil, err
