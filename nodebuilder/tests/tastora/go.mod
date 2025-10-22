@@ -380,8 +380,8 @@ require (
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	//github.com/celestiaorg/tastora => ../../tastora
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.4
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.2
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.10
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.4
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
