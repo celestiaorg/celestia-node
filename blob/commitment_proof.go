@@ -48,7 +48,7 @@ func (com Commitment) Equal(c Commitment) bool {
 	return bytes.Equal(com, c)
 }
 
-// Validate performs basic validation to the commitment proof.
+// Validate performs basic validation of the commitment proof.
 // Note: it doesn't verify if the proof is valid or not.
 // Check Verify() for that.
 func (commitmentProof *CommitmentProof) Validate() error {
