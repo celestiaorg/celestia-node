@@ -9,9 +9,7 @@ require (
 	github.com/celestiaorg/celestia-app/v6 v6.1.2-arabica
 	github.com/celestiaorg/celestia-node v0.28.1-arabica
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/tastora v0.7.0
-	github.com/cometbft/cometbft v0.38.17
-	github.com/containerd/errdefs v1.0.0
+	github.com/celestiaorg/tastora v0.0.0-20251023064543-d02b42cf8608
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.11.1
@@ -19,7 +17,7 @@ require (
 	google.golang.org/grpc v1.76.0
 )
 
-replace github.com/celestiaorg/tastora => github.com/celestiaorg/tastora v0.0.0-20251014065031-b39f25c36a8e
+replace github.com/celestiaorg/tastora => github.com/celestiaorg/tastora v0.0.0-20251023064543-d02b42cf8608
 
 require (
 	github.com/avast/retry-go/v4 v4.6.1 // indirect
@@ -373,6 +371,8 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.50.0 // indirect
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/cometbft/cometbft v0.38.17 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
 	pgregory.net/rapid v1.2.0 // indirect
