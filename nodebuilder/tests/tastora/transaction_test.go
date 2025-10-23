@@ -22,7 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-const numParallelWorkers = 2
+const numParallelWorkers = 8
 
 type TransactionTestSuite struct {
 	suite.Suite
