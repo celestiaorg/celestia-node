@@ -139,6 +139,13 @@ func (f *Framework) GetLightNodes() []*dataavailability.Node {
 	return f.lightNodes
 }
 
+// CreateLightNode creates and starts a light node.
+func (f *Framework) CreateLightNode(ctx context.Context) *dataavailability.Node {
+	lightNode := f.startLightNode(ctx, f.bridgeNodes[0], f.celestia)
+	f.lightNodes = append(f.lightNodes, lightNode)
+	return lightNode
+}
+
 // NewBridgeNode creates and starts a new bridge node.
 func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)
@@ -395,11 +402,22 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		WithNodeType(types.BridgeNode).
 		Build()
 
+	// Add light nodes based on configuration
+	var nodeConfigs []dataavailability.NodeConfig
+	nodeConfigs = append(nodeConfigs, bridgeNodeConfig)
+
+	for i := 0; i < cfg.LightNodeCount; i++ {
+		lightNodeConfig := dataavailability.NewNodeBuilder().
+			WithNodeType(types.LightNode).
+			Build()
+		nodeConfigs = append(nodeConfigs, lightNodeConfig)
+	}
+
 	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, testName).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(daImage).
-		WithNodes(bridgeNodeConfig).
+		WithNodes(nodeConfigs...).
 		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
 		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
 
@@ -493,7 +511,7 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 	// Start light node - should work reliably with proper resource isolation
 	err = lightNode.Start(ctx,
 		dataavailability.WithChainID(testChainID),
-		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
+		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
 		dataavailability.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
@@ -607,7 +625,7 @@ func (f *Framework) Stop(ctx context.Context) error {
 		}
 	}
 
-	// Stop Celestia chain
+	// Stop Celestia chain (validator containers)
 	if f.celestia != nil {
 		f.logger.Info("Stopping Celestia chain")
 		if err := f.celestia.Stop(ctx); err != nil {
@@ -620,6 +638,7 @@ func (f *Framework) Stop(ctx context.Context) error {
 				f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
 			}
 		}
+
 	}
 
 	if f.client != nil && f.network != "" {
@@ -639,8 +658,34 @@ func (f *Framework) Stop(ctx context.Context) error {
 
 // dockerCleanup uses Docker's built-in commands to clean up unused resources
 func (f *Framework) dockerCleanup() {
+	// Clean up containers with Tastora test-related names (da-* and test-val-*)
+	f.cleanupContainersByPattern("da-")
+	f.cleanupContainersByPattern("test-val-")
+
 	// Use Docker's built-in cleanup commands for comprehensive cleanup
-	// This is much simpler and more reliable than manual cleanup
 	exec.Command("docker", "system", "prune", "-f").Run()
 	exec.Command("docker", "volume", "prune", "-f").Run()
+}
+
+// cleanupContainersByPattern stops and removes containers matching the given name pattern
+func (f *Framework) cleanupContainersByPattern(pattern string) {
+	cmd := exec.Command("docker", "ps", "-a", "--filter", "name="+pattern, "--format", "{{.Names}}")
+	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+		// Stop all containers
+		for _, name := range containerNames {
+			if name != "" {
+				exec.Command("docker", "stop", name).Run()
+			}
+		}
+
+		// Remove all containers
+		for _, name := range containerNames {
+			if name != "" {
+				exec.Command("docker", "rm", name).Run()
+			}
+		}
+	}
 }
