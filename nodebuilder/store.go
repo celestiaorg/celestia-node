@@ -18,7 +18,7 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -146,7 +146,7 @@ func (f *fsStore) Close() (err error) {
 		err = errors.Join(err, f.data.Close())
 	}
 	f.dataMu.Unlock()
-	return
+	return err
 }
 
 type fsStore struct {

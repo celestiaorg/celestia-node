@@ -29,13 +29,13 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -256,6 +256,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	account := ca.client.AccountByAddress(ctx, author)
 	if account == nil {
 		return nil, fmt.Errorf("account for signer %s not found", author)
+	}
+
+	gas := cfg.GasLimit()
+	if gas == 0 {
+		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
@@ -585,7 +593,7 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 		opts = append(opts, user.WithAdditionalCoreEndpoints(ca.coreConns[1:]))
 	}
 
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
+	client, err := user.SetupTxClient(ca.ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
