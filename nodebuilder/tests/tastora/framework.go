@@ -2,6 +2,7 @@ package tastora
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -239,11 +240,44 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 	waitCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	// Wait for transaction confirmation - should work reliably with proper timeouts
-	err = wait.ForBlocks(waitCtx, 2, f.celestia)
+	// Wait for transaction confirmation by actually verifying the transaction was included
+	err = f.waitForTransactionInclusion(waitCtx, resp.TxHash)
 	require.NoError(f.t, err, "failed to wait for transaction confirmation")
 
 	f.t.Logf("Funding transaction completed for %s", toAddr.String())
+}
+
+// waitForTransactionInclusion polls for a transaction hash to verify it was included in a block.
+func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash string) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	// Get RPC client from the first validator node
+	node := f.celestia.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	if err != nil {
+		return fmt.Errorf("failed to get RPC client: %w", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			// Query the transaction to see if it was included in a block
+			txHashBytes, err := hex.DecodeString(txHash)
+			if err != nil {
+				f.t.Logf("Failed to decode transaction hash %s: %v", txHash, err)
+				continue
+			}
+			resp, err := rpcClient.Tx(ctx, txHashBytes, false)
+			if err == nil && resp != nil {
+				f.t.Logf("Transaction %s confirmed at height %d", txHash, resp.Height)
+				return nil
+			}
+			// Continue polling if transaction not found yet
+		}
+	}
 }
 
 // verifyNodeBalance verifies that a DA node has the expected balance after funding.
