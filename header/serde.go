@@ -1,11 +1,11 @@
 package header
 
 import (
+	core "github.com/cometbft/cometbft/types"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
-	core "github.com/tendermint/tendermint/types"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )
@@ -14,7 +14,7 @@ import (
 // Paired with UnmarshalExtendedHeader.
 func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 	out := &header_pb.ExtendedHeader{
-		Header: in.RawHeader.ToProto(),
+		Header: in.ToProto(),
 		Commit: in.Commit.ToProto(),
 	}
 
@@ -64,18 +64,30 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	return out, nil
 }
 
-// msgID computes an id for a pubsub message
+// unmarhsalCommit exists to assist the MsgID function in generating a unique
+// message ID without the additional allocations that the full
+// UnmarshalExtendedHeader would cause.
+func unmarshalCommit(data []byte) (*core.Commit, error) {
+	in := &header_pb.ExtendedHeader{}
+	err := in.Unmarshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return core.CommitFromProto(in.Commit)
+}
+
+// MsgID computes an id for a pubsub message
 // TODO(@Wondertan): This cause additional allocations per each recvd message in the topic
-//
-//	Find a way to avoid those.
+// TODO(@renaynay): We will still allocate now but we're minimizing surface only to Commit
 func MsgID(pmsg *pb.Message) string {
 	mID := func(data []byte) string {
 		hash := blake2b.Sum256(data)
 		return string(hash[:])
 	}
 
-	h, _ := UnmarshalExtendedHeader(pmsg.Data)
-	if h == nil || h.RawHeader.ValidateBasic() != nil {
+	commit, err := unmarshalCommit(pmsg.Data)
+	if commit == nil || err != nil {
 		// There is nothing we can do about the error, and it will be anyway caught during validation.
 		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
 		return mID(pmsg.Data)
@@ -92,5 +104,5 @@ func MsgID(pmsg *pb.Message) string {
 	//
 	// To solve the nondeterminism problem above, we don't compute msg id on message body and take
 	// the actual header hash as an id.
-	return h.Commit.BlockID.String()
+	return commit.BlockID.String()
 }

@@ -2,17 +2,16 @@ package header
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
-	tmjson "github.com/tendermint/tendermint/libs/json"
-	"github.com/tendermint/tendermint/light"
-	core "github.com/tendermint/tendermint/types"
+	tmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/light"
+	core "github.com/cometbft/cometbft/types"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -99,7 +98,7 @@ func (eh *ExtendedHeader) Hash() libhead.Hash {
 
 // LastHeader returns the Hash of the last wrapped RawHeader.
 func (eh *ExtendedHeader) LastHeader() libhead.Hash {
-	return libhead.Hash(eh.RawHeader.LastBlockID.Hash)
+	return libhead.Hash(eh.LastBlockID.Hash)
 }
 
 // Equals returns whether the hash and height of the given header match.
@@ -109,15 +108,15 @@ func (eh *ExtendedHeader) Equals(header *ExtendedHeader) bool {
 
 // Validate performs *basic* validation to check for missed/incorrect fields.
 func (eh *ExtendedHeader) Validate() error {
-	err := eh.RawHeader.ValidateBasic()
+	err := eh.ValidateBasic()
 	if err != nil {
 		return fmt.Errorf("ValidateBasic error on RawHeader at height %d: %w", eh.Height(), err)
 	}
 
-	if eh.RawHeader.Version.App == 0 || eh.RawHeader.Version.App > appconsts.LatestVersion {
+	if eh.Version.App == 0 || eh.Version.App > appconsts.Version {
 		return fmt.Errorf("header received at height %d has version %d, this node supports up "+
 			"to version %d. Please upgrade to support new version. Note, 0 is not a valid version",
-			eh.RawHeader.Height, eh.RawHeader.Version.App, appconsts.LatestVersion)
+			eh.RawHeader.Height, eh.Version.App, appconsts.Version)
 	}
 
 	err = eh.Commit.ValidateBasic()
@@ -227,56 +226,22 @@ func (eh *ExtendedHeader) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// MarshalJSON marshals an ExtendedHeader to JSON. The ValidatorSet is wrapped with amino encoding,
-// to be able to unmarshal the crypto.PubKey type back from JSON.
+// MarshalJSON marshals an ExtendedHeader to JSON.
+// Uses tendermint encoder for tendermint compatibility.
 func (eh *ExtendedHeader) MarshalJSON() ([]byte, error) {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Marshal invokes custom json marshaling
 	type Alias ExtendedHeader
-	validatorSet, err := tmjson.Marshal(eh.ValidatorSet)
-	if err != nil {
-		return nil, err
-	}
-	rawHeader, err := tmjson.Marshal(eh.RawHeader)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(&struct {
-		RawHeader    json.RawMessage `json:"header"`
-		ValidatorSet json.RawMessage `json:"validator_set"`
-		*Alias
-	}{
-		ValidatorSet: validatorSet,
-		RawHeader:    rawHeader,
-		Alias:        (*Alias)(eh),
-	})
+	return tmjson.Marshal((*Alias)(eh))
 }
 
-// UnmarshalJSON unmarshals an ExtendedHeader from JSON. The ValidatorSet is wrapped with amino
-// encoding, to be able to unmarshal the crypto.PubKey type back from JSON.
+// UnmarshalJSON unmarshals an ExtendedHeader from JSON.
+// Uses tendermint decoder for tendermint compatibility.
 func (eh *ExtendedHeader) UnmarshalJSON(data []byte) error {
+	// alias the type to avoid going into recursion loop
+	// because tmjson.Unmarshal invokes custom json unmarshalling
 	type Alias ExtendedHeader
-	aux := &struct {
-		RawHeader    json.RawMessage `json:"header"`
-		ValidatorSet json.RawMessage `json:"validator_set"`
-		*Alias
-	}{
-		Alias: (*Alias)(eh),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	valSet := new(core.ValidatorSet)
-	if err := tmjson.Unmarshal(aux.ValidatorSet, valSet); err != nil {
-		return err
-	}
-	rawHeader := new(RawHeader)
-	if err := tmjson.Unmarshal(aux.RawHeader, rawHeader); err != nil {
-		return err
-	}
-
-	eh.ValidatorSet = valSet
-	eh.RawHeader = *rawHeader
-	return nil
+	return tmjson.Unmarshal(data, (*Alias)(eh))
 }
 
 var _ libhead.Header[*ExtendedHeader] = &ExtendedHeader{}

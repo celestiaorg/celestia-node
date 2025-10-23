@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // ShareReader implement io.Reader over general function that gets shares by

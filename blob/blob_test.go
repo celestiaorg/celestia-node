@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 func TestBlob(t *testing.T) {
@@ -78,7 +78,7 @@ func TestBlob(t *testing.T) {
 
 				newBlob := &Blob{}
 				require.NoError(t, newBlob.UnmarshalJSON(data))
-				require.True(t, bytes.Equal(blob[0].Blob.Data(), newBlob.Data()))
+				require.True(t, bytes.Equal(blob[0].Data(), newBlob.Data()))
 				require.True(t, bytes.Equal(blob[0].Commitment, newBlob.Commitment))
 			},
 		},

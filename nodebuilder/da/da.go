@@ -6,9 +6,61 @@ import (
 	"github.com/rollkit/go-da"
 )
 
+var _ da.DA = (Module)(nil)
+
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
+//
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	da.DA
+	// MaxBlobSize returns the max blob size
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	MaxBlobSize(ctx context.Context) (uint64, error)
+
+	// Get returns Blob for each given ID, or an error.
+	//
+	// Error should be returned if ID is not formatted properly, there is no Blob for given ID or any other client-level
+	// error occurred (dropped connection, timeout, etc).
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	Get(ctx context.Context, ids []da.ID, namespace da.Namespace) ([]da.Blob, error)
+
+	// GetIDs returns IDs of all Blobs located in DA at given height.
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	GetIDs(ctx context.Context, height uint64, namespace da.Namespace) (*da.GetIDsResult, error)
+
+	// GetProofs returns inclusion Proofs for Blobs specified by their IDs.
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	GetProofs(ctx context.Context, ids []da.ID, namespace da.Namespace) ([]da.Proof, error)
+
+	// Commit creates a Commitment for each given Blob.
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	Commit(ctx context.Context, blobs []da.Blob, namespace da.Namespace) ([]da.Commitment, error)
+
+	// Submit submits the Blobs to Data Availability layer.
+	//
+	// This method is synchronous. Upon successful submission to Data Availability layer, it returns the IDs identifying
+	// blobs in DA.
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, namespace da.Namespace) ([]da.ID, error)
+
+	// SubmitWithOptions submits the Blobs to Data Availability layer.
+	//
+	// This method is synchronous. Upon successful submission to Data Availability layer, it returns the IDs identifying
+	// blobs in DA.
+	//
+	// Deprecated: This method is deprecated and will be removed in the future.
+	SubmitWithOptions(
+		ctx context.Context, blobs []da.Blob, gasPrice float64, namespace da.Namespace, options []byte) ([]da.ID, error)
+
+	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the
+	// Blobs.
+	// Deprecated: This method is deprecated and will be removed in the future.
+	Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, namespace da.Namespace) ([]bool, error)
 }
 
 // API is a wrapper around Module for the RPC.

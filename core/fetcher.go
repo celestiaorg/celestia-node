@@ -3,14 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
+	"github.com/cometbft/cometbft/types"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coregrpc "github.com/tendermint/tendermint/rpc/grpc"
-	"github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -283,7 +282,7 @@ func receiveBlockByHash(streamer coregrpc.BlockAPI_BlockByHashClient) (*types.Bl
 func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 	partSet := types.NewPartSetFromHeader(types.PartSetHeader{
 		Total: uint32(len(parts)),
-	})
+	}, types.BlockPartSizeBytes)
 	for _, part := range parts {
 		ok, err := partSet.AddPartWithoutProof(&types.Part{Index: part.Index, Bytes: part.Bytes})
 		if err != nil {
@@ -294,11 +293,8 @@ func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 		}
 	}
 	pbb := new(tmproto.Block)
-	bz, err := io.ReadAll(partSet.GetReader())
-	if err != nil {
-		return nil, err
-	}
-	err = proto.Unmarshal(bz, pbb)
+	bz := partSet.GetBytes()
+	err := proto.Unmarshal(bz, pbb)
 	if err != nil {
 		return nil, err
 	}

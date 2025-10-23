@@ -3,12 +3,12 @@ package core
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -22,7 +22,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 		SquareSize: 1,
 	}
 
-	eds, err := extendBlock(&data, appconsts.LatestVersion)
+	eds, err := da.ConstructEDS(data.Txs.ToSliceOfBytes(), appconsts.Version, -1)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 }
@@ -38,15 +38,23 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 		Txs: []types.Tx{},
 	}
 
-	eds, err := extendBlock(&data, appconsts.LatestVersion)
+	eds, err := da.ConstructEDS(data.Txs.ToSliceOfBytes(), appconsts.Version, -1)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 
-	// force extend the square using an empty block and compare with the min DAH
-	eds, err = app.ExtendBlock(data, appconsts.LatestVersion)
+	// create empty shares and extend them manually
+	emptyShares := libshare.TailPaddingShares(libshare.MinShareCount)
+	rawEmptyShares := libshare.ToBytes(emptyShares)
+
+	// extend the empty shares
+	manualEds, err := da.ExtendShares(rawEmptyShares)
 	require.NoError(t, err)
 
-	roots, err := share.NewAxisRoots(eds)
+	// verify the manually extended EDS equals the empty EDS
+	require.True(t, manualEds.Equals(share.EmptyEDS()))
+
+	// verify the roots hash matches the empty EDS roots hash
+	manualRoots, err := share.NewAxisRoots(manualEds)
 	require.NoError(t, err)
-	assert.Equal(t, share.EmptyEDSRoots().Hash(), roots.Hash())
+	require.Equal(t, share.EmptyEDSRoots().Hash(), manualRoots.Hash())
 }

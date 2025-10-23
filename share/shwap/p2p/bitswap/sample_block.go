@@ -7,7 +7,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -76,7 +76,7 @@ func (sb *SampleBlock) CID() cid.Cid {
 }
 
 func (sb *SampleBlock) Height() uint64 {
-	return sb.ID.Height
+	return sb.ID.Height()
 }
 
 func (sb *SampleBlock) Marshal() ([]byte, error) {

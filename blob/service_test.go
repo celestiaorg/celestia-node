@@ -12,21 +12,16 @@ import (
 	"testing"
 	"time"
 
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/golang/mock/gomock"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v3/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/nmt"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -66,19 +61,19 @@ func TestBlobService_Get(t *testing.T) {
 	service := createService(ctx, t, shares)
 	test := []struct {
 		name           string
-		doFn           func() (interface{}, error)
-		expectedResult func(interface{}, error)
+		doFn           func() (any, error)
+		expectedResult func(any, error)
 	}{
 		{
 			name: "get single blob",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				b, err := service.Get(ctx, 1,
 					blobsWithDiffNamespaces[0].Namespace(),
 					blobsWithDiffNamespaces[0].Commitment,
 				)
 				return []*Blob{b}, err
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 				assert.NotEmpty(t, res)
 
@@ -91,10 +86,10 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "get all with the same namespace",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				return service.GetAll(ctx, 1, []libshare.Namespace{blobsWithSameNamespace[0].Namespace()})
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 
 				blobs, ok := res.([]*Blob)
@@ -110,7 +105,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "verify indexes",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				b0, err := service.Get(ctx, 1,
 					blobsWithDiffNamespaces[0].Namespace(),
 					blobsWithDiffNamespaces[0].Commitment,
@@ -125,7 +120,7 @@ func TestBlobService_Get(t *testing.T) {
 				require.NoError(t, err)
 				return []*Blob{b0, b1, b23[0], b23[1]}, nil
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 				blobs, ok := res.([]*Blob)
 				assert.True(t, ok)
@@ -149,16 +144,16 @@ func TestBlobService_Get(t *testing.T) {
 					require.NoError(t, err)
 					smpls, err := service.shareGetter.GetSamples(ctx, h, []shwap.SampleCoords{idx})
 					require.NoError(t, err)
-					require.True(t, bytes.Equal(smpls[0].Share.ToBytes(), resultShares[shareOffset].ToBytes()),
+					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())), false)
 				}
 			},
 		},
 		{
 			name: "get all with different namespaces",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				nid, err := libshare.NewV0Namespace(tmrand.Bytes(7))
 				require.NoError(t, err)
 				b, err := service.GetAll(ctx, 1,
@@ -169,7 +164,7 @@ func TestBlobService_Get(t *testing.T) {
 				)
 				return b, err
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 
 				blobs, ok := res.([]*Blob)
@@ -184,14 +179,14 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "get blob with incorrect commitment",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				b, err := service.Get(ctx, 1,
 					blobsWithDiffNamespaces[0].Namespace(),
 					blobsWithDiffNamespaces[1].Commitment,
 				)
 				return []*Blob{b}, err
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.Error(t, err)
 
 				blobs, ok := res.([]*Blob)
@@ -201,7 +196,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "get invalid blob",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				libBlob, err := libshare.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
 				blob, err := convertBlobs(libBlob...)
@@ -210,7 +205,7 @@ func TestBlobService_Get(t *testing.T) {
 				b, err := service.Get(ctx, 1, blob[0].Namespace(), blob[0].Commitment)
 				return []*Blob{b}, err
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.Error(t, err)
 
 				blobs, ok := res.([]*Blob)
@@ -220,14 +215,14 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "get proof",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				proof, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[1].Namespace(),
 					blobsWithDiffNamespaces[1].Commitment,
 				)
 				return proof, err
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 
 				header, err := service.headerGetter(ctx, 1)
@@ -258,7 +253,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "verify inclusion",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				proof, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[0].Namespace(),
 					blobsWithDiffNamespaces[0].Commitment,
@@ -270,7 +265,7 @@ func TestBlobService_Get(t *testing.T) {
 					blobsWithDiffNamespaces[0].Commitment,
 				)
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 				included, ok := res.(bool)
 				require.True(t, ok)
@@ -279,7 +274,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "verify inclusion fails with different proof",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				proof, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[1].Namespace(),
 					blobsWithDiffNamespaces[1].Commitment,
@@ -291,7 +286,7 @@ func TestBlobService_Get(t *testing.T) {
 					blobsWithDiffNamespaces[0].Commitment,
 				)
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.Error(t, err)
 				require.ErrorIs(t, err, ErrInvalidProof)
 				included, ok := res.(bool)
@@ -301,7 +296,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "not included",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				libBlob, err := libshare.GenerateV0Blobs([]int{10}, false)
 				require.NoError(t, err)
 				blob, err := convertBlobs(libBlob...)
@@ -314,7 +309,7 @@ func TestBlobService_Get(t *testing.T) {
 				require.NoError(t, err)
 				return service.Included(ctx, 1, blob[0].Namespace(), proof, blob[0].Commitment)
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 				included, ok := res.(bool)
 				require.True(t, ok)
@@ -323,7 +318,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "count proofs for the blob",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				proof0, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[0].Namespace(),
 					blobsWithDiffNamespaces[0].Commitment,
@@ -340,7 +335,7 @@ func TestBlobService_Get(t *testing.T) {
 				}
 				return []*Proof{proof0, proof1}, nil
 			},
-			expectedResult: func(i interface{}, err error) {
+			expectedResult: func(i any, err error) {
 				require.NoError(t, err)
 				proofs, ok := i.([]*Proof)
 				require.True(t, ok)
@@ -357,12 +352,12 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "empty result and err when blobs were not found ",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				nid, err := libshare.NewV0Namespace(tmrand.Bytes(libshare.NamespaceVersionZeroIDSize))
 				require.NoError(t, err)
 				return service.GetAll(ctx, 1, []libshare.Namespace{nid})
 			},
-			expectedResult: func(i interface{}, err error) {
+			expectedResult: func(i any, err error) {
 				blobs, ok := i.([]*Blob)
 				require.True(t, ok)
 				assert.Nil(t, blobs)
@@ -371,20 +366,20 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "err during proof request",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				proof, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[0].Namespace(),
 					blobsWithDiffNamespaces[1].Commitment,
 				)
 				return proof, err
 			},
-			expectedResult: func(_ interface{}, err error) {
+			expectedResult: func(_ any, err error) {
 				require.Error(t, err)
 			},
 		},
 		{
 			name: "marshal proof",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				proof, err := service.GetProof(ctx, 1,
 					blobsWithDiffNamespaces[1].Namespace(),
 					blobsWithDiffNamespaces[1].Commitment,
@@ -392,7 +387,7 @@ func TestBlobService_Get(t *testing.T) {
 				require.NoError(t, err)
 				return json.Marshal(proof)
 			},
-			expectedResult: func(i interface{}, err error) {
+			expectedResult: func(i any, err error) {
 				require.NoError(t, err)
 				jsonData, ok := i.([]byte)
 				require.True(t, ok)
@@ -409,7 +404,7 @@ func TestBlobService_Get(t *testing.T) {
 		},
 		{
 			name: "internal error",
-			doFn: func() (interface{}, error) {
+			doFn: func() (any, error) {
 				ctrl := gomock.NewController(t)
 				innerGetter := service.shareGetter
 				getterWrapper := mock.NewMockGetter(ctrl)
@@ -433,7 +428,7 @@ func TestBlobService_Get(t *testing.T) {
 					},
 				)
 			},
-			expectedResult: func(res interface{}, err error) {
+			expectedResult: func(res any, err error) {
 				blobs, ok := res.([]*Blob)
 				assert.True(t, ok)
 				assert.Error(t, err)
@@ -533,7 +528,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -555,7 +550,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	padding, err := libshare.NamespacePaddingShare(blobs[0].Namespace(), libshare.ShareVersionZero)
 	require.NoError(t, err)
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		sh, err := BlobsToShares(blobs[i])
 		require.NoError(t, err)
 		rawShares = append(rawShares, append(sh, padding)...)
@@ -595,7 +590,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -607,7 +602,7 @@ func TestAllPaddingSharesInEDS(t *testing.T) {
 	require.NoError(t, err)
 
 	rawShares := make([]libshare.Share, 16)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		rawShares[i] = padding
 	}
 
@@ -626,7 +621,7 @@ func TestSkipPaddingsAndRetrieveBlob(t *testing.T) {
 	require.NoError(t, err)
 
 	rawShares := make([]libshare.Share, 0, 64)
-	for i := 0; i < 58; i++ {
+	for range 58 {
 		rawShares = append(rawShares, padding)
 	}
 
@@ -792,32 +787,40 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	subCh2, err := service.Subscribe(ctx, ns2)
 	require.NoError(t, err)
 
-	for i := uint64(0); i < uint64(len(allBlobs)); i++ {
+	var i int
+	for ; i < len(blobs1); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, i+1, resp.Height)
-			if i < uint64(len(blobs1)) {
-				assert.NotEmpty(t, resp.Blobs)
-				for _, b := range resp.Blobs {
-					assert.Equal(t, ns1, b.Namespace())
-				}
-			} else {
-				assert.Empty(t, resp.Blobs)
-			}
-		case resp := <-subCh2:
-			assert.Equal(t, i+1, resp.Height)
-			if i >= uint64(len(blobs1)) {
-				assert.NotEmpty(t, resp.Blobs)
-				for _, b := range resp.Blobs {
-					assert.Equal(t, ns2, b.Namespace())
-				}
-			} else {
-				assert.Empty(t, resp.Blobs)
+			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.NotEmpty(t, resp.Blobs)
+			for _, b := range resp.Blobs {
+				assert.Equal(t, ns1, b.Namespace())
 			}
 		case <-time.After(time.Second * 2):
 			t.Fatalf("timeout waiting for subscription responses %d", i)
 		}
 	}
+
+	for ; i < len(blobs2); i++ {
+		select {
+		case resp := <-subCh2:
+			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.NotEmpty(t, resp.Blobs)
+			for _, b := range resp.Blobs {
+				assert.Equal(t, ns2, b.Namespace())
+			}
+		case <-time.After(time.Second * 2):
+			t.Fatalf("timeout waiting for subscription responses %d", i)
+		}
+	}
+
+	emptyBlobResponse := <-subCh1
+	assert.NotNil(t, emptyBlobResponse)
+	assert.Empty(t, emptyBlobResponse.Blobs)
+
+	emptyBlobResponse = <-subCh2
+	assert.NotNil(t, emptyBlobResponse)
+	assert.Empty(t, emptyBlobResponse.Blobs)
 }
 
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
@@ -863,11 +866,10 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 		edsses[i] = eds
 	}
 	headers := headertest.ExtendedHeadersFromEdsses(t, edsses)
-
-	err = headerStore.Init(ctx, headers[0])
+	err = headerStore.Start(ctx)
 	require.NoError(t, err)
-
-	err = headerStore.Append(ctx, headers[1:]...)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, headers...)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -926,7 +928,10 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
 	require.NoError(t, err)
-	err = headerStore.Init(ctx, h)
+	err = headerStore.Start(ctx)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 100)
+	err = headerStore.Append(ctx, h)
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
@@ -963,7 +968,12 @@ func TestProveCommitmentAllCombinations(t *testing.T) {
 
 func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
-	for msgIndex, msg := range msgs {
+	randomBlob, err := libshare.GenerateV0Blobs([]int{10}, true)
+	require.NoError(t, err)
+	nodeBlob, err := ToNodeBlobs(randomBlob...)
+	require.NoError(t, err)
+
+	for msgIndex := range msgs {
 		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
 			blb, err := NewBlob(blobs[msgIndex].ShareVersion(), nss[msgIndex], blobs[msgIndex].Data(), nil)
 			require.NoError(t, err)
@@ -975,109 +985,19 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 
 			// make sure the actual commitment attests to the data
 			require.NoError(t, actualCommitmentProof.Validate())
-			valid, err := actualCommitmentProof.Verify(
+			err = actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
+				blb.Commitment,
 			)
 			require.NoError(t, err)
-			require.True(t, valid)
 
-			// generate an expected proof and verify it's valid
-			expectedCommitmentProof := generateCommitmentProofFromBlock(t, eds, nss[msgIndex], blobs[msgIndex], dataRoot)
-			require.NoError(t, expectedCommitmentProof.Validate())
-			valid, err = expectedCommitmentProof.Verify(
+			err = actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.DefaultSubtreeRootThreshold,
+				nodeBlob[0].Commitment,
 			)
-			require.NoError(t, err)
-			require.True(t, valid)
-
-			// make sure the expected proof is the same as the actual on
-			assert.Equal(t, expectedCommitmentProof, *actualCommitmentProof)
-
-			// make sure the expected commitment commits to the subtree roots in the result proof
-			actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.SubtreeRoots)
-			assert.Equal(t, msg.ShareCommitments[0], actualCommitment)
+			require.Error(t, err)
 		})
 	}
-}
-
-// generateCommitmentProofFromBlock takes a block and a PFB index and generates the commitment proof
-// using the traditional way of doing, instead of using the API.
-func generateCommitmentProofFromBlock(
-	t *testing.T,
-	eds *rsmt2d.ExtendedDataSquare,
-	ns libshare.Namespace,
-	blob *libshare.Blob,
-	dataRoot []byte,
-) CommitmentProof {
-	// create the blob from the data
-	blb, err := NewBlob(blob.ShareVersion(),
-		ns,
-		blob.Data(),
-		nil,
-	)
-	require.NoError(t, err)
-
-	// convert the blob to a number of shares
-	blobShares, err := BlobsToShares(blb)
-	require.NoError(t, err)
-
-	// find the first share of the blob in the ODS
-	startShareIndex := -1
-	for i, sh := range eds.FlattenedODS() {
-		if bytes.Equal(sh, blobShares[0].ToBytes()) {
-			startShareIndex = i
-			break
-		}
-	}
-	require.Greater(t, startShareIndex, 0)
-
-	// create an inclusion proof of the blob using the share range instead of the commitment
-	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
-		eds,
-		ns,
-		libshare.NewRange(startShareIndex, startShareIndex+len(blobShares)),
-	)
-	require.NoError(t, err)
-	require.NoError(t, sharesProof.Validate(dataRoot))
-
-	// calculate the subtree roots
-	subtreeRoots := make([][]byte, 0)
-	dataCursor := 0
-	for _, proof := range sharesProof.ShareProofs {
-		ranges, err := nmt.ToLeafRanges(
-			int(proof.Start),
-			int(proof.End),
-			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
-		)
-		require.NoError(t, err)
-		roots, err := computeSubtreeRoots(
-			blobShares[dataCursor:int32(dataCursor)+proof.End-proof.Start],
-			ranges,
-			int(proof.Start),
-		)
-		require.NoError(t, err)
-		subtreeRoots = append(subtreeRoots, roots...)
-		dataCursor += int(proof.End - proof.Start)
-	}
-
-	// convert the nmt proof to be accepted by the commitment proof
-	nmtProofs := make([]*nmt.Proof, 0)
-	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
-		nmtProofs = append(nmtProofs, &nmtProof)
-	}
-
-	commitmentProof := CommitmentProof{
-		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       sharesProof.NamespaceId,
-		RowProof:          *sharesProof.RowProof,
-		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
-	}
-
-	return commitmentProof
 }
 
 func rawBlobSize(totalSize int) int {

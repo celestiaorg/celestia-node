@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/go-da"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
@@ -63,26 +65,51 @@ func (s *Service) MaxBlobSize(context.Context) (uint64, error) {
 }
 
 // Get returns Blob for each given ID, or an error.
+//
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 func (s *Service) Get(ctx context.Context, ids []da.ID, ns da.Namespace) ([]da.Blob, error) {
-	blobs := make([]da.Blob, 0, len(ids))
-	for _, id := range ids {
-		height, commitment := SplitID(id)
-		namespace, err := libshare.NewNamespaceFromBytes(ns)
-		if err != nil {
-			return nil, err
-		}
-		log.Debugw("getting blob", "height", height, "commitment", commitment, "namespace", namespace)
-		currentBlob, err := s.blobServ.Get(ctx, height, namespace, commitment)
-		log.Debugw("got blob", "height", height, "commitment", commitment, "namespace", namespace)
-		if err != nil {
-			return nil, err
-		}
-		blobs = append(blobs, currentBlob.Data())
+	if len(ids) == 0 {
+		return nil, errors.New("empty IDs list provided")
 	}
-	return blobs, nil
+
+	height, _ := SplitID(ids[0])
+	for _, id := range ids {
+		h, _ := SplitID(id)
+		if h != height {
+			return nil, errors.New("all IDs must be from the same height")
+		}
+	}
+
+	namespace, err := libshare.NewNamespaceFromBytes(ns)
+	if err != nil {
+		return nil, err
+	}
+	blobs, err := s.blobServ.GetAll(ctx, height, []libshare.Namespace{namespace})
+	if err != nil {
+		return nil, err
+	}
+
+	blobsByCommitment := make(map[string]*blob.Blob, len(blobs))
+	for _, b := range blobs {
+		blobsByCommitment[string(b.Commitment)] = b
+	}
+
+	dablobs := make([]da.Blob, 0, len(ids))
+	for _, id := range ids {
+		_, commitment := SplitID(id)
+		blob := blobsByCommitment[string(commitment)]
+		if blob == nil {
+			return nil, fmt.Errorf("blob with commitment %s not found at height %d", commitment, height)
+		}
+		dablobs = append(dablobs, blob.Data())
+	}
+
+	return dablobs, nil
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
+//
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namespace) (*da.GetIDsResult, error) {
 	ns, err := libshare.NewNamespaceFromBytes(namespace)
 	if err != nil {
@@ -110,6 +137,8 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 }
 
 // GetProofs returns inclusion Proofs for all Blobs located in DA at given height.
+//
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 func (s *Service) GetProofs(ctx context.Context, ids []da.ID, namespace da.Namespace) ([]da.Proof, error) {
 	proofs := make([]da.Proof, len(ids))
 	for i, id := range ids {
@@ -131,12 +160,16 @@ func (s *Service) GetProofs(ctx context.Context, ids []da.ID, namespace da.Names
 }
 
 // Commit creates a Commitment for each given Blob.
+//
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 func (s *Service) Commit(_ context.Context, daBlobs []da.Blob, namespace da.Namespace) ([]da.Commitment, error) {
 	_, commitments, err := s.blobsAndCommitments(daBlobs, namespace)
 	return commitments, err
 }
 
 // Submit submits the Blobs to Data Availability layer.
+//
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 func (s *Service) Submit(
 	ctx context.Context,
 	daBlobs []da.Blob,
@@ -147,6 +180,8 @@ func (s *Service) Submit(
 }
 
 // SubmitWithOptions submits the Blobs to Data Availability layer.
+//
+// Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 func (s *Service) SubmitWithOptions(
 	ctx context.Context,
 	daBlobs []da.Blob,

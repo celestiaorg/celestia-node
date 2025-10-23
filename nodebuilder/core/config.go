@@ -15,13 +15,20 @@ var MetricsEnabled bool
 
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
+	EndpointConfig
+	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints to be used for
+	// transaction submission. Must be provided as `host:port` pairs.
+	AdditionalCoreEndpoints []EndpointConfig
+}
+
+type EndpointConfig struct {
 	IP   string
 	Port string
-	// TLSEnabled specifies whether the connection is secure or not.
-	// PLEASE NOTE: it should be set to true in order to handle XTokenPath.
+	// TLSEnabled specifies whether the connection is secure.
+	// Must be set to true if XTokenPath is provided.
 	TLSEnabled bool
-	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
-	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
+	// XTokenPath specifies the path to the directory that contains a JSON file with the X-Token for gRPC authentication.
+	// The JSON file must contain a key "x-token" with the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
 	XTokenPath string
 }
@@ -30,8 +37,11 @@ type Config struct {
 // node's connection to a Celestia-Core endpoint.
 func DefaultConfig() Config {
 	return Config{
-		IP:   "",
-		Port: DefaultPort,
+		EndpointConfig: EndpointConfig{
+			IP:   "",
+			Port: DefaultPort,
+		},
+		AdditionalCoreEndpoints: make([]EndpointConfig, 0),
 	}
 }
 
@@ -41,6 +51,20 @@ func (cfg *Config) Validate() error {
 		return nil
 	}
 
+	if err := cfg.validate(); err != nil {
+		return err
+	}
+
+	for _, additionalCfg := range cfg.AdditionalCoreEndpoints {
+		if err := additionalCfg.validate(); err != nil {
+			return fmt.Errorf("nodebuilder/core: invalid additional core endpoint configuration: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (cfg *EndpointConfig) validate() error {
 	if cfg.Port == "" {
 		return fmt.Errorf("nodebuilder/core: grpc port is not set")
 	}
@@ -54,6 +78,16 @@ func (cfg *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
 	}
+
+	if cfg.XTokenPath != "" {
+		if !cfg.TLSEnabled {
+			return fmt.Errorf("nodebuilder/core: TLSEnabled must be true when XTokenPath is set")
+		}
+		if !utils.Exists(cfg.XTokenPath) {
+			return fmt.Errorf("nodebuilder/core: XTokenPath does not exist: %s", cfg.XTokenPath)
+		}
+	}
+
 	return nil
 }
 

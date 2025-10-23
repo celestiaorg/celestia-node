@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
 
 // NamespaceDataName is the name identifier for the namespace data container.
-const NamespaceDataName = "nd_v0"
+const namespaceDataName = "nd_v0"
 
 // NamespaceData stores collections of RowNamespaceData, each representing shares and their proofs
 // within a namespace.

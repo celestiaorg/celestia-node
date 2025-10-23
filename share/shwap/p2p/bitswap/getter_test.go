@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs/boxo/exchange"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -94,7 +94,7 @@ func TestPoolConcurrency(t *testing.T) {
 	lock := sync.Mutex{}
 
 	// Start multiple goroutines to get sessions
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

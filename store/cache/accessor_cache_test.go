@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -129,7 +129,7 @@ func TestAccessorCache(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, mock.data, data)
 
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			accessor, err = cache.Get(height)
 			require.NoError(t, err)
 			reader, err := accessor.Reader()
@@ -303,7 +303,7 @@ type mockAccessor struct {
 	isClosed bool
 }
 
-func (m *mockAccessor) Size(context.Context) int {
+func (m *mockAccessor) Size(context.Context) (int, error) {
 	panic("implement me")
 }
 
@@ -319,11 +319,18 @@ func (m *mockAccessor) Sample(context.Context, shwap.SampleCoords) (shwap.Sample
 	panic("implement me")
 }
 
-func (m *mockAccessor) AxisHalf(context.Context, rsmt2d.Axis, int) (eds.AxisHalf, error) {
+func (m *mockAccessor) AxisHalf(context.Context, rsmt2d.Axis, int) (shwap.AxisHalf, error) {
 	panic("implement me")
 }
 
 func (m *mockAccessor) RowNamespaceData(context.Context, libshare.Namespace, int) (shwap.RowNamespaceData, error) {
+	panic("implement me")
+}
+
+func (m *mockAccessor) RangeNamespaceData(
+	_ context.Context,
+	_, _ int,
+) (shwap.RangeNamespaceData, error) {
 	panic("implement me")
 }
 

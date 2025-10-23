@@ -4,14 +4,11 @@ package tests
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/go-fraud"
@@ -57,7 +54,7 @@ func TestFraudProofHandling(t *testing.T) {
 	)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(blockTime))
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], blockSize, blocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], blockSize, blocks)
 	set, val := sw.Validators(t)
 	fMaker := headerfraud.NewFraudMaker(t, 10, []types.PrivValidator{val}, set)
 
@@ -68,25 +65,17 @@ func TestFraudProofHandling(t *testing.T) {
 		_ = edsStore.Stop(ctx)
 	})
 
-	cfg := nodebuilder.DefaultConfig(node.Bridge)
-	cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(sw.ClientContext.GRPCClient.Target())
-	require.NoError(t, err)
 	// 1.
-	bridge := sw.NewNodeWithConfig(
-		node.Bridge,
-		cfg,
+	bridge := sw.NewBridgeNode(
 		core.WithHeaderConstructFn(fMaker.MakeExtendedHeader(16, edsStore)),
 		fx.Replace(edsStore),
 	)
 	// 2.
 	err = bridge.Start(ctx)
 	require.NoError(t, err)
-
+	sw.SetBootstrapper(t, bridge)
 	// 3.
-	cfg = nodebuilder.DefaultConfig(node.Full)
-	addrs, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(bridge.Host))
-	require.NoError(t, err)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
+	cfg := sw.DefaultTestConfig(node.Full)
 	cfg.Share.UseShareExchange = false
 	store := nodebuilder.MockStore(t, cfg)
 	full := sw.MustNewNodeWithStore(node.Full, store)
@@ -145,10 +134,7 @@ func TestFraudProofHandling(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// 7.
-	cfg = nodebuilder.DefaultConfig(node.Light)
-	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrs[0].String())
-	lnStore := nodebuilder.MockStore(t, cfg)
-	light := sw.MustNewNodeWithStore(node.Light, lnStore)
+	light := sw.NewLightNode()
 	require.NoError(t, light.Start(ctx))
 	lightClient := getAdminClient(ctx, light, t)
 

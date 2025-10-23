@@ -11,11 +11,9 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/gateway"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -27,31 +25,27 @@ type ConfigLoader func() (*Config, error)
 // Config is main configuration structure for a Node.
 // It combines configuration units for all Node subsystems.
 type Config struct {
-	Node    node.Config
-	Core    core.Config
-	State   state.Config
-	P2P     p2p.Config
-	RPC     rpc.Config
-	Gateway gateway.Config
-	Share   share.Config
-	Header  header.Config
-	DASer   das.Config `toml:",omitempty"`
-	Pruner  pruner.Config
+	Node   node.Config
+	Core   core.Config
+	State  state.Config
+	P2P    p2p.Config
+	RPC    rpc.Config
+	Share  share.Config
+	Header header.Config
+	DASer  das.Config `toml:",omitempty"`
 }
 
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
 	commonConfig := &Config{
-		Node:    node.DefaultConfig(tp),
-		Core:    core.DefaultConfig(),
-		State:   state.DefaultConfig(),
-		P2P:     p2p.DefaultConfig(tp),
-		RPC:     rpc.DefaultConfig(),
-		Gateway: gateway.DefaultConfig(),
-		Share:   share.DefaultConfig(tp),
-		Header:  header.DefaultConfig(tp),
-		Pruner:  pruner.DefaultConfig(),
+		Node:   node.DefaultConfig(tp),
+		Core:   core.DefaultConfig(),
+		State:  state.DefaultConfig(),
+		P2P:    p2p.DefaultConfig(tp),
+		RPC:    rpc.DefaultConfig(),
+		Share:  share.DefaultConfig(tp),
+		Header: header.DefaultConfig(tp),
 	}
 
 	switch tp {
@@ -92,7 +86,7 @@ func LoadConfig(path string) (*Config, error) {
 func RemoveConfig(path string) (err error) {
 	path, err = storePath(path)
 	if err != nil {
-		return
+		return err
 	}
 
 	flk := flock.New(lockPath(path))

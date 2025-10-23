@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -79,7 +79,7 @@ func (rndb *RowNamespaceDataBlock) CID() cid.Cid {
 }
 
 func (rndb *RowNamespaceDataBlock) Height() uint64 {
-	return rndb.ID.Height
+	return rndb.ID.Height()
 }
 
 func (rndb *RowNamespaceDataBlock) Marshal() ([]byte, error) {

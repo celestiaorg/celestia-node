@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -22,6 +23,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
+
+var disablePooling = os.Getenv("CELESTIA_BITSWAP_DISABLE_POOLING") == "1"
 
 var tracer = otel.Tracer("shwap/bitswap")
 
@@ -173,7 +176,7 @@ func (g *Getter) GetEDS(
 
 	sqrLn := len(hdr.DAH.RowRoots)
 	blks := make([]Block, sqrLn/2)
-	for i := 0; i < sqrLn/2; i++ {
+	for i := range sqrLn / 2 {
 		blk, err := NewEmptyRowBlock(hdr.Height(), i, sqrLn)
 		if err != nil {
 			span.RecordError(err)
@@ -268,6 +271,38 @@ func (g *Getter) GetNamespaceData(
 	return nsShrs, nil
 }
 
+func (g *Getter) GetRangeNamespaceData(
+	ctx context.Context,
+	hdr *header.ExtendedHeader,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	ctx, span := tracer.Start(ctx, "get-shares-range")
+	defer span.End()
+
+	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
+		hdr.Height(), from, to, len(hdr.DAH.RowRoots)/2,
+	)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	isArchival := g.isArchival(hdr)
+	span.SetAttributes(attribute.Bool("is_archival", isArchival))
+
+	ses, release := g.getSession(isArchival)
+	defer release()
+
+	blks := []Block{rangeDataBlock}
+
+	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Fetch")
+		return shwap.RangeNamespaceData{}, err
+	}
+	return blks[0].(*RangeNamespaceDataBlock).Container, nil
+}
+
 // isArchival reports whether the header is for archival data
 func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 	return !availability.IsWithinWindow(hdr.Time(), g.availWndw)
@@ -275,6 +310,12 @@ func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 
 // getSession takes a session out of the respective session pool
 func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func()) {
+	if disablePooling {
+		ctx, cancel := context.WithCancel(context.Background())
+		f := g.exchange.NewSession(ctx)
+		return f, cancel
+	}
+
 	if isArchival {
 		ses = g.archivalPool.get()
 		return ses, func() { g.archivalPool.put(ses) }
