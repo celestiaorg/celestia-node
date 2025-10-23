@@ -3,7 +3,7 @@ package swamp
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/core"
 )
@@ -11,10 +11,7 @@ import (
 // DefaultConfig creates a celestia-app instance with a block time of around
 // 100ms
 func DefaultConfig() *testnode.Config {
-	cfg := core.DefaultTestConfig()
-	// timeout commit lower than this tend to be flakier
-	cfg.TmConfig.Consensus.TimeoutCommit = 200 * time.Millisecond
-	return cfg
+	return core.DefaultTestConfig()
 }
 
 // Option for modifying Swamp's Config.
@@ -26,7 +23,7 @@ func WithBlockTime(t time.Duration) Option {
 		// for empty block
 		c.TmConfig.Consensus.CreateEmptyBlocksInterval = t
 		// for filled block
-		c.TmConfig.Consensus.TimeoutCommit = t
+		c.TmConfig.Consensus.DelayedPrecommitTimeout = t
 		c.TmConfig.Consensus.SkipTimeoutCommit = false
 	}
 }
