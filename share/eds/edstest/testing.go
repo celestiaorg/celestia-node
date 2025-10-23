@@ -7,17 +7,16 @@ import (
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/da"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	libSquare "github.com/celestiaorg/go-square/v2"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -133,15 +132,8 @@ func GenerateTestBlock(
 
 	txs := make(coretypes.Txs, 0)
 	txs = append(txs, coreTxs...)
-	square, err := libSquare.Construct(
-		txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound,
-		appconsts.SubtreeRootThreshold,
-	)
-	require.NoError(t, err)
 
-	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(libshare.ToBytes(square))
+	eds, err := da.ConstructEDS(txs.ToSliceOfBytes(), appconsts.Version, -1)
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle
@@ -191,7 +183,9 @@ func createTestBlobTransaction(
 	ns := libshare.RandomBlobNamespace()
 	account := signer.Account(accountName)
 	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
-	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{b})
+	blob, err := libshare.NewBlob(ns, b.Data(), b.ShareVersion(), b.Signer())
+	require.NoError(t, err)
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{blob})
 	require.NoError(t, err)
 	return ns, msg, b, cTx
 }

@@ -11,7 +11,7 @@ import (
 	header "github.com/celestiaorg/celestia-node/header"
 	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
-	share0 "github.com/celestiaorg/go-square/v2/share"
+	share0 "github.com/celestiaorg/go-square/v3/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )

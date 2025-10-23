@@ -6,8 +6,9 @@ import (
 	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/da"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -21,7 +22,7 @@ func TestTrulyEmptySquare(t *testing.T) {
 		SquareSize: 1,
 	}
 
-	eds, err := extendBlock(&data)
+	eds, err := da.ConstructEDS(data.Txs.ToSliceOfBytes(), appconsts.Version, -1)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 }
@@ -37,7 +38,7 @@ func TestEmptySquareWithZeroTxs(t *testing.T) {
 		Txs: []types.Tx{},
 	}
 
-	eds, err := extendBlock(&data)
+	eds, err := da.ConstructEDS(data.Txs.ToSliceOfBytes(), appconsts.Version, -1)
 	require.NoError(t, err)
 	require.True(t, eds.Equals(share.EmptyEDS()))
 
