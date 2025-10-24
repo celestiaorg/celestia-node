@@ -62,7 +62,7 @@ func (c *Client) Get(
 	if err != nil {
 		logger.Warnw("requesting data from peer failed", "error", err)
 	}
-	c.metrics.observeRequests(ctx, 1, req.Name(), status, time.Since(requestTime))
+	c.metrics.observeRequest(ctx, 1, req.Name(), status, time.Since(requestTime))
 	logger.Debugw("requested data", "status", status, "duration", time.Since(requestTime))
 	return err
 }
