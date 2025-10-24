@@ -7,6 +7,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
+const DefaultConcurrencyLimit = 16
+
 type Option func(*params)
 
 type params struct {
@@ -14,12 +16,14 @@ type params struct {
 	chainID            string
 	availabilityWindow time.Duration
 	archival           bool
+	concurrencyLimit   int
 }
 
 func defaultParams() params {
 	return params{
 		availabilityWindow: availability.StorageWindow,
 		archival:           false,
+		concurrencyLimit:   DefaultConcurrencyLimit,
 	}
 }
 
@@ -46,5 +50,11 @@ func WithAvailabilityWindow(window time.Duration) Option {
 func WithArchivalMode() Option {
 	return func(p *params) {
 		p.archival = true
+	}
+}
+
+func WithConcurrencyLimit(lim int) Option {
+	return func(p *params) {
+		p.concurrencyLimit = lim
 	}
 }

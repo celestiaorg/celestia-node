@@ -15,8 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-const concurrencyLimit = 16
-
 type Exchange struct {
 	fetcher   *BlockFetcher
 	store     *store.Store
@@ -24,6 +22,8 @@ type Exchange struct {
 
 	availabilityWindow time.Duration
 	archival           bool
+
+	concurrencyLimit int
 
 	metrics *exchangeMetrics
 }
@@ -56,6 +56,7 @@ func NewExchange(
 		construct:          construct,
 		availabilityWindow: p.availabilityWindow,
 		archival:           p.archival,
+		concurrencyLimit:   p.concurrencyLimit,
 		metrics:            metrics,
 	}, nil
 }
@@ -101,7 +102,7 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 
 	start := time.Now()
 	errGroup, ctx := errgroup.WithContext(ctx)
-	errGroup.SetLimit(concurrencyLimit)
+	errGroup.SetLimit(ce.concurrencyLimit)
 	for i := range headers {
 		errGroup.Go(func() error {
 			extHeader, err := ce.GetByHeight(ctx, from+uint64(i))
