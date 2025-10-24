@@ -78,12 +78,14 @@ framework := NewFramework(t,
 ## Troubleshooting
 
 ### macOS Docker Issues
+
 ```bash
 # Set correct Docker host for Docker Desktop
 export DOCKER_HOST=unix:///Users/$(whoami)/.docker/run/docker.sock
 ```
 
 ### Clean Up
+
 ```bash
 # Clean up test containers
 docker system prune -f
@@ -96,6 +98,7 @@ docker system prune -f
 - **`*_test.go`**: Module-specific test suites
 
 The framework automatically handles:
+
 - Chain initialization and startup
 - Node creation and funding
 - Container cleanup and error handling
