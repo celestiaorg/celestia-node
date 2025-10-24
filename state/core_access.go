@@ -51,6 +51,15 @@ type CoreAccessor struct {
 
 	keyring keyring.Keyring
 	client  *user.TxClient
+	// txWorkerAccounts is used for queued submission. It defines how many accounts the
+	// TxClient uses for PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	txWorkerAccounts int
 
 	// TODO @renaynay: clean this up -- only one!!!!
 	defaultSignerAccount string
@@ -212,7 +221,12 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	var response *user.TxResponse
+	if ca.txWorkerAccounts > 0 {
+		response, err = client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
+	} else {
+		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	}
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
@@ -220,7 +234,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		return convertToSdkTxResponse(response), nil
 	}
-	// TODO @renaynay: use new rachid named func
+
 	if apperrors.IsInsufficientFee(err) {
 		if cfg.isGasPriceSet {
 			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
@@ -521,6 +535,10 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 
 		opts = append(opts, user.WithEstimatorService(estimatorConn))
 		ca.estimatorConn = estimatorConn
+	}
+
+	if ca.txWorkerAccounts > 1 {
+		opts = append(opts, user.WithTxWorkers(ca.txWorkerAccounts))
 	}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
