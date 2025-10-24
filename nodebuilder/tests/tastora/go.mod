@@ -383,7 +383,7 @@ replace (
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.10
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.4
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
-	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
+	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// celestia-core(v0.34.x): used for multiplexing abci v1 requests
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35
@@ -394,3 +394,5 @@ replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork-4
 replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4
 
 replace github.com/celestiaorg/celestia-node => ../../..
+
+replace github.com/moby/term => github.com/moby/term v0.5.2
