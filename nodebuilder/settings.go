@@ -23,6 +23,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
 	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -86,11 +87,22 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(func(lc fx.Lifecycle, ca *state.CoreAccessor) {
+		fx.Invoke(func(ca *state.CoreAccessor) error {
 			if ca == nil {
-				return
+				return nil
 			}
-			state.WithMetrics(lc, ca)
+			err := ca.WithMetrics()
+			if err != nil {
+				return fmt.Errorf("failed to initialize state metrics: %w", err)
+			}
+			return nil
+		}),
+		fx.Invoke(func(serv *blob.Service) error {
+			err := serv.WithMetrics()
+			if err != nil {
+				return fmt.Errorf("failed to initialize blob metrics: %w", err)
+			}
+			return nil
 		}),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
