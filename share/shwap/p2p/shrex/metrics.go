@@ -110,9 +110,19 @@ func InitServerMetrics() (*Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	payloadServedHist, err := meter.Int64Histogram(
+		"shrex_payload_served_bytes",
+		metric.WithDescription("Total request data served by shrex server in bytes"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
 		rateLimiterCounter:  rateLimiter,
 		requestDuration:     requestDuration,
+		payloadServed:       payloadServedHist,
 	}, nil
 }
