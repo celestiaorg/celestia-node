@@ -39,11 +39,14 @@ type Metrics struct {
 	totalRequestCounter metric.Int64Counter
 	rateLimiterCounter  metric.Int64Counter
 	requestDuration     metric.Float64Histogram
+	// payloadServed will aggregate the total payload served
+	// by the shrex server
+	payloadServed metric.Int64Histogram
 }
 
-// observeRequests increments the total number of requests sent with the given status as an
+// observeRequest increments the total number of requests sent with the given status as an
 // attribute.
-func (m *Metrics) observeRequests(
+func (m *Metrics) observeRequest(
 	ctx context.Context,
 	count int64,
 	requestName string,
@@ -53,7 +56,9 @@ func (m *Metrics) observeRequests(
 	if m == nil {
 		return
 	}
+
 	ctx = utils.ResetContextOnError(ctx)
+
 	m.totalRequestCounter.Add(ctx, count,
 		metric.WithAttributes(
 			attribute.String("protocol", requestName),
@@ -63,6 +68,23 @@ func (m *Metrics) observeRequests(
 		metric.WithAttributes(
 			attribute.String("protocol", requestName),
 		))
+}
+
+// observePayloadServed records the size of the payload served by the shrex
+// server for successful requests only
+func (m *Metrics) observePayloadServed(
+	ctx context.Context,
+	requestName string,
+	status status,
+	payloadSize int64,
+) {
+	if m == nil || status != statusSuccess {
+		return
+	}
+
+	m.payloadServed.Record(ctx, payloadSize, metric.WithAttributes(
+		attribute.String("protocol", requestName)),
+	)
 }
 
 func InitClientMetrics() (*Metrics, error) {
@@ -84,7 +106,7 @@ func InitClientMetrics() (*Metrics, error) {
 
 	payloadServedHist, err := meter.Int64Histogram(
 		"shrex_payload_served_bytes",
-		metric.WithDescription("Total request data served by shrex server in bytes"),
+		metric.WithDescription("Total request data served in bytes"),
 	)
 	if err != nil {
 		return nil, err
@@ -93,6 +115,7 @@ func InitClientMetrics() (*Metrics, error) {
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
 		requestDuration:     requestDuration,
+		payloadServed:       payloadServedHist,
 	}, nil
 }
 
