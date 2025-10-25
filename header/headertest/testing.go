@@ -44,8 +44,34 @@ type TestSuite struct {
 	startTime time.Time
 }
 
+// Option defines a functional option type for configuring TestSuite
+type Option func(*TestSuite)
+
+// WithBlockTime sets the block time duration for the test suite
+func WithBlockTime(blockTime time.Duration) Option {
+	return func(ts *TestSuite) {
+		ts.blockTime = blockTime
+	}
+}
+
+// WithStartTime sets the genesis start time for the test suite
+func WithStartTime(startTime time.Time) Option {
+	return func(ts *TestSuite) {
+		ts.startTime = startTime
+	}
+}
+
+// WithValidators sets the number of validators and their voting power
+func WithValidators(numValidators int, votingPower int64) Option {
+	return func(ts *TestSuite) {
+		valSet, vals := RandValidatorSet(numValidators, votingPower)
+		ts.vals = vals
+		ts.valSet = valSet
+	}
+}
+
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, 0), 10)
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t), 10)
 }
 
 func NewCustomStore(
@@ -56,27 +82,39 @@ func NewCustomStore(
 	return headertest.NewStore[*header.ExtendedHeader](t, generator, numHeaders)
 }
 
-// NewTestSuite setups a new test suite with a given number of validators.
-func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *TestSuite {
-	valSet, vals := RandValidatorSet(numValidators, 10)
-	return &TestSuite{
+// NewTestSuite setups a new test suite with the provided options.
+// If no options are provided, default values are used.
+func NewTestSuite(t *testing.T, opts ...Option) *TestSuite {
+	// Default: 3 validators, 10 voting power, no block time, current time
+	valSet, vals := RandValidatorSet(3, 10)
+	ts := &TestSuite{
 		t:         t,
 		vals:      vals,
 		valSet:    valSet,
-		blockTime: blockTime,
+		blockTime: 0,
 		startTime: time.Now(),
 	}
+
+	// Apply the provided options
+	for _, opt := range opts {
+		opt(ts)
+	}
+
+	return ts
 }
 
+// Legacy constructor for backwards compatibility
+func NewTestSuiteWithNumValidators(t *testing.T, numValidators int, blockTime time.Duration) *TestSuite {
+	return NewTestSuite(t,
+		WithValidators(numValidators, 10),
+		WithBlockTime(blockTime))
+}
+
+// Legacy constructor for backwards compatibility
 func NewTestSuiteWithGenesisTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
-	valSet, vals := RandValidatorSet(3, 1)
-	return &TestSuite{
-		t:         t,
-		vals:      vals,
-		valSet:    valSet,
-		blockTime: blockTime,
-		startTime: startTime,
-	}
+	return NewTestSuite(t,
+		WithStartTime(startTime),
+		WithBlockTime(blockTime))
 }
 
 func NewTestSuiteDefaults(t *testing.T) *TestSuite {
@@ -292,13 +330,39 @@ func (s *TestSuite) nextProposer() *types.Validator {
 	return val
 }
 
-// RandExtendedHeader provides an ExtendedHeader fixture.
-func RandExtendedHeader(t testing.TB) *header.ExtendedHeader {
-	timestamp := time.Now().UTC()
-	return RandExtendedHeaderAtTimestamp(t, timestamp)
+// HeaderOption defines a functional option type for configuring ExtendedHeader
+type HeaderOption func(*header.ExtendedHeader)
+
+// WithTimestamp sets the timestamp for the extended header
+func WithTimestamp(timestamp time.Time) HeaderOption {
+	return func(eh *header.ExtendedHeader) {
+		rawHeader := eh.RawHeader
+		rawHeader.Time = timestamp
+		eh.RawHeader = rawHeader
+	}
 }
 
-func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
+// WithDAH sets the DataAvailabilityHeader for the extended header
+func WithDAH(dah *da.DataAvailabilityHeader) HeaderOption {
+	return func(eh *header.ExtendedHeader) {
+		rawHeader := eh.RawHeader
+		rawHeader.DataHash = dah.Hash()
+		eh.RawHeader = rawHeader
+		eh.DAH = dah
+	}
+}
+
+// WithHeight sets the height for the extended header
+func WithHeight(height int64) HeaderOption {
+	return func(eh *header.ExtendedHeader) {
+		rawHeader := eh.RawHeader
+		rawHeader.Height = height
+		eh.RawHeader = rawHeader
+	}
+}
+
+// RandExtendedHeader provides an ExtendedHeader fixture with optional configurations.
+func RandExtendedHeader(t testing.TB, opts ...HeaderOption) *header.ExtendedHeader {
 	dah := share.EmptyEDSRoots()
 
 	rh := RandRawHeader(t)
@@ -309,22 +373,32 @@ func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.Ex
 	voteSet := types.NewVoteSet(rh.ChainID, rh.Height, 0, tmproto.PrecommitType, valSet)
 	blockID := RandBlockID(t)
 	blockID.Hash = rh.Hash()
-	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, timestamp)
+	commit, err := MakeCommit(blockID, rh.Height, 0, voteSet, vals, rh.Time)
 	require.NoError(t, err)
 
-	return &header.ExtendedHeader{
+	eh := &header.ExtendedHeader{
 		RawHeader:    *rh,
 		Commit:       commit,
 		ValidatorSet: valSet,
 		DAH:          dah,
 	}
+
+	// Apply any provided options
+	for _, opt := range opts {
+		opt(eh)
+	}
+
+	return eh
 }
 
+// Legacy function for backwards compatibility
+func RandExtendedHeaderAtTimestamp(t testing.TB, timestamp time.Time) *header.ExtendedHeader {
+	return RandExtendedHeader(t, WithTimestamp(timestamp))
+}
+
+// Legacy function for backwards compatibility
 func RandExtendedHeaderWithRoot(t testing.TB, dah *da.DataAvailabilityHeader) *header.ExtendedHeader {
-	h := RandExtendedHeader(t)
-	h.DataHash = dah.Hash()
-	h.DAH = dah
-	return h
+	return RandExtendedHeader(t, WithDAH(dah))
 }
 
 func RandValidatorSet(numValidators int, votingPower int64) (*types.ValidatorSet, []types.PrivValidator) {
