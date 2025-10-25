@@ -180,7 +180,7 @@ func (rngdata *RangeNamespaceData) verifyShares(
 		return fmt.Errorf("mismatched number of rows: expected %d vs got %d", to.Row-from.Row+1, len(shares))
 	}
 	if len(expectedRoots) != len(shares) {
-		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), expectedRoots)
+		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), len(expectedRoots))
 	}
 	if rngdata.FirstIncompleteRowProof != nil && rngdata.FirstIncompleteRowProof.Start() != from.Col {
 		return fmt.Errorf(
