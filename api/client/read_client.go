@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -15,10 +16,76 @@ import (
 	shareapi "github.com/celestiaorg/celestia-node/nodebuilder/share"
 )
 
+// MultiReadClient manages multiple bridge DA connections with failover support
+type MultiReadClient struct {
+	clients []*ReadClient
+	configs []ReadConfig
+}
+
+// NewMultiReadClient creates a new multi-endpoint read client
+func NewMultiReadClient(ctx context.Context, cfg ReadConfig) (*MultiReadClient, error) {
+	// Collect all configurations (primary + additional)
+	configs := []ReadConfig{cfg}
+	for _, addr := range cfg.AdditionalBridgeDAAddrs {
+		additionalCfg := cfg
+		additionalCfg.BridgeDAAddr = addr
+		additionalCfg.AdditionalBridgeDAAddrs = nil // Avoid infinite recursion
+		configs = append(configs, additionalCfg)
+	}
+
+	// Create clients for all configurations
+	clients := make([]*ReadClient, 0, len(configs))
+	for _, config := range configs {
+		client, err := NewReadClient(ctx, config)
+		if err != nil {
+			// Close any already created clients on error
+			for _, existingClient := range clients {
+				existingClient.Close()
+			}
+			return nil, fmt.Errorf("failed to create read client for %s: %w", config.BridgeDAAddr, err)
+		}
+		clients = append(clients, client)
+	}
+
+	return &MultiReadClient{
+		clients: clients,
+		configs: configs,
+	}, nil
+}
+
+// GetClient returns the first available client
+func (m *MultiReadClient) GetClient() *ReadClient {
+	if len(m.clients) > 0 {
+		return m.clients[0]
+	}
+	return nil
+}
+
+// GetAllClients returns all clients for advanced usage
+func (m *MultiReadClient) GetAllClients() []*ReadClient {
+	return m.clients
+}
+
+// Close closes all read clients
+func (m *MultiReadClient) Close() error {
+	var errs []error
+	for i, client := range m.clients {
+		if err := client.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close client %d (%s): %w", i, m.configs[i].BridgeDAAddr, err))
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
 // Bridge node json-rpc connection config
 type ReadConfig struct {
 	// BridgeDAAddr is the address of the bridge node
 	BridgeDAAddr string
+	// AdditionalBridgeDAAddrs is a list of additional bridge node addresses for failover
+	AdditionalBridgeDAAddrs []string
 	// DAAuthToken sets the value for Authorization http header
 	DAAuthToken string
 	// HTTPHeader contains custom headers that will be sent with each request
@@ -42,7 +109,19 @@ func (cfg ReadConfig) Validate() error {
 		return fmt.Errorf("authorization header already set, cannot use DAAuthToken as well")
 	}
 	_, err := utils.SanitizeAddr(cfg.BridgeDAAddr)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Validate additional bridge addresses
+	for idx, addr := range cfg.AdditionalBridgeDAAddrs {
+		_, err := utils.SanitizeAddr(addr)
+		if err != nil {
+			return fmt.Errorf("invalid additional bridge address at index %d: %w", idx, err)
+		}
+	}
+
+	return nil
 }
 
 func NewReadClient(ctx context.Context, cfg ReadConfig) (*ReadClient, error) {
