@@ -118,7 +118,6 @@ Validate(peerID PeerID, message []byte) -> ValidationResult
 
 - `ACCEPT`: Message is valid and MUST be processed
 - `REJECT`: Message is invalid and MUST be discarded
-- `IGNORE`: Message is valid but duplicate/stale and SHOULD be ignored
 
 The validation interface is exposed specifically for integration with the Peer Manager, which implements this interface to validate incoming ShrEx/Sub notifications. The Peer Manager uses validation results to add the announcing peer to the appropriate data hash pool, making them available for future data requests
 
@@ -151,17 +150,16 @@ ShrEx/Sub implementations MUST implement the following validation process:
 
 ### Publisher Behavior (BN)
 
-- **Trigger**: Publishers MUST publish when a new EDS becomes available locally
+- **Trigger**: Publishers MUST only broadcast messages when they subjectively determine they are synced to the network and the EDS corresponds to a height at the current network tip
 - **Action**: Publishers MUST publish EDS hash and height to `/eds-sub/0.0.1` topic
 - **Frequency**: Each EDS MUST be published exactly once per height
-- **Validation**: Publishers MUST only publish hashes for locally validated and available EDS
+- **Validation**: Publishers MUST only publish hashes for locally validated EDS
 
 ### Subscriber Behavior (LN)
 
 - **Subscription**: Subscribers MUST maintain an active subscription to `/eds-sub/0.0.1`
 - **Processing**: Subscribers MUST validate received hash format and height
 - **Action**: Subscribers MUST process notifications through registered listeners
-- **Deduplication**: Subscribers MUST ignore duplicate notifications
 
 ## FloodSub vs GossipSub Rationale
 
