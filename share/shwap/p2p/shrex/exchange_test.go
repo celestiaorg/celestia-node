@@ -38,7 +38,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		id, err := shwap.NewNamespaceDataID(height, namespace)
 		data := shwap.NamespaceData{}
 		require.NoError(t, err)
-		err = client.Get(ctx, &id, &data, server.host.ID())
+		_, err = client.Get(ctx, &id, &data, server.host.ID())
 		require.ErrorIs(t, err, ErrNotFound)
 	})
 
@@ -60,7 +60,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		data := shwap.NamespaceData{}
 		require.NoError(t, err)
 
-		err = client.Get(ctx, &id, &data, server.host.ID())
+		_, err = client.Get(ctx, &id, &data, server.host.ID())
 		require.NoError(t, err)
 		require.Empty(t, data.Flatten())
 	})
@@ -127,7 +127,7 @@ func TestExchange_RequestND(t *testing.T) {
 		data := shwap.NamespaceData{}
 		require.NoError(t, err)
 
-		err = client.Get(ctx, &id, &data, server.host.ID())
+		_, err = client.Get(ctx, &id, &data, server.host.ID())
 		require.ErrorIs(t, err, ErrRateLimited)
 	})
 }
