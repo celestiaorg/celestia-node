@@ -46,7 +46,6 @@ func TestRetriever_Retrieve(t *testing.T) {
 		{"128x128(max)", share.MaxSquareSize},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
 			shares, err := libshare.RandShares(tc.squareSize * tc.squareSize)
@@ -102,7 +101,6 @@ func TestFraudProofValidation(t *testing.T) {
 
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	for _, size := range odsSize {
-		size := size
 		t.Run(fmt.Sprintf("ods size:%d", size), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 			t.Cleanup(cancel)
