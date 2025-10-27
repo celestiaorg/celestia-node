@@ -46,7 +46,6 @@ type Metrics struct {
 // attribute.
 func (m *Metrics) observeRequest(
 	ctx context.Context,
-	count int64,
 	requestName string,
 	status status,
 	duration time.Duration,
@@ -57,14 +56,10 @@ func (m *Metrics) observeRequest(
 
 	ctx = utils.ResetContextOnError(ctx)
 
-	m.totalRequestCounter.Add(ctx, count,
-		metric.WithAttributes(
-			attribute.String("protocol", requestName),
-			attribute.String("status", string(status)),
-		))
 	m.requestDuration.Record(ctx, duration.Seconds(),
 		metric.WithAttributes(
 			attribute.String("protocol", requestName),
+			attribute.String("status", string(status)),
 		))
 }
 
@@ -86,14 +81,6 @@ func (m *Metrics) observePayloadServed(
 }
 
 func InitClientMetrics() (*Metrics, error) {
-	totalRequestCounter, err := meter.Int64Counter(
-		"shrex_client_total_requests",
-		metric.WithDescription("Total count of sent shrex requests"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_client_request_duration",
 		metric.WithDescription("Time taken to complete a shrex client request"),
@@ -103,8 +90,7 @@ func InitClientMetrics() (*Metrics, error) {
 	}
 
 	return &Metrics{
-		totalRequestCounter: totalRequestCounter,
-		requestDuration:     requestDuration,
+		requestDuration: requestDuration,
 	}, nil
 }
 
