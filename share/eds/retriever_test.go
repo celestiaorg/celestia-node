@@ -25,7 +25,7 @@ import (
 func TestRetriever_Retrieve(t *testing.T) {
 	// TODO @node-team: figure out why this regressed in CI
 	t.Skip("skipping retrieval as dangling component")
-	ctx, cancel := context.WithCancel(context.Background())
+	baseCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	bServ := ipld.NewMemBlockservice()
@@ -46,16 +46,15 @@ func TestRetriever_Retrieve(t *testing.T) {
 		{"128x128(max)", share.MaxSquareSize},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// generate EDS
 			shares, err := libshare.RandShares(tc.squareSize * tc.squareSize)
 			require.NoError(t, err)
+			ctx, cancel := context.WithTimeout(baseCtx, time.Minute*5) // generous timeout for large squares
+			t.Cleanup(cancel)
 			in, err := ipld.AddShares(ctx, shares, bServ)
 			require.NoError(t, err)
-
-			// limit with timeout, specifically retrieval
-			ctx, cancel := context.WithTimeout(ctx, time.Minute*5) // the timeout is big for the max size which is long
-			defer cancel()
 
 			roots, err := share.NewAxisRoots(in)
 			require.NoError(t, err)
@@ -99,13 +98,15 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 }
 
 func TestFraudProofValidation(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-	defer t.Cleanup(cancel)
 	bServ := ipld.NewMemBlockservice()
 
 	odsSize := []int{2, 4, 16, 32, 64, 128}
 	for _, size := range odsSize {
+		size := size
 		t.Run(fmt.Sprintf("ods size:%d", size), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+			t.Cleanup(cancel)
+
 			var errByz *byzantine.ErrByzantine
 			faultHeader, err := generateByzantineError(ctx, t, size, bServ)
 			require.NotNil(t, err)
