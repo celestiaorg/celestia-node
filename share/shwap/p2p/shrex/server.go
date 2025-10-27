@@ -99,7 +99,7 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 
 		status, size := srv.handleDataRequest(ctx, requestID, s)
 
-		srv.metrics.observeRequest(ctx, 1, requestID.Name(), status, time.Since(handleTime))
+		srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
 		srv.metrics.observePayloadServed(ctx, requestID.Name(), status, size)
 
 		log.Debugw("server: handling request",
