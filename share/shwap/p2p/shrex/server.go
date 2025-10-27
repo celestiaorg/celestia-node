@@ -121,7 +121,7 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 
 // handleDataRequest handles incoming data requests from remote peers, returning the resulting
 // status of the request and, if successful, bytes written
-func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) (status, int64) {
+func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) (status, int) {
 	log.Debugf("server: handling data request: %s from peer: %s", requestID.Name(), stream.Conn().RemotePeer())
 
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
@@ -166,48 +166,49 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			logger.Warn("file not found in store")
-			return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream), 0
+			return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream)
 		}
 		logger.Errorf("getting header %w", err)
-		return respondStatus(logger, shrexpb.Status_INTERNAL, stream), 0
+		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
 	defer utils.CloseAndLog(log, "file", file)
 	r, err := requestID.ResponseReader(ctx, file)
 	if err != nil {
 		logger.Errorf("getting data from response reader %w", err)
-		return respondStatus(logger, shrexpb.Status_INTERNAL, stream), 0
+		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
-	status := respondStatus(logger, shrexpb.Status_OK, stream)
+	status, writtenStatus := respondStatus(logger, shrexpb.Status_OK, stream)
 	logger.Debugw("sending status", "status", status)
 	if status != statusSuccess {
 		return status, 0
 	}
 
-	written, err := io.Copy(stream, r)
+	writtenResponse, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
 		return statusSendRespErr, 0
 	}
 	logger.Debugw("sent the data to the client")
-	return statusSuccess, written
+	return statusSuccess, writtenStatus + int(writtenResponse)
 }
 
-func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) status {
-	_, err := serde.Write(stream, &shrexpb.Response{Status: status})
+// respondStatus returns the status written to stream and the size of the response.
+func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) (status, int) {
+	written, err := serde.Write(stream, &shrexpb.Response{Status: status})
 	if err != nil {
 		log.Errorw("sending response status", "err", err)
-		return statusSendStatusErr
+		return statusSendStatusErr, 0
 	}
 
 	switch status {
 	case shrexpb.Status_INTERNAL:
-		return statusInternalErr
+		return statusInternalErr, written
 	case shrexpb.Status_NOT_FOUND:
-		return statusNotFound
+		return statusNotFound, written
 	case shrexpb.Status_OK:
-		return statusSuccess
+		return statusSuccess, written
 	default:
 		panic("unknown status")
 	}
