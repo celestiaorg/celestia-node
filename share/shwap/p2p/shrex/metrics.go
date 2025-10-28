@@ -21,7 +21,6 @@ const (
 	statusSendReqErr    status = "send_req_err"
 	statusReadStatusErr status = "read_status_err"
 	statusReadRespErr   status = "read_resp_err"
-	statusRateLimited   status = "rate_limited"
 
 	// statuses used by the server
 	statusReadReqErr    status = "read_req_err"
@@ -37,7 +36,6 @@ const (
 
 type Metrics struct {
 	totalRequestCounter metric.Int64Counter
-	rateLimiterCounter  metric.Int64Counter
 	requestDuration     metric.Float64Histogram
 }
 
@@ -81,6 +79,7 @@ func InitClientMetrics() (*Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
 		requestDuration:     requestDuration,
@@ -96,13 +95,6 @@ func InitServerMetrics() (*Metrics, error) {
 		return nil, err
 	}
 
-	rateLimiter, err := meter.Int64Counter("shrex_rate_limit_counter",
-		metric.WithDescription("concurrency limit of the shrex server"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_server_request_duration",
 		metric.WithDescription("Time taken to handle a shrex client request"),
@@ -112,7 +104,6 @@ func InitServerMetrics() (*Metrics, error) {
 	}
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
-		rateLimiterCounter:  rateLimiter,
 		requestDuration:     requestDuration,
 	}, nil
 }
