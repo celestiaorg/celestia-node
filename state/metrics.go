@@ -2,7 +2,7 @@ package state
 
 import (
 	"context"
-	"sync/atomic"
+	"errors"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -14,10 +14,14 @@ var meter = otel.Meter("state")
 
 // Attribute name constants for metrics labels
 const (
-	attrBlobCount = "blob_count"
-	attrTotalSize = "total_size_bytes"
-	attrGasPrice  = "gas_price_utia"
-	attrSuccess   = "success"
+	attrErrorType = "error_type"
+)
+
+// Error type constants for metrics labels
+const (
+	errorTypeTimeout  = "timeout"
+	errorTypeCanceled = "canceled"
+	errorTypeUnknown  = "unknown"
 )
 
 // metrics tracks state-related metrics
@@ -28,24 +32,19 @@ type metrics struct {
 	pfbSubmissionBlobSize    metric.Int64Counter
 	pfbGasEstimationDuration metric.Float64Histogram
 	pfbGasPriceEstimation    metric.Float64Histogram
+	pfbSubmissionTotal       metric.Int64Counter
 
 	// Gas estimation metrics
 	gasEstimationDuration metric.Float64Histogram
+	gasEstimationTotal    metric.Int64Counter
 
 	// Gas price estimation metrics
 	gasPriceEstimationDuration metric.Float64Histogram
+	gasPriceEstimationTotal    metric.Int64Counter
 
 	// Account operations metrics
 	accountQueryDuration metric.Float64Histogram
-
-	// Internal counters (thread-safe)
-	totalPfbSubmissions      atomic.Int64
-	totalGasEstimations      atomic.Int64
-	totalGasPriceEstimations atomic.Int64
-	totalAccountQueries      atomic.Int64
-
-	// Client registration for cleanup
-	clientReg metric.Registration
+	accountQueryTotal    metric.Int64Counter
 }
 
 // WithMetrics initializes metrics for the CoreAccessor
@@ -124,6 +123,39 @@ func (ca *CoreAccessor) WithMetrics() error {
 		return err
 	}
 
+	// Total counters
+	pfbSubmissionTotal, err := meter.Int64Counter(
+		"state_pfb_submission_total",
+		metric.WithDescription("Total number of PayForBlob submissions"),
+	)
+	if err != nil {
+		return err
+	}
+
+	gasEstimationTotal, err := meter.Int64Counter(
+		"state_gas_estimation_total",
+		metric.WithDescription("Total number of gas estimation operations"),
+	)
+	if err != nil {
+		return err
+	}
+
+	gasPriceEstimationTotal, err := meter.Int64Counter(
+		"state_gas_price_estimation_total",
+		metric.WithDescription("Total number of gas price estimation operations"),
+	)
+	if err != nil {
+		return err
+	}
+
+	accountQueryTotal, err := meter.Int64Counter(
+		"state_account_query_total",
+		metric.WithDescription("Total number of account query operations"),
+	)
+	if err != nil {
+		return err
+	}
+
 	m := &metrics{
 		pfbSubmissionDuration:      pfbSubmissionDuration,
 		pfbSubmissionBlobCount:     pfbSubmissionBlobCount,
@@ -133,80 +165,14 @@ func (ca *CoreAccessor) WithMetrics() error {
 		gasEstimationDuration:      gasEstimationDuration,
 		gasPriceEstimationDuration: gasPriceEstimationDuration,
 		accountQueryDuration:       accountQueryDuration,
-	}
-
-	// Register observable metrics for OTLP export
-	pfbSubmissionObservable, err := meter.Int64ObservableCounter(
-		"state_pfb_submission_total_observable",
-		metric.WithDescription("Observable total number of PayForBlob submissions"),
-	)
-	if err != nil {
-		return err
-	}
-
-	gasEstimationObservable, err := meter.Int64ObservableCounter(
-		"state_gas_estimation_total_observable",
-		metric.WithDescription("Observable total number of gas estimation operations"),
-	)
-	if err != nil {
-		return err
-	}
-
-	gasPriceEstimationObservable, err := meter.Int64ObservableCounter(
-		"state_gas_price_estimation_total_observable",
-		metric.WithDescription("Observable total number of gas price estimation operations"),
-	)
-	if err != nil {
-		return err
-	}
-
-	accountQueryObservable, err := meter.Int64ObservableCounter(
-		"state_account_query_total_observable",
-		metric.WithDescription("Observable total number of account query operations"),
-	)
-	if err != nil {
-		return err
-	}
-
-	callback := func(_ context.Context, observer metric.Observer) error {
-		// Observable metrics for OTLP export
-		observer.ObserveInt64(pfbSubmissionObservable, m.totalPfbSubmissions.Load())
-		observer.ObserveInt64(gasEstimationObservable, m.totalGasEstimations.Load())
-		observer.ObserveInt64(gasPriceEstimationObservable, m.totalGasPriceEstimations.Load())
-		observer.ObserveInt64(accountQueryObservable, m.totalAccountQueries.Load())
-		return nil
-	}
-
-	clientReg, err := meter.RegisterCallback(
-		callback,
-		pfbSubmissionObservable,
-		gasEstimationObservable,
-		gasPriceEstimationObservable,
-		accountQueryObservable,
-	)
-	if err != nil {
-		log.Errorf("Failed to register metrics callback: %v", err)
-		return err
+		pfbSubmissionTotal:         pfbSubmissionTotal,
+		gasEstimationTotal:         gasEstimationTotal,
+		gasPriceEstimationTotal:    gasPriceEstimationTotal,
+		accountQueryTotal:          accountQueryTotal,
 	}
 
 	// Update the CoreAccessor with the new metrics
 	ca.metrics = m
-
-	// Store the client registration for cleanup
-	m.clientReg = clientReg
-
-	return nil
-}
-
-// stop cleans up the metrics resources
-func (m *metrics) stop() error {
-	if m == nil || m.clientReg == nil {
-		return nil
-	}
-	if err := m.clientReg.Unregister(); err != nil {
-		log.Warnw("failed to close metrics", "err", err)
-		return err
-	}
 	return nil
 }
 
@@ -224,20 +190,25 @@ func (m *metrics) observePfbSubmission(
 		return
 	}
 
-	m.totalPfbSubmissions.Add(1)
-
-	attrs := []attribute.KeyValue{
-		attribute.Int(attrBlobCount, blobCount),
-		attribute.Int64(attrTotalSize, totalSize),
-		attribute.Float64(attrGasPrice, gasPrice),
-		attribute.Bool(attrSuccess, err == nil),
+	attrs := []attribute.KeyValue{}
+	if err != nil {
+		errorType := errorTypeUnknown
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			errorType = errorTypeTimeout
+		case errors.Is(err, context.Canceled):
+			errorType = errorTypeCanceled
+		}
+		attrs = append(attrs, attribute.String(attrErrorType, errorType))
 	}
 
+	// Record duration and increment counters
 	m.pfbSubmissionDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 	m.pfbSubmissionBlobCount.Add(ctx, int64(blobCount), metric.WithAttributes(attrs...))
 	m.pfbSubmissionBlobSize.Add(ctx, totalSize, metric.WithAttributes(attrs...))
 	m.pfbGasEstimationDuration.Record(ctx, gasEstimationDuration.Seconds(), metric.WithAttributes(attrs...))
 	m.pfbGasPriceEstimation.Record(ctx, gasPrice, metric.WithAttributes(attrs...))
+	m.pfbSubmissionTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // observeGasEstimation records gas estimation metrics
@@ -246,13 +217,20 @@ func (m *metrics) observeGasEstimation(ctx context.Context, duration time.Durati
 		return
 	}
 
-	m.totalGasEstimations.Add(1)
-
-	attrs := []attribute.KeyValue{
-		attribute.Bool(attrSuccess, err == nil),
+	attrs := []attribute.KeyValue{}
+	if err != nil {
+		errorType := errorTypeUnknown
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			errorType = errorTypeTimeout
+		case errors.Is(err, context.Canceled):
+			errorType = errorTypeCanceled
+		}
+		attrs = append(attrs, attribute.String(attrErrorType, errorType))
 	}
 
 	m.gasEstimationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	m.gasEstimationTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // observeGasPriceEstimation records gas price estimation metrics
@@ -261,13 +239,20 @@ func (m *metrics) observeGasPriceEstimation(ctx context.Context, duration time.D
 		return
 	}
 
-	m.totalGasPriceEstimations.Add(1)
-
-	attrs := []attribute.KeyValue{
-		attribute.Bool(attrSuccess, err == nil),
+	attrs := []attribute.KeyValue{}
+	if err != nil {
+		errorType := errorTypeUnknown
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			errorType = errorTypeTimeout
+		case errors.Is(err, context.Canceled):
+			errorType = errorTypeCanceled
+		}
+		attrs = append(attrs, attribute.String(attrErrorType, errorType))
 	}
 
 	m.gasPriceEstimationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	m.gasPriceEstimationTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // observeAccountQuery records account query metrics
@@ -276,11 +261,18 @@ func (m *metrics) observeAccountQuery(ctx context.Context, duration time.Duratio
 		return
 	}
 
-	m.totalAccountQueries.Add(1)
-
-	attrs := []attribute.KeyValue{
-		attribute.Bool(attrSuccess, err == nil),
+	attrs := []attribute.KeyValue{}
+	if err != nil {
+		errorType := errorTypeUnknown
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			errorType = errorTypeTimeout
+		case errors.Is(err, context.Canceled):
+			errorType = errorTypeCanceled
+		}
+		attrs = append(attrs, attribute.String(attrErrorType, errorType))
 	}
 
 	m.accountQueryDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	m.accountQueryTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }

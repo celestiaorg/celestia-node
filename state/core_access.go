@@ -169,11 +169,7 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 		ca.estimatorConn = nil
 	}
 
-	// Stop metrics if they exist
-	if err := ca.metrics.stop(); err != nil {
-		return err
-	}
-
+	// No cleanup needed for metrics
 	return nil
 }
 

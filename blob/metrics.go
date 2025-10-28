@@ -3,7 +3,6 @@ package blob
 import (
 	"context"
 	"errors"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -25,16 +24,11 @@ const (
 type metrics struct {
 	// Retrieval metrics
 	retrievalDuration metric.Float64Histogram
+	retrievalTotal    metric.Int64Counter
 
 	// Proof metrics
 	proofDuration metric.Float64Histogram
-
-	// Internal counters (thread-safe)
-	totalRetrievals atomic.Int64
-	totalProofs     atomic.Int64
-
-	// Client registration for cleanup
-	clientReg metric.Registration
+	proofTotal    metric.Int64Counter
 }
 
 // WithMetrics initializes metrics for the Service
@@ -59,50 +53,31 @@ func (s *Service) WithMetrics() error {
 		return err
 	}
 
+	retrievalTotal, err := meter.Int64Counter(
+		"blob_retrieval_total",
+		metric.WithDescription("Total number of blob retrievals"),
+	)
+	if err != nil {
+		return err
+	}
+
+	proofTotal, err := meter.Int64Counter(
+		"blob_proof_total",
+		metric.WithDescription("Total number of blob proofs"),
+	)
+	if err != nil {
+		return err
+	}
+
 	m := &metrics{
 		retrievalDuration: retrievalDuration,
+		retrievalTotal:    retrievalTotal,
 		proofDuration:     proofDuration,
+		proofTotal:        proofTotal,
 	}
 
-	// Register observable metrics
-	retrievalTotal, err := meter.Int64ObservableCounter(
-		"blob_retrieval_total_observable",
-		metric.WithDescription("Observable total number of blob retrievals"),
-	)
-	if err != nil {
-		return err
-	}
-
-	proofTotal, err := meter.Int64ObservableCounter(
-		"blob_proof_total_observable",
-		metric.WithDescription("Observable total number of blob proofs"),
-	)
-	if err != nil {
-		return err
-	}
-
-	callback := func(_ context.Context, observer metric.Observer) error {
-		observer.ObserveInt64(retrievalTotal, m.totalRetrievals.Load())
-		observer.ObserveInt64(proofTotal, m.totalProofs.Load())
-		return nil
-	}
-
-	clientReg, err := meter.RegisterCallback(callback, retrievalTotal, proofTotal)
-	if err != nil {
-		return err
-	}
-
-	m.clientReg = clientReg
 	s.metrics = m
 	return nil
-}
-
-// stop cleans up metrics resources
-func (m *metrics) stop() error {
-	if m == nil || m.clientReg == nil {
-		return nil
-	}
-	return m.clientReg.Unregister()
 }
 
 // observeRetrieval records blob retrieval metrics
@@ -110,8 +85,6 @@ func (m *metrics) observeRetrieval(ctx context.Context, duration time.Duration, 
 	if m == nil {
 		return
 	}
-
-	m.totalRetrievals.Add(1)
 
 	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
@@ -128,8 +101,8 @@ func (m *metrics) observeRetrieval(ctx context.Context, duration time.Duration, 
 		attrs = append(attrs, attribute.String("error_type", errorType))
 	}
 
-	// Use single counter with error_type enum
 	m.retrievalDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	m.retrievalTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // observeProof records blob proof metrics
@@ -137,8 +110,6 @@ func (m *metrics) observeProof(ctx context.Context, duration time.Duration, err 
 	if m == nil {
 		return
 	}
-
-	m.totalProofs.Add(1)
 
 	attrs := []attribute.KeyValue{}
 	if err != nil {
@@ -152,6 +123,6 @@ func (m *metrics) observeProof(ctx context.Context, duration time.Duration, err 
 		attrs = append(attrs, attribute.String("error_type", errorType))
 	}
 
-	// Use single counter with error_type enum
 	m.proofDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	m.proofTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }

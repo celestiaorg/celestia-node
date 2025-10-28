@@ -88,12 +88,7 @@ func (s *Service) Start(context.Context) error {
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
-	// Stop metrics if they exist
-	if s.metrics != nil {
-		if err := s.metrics.stop(); err != nil {
-			return err
-		}
-	}
+	// No cleanup needed for metrics
 	return nil
 }
 
