@@ -24,18 +24,14 @@ const (
 // metrics tracks blob-related metrics
 type metrics struct {
 	// Retrieval metrics
-	retrievalCounter  metric.Int64Counter
 	retrievalDuration metric.Float64Histogram
 
 	// Proof metrics
-	proofCounter  metric.Int64Counter
 	proofDuration metric.Float64Histogram
 
 	// Internal counters (thread-safe)
-	totalRetrievals      atomic.Int64
-	totalRetrievalErrors atomic.Int64
-	totalProofs          atomic.Int64
-	totalProofErrors     atomic.Int64
+	totalRetrievals atomic.Int64
+	totalProofs     atomic.Int64
 
 	// Client registration for cleanup
 	clientReg metric.Registration
@@ -44,14 +40,6 @@ type metrics struct {
 // WithMetrics initializes metrics for the Service
 func (s *Service) WithMetrics() error {
 	// Retrieval metrics
-	retrievalCounter, err := meter.Int64Counter(
-		"blob_retrieval_total",
-		metric.WithDescription("Total number of blob retrieval operations"),
-	)
-	if err != nil {
-		return err
-	}
-
 	retrievalDuration, err := meter.Float64Histogram(
 		"blob_retrieval_duration_seconds",
 		metric.WithDescription("Duration of blob retrieval operations"),
@@ -62,14 +50,6 @@ func (s *Service) WithMetrics() error {
 	}
 
 	// Proof metrics
-	proofCounter, err := meter.Int64Counter(
-		"blob_proof_total",
-		metric.WithDescription("Total number of blob proof operations"),
-	)
-	if err != nil {
-		return err
-	}
-
 	proofDuration, err := meter.Float64Histogram(
 		"blob_proof_duration_seconds",
 		metric.WithDescription("Duration of blob proof operations"),
@@ -80,9 +60,7 @@ func (s *Service) WithMetrics() error {
 	}
 
 	m := &metrics{
-		retrievalCounter:  retrievalCounter,
 		retrievalDuration: retrievalDuration,
-		proofCounter:      proofCounter,
 		proofDuration:     proofDuration,
 	}
 
@@ -119,25 +97,22 @@ func (s *Service) WithMetrics() error {
 	return nil
 }
 
-// Stop cleans up metrics resources
-func (m *metrics) Stop() error {
+// stop cleans up metrics resources
+func (m *metrics) stop() error {
 	if m == nil || m.clientReg == nil {
 		return nil
 	}
 	return m.clientReg.Unregister()
 }
 
-// ObserveRetrieval records blob retrieval metrics
-func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, err error) {
+// observeRetrieval records blob retrieval metrics
+func (m *metrics) observeRetrieval(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
 
-	// Update counters
+	// Update counter
 	m.totalRetrievals.Add(1)
-	if err != nil {
-		m.totalRetrievalErrors.Add(1)
-	}
 
 	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
@@ -155,24 +130,18 @@ func (m *metrics) ObserveRetrieval(ctx context.Context, duration time.Duration, 
 	}
 
 	// Use single counter with error_type enum
-	m.retrievalCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
-
 	m.retrievalDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
 
-// ObserveProof records blob proof metrics
-func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err error) {
+// observeProof records blob proof metrics
+func (m *metrics) observeProof(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
 
-	// Update counters
+	// Update counter
 	m.totalProofs.Add(1)
-	if err != nil {
-		m.totalProofErrors.Add(1)
-	}
 
-	// Record metrics with error type enum to avoid cardinality explosion
 	attrs := []attribute.KeyValue{}
 	if err != nil {
 		errorType := errorTypeUnknown
@@ -186,7 +155,5 @@ func (m *metrics) ObserveProof(ctx context.Context, duration time.Duration, err 
 	}
 
 	// Use single counter with error_type enum
-	m.proofCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
-
 	m.proofDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }

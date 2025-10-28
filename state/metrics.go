@@ -23,9 +23,7 @@ const (
 // metrics tracks state-related metrics
 type metrics struct {
 	// PFB submission metrics
-	pfbSubmissionCounter     metric.Int64Counter
 	pfbSubmissionDuration    metric.Float64Histogram
-	pfbSubmissionErrors      metric.Int64Counter
 	pfbSubmissionBlobCount   metric.Int64Counter
 	pfbSubmissionBlobSize    metric.Int64Counter
 	pfbGasEstimationDuration metric.Float64Histogram
@@ -33,25 +31,18 @@ type metrics struct {
 
 	// Gas estimation metrics
 	gasEstimationDuration metric.Float64Histogram
-	gasEstimationErrors   metric.Int64Counter
 
 	// Gas price estimation metrics
 	gasPriceEstimationDuration metric.Float64Histogram
-	gasPriceEstimationErrors   metric.Int64Counter
 
 	// Account operations metrics
 	accountQueryDuration metric.Float64Histogram
-	accountQueryErrors   metric.Int64Counter
 
 	// Internal counters (thread-safe)
-	totalPfbSubmissions           atomic.Int64
-	totalPfbSubmissionErrors      atomic.Int64
-	totalGasEstimations           atomic.Int64
-	totalGasEstimationErrors      atomic.Int64
-	totalGasPriceEstimations      atomic.Int64
-	totalGasPriceEstimationErrors atomic.Int64
-	totalAccountQueries           atomic.Int64
-	totalAccountQueryErrors       atomic.Int64
+	totalPfbSubmissions      atomic.Int64
+	totalGasEstimations      atomic.Int64
+	totalGasPriceEstimations atomic.Int64
+	totalAccountQueries      atomic.Int64
 
 	// Client registration for cleanup
 	clientReg metric.Registration
@@ -60,26 +51,10 @@ type metrics struct {
 // WithMetrics initializes metrics for the CoreAccessor
 func (ca *CoreAccessor) WithMetrics() error {
 	// PFB submission metrics
-	pfbSubmissionCounter, err := meter.Int64Counter(
-		"state_pfb_submission_total",
-		metric.WithDescription("Total number of PayForBlob submissions"),
-	)
-	if err != nil {
-		return err
-	}
-
 	pfbSubmissionDuration, err := meter.Float64Histogram(
 		"state_pfb_submission_duration_seconds",
 		metric.WithDescription("Duration of PayForBlob submission operations"),
 		metric.WithUnit("s"),
-	)
-	if err != nil {
-		return err
-	}
-
-	pfbSubmissionErrors, err := meter.Int64Counter(
-		"state_pfb_submission_errors_total",
-		metric.WithDescription("Total number of PayForBlob submission errors"),
 	)
 	if err != nil {
 		return err
@@ -129,27 +104,11 @@ func (ca *CoreAccessor) WithMetrics() error {
 		return err
 	}
 
-	gasEstimationErrors, err := meter.Int64Counter(
-		"state_gas_estimation_errors_total",
-		metric.WithDescription("Total number of gas estimation errors"),
-	)
-	if err != nil {
-		return err
-	}
-
 	// Gas price estimation metrics
 	gasPriceEstimationDuration, err := meter.Float64Histogram(
 		"state_gas_price_estimation_duration_seconds",
 		metric.WithDescription("Duration of gas price estimation operations"),
 		metric.WithUnit("s"),
-	)
-	if err != nil {
-		return err
-	}
-
-	gasPriceEstimationErrors, err := meter.Int64Counter(
-		"state_gas_price_estimation_errors_total",
-		metric.WithDescription("Total number of gas price estimation errors"),
 	)
 	if err != nil {
 		return err
@@ -165,28 +124,15 @@ func (ca *CoreAccessor) WithMetrics() error {
 		return err
 	}
 
-	accountQueryErrors, err := meter.Int64Counter(
-		"state_account_query_errors_total",
-		metric.WithDescription("Total number of account query errors"),
-	)
-	if err != nil {
-		return err
-	}
-
 	m := &metrics{
-		pfbSubmissionCounter:       pfbSubmissionCounter,
 		pfbSubmissionDuration:      pfbSubmissionDuration,
-		pfbSubmissionErrors:        pfbSubmissionErrors,
 		pfbSubmissionBlobCount:     pfbSubmissionBlobCount,
 		pfbSubmissionBlobSize:      pfbSubmissionBlobSize,
 		pfbGasEstimationDuration:   pfbGasEstimationDuration,
 		pfbGasPriceEstimation:      pfbGasPriceEstimation,
 		gasEstimationDuration:      gasEstimationDuration,
-		gasEstimationErrors:        gasEstimationErrors,
 		gasPriceEstimationDuration: gasPriceEstimationDuration,
-		gasPriceEstimationErrors:   gasPriceEstimationErrors,
 		accountQueryDuration:       accountQueryDuration,
-		accountQueryErrors:         accountQueryErrors,
 	}
 
 	// Register observable metrics for OTLP export
@@ -252,8 +198,8 @@ func (ca *CoreAccessor) WithMetrics() error {
 	return nil
 }
 
-// Stop cleans up the metrics resources
-func (m *metrics) Stop() error {
+// stop cleans up the metrics resources
+func (m *metrics) stop() error {
 	if m == nil || m.clientReg == nil {
 		return nil
 	}
@@ -264,8 +210,8 @@ func (m *metrics) Stop() error {
 	return nil
 }
 
-// ObservePfbSubmission records PayForBlob submission metrics
-func (m *metrics) ObservePfbSubmission(
+// observePfbSubmission records PayForBlob submission metrics
+func (m *metrics) observePfbSubmission(
 	ctx context.Context,
 	duration time.Duration,
 	blobCount int,
@@ -280,22 +226,12 @@ func (m *metrics) ObservePfbSubmission(
 
 	// Update counters
 	m.totalPfbSubmissions.Add(1)
-	if err != nil {
-		m.totalPfbSubmissionErrors.Add(1)
-	}
 
-	// Record metrics
 	attrs := []attribute.KeyValue{
 		attribute.Int(attrBlobCount, blobCount),
 		attribute.Int64(attrTotalSize, totalSize),
 		attribute.Float64(attrGasPrice, gasPrice),
 		attribute.Bool(attrSuccess, err == nil),
-	}
-
-	if err != nil {
-		m.pfbSubmissionErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
-	} else {
-		m.pfbSubmissionCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.pfbSubmissionDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
@@ -305,70 +241,49 @@ func (m *metrics) ObservePfbSubmission(
 	m.pfbGasPriceEstimation.Record(ctx, gasPrice, metric.WithAttributes(attrs...))
 }
 
-// ObserveGasEstimation records gas estimation metrics
-func (m *metrics) ObserveGasEstimation(ctx context.Context, duration time.Duration, err error) {
+// observeGasEstimation records gas estimation metrics
+func (m *metrics) observeGasEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
 
 	// Update counters
 	m.totalGasEstimations.Add(1)
-	if err != nil {
-		m.totalGasEstimationErrors.Add(1)
-	}
 
-	// Record metrics
 	attrs := []attribute.KeyValue{
 		attribute.Bool(attrSuccess, err == nil),
-	}
-	if err != nil {
-		m.gasEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.gasEstimationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
 
-// ObserveGasPriceEstimation records gas price estimation metrics
-func (m *metrics) ObserveGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
+// observeGasPriceEstimation records gas price estimation metrics
+func (m *metrics) observeGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
 
 	// Update counters
 	m.totalGasPriceEstimations.Add(1)
-	if err != nil {
-		m.totalGasPriceEstimationErrors.Add(1)
-	}
 
-	// Record metrics
 	attrs := []attribute.KeyValue{
 		attribute.Bool(attrSuccess, err == nil),
-	}
-	if err != nil {
-		m.gasPriceEstimationErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.gasPriceEstimationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
 
-// ObserveAccountQuery records account query metrics
-func (m *metrics) ObserveAccountQuery(ctx context.Context, duration time.Duration, err error) {
+// observeAccountQuery records account query metrics
+func (m *metrics) observeAccountQuery(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
 
 	// Update counters
 	m.totalAccountQueries.Add(1)
-	if err != nil {
-		m.totalAccountQueryErrors.Add(1)
-	}
 
-	// Record metrics
 	attrs := []attribute.KeyValue{
 		attribute.Bool(attrSuccess, err == nil),
-	}
-	if err != nil {
-		m.accountQueryErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 	}
 
 	m.accountQueryDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))

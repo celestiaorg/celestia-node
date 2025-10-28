@@ -170,7 +170,7 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 	}
 
 	// Stop metrics if they exist
-	if err := ca.metrics.Stop(); err != nil {
+	if err := ca.metrics.stop(); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 
 	// Use defer to ensure metrics are recorded exactly once at the end
 	defer func() {
-		ca.metrics.ObservePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+		ca.metrics.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 	}()
 
 	client, err := ca.getTxClient(ctx)
@@ -230,7 +230,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
 		gasEstimationDuration = time.Since(gasEstimationStart)
-		ca.metrics.ObserveGasEstimation(ctx, gasEstimationDuration, err)
+		ca.metrics.observeGasEstimation(ctx, gasEstimationDuration, err)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +245,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	// Account query with metrics
 	accountQueryStart := time.Now()
 	account := ca.client.AccountByAddress(ctx, author)
-	ca.metrics.ObserveAccountQuery(ctx, time.Since(accountQueryStart), nil)
+	ca.metrics.observeAccountQuery(ctx, time.Since(accountQueryStart), nil)
 
 	if account == nil {
 		err = fmt.Errorf("account for signer %s not found", author)
@@ -255,7 +255,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	// Gas price estimation with metrics
 	gasPriceEstimationStart := time.Now()
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
-	ca.metrics.ObserveGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
+	ca.metrics.observeGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
 	if err != nil {
 		return nil, err
 	}

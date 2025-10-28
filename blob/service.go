@@ -90,7 +90,7 @@ func (s *Service) Stop(context.Context) error {
 	s.cancel()
 	// Stop metrics if they exist
 	if s.metrics != nil {
-		if err := s.metrics.Stop(); err != nil {
+		if err := s.metrics.stop(); err != nil {
 			return err
 		}
 	}
@@ -210,8 +210,7 @@ func (s *Service) Get(
 	ctx, span := tracer.Start(ctx, "get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
-		// Record metrics
-		s.metrics.ObserveRetrieval(ctx, time.Since(start), err)
+		s.metrics.observeRetrieval(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
@@ -239,8 +238,7 @@ func (s *Service) GetProof(
 	ctx, span := tracer.Start(ctx, "get-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
-		// Record metrics
-		s.metrics.ObserveProof(ctx, time.Since(start), err)
+		s.metrics.observeProof(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
