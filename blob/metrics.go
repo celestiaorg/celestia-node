@@ -111,7 +111,6 @@ func (m *metrics) observeRetrieval(ctx context.Context, duration time.Duration, 
 		return
 	}
 
-	// Update counter
 	m.totalRetrievals.Add(1)
 
 	// Record metrics with error type enum to avoid cardinality explosion
@@ -139,7 +138,6 @@ func (m *metrics) observeProof(ctx context.Context, duration time.Duration, err 
 		return
 	}
 
-	// Update counter
 	m.totalProofs.Add(1)
 
 	attrs := []attribute.KeyValue{}

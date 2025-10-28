@@ -224,7 +224,6 @@ func (m *metrics) observePfbSubmission(
 		return
 	}
 
-	// Update counters
 	m.totalPfbSubmissions.Add(1)
 
 	attrs := []attribute.KeyValue{
@@ -247,7 +246,6 @@ func (m *metrics) observeGasEstimation(ctx context.Context, duration time.Durati
 		return
 	}
 
-	// Update counters
 	m.totalGasEstimations.Add(1)
 
 	attrs := []attribute.KeyValue{
@@ -263,7 +261,6 @@ func (m *metrics) observeGasPriceEstimation(ctx context.Context, duration time.D
 		return
 	}
 
-	// Update counters
 	m.totalGasPriceEstimations.Add(1)
 
 	attrs := []attribute.KeyValue{
@@ -279,7 +276,6 @@ func (m *metrics) observeAccountQuery(ctx context.Context, duration time.Duratio
 		return
 	}
 
-	// Update counters
 	m.totalAccountQueries.Add(1)
 
 	attrs := []attribute.KeyValue{
