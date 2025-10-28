@@ -39,14 +39,14 @@ const (
 	celestiaAppImage      = "ghcr.io/celestiaorg/celestia-app"
 	// defaultNodeTag can be overridden at build time using ldflags
 	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultCelestiaNodeTag = "local"
-	nodeImage              = "celestia-node"
+	defaultCelestiaNodeTag = "v0.28.2-arabica"
+	nodeImage              = "ghcr.io/celestiaorg/celestia-node"
 
 	testChainID = "test"
 )
 
 var (
-	defaultNodeTag = "v0.28.1-arabica" // Official release with queued submission feature and fixes
+	defaultNodeTag = "v0.28.2-arabica" // Official release with queued submission feature and fixes
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
@@ -139,13 +139,6 @@ func (f *Framework) GetLightNodes() []*dataavailability.Node {
 	return f.lightNodes
 }
 
-// CreateLightNode creates and starts a light node.
-func (f *Framework) CreateLightNode(ctx context.Context) *dataavailability.Node {
-	lightNode := f.startLightNode(ctx, f.bridgeNodes[0], f.celestia)
-	f.lightNodes = append(f.lightNodes, lightNode)
-	return lightNode
-}
-
 // NewBridgeNode creates and starts a new bridge node.
 func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)
@@ -196,8 +189,6 @@ func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailabili
 // CreateTestWallet creates a new test wallet with the specified amount.
 func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.Wallet {
 	sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount)))
-
-	// Create wallet - should work reliably with proper synchronization
 	testWallet, err := wallet.CreateAndFund(ctx, "test", sendAmount, f.celestia)
 	require.NoError(f.t, err, "failed to create test wallet")
 	require.NotNil(f.t, testWallet, "wallet is nil")
@@ -230,26 +221,16 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 
 	bankSend := banktypes.NewMsgSend(fromAddr, toAddr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount))))
 
-	// Broadcast transaction - should work reliably with proper synchronization
+	// Broadcast transaction
 	resp, err := f.celestia.BroadcastMessages(ctx, fromWallet, bankSend)
-
-	// Handle transaction result
 	if err != nil {
-		f.t.Logf("Failed to broadcast funding transaction: %v", err)
-		// Don't fail the test for funding errors, just log them
-		return
-	} else if resp.Code != 0 {
-		f.t.Logf("Transaction failed with code %d (likely insufficient funds)", resp.Code)
-		// Don't fail the test for funding errors, just log them
-		return
+		f.t.Fatalf("Failed to broadcast funding transaction: %v", err)
 	}
 
-	waitCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-
-	// Wait for transaction confirmation by actually verifying the transaction was included
-	err = f.waitForTransactionInclusion(waitCtx, resp.TxHash)
-	require.NoError(f.t, err, "failed to wait for transaction confirmation")
+	// Wait for transaction to be confirmed
+	if err := f.waitForTransactionInclusion(ctx, resp.TxHash); err != nil {
+		f.t.Fatalf("Failed to wait for transaction inclusion: %v", err)
+	}
 
 	f.t.Logf("Funding transaction completed for %s", toAddr.String())
 }
@@ -259,7 +240,6 @@ func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash stri
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	// Get RPC client from the first validator node
 	node := f.celestia.GetNodes()[0]
 	rpcClient, err := node.GetRPCClient()
 	if err != nil {

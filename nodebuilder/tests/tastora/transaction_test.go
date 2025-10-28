@@ -38,7 +38,7 @@ func TestTransactionTestSuite(t *testing.T) {
 
 func (s *TransactionTestSuite) SetupSuite() {
 	s.framework = NewFramework(s.T(), WithValidators(1), WithTxWorkerAccounts(numParallelWorkers))
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 
@@ -73,7 +73,7 @@ func (s *TransactionTestSuite) TearDownSuite() {
 func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	defer s.TearDownSuite()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
@@ -93,7 +93,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 	}
 
 	var (
-		numRounds    = 3
+		numRounds    = 5
 		failureCount atomic.Int32
 		wg           sync.WaitGroup
 	)
@@ -116,12 +116,6 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 
 		wg.Wait()
 		s.T().Logf("Round %d completed", round+1)
-
-		// Add shorter delay between rounds to allow bridge node to recover
-		if round < numRounds-1 {
-			s.T().Logf("Waiting 2 seconds before starting next round...")
-			time.Sleep(2 * time.Second)
-		}
 	}
 
 	// Verify all submissions succeeded
