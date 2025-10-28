@@ -104,23 +104,7 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 			go func(roundNum, workerNum int) {
 				defer wg.Done()
 
-				// Use a shorter timeout per submission to fail fast
-				submitCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-				defer cancel()
-
-				// Retry submission once for transient RPC failures
-				var height uint64
-				var err error
-				for attempt := 1; attempt <= 2; attempt++ {
-					height, err = client.Blob.Submit(submitCtx, nodeBlobs, state.NewTxConfig())
-					if err == nil && height > 0 {
-						break
-					}
-					if attempt < 2 {
-						time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
-					}
-				}
-
+				height, err := client.Blob.Submit(ctx, nodeBlobs, state.NewTxConfig())
 				if err != nil {
 					failureCount.Add(1)
 					s.T().Logf("Round %d, Worker %d: FAILED - %v", roundNum+1, workerNum+1, err)

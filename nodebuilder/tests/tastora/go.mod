@@ -9,15 +9,13 @@ require (
 	github.com/celestiaorg/celestia-app/v6 v6.1.2-arabica
 	github.com/celestiaorg/celestia-node v0.28.1-arabica
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/tastora v0.0.0-20251023064543-d02b42cf8608
+	github.com/celestiaorg/tastora v0.7.5
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.76.0
 )
-
-replace github.com/celestiaorg/tastora => github.com/celestiaorg/tastora v0.0.0-20251023064543-d02b42cf8608
 
 require (
 	github.com/avast/retry-go/v4 v4.6.1 // indirect
