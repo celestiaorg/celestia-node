@@ -65,6 +65,7 @@ The SHREX client is responsible for:
 - Reading and validating requests
 - Retrieving data from local storage
 - Sending responses back to clients
+- In certain cases (GetNamespaceData), sends non-inclusion proof along with not found
 
 ### Request Handling
 
@@ -105,13 +106,13 @@ All server responses follow a two-phase pattern:
 1. **Status Message**: Indicates whether the request can be fulfilled
     - **OK**: Data is available and will follow
     - **READ REQUEST ERROR** - error happened during reading a request from the stream
-    - **SEND STATUS ERROR** - errod during sending a status back the client
-    - **SEND RESPONSE ERROR** - errod during sending a status back the client
+    - **SEND STATUS ERROR** - error during sending a status back the client
+    - **SEND RESPONSE ERROR** - error during sending a status back the client
     - **BAD REQUEST** - request did not pass validation
     - **NOT FOUND**: Requested data is not available
     - **INTERNAL ERROR**: Server encountered an error
 
-2. **Data (if OK)**: The actual requested data
+2. **Data (if OK)**: The actual requested data(or non inclusion proof in case of GetNamespaceData request)
 
 ## Error Handling
 
@@ -121,7 +122,6 @@ The client reports errors to its caller:
 
 - Connection failures
 - Timeouts
-- Invalid data
 
 ### Server Errors
 
