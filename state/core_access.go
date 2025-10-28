@@ -27,13 +27,13 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v6/app"
+	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v6/app/errors"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -51,6 +51,15 @@ type CoreAccessor struct {
 
 	keyring keyring.Keyring
 	client  *user.TxClient
+	// txWorkerAccounts is used for queued submission. It defines how many accounts the
+	// TxClient uses for PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	txWorkerAccounts int
 
 	// TODO @renaynay: clean this up -- only one!!!!
 	defaultSignerAccount string
@@ -184,15 +193,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	gas := cfg.GasLimit()
-	if gas == 0 {
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
-			blobSizes[i] = uint32(len(blob.Data()))
-		}
-		gas = ca.estimateGasForBlobs(blobSizes)
-	}
-
 	// get tx signer account name
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
@@ -201,6 +201,14 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	account := ca.client.AccountByAddress(ctx, author)
 	if account == nil {
 		return nil, fmt.Errorf("account for signer %s not found", author)
+	}
+
+	gas := cfg.GasLimit()
+	if gas == 0 {
+		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
@@ -213,7 +221,12 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	var response *user.TxResponse
+	if ca.txWorkerAccounts > 0 {
+		response, err = client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
+	} else {
+		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	}
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
@@ -221,7 +234,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		}
 		return convertToSdkTxResponse(response), nil
 	}
-	// TODO @renaynay: use new rachid named func
+
 	if apperrors.IsInsufficientFee(err) {
 		if cfg.isGasPriceSet {
 			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
@@ -524,13 +537,17 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 		ca.estimatorConn = estimatorConn
 	}
 
+	if ca.txWorkerAccounts > 1 {
+		opts = append(opts, user.WithTxWorkers(ca.txWorkerAccounts))
+	}
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	if len(ca.coreConns) > 1 {
 		opts = append(opts, user.WithAdditionalCoreEndpoints(ca.coreConns[1:]))
 	}
 
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
+	client, err := user.SetupTxClient(ca.ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}

@@ -75,10 +75,17 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	// in fact, we don't need core.Client in tests, but the Bridge node requires a valid one.
 	// otherwise, it fails with a failed attempt to connect with a custom build client.
 	if tp == node.Bridge {
-		_, _, err := net.SplitHostPort(core.StartTestNode(t).GRPCClient.Target())
-		require.NoError(t, err)
+		ip, port := cfg.Core.IP, cfg.Core.Port
+		// this means there is no core node currently configured, which a bridge node needs
+		if ip == "" {
+			tn := core.StartTestNode(t)
+			var err error
+			ip, port, err = net.SplitHostPort(tn.GRPCClient.Target())
+			require.NoError(t, err)
+		}
+
 		con, err := grpc.NewClient(
-			core.StartTestNode(t).GRPCClient.Target(),
+			net.JoinHostPort(ip, port),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		require.NoError(t, err)

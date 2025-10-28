@@ -2,9 +2,7 @@ package shrex
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -14,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
 
@@ -84,6 +83,9 @@ func (c *Client) doRequest(
 	if err != nil {
 		return statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
+	defer func() {
+		utils.CloseAndLog(log, "shrex/client stream", stream)
+	}()
 
 	c.setStreamDeadlines(ctx, logger, stream)
 
@@ -100,9 +102,6 @@ func (c *Client) doRequest(
 	var statusResp shrexpb.Response
 	_, err = serde.Read(stream, &statusResp)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return statusRateLimited, fmt.Errorf("reading a response: %w", ErrRateLimited)
-		}
 		return statusReadStatusErr, fmt.Errorf("unexpected error during reading the status from stream: %w", err)
 	}
 

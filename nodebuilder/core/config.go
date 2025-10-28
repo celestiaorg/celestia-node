@@ -24,11 +24,11 @@ type Config struct {
 type EndpointConfig struct {
 	IP   string
 	Port string
-	// TLSEnabled specifies whether the connection is secure or not.
-	// PLEASE NOTE: it should be set to true in order to handle XTokenPath.
+	// TLSEnabled specifies whether the connection is secure.
+	// Must be set to true if XTokenPath is provided.
 	TLSEnabled bool
-	// XTokenPath specifies the path to the directory with JSON file containing the X-Token for gRPC authentication.
-	// The JSON file should have a key-value pair where the key is "x-token" and the value is the authentication token.
+	// XTokenPath specifies the path to the directory that contains a JSON file with the X-Token for gRPC authentication.
+	// The JSON file must contain a key "x-token" with the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
 	XTokenPath string
 }
@@ -77,6 +77,15 @@ func (cfg *EndpointConfig) validate() error {
 	_, err = strconv.Atoi(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("nodebuilder/core: invalid grpc port: %s", err.Error())
+	}
+
+	if cfg.XTokenPath != "" {
+		if !cfg.TLSEnabled {
+			return fmt.Errorf("nodebuilder/core: TLSEnabled must be true when XTokenPath is set")
+		}
+		if !utils.Exists(cfg.XTokenPath) {
+			return fmt.Errorf("nodebuilder/core: XTokenPath does not exist: %s", cfg.XTokenPath)
+		}
 	}
 
 	return nil
