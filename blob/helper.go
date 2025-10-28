@@ -51,5 +51,5 @@ func ToNodeBlobs(blobs ...*libshare.Blob) ([]*Blob, error) {
 func calculateIndex(rowLength, blobIndex int) (row, col int) {
 	row = blobIndex / rowLength
 	col = blobIndex - (row * rowLength)
-	return
+	return row, col
 }

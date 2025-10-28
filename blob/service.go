@@ -210,7 +210,7 @@ func (s *Service) Get(
 	}}
 
 	blob, _, err = s.retrieve(ctx, height, namespace, sharesParser)
-	return
+	return blob, err
 }
 
 // GetProof returns an NMT inclusion proof for a specified namespace to the respective row roots
