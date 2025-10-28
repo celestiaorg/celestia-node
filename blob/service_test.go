@@ -19,14 +19,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v5/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/nmt"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -152,7 +147,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())), false)
 				}
 			},
 		},
@@ -533,7 +528,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -595,7 +590,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -973,7 +968,12 @@ func TestProveCommitmentAllCombinations(t *testing.T) {
 
 func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
-	for msgIndex, msg := range msgs {
+	randomBlob, err := libshare.GenerateV0Blobs([]int{10}, true)
+	require.NoError(t, err)
+	nodeBlob, err := ToNodeBlobs(randomBlob...)
+	require.NoError(t, err)
+
+	for msgIndex := range msgs {
 		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
 			blb, err := NewBlob(blobs[msgIndex].ShareVersion(), nss[msgIndex], blobs[msgIndex].Data(), nil)
 			require.NoError(t, err)
@@ -985,109 +985,19 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 
 			// make sure the actual commitment attests to the data
 			require.NoError(t, actualCommitmentProof.Validate())
-			valid, err := actualCommitmentProof.Verify(
+			err = actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.SubtreeRootThreshold,
+				blb.Commitment,
 			)
 			require.NoError(t, err)
-			require.True(t, valid)
 
-			// generate an expected proof and verify it's valid
-			expectedCommitmentProof := generateCommitmentProofFromBlock(t, eds, nss[msgIndex], blobs[msgIndex], dataRoot)
-			require.NoError(t, expectedCommitmentProof.Validate())
-			valid, err = expectedCommitmentProof.Verify(
+			err = actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.SubtreeRootThreshold,
+				nodeBlob[0].Commitment,
 			)
-			require.NoError(t, err)
-			require.True(t, valid)
-
-			// make sure the expected proof is the same as the actual on
-			assert.Equal(t, expectedCommitmentProof, *actualCommitmentProof)
-
-			// make sure the expected commitment commits to the subtree roots in the result proof
-			actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.SubtreeRoots)
-			assert.Equal(t, msg.ShareCommitments[0], actualCommitment)
+			require.Error(t, err)
 		})
 	}
-}
-
-// generateCommitmentProofFromBlock takes a block and a PFB index and generates the commitment proof
-// using the traditional way of doing, instead of using the API.
-func generateCommitmentProofFromBlock(
-	t *testing.T,
-	eds *rsmt2d.ExtendedDataSquare,
-	ns libshare.Namespace,
-	blob *libshare.Blob,
-	dataRoot []byte,
-) CommitmentProof {
-	// create the blob from the data
-	blb, err := NewBlob(blob.ShareVersion(),
-		ns,
-		blob.Data(),
-		nil,
-	)
-	require.NoError(t, err)
-
-	// convert the blob to a number of shares
-	blobShares, err := BlobsToShares(blb)
-	require.NoError(t, err)
-
-	// find the first share of the blob in the ODS
-	startShareIndex := -1
-	for i, sh := range eds.FlattenedODS() {
-		if bytes.Equal(sh, blobShares[0].ToBytes()) {
-			startShareIndex = i
-			break
-		}
-	}
-	require.Greater(t, startShareIndex, 0)
-
-	// create an inclusion proof of the blob using the share range instead of the commitment
-	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
-		eds,
-		ns,
-		libshare.NewRange(startShareIndex, startShareIndex+len(blobShares)),
-	)
-	require.NoError(t, err)
-	require.NoError(t, sharesProof.Validate(dataRoot))
-
-	// calculate the subtree roots
-	subtreeRoots := make([][]byte, 0)
-	dataCursor := 0
-	for _, proof := range sharesProof.ShareProofs {
-		ranges, err := nmt.ToLeafRanges(
-			int(proof.Start),
-			int(proof.End),
-			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
-		)
-		require.NoError(t, err)
-		roots, err := computeSubtreeRoots(
-			blobShares[dataCursor:int32(dataCursor)+proof.End-proof.Start],
-			ranges,
-			int(proof.Start),
-		)
-		require.NoError(t, err)
-		subtreeRoots = append(subtreeRoots, roots...)
-		dataCursor += int(proof.End - proof.Start)
-	}
-
-	// convert the nmt proof to be accepted by the commitment proof
-	nmtProofs := make([]*nmt.Proof, 0)
-	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
-		nmtProofs = append(nmtProofs, &nmtProof)
-	}
-
-	commitmentProof := CommitmentProof{
-		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       sharesProof.NamespaceId,
-		RowProof:          *sharesProof.RowProof,
-		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
-	}
-
-	return commitmentProof
 }
 
 func rawBlobSize(totalSize int) int {

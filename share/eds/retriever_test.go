@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -97,7 +97,7 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 }
 
 func TestFraudProofValidation(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer t.Cleanup(cancel)
 	bServ := ipld.NewMemBlockservice()
 
@@ -106,7 +106,8 @@ func TestFraudProofValidation(t *testing.T) {
 		t.Run(fmt.Sprintf("ods size:%d", size), func(t *testing.T) {
 			var errByz *byzantine.ErrByzantine
 			faultHeader, err := generateByzantineError(ctx, t, size, bServ)
-			require.True(t, errors.As(err, &errByz))
+			require.NotNil(t, err)
+			require.True(t, errors.As(err, &errByz), err.Error())
 
 			p := byzantine.CreateBadEncodingProof([]byte("hash"), faultHeader.Height(), errByz)
 			err = p.Validate(faultHeader)

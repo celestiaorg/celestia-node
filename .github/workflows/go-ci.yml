@@ -85,6 +85,21 @@ jobs:
       - name: Check for diff
         run: git diff --exit-code
 
+  go_mod_parity_check:
+    needs: [setup]
+    name: Go Mod Parity Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Check go.mod parity between root and tastora
+        run: ./scripts/check-go-mod-parity.sh
+
   test_coverage:
     needs: [setup]
     name: Unit Tests Coverage
@@ -149,7 +164,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [go_mod_tidy_check, lint, lint-imports, test_coverage]
+    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, test_coverage]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}

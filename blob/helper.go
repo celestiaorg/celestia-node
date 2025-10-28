@@ -4,8 +4,8 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.
