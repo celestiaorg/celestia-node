@@ -257,7 +257,7 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(workerAccounts))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(workerAccounts))
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
@@ -337,7 +337,7 @@ func TestTxWorkerSetup(t *testing.T) {
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(8))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(8))
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
