@@ -1,5 +1,3 @@
-//go:build share || integration
-
 package tests
 
 import (
