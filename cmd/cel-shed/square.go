@@ -27,7 +27,6 @@ var constructFromCoreCmd = &cobra.Command{
 	Use:   "construct-from-core [core endpoint in ip:port format] [height]",
 	Short: "Constructs a complete data square and extended header from a signed core block",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		conn, err := grpc.NewClient(args[0], grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			panic(err)
