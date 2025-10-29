@@ -99,9 +99,11 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 // row-major order. Write finishes once all the shares are written or on the first instance of tail
 // padding share. Tail padding share are constant and aren't stored.
 func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
-	for i := range eds.Width() / 2 {
-		for j := range eds.Width() / 2 {
-			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
+	half := eds.Width() / 2
+	for i := range half {
+		row := eds.Row(uint(i))
+		for j := range half {
+			shr := row[j]
 			ns, err := libshare.NewNamespaceFromBytes(shr[:libshare.NamespaceSize])
 			if err != nil {
 				return fmt.Errorf("creating namespace: %w", err)
@@ -110,8 +112,7 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 				return nil
 			}
 
-			_, err = w.Write(shr)
-			if err != nil {
+			if _, err := w.Write(shr); err != nil {
 				return fmt.Errorf("writing share: %w", err)
 			}
 		}
