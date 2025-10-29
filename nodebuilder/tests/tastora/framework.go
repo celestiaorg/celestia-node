@@ -69,6 +69,9 @@ type Framework struct {
 	bridgeNodes []*dataavailability.Node // Bridge nodes (bridgeNodes[0] created by default)
 	lightNodes  []*dataavailability.Node // Light nodes
 
+	// Version tracking for nodes
+	nodeVersions map[string]string // nodeID -> version
+
 	// Private funding infrastructure (not exposed to tests)
 	fundingWallet        *types.Wallet
 	defaultFundingAmount int64
@@ -84,6 +87,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 		t:                    t,
 		logger:               zaptest.NewLogger(t),
 		defaultFundingAmount: 100_000_000_000, // 100 billion utia
+		nodeVersions:         make(map[string]string),
 	}
 
 	// Apply configuration options
@@ -171,6 +175,33 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	return lightNode
 }
 
+// NewBridgeNodeWithVersion creates and starts a new bridge node with a specific version.
+func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	bridgeNode := f.newBridgeNodeWithVersion(ctx, version)
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	f.nodeVersions[bridgeNode.Name()] = version
+	return bridgeNode
+}
+
+// NewLightNodeWithVersion creates and starts a new light node with a specific version.
+func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	allLightNodes := f.daNetwork.GetLightNodes()
+	if len(f.lightNodes) >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
+	}
+
+	bridgeNode := f.bridgeNodes[0]
+	lightNode := f.startLightNodeWithVersion(ctx, bridgeNode, f.celestia, version)
+	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
+	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
+
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
+
+	f.lightNodes = append(f.lightNodes, lightNode)
+	f.nodeVersions[lightNode.Name()] = version
+	return lightNode
+}
+
 // GetCelestiaChain returns the Celestia chain instance.
 func (f *Framework) GetCelestiaChain() *cosmos.Chain {
 	return f.celestia
@@ -207,6 +238,23 @@ func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.W
 // newBridgeNode creates and starts a bridge node.
 func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.startBridgeNode(ctx, f.celestia)
+
+	if f.config.TxWorkerAccounts > 0 {
+		f.t.Logf("Waiting for bridge node with %d worker accounts to initialize...", f.config.TxWorkerAccounts)
+		time.Sleep(10 * time.Second)
+	}
+
+	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
+	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
+
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "bridge node")
+
+	return bridgeNode
+}
+
+// newBridgeNodeWithVersion creates and starts a bridge node with a specific version.
+func (f *Framework) newBridgeNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	bridgeNode := f.startBridgeNodeWithVersion(ctx, f.celestia, version)
 
 	if f.config.TxWorkerAccounts > 0 {
 		f.t.Logf("Waiting for bridge node with %d worker accounts to initialize...", f.config.TxWorkerAccounts)
@@ -483,6 +531,45 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 	return bridgeNode
 }
 
+// startBridgeNodeWithVersion initializes and starts a bridge node with a specific version.
+func (f *Framework) startBridgeNodeWithVersion(ctx context.Context, chain *cosmos.Chain, version string) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, chain)
+
+	// Get the next available bridge node from the DA network
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	bridgeNodeIndex := len(f.bridgeNodes)
+	if bridgeNodeIndex >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", bridgeNodeIndex, len(bridgeNodes))
+	}
+	bridgeNode := bridgeNodes[bridgeNodeIndex]
+
+	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	// Build start arguments with explicit core port
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
+	if f.config.TxWorkerAccounts > 0 {
+		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
+	}
+
+	// Start bridge node with specific version - should work reliably with proper resource isolation
+	err = bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_BOOTSTRAPPER": "true",  // Make bridge node act as DHT bootstrapper
+				"CELESTIA_NODE_VERSION": version, // Add version for debugging
+			},
+		),
+	)
+	require.NoError(f.t, err, "failed to start bridge node with version %s", version)
+	return bridgeNode
+}
+
 // startLightNode initializes and starts a light node.
 func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain) *dataavailability.Node {
 	genesisHash := f.getGenesisHash(ctx, chain)
@@ -523,6 +610,45 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 	return lightNode
 }
 
+// startLightNodeWithVersion initializes and starts a light node with a specific version.
+func (f *Framework) startLightNodeWithVersion(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain, version string) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, chain)
+
+	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
+	require.NoError(f.t, err, "failed to get bridge node p2p info")
+
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	require.NoError(f.t, err, "failed to get bridge node p2p address")
+
+	// Get the core node hostname for state access
+	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	// Get the next available light node from the DA network
+	allLightNodes := f.daNetwork.GetLightNodes()
+	lightNodeIndex := len(f.lightNodes)
+	if lightNodeIndex >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", lightNodeIndex, len(allLightNodes))
+	}
+	lightNode := allLightNodes[lightNodeIndex]
+
+	// Start light node with specific version - should work reliably with proper resource isolation
+	err = lightNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_NODE_VERSION": version, // Add version for debugging
+			},
+		),
+	)
+	require.NoError(f.t, err, "failed to start light node with version %s", version)
+	return lightNode
+}
+
 // getGenesisHash returns the genesis hash of the chain.
 func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) string {
 	node := chain.GetNodes()[0]
@@ -536,6 +662,14 @@ func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) str
 	genesisHash := block.Block.Header.Hash().String()
 	require.NotEmpty(f.t, genesisHash, "genesis hash is empty")
 	return genesisHash
+}
+
+// GetNodeVersion returns the version of a specific node.
+func (f *Framework) GetNodeVersion(node *dataavailability.Node) string {
+	if version, exists := f.nodeVersions[node.Name()]; exists {
+		return version
+	}
+	return "unknown"
 }
 
 // getCelestiaTag returns the Celestia app image tag.
