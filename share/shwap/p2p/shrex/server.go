@@ -29,10 +29,8 @@ type Server struct {
 
 	store *store.Store
 
-	params *ServerParams
-	// TODO: decouple middleware metrics from shrex and remove middleware from Server
-	middleware *Middleware
-	metrics    *Metrics
+	params  *ServerParams
+	metrics *Metrics
 }
 
 // NewServer creates a new shrEx-Server. It configures the server with the provided
@@ -47,19 +45,13 @@ func NewServer(
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)
 	}
 
-	middleware, err := newMiddleware(params.ConcurrencyLimit)
-	if err != nil {
-		return nil, fmt.Errorf("shrex/server: could not initialize middleware: %w", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
-		ctx:        ctx,
-		cancel:     cancel,
-		store:      store,
-		host:       host,
-		middleware: middleware,
-		params:     params,
+		ctx:    ctx,
+		cancel: cancel,
+		store:  store,
+		host:   host,
+		params: params,
 	}
 	return srv, nil
 }
@@ -72,8 +64,7 @@ func (srv *Server) Start(_ context.Context) error {
 	for _, reqID := range registry {
 		id := reqID()
 		handler := srv.streamHandler(srv.ctx, reqID)
-		withRateLimit := srv.middleware.rateLimitHandler(srv.ctx, handler, srv.metrics, id.Name())
-		withRecovery := RecoveryMiddleware(withRateLimit)
+		withRecovery := RecoveryMiddleware(handler)
 
 		p := ProtocolID(srv.params.NetworkID(), id.Name())
 

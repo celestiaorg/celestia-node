@@ -5,19 +5,27 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v3/share"
+)
+
+const (
+	chainID = "private"
 )
 
 func TestSubmitPayForBlob(t *testing.T) {
@@ -57,10 +65,13 @@ func TestSubmitPayForBlob(t *testing.T) {
 		},
 		{
 			name:     "good blob with user provided gas and fees",
-			blobs:    []*libshare.Blob{blobbyTheBlob},
+			blobs:    []*libshare.Blob{blobbyTheBlob, blobbyTheBlob},
 			gasPrice: 0.005,
-			gasLim:   apptypes.DefaultEstimateGas([]uint32{uint32(blobbyTheBlob.DataLen())}),
-			expErr:   nil,
+			gasLim: apptypes.DefaultEstimateGas(&apptypes.MsgPayForBlobs{
+				BlobSizes:     []uint32{uint32(blobbyTheBlob.DataLen()), uint32(blobbyTheBlob.DataLen())},
+				ShareVersions: []uint32{uint32(blobbyTheBlob.ShareVersion()), uint32(blobbyTheBlob.ShareVersion())},
+			}),
+			expErr: nil,
 		},
 		// TODO: add more test cases. The problem right now is that the celestia-app doesn't
 		// correctly construct the node (doesn't pass the min gas price) hence the price on
@@ -222,57 +233,136 @@ func TestDelegate(t *testing.T) {
 	}
 }
 
-func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
-	chainID := "private"
+func TestParallelPayForBlobSubmission(t *testing.T) {
+	const (
+		workerAccounts = 4
+		blobCount      = 10
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
 
 	t.Helper()
-	accounts := []genesis.KeyringAccount{
-		{
-			Name:          "jimmy",
-			InitialTokens: 100_000_000,
-		},
-		{
-			Name:          "carl",
-			InitialTokens: 100_000_000,
-		},
-		{
-			Name:          "sheen",
-			InitialTokens: 100_000_000,
-		},
-		{
-			Name:          "cindy",
-			InitialTokens: 100_000_000,
-		},
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
 	}
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 1
-
-	appConf := testnode.DefaultAppConfig()
-	appConf.API.Enable = true
-
-	g := genesis.NewDefaultGenesis().
-		WithChainID(chainID).
-		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
-		WithConsensusParams(testnode.DefaultConsensusParams()).WithKeyringAccounts(accounts...)
 
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
-		WithTendermintConfig(tmCfg).
-		WithAppConfig(appConf).
-		WithGenesis(g)
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0].Name, nil, conn, chainID, opts...)
+
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(workerAccounts))
 	require.NoError(t, err)
-	return ca, getNames(accounts)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = ca.Stop(ctx)
+	})
+
+	blobs := make([][]*libshare.Blob, blobCount)
+	for i := 0; i < blobCount; i++ {
+		generated, err := libshare.GenerateV0Blobs([]int{8}, false)
+		require.NoError(t, err)
+		blobs[i] = generated
+	}
+
+	responses := make([]*TxResponse, blobCount)
+	var g errgroup.Group
+
+	for i := 0; i < blobCount; i++ {
+		idx := i
+		g.Go(func() error {
+			resp, err := ca.SubmitPayForBlob(ctx, blobs[idx], NewTxConfig())
+			if err != nil {
+				return err
+			}
+			if resp == nil {
+				return fmt.Errorf("nil response for blob %d", idx)
+			}
+			if resp.Code != 0 {
+				return fmt.Errorf("unexpected code for blob %d: %d", idx, resp.Code)
+			}
+			responses[idx] = resp
+			return nil
+		})
+	}
+
+	require.NoError(t, g.Wait())
+
+	hashes := make(map[string]struct{}, blobCount)
+	for _, resp := range responses {
+		require.NotNil(t, resp)
+		hashes[resp.TxHash] = struct{}{}
+	}
+	require.Len(t, hashes, blobCount)
+
+	for i := 1; i < workerAccounts; i++ {
+		name := fmt.Sprintf("parallel-worker-%d", i)
+		_, err := ca.keyring.Key(name)
+		require.NoError(t, err, "expected worker account %s", name)
+	}
 }
 
-func getNames(accounts []genesis.KeyringAccount) (names []string) {
-	for _, account := range accounts {
-		names = append(names, account.Name)
+// TestTxWorkerSetup ensures that the tx worker setup works properly
+// despite having some pre-existing parallel worker accounts existing
+// in the node's keyring, both funded and unfunded.
+// Ref: https://github.com/celestiaorg/celestia-app/pull/6014
+func TestTxWorkerSetup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	accounts := []string{
+		// fund a parallel tx worker account so it exists in account state
+		"jimmy", "carl", "sheen", "cindy", "parallel-worker-5",
 	}
-	return names
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond)
+
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	// create parallel tx worker in keyring (but it is NOT YET FUNDED)
+	path := hd.CreateHDPath(sdktypes.CoinType, 0, 0).String()
+	_, _, err = cctx.Keyring.NewMnemonic("parallel-worker-2", keyring.English, path,
+		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+	require.NoError(t, err)
+
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(8))
+	require.NoError(t, err)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+	// ensure tx client is set up properly even though some parallel worker accounts
+	// exist in keyring already (unfunded) and some are funded
+	err = ca.setupTxClient(ctx)
+	require.NoError(t, err)
+}
+
+func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
+	t.Helper()
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
+	}
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithTimeoutCommit(time.Millisecond * 1)
+
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, opts...)
+	require.NoError(t, err)
+	return ca, accounts
 }

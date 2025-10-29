@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -126,7 +126,11 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 		return err
 	}
 
-	state.ParseFlags(cmd, &cfg.State)
+	err = state.ParseFlags(cmd, &cfg.State)
+	if err != nil {
+		return err
+	}
+
 	if err = rpc_cfg.ParseFlags(cmd, &cfg.RPC); err != nil {
 		return err
 	}

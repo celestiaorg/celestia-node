@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -173,7 +174,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		attribute.Int64("height", b.Header.Height),
 	)
 
-	eds, err := extendBlock(&b.Data)
+	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
