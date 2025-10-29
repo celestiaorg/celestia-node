@@ -27,6 +27,15 @@ type SubmitConfig struct {
 	DefaultKeyName string
 	Network        p2p.Network
 	CoreGRPCConfig CoreGRPCConfig
+	// TxWorkerAccounts configures the CoreAccessor to manage the provided number of
+	// worker accounts via the TxClient.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	TxWorkerAccounts int
 }
 
 func (cfg Config) Validate() error {
@@ -91,12 +100,17 @@ func (c *Client) initTxClient(
 	kr keyring.Keyring,
 ) error {
 	// key is specified. Set up core accessor and txClient
+	opts := []state.Option{}
+	if submitCfg.TxWorkerAccounts > 0 {
+		opts = append(opts, state.WithTxWorkerAccounts(submitCfg.TxWorkerAccounts))
+	}
 	core, err := state.NewCoreAccessor(
 		kr,
 		submitCfg.DefaultKeyName,
 		trustedHeadGetter{remote: c.Header},
 		conn,
 		submitCfg.Network.String(),
+		opts...,
 	)
 	if err != nil {
 		return err
