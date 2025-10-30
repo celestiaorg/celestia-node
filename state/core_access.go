@@ -625,7 +625,11 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
+	gasEstimationStart := time.Now()
 	gasPrice, gas, err := ca.estimateGasPriceAndUsage(ctx, cfg, msg)
+	gasEstimationDuration := time.Since(gasEstimationStart)
+	ca.metrics.observeGasEstimation(ctx, gasEstimationDuration, err)
+	ca.metrics.observeGasPriceEstimation(ctx, gasEstimationDuration, err)
 	if err != nil {
 		return nil, err
 	}
