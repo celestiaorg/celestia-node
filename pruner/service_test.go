@@ -194,6 +194,8 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 }
 
 func TestFindPruneableHeaders(t *testing.T) {
+	now := time.Now()
+
 	testCases := []struct {
 		name           string
 		availWindow    time.Duration
@@ -209,7 +211,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			blockTime:   time.Hour,
 			// Make two weeks of headers
 			headerAmount: 2 * (24 * 7),
-			startTime:    time.Now().Add(-2 * time.Hour * 24 * 7),
+			startTime:    now.Add(-2 * time.Hour * 24 * 7),
 			// One week of headers are pruneable
 			expectedLength: (24 * 7),
 		},
@@ -220,7 +222,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			blockTime:   time.Hour,
 			// Make three weeks of headers
 			headerAmount: 3 * (24 * 7),
-			startTime:    time.Now().Add(-3 * time.Hour * 24 * 7),
+			startTime:    now.Add(-3 * time.Hour * 24 * 7),
 			// Two weeks of headers are pruneable
 			expectedLength: (2 * 24 * 7),
 		},
@@ -231,7 +233,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			blockTime:   time.Hour,
 			// Make one week of headers
 			headerAmount: 24 * 7,
-			startTime:    time.Now().Add(-time.Hour * 24 * 7),
+			startTime:    now.Add(-time.Hour * 24 * 7),
 			// No headers are pruneable
 			expectedLength: 0,
 		},
