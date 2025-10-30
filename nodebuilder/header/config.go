@@ -79,7 +79,7 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 		}
 		infos[i] = *p
 	}
-	return infos, err
+	return infos, nil
 }
 
 // Validate performs basic validation of the config.
