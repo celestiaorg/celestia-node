@@ -257,7 +257,7 @@ func TestSubmission_QueuedSubmission(t *testing.T) {
 
 	// Spam blobs from default key parallel
 	wg := sync.WaitGroup{}
-	for i := range 5 {
+	for range 5 {
 		wg.Go(func() {
 			// submit takes ~3 seconds to confirm each Tx on localnet
 			submitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -272,8 +272,6 @@ func TestSubmission_QueuedSubmission(t *testing.T) {
 			require.Equal(t, b.Data(), received.Data())
 			fmt.Println("get", accounts[0], time.Since(now).String())
 		})
-
-		i++
 	}
 	wg.Wait()
 }
