@@ -1,8 +1,6 @@
 module github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 
-go 1.24.6
-
-toolchain go1.24.7
+go 1.25.1
 
 require (
 	cosmossdk.io/math v1.5.3
