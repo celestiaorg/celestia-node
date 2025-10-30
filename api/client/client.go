@@ -116,6 +116,7 @@ func (c *Client) initTxClient(
 		trustedHeadGetter{remote: c.Header},
 		conn,
 		submitCfg.Network.String(),
+		nil,
 		opts...,
 	)
 	if err != nil {
