@@ -5,12 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -22,6 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+var log = logging.Logger("core")
+
 const (
 	// gRPC client requires fetching a block on initialization that can be larger
 	// than the default message size set in gRPC. Increasing defaults up to 64MB
@@ -32,7 +36,8 @@ const (
 	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
 	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
 
-	xtokenFileName = "xtoken.json"
+	xtokenFileName    = "xtoken.json"
+	xtokenFileNameAlt = "x-token.json"
 )
 
 type AdditionalCoreConns []*grpc.ClientConn
@@ -144,28 +149,58 @@ func authStreamInterceptor(xtoken string) grpc.StreamClientInterceptor {
 }
 
 // parseTokenPath retrieves the authentication token from a JSON file at the specified path.
+// It supports both "xtoken.json" and "x-token.json" filenames, and both "xtoken" and "x-token" JSON keys.
 func parseTokenPath(xtokenPath string) (string, error) {
-	xtokenPath = filepath.Join(xtokenPath, xtokenFileName)
-	exist := utils.Exists(xtokenPath)
-	if !exist {
-		return "", os.ErrNotExist
+	// Try both filename variants: xtoken.json and x-token.json
+	var tokenFilePath string
+
+	primaryPath := filepath.Join(xtokenPath, xtokenFileName)
+	altPath := filepath.Join(xtokenPath, xtokenFileNameAlt)
+
+	if utils.Exists(primaryPath) {
+		tokenFilePath = primaryPath
+	} else if utils.Exists(altPath) {
+		tokenFilePath = altPath
+		log.Warnf("Using alternate filename '%s'. Consider using '%s' for consistency.", xtokenFileNameAlt, xtokenFileName)
+	} else {
+		return "", fmt.Errorf("authentication token file not found. Expected '%s' or '%s' in directory: %s",
+			xtokenFileName, xtokenFileNameAlt, xtokenPath)
 	}
 
-	token, err := os.ReadFile(xtokenPath)
+	token, err := os.ReadFile(tokenFilePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read token file '%s': %w", tokenFilePath, err)
 	}
 
+	// Support "x-token" (preferred), "xtoken", and "token" JSON keys for maximum compatibility
 	auth := struct {
-		Token string `json:"x-token"`
+		XToken    string `json:"x-token"`
+		XTokenAlt string `json:"xtoken"`
+		Token     string `json:"token"`
 	}{}
 
 	err = json.Unmarshal(token, &auth)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse token file '%s': %w. Expected JSON with 'x-token', 'xtoken', or 'token' key", tokenFilePath, err)
 	}
-	if auth.Token == "" {
-		return "", errors.New("x-token is empty. Please setup a token or cleanup xtokenPath")
+
+	var tokenValue string
+
+	if auth.XToken != "" {
+		tokenValue = auth.XToken
+	} else if auth.XTokenAlt != "" {
+		tokenValue = auth.XTokenAlt
+		log.Warnf("Using alternate JSON key 'xtoken' in file '%s'. Consider using 'x-token' for consistency.", tokenFilePath)
+	} else if auth.Token != "" {
+		tokenValue = auth.Token
+		log.Warnf("Using alternate JSON key 'token' in file '%s'. Consider using 'x-token' for consistency.", tokenFilePath)
+	} else {
+		return "", fmt.Errorf("authentication token is empty or missing in file '%s'. Please provide a JSON file with 'x-token' (preferred), 'xtoken', or 'token' key containing the token value", tokenFilePath)
 	}
-	return auth.Token, nil
+
+	if tokenValue == "" {
+		return "", fmt.Errorf("authentication token is empty in file '%s'. Please setup a valid token or remove the xtokenPath configuration", tokenFilePath)
+	}
+
+	return tokenValue, nil
 }
