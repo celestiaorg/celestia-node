@@ -182,13 +182,13 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	status, writtenStatus := respondStatus(logger, shrexpb.Status_OK, stream)
 	logger.Debugw("sending status", "status", status)
 	if status != statusSuccess {
-		return status, 0
+		return status, writtenStatus
 	}
 
 	writtenResponse, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
-		return statusSendRespErr, 0
+		return statusSendRespErr, writtenStatus + int(writtenResponse)
 	}
 	logger.Debugw("sent the data to the client")
 	return statusSuccess, writtenStatus + int(writtenResponse)
