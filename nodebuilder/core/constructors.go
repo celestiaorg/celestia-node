@@ -37,7 +37,7 @@ const (
 	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
 
 	xtokenFileName    = "xtoken.json"
-	xtokenFileNameAlt = "x-token.json"
+	xtokenFileNameAlt = "x-token.json" //nolint:gosec
 )
 
 type AdditionalCoreConns []*grpc.ClientConn
@@ -157,12 +157,13 @@ func parseTokenPath(xtokenPath string) (string, error) {
 	primaryPath := filepath.Join(xtokenPath, xtokenFileName)
 	altPath := filepath.Join(xtokenPath, xtokenFileNameAlt)
 
-	if utils.Exists(primaryPath) {
+	switch {
+	case utils.Exists(primaryPath):
 		tokenFilePath = primaryPath
-	} else if utils.Exists(altPath) {
+	case utils.Exists(altPath):
 		tokenFilePath = altPath
 		log.Warnf("Using alternate filename '%s'. Consider using '%s' for consistency.", xtokenFileNameAlt, xtokenFileName)
-	} else {
+	default:
 		return "", fmt.Errorf("authentication token file not found. Expected '%s' or '%s' in directory: %s",
 			xtokenFileName, xtokenFileNameAlt, xtokenPath)
 	}
@@ -181,25 +182,34 @@ func parseTokenPath(xtokenPath string) (string, error) {
 
 	err = json.Unmarshal(token, &auth)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse token file '%s': %w. Expected JSON with 'x-token', 'xtoken', or 'token' key", tokenFilePath, err)
+		return "", fmt.Errorf(
+			"failed to parse token file '%s': %w. Expected JSON with 'x-token', 'xtoken', or 'token' key",
+			tokenFilePath, err)
 	}
 
 	var tokenValue string
 
-	if auth.XToken != "" {
+	switch {
+	case auth.XToken != "":
 		tokenValue = auth.XToken
-	} else if auth.XTokenAlt != "" {
+	case auth.XTokenAlt != "":
 		tokenValue = auth.XTokenAlt
 		log.Warnf("Using alternate JSON key 'xtoken' in file '%s'. Consider using 'x-token' for consistency.", tokenFilePath)
-	} else if auth.Token != "" {
+	case auth.Token != "":
 		tokenValue = auth.Token
 		log.Warnf("Using alternate JSON key 'token' in file '%s'. Consider using 'x-token' for consistency.", tokenFilePath)
-	} else {
-		return "", fmt.Errorf("authentication token is empty or missing in file '%s'. Please provide a JSON file with 'x-token' (preferred), 'xtoken', or 'token' key containing the token value", tokenFilePath)
+	default:
+		return "", fmt.Errorf(
+			"authentication token is empty or missing in file '%s'. "+
+				"Please provide a JSON file with 'x-token' (preferred), 'xtoken', or 'token' key containing the token value",
+			tokenFilePath)
 	}
 
 	if tokenValue == "" {
-		return "", fmt.Errorf("authentication token is empty in file '%s'. Please setup a valid token or remove the xtokenPath configuration", tokenFilePath)
+		return "", fmt.Errorf(
+			"authentication token is empty in file '%s'. "+
+				"Please setup a valid token or remove the xtokenPath configuration",
+			tokenFilePath)
 	}
 
 	return tokenValue, nil

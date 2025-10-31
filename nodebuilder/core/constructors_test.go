@@ -121,7 +121,7 @@ func TestParseTokenPath(t *testing.T) {
 
 			if tt.jsonContent != "" {
 				tokenFile := filepath.Join(testDir, tt.filename)
-				err := os.WriteFile(tokenFile, []byte(tt.jsonContent), 0644)
+				err := os.WriteFile(tokenFile, []byte(tt.jsonContent), 0o644)
 				require.NoError(t, err)
 			}
 
