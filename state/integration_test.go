@@ -54,7 +54,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.network.Keyring, accountName, localHeader{s.network.Client}, nil, "")
+	accessor, err := NewCoreAccessor(s.network.Keyring, accountName, localHeader{s.network.Client}, nil, "", nil)
 	require.NoError(s.T(), err)
 	ctx, cancel := context.WithCancel(context.Background())
 	accessor.ctx = ctx
