@@ -147,10 +147,10 @@ func TestParseTokenPathFilenamePreference(t *testing.T) {
 	xtokenFile := filepath.Join(tmpDir, "xtoken.json")
 	xTokenFile := filepath.Join(tmpDir, "x-token.json")
 
-	err := os.WriteFile(xtokenFile, []byte(`{"x-token": "from-xtoken.json"}`), 0644)
+	err := os.WriteFile(xtokenFile, []byte(`{"x-token": "from-xtoken.json"}`), 0o644)
 	require.NoError(t, err)
 
-	err = os.WriteFile(xTokenFile, []byte(`{"x-token": "from-x-token.json"}`), 0644)
+	err = os.WriteFile(xTokenFile, []byte(`{"x-token": "from-x-token.json"}`), 0o644)
 	require.NoError(t, err)
 
 	// Should prefer xtoken.json
