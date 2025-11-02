@@ -24,7 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-var log = logging.Logger("core")
+var log = logging.Logger("nodebuilder/core")
 
 const (
 	// gRPC client requires fetching a block on initialization that can be larger
