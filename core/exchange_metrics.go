@@ -10,16 +10,20 @@ import (
 )
 
 type exchangeMetrics struct {
-	getByHeightDuration metric.Float64Histogram
+	downloadDuration        metric.Float64Histogram
+	edsConstructionDuration metric.Float64Histogram
+	edsStorageDuration      metric.Float64Histogram
+
+	totalBlocksProcessed metric.Int64Counter
 }
 
 func newExchangeMetrics() (*exchangeMetrics, error) {
 	m := new(exchangeMetrics)
 
 	var err error
-	m.getByHeightDuration, err = meter.Float64Histogram(
-		"core_ex_get_by_height_request_time",
-		metric.WithDescription("core exchange client getByHeight request time in seconds (per single height)"),
+	m.totalBlocksProcessed, err = meter.Int64Counter(
+		"core_ex_total_blocks_processed",
+		metric.WithDescription("total number of blocks processed by the exchange"),
 	)
 	if err != nil {
 		return nil, err
@@ -38,12 +42,27 @@ func (m *exchangeMetrics) observe(ctx context.Context, observeFn func(ctx contex
 	observeFn(ctx)
 }
 
-func (m *exchangeMetrics) requestDurationPerHeader(ctx context.Context, duration time.Duration, amount uint64) {
+func (m *exchangeMetrics) observeEDSConstruction(ctx context.Context, duration time.Duration, edsSize int) {
 	m.observe(ctx, func(ctx context.Context) {
-		if amount == 0 {
-			return
-		}
-		durationPerHeader := duration.Seconds() / float64(amount)
-		m.getByHeightDuration.Record(ctx, durationPerHeader)
+		m.edsConstructionDuration.Record(ctx, float64(duration.Milliseconds()),
+			metric.WithAttributes(edsSizeAttribute(edsSize)))
 	})
+}
+
+func (m *exchangeMetrics) observeEDSStorage(ctx context.Context, duration time.Duration, edsSize int) {
+	m.observe(ctx, func(ctx context.Context) {
+		m.edsStorageDuration.Record(ctx, float64(duration.Milliseconds()),
+			metric.WithAttributes(edsSizeAttribute(edsSize)))
+	})
+}
+
+func (m *exchangeMetrics) observeBlockProcessed(ctx context.Context, edsSize int) {
+	m.observe(ctx, func(ctx context.Context) {
+		m.totalBlocksProcessed.Add(ctx, 1, metric.WithAttributes(edsSizeAttribute(edsSize)))
+	})
+}
+
+// edsSizeAttribute creates an attribute for the EDS square size
+func edsSizeAttribute(size int) attribute.KeyValue {
+	return attribute.Int("eds_size", size)
 }
