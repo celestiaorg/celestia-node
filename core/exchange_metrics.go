@@ -14,6 +14,8 @@ type exchangeMetrics struct {
 	downloadDuration        metric.Float64Histogram
 	edsConstructionDuration metric.Float64Histogram
 	edsStorageDuration      metric.Float64Histogram
+
+	totalBlocksProcessed metric.Int64Counter
 }
 
 func newExchangeMetrics() (*exchangeMetrics, error) {
@@ -42,6 +44,14 @@ func newExchangeMetrics() (*exchangeMetrics, error) {
 		"core_ex_eds_storage_time",
 		metric.WithDescription("time to store EDS in milliseconds"),
 		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	m.totalBlocksProcessed, err = meter.Int64Counter(
+		"core_ex_total_blocks_processed",
+		metric.WithDescription("total number of blocks processed by the exchange"),
 	)
 	if err != nil {
 		return nil, err
@@ -77,6 +87,12 @@ func (m *exchangeMetrics) observeEDSStorage(ctx context.Context, duration time.D
 	m.observe(ctx, func(ctx context.Context) {
 		m.edsStorageDuration.Record(ctx, float64(duration.Milliseconds()),
 			metric.WithAttributes(edsSizeAttribute(edsSize)))
+	})
+}
+
+func (m *exchangeMetrics) observeBlockProcessed(ctx context.Context, edsSize int) {
+	m.observe(ctx, func(ctx context.Context) {
+		m.totalBlocksProcessed.Add(ctx, 1, metric.WithAttributes(edsSizeAttribute(edsSize)))
 	})
 }
 

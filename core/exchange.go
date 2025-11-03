@@ -196,6 +196,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64)
 	ce.metrics.observeBlockDownload(ctx, downloadTime, eh.DAH.SquareSize())
 	ce.metrics.observeEDSConstruction(ctx, constructTime, eh.DAH.SquareSize())
 	ce.metrics.observeEDSStorage(ctx, storeTime, eh.DAH.SquareSize())
+	ce.metrics.observeBlockProcessed(ctx, eh.DAH.SquareSize())
 
 	return eh, nil
 }
