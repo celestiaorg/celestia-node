@@ -22,6 +22,33 @@ func newExchangeMetrics() (*exchangeMetrics, error) {
 	m := new(exchangeMetrics)
 
 	var err error
+	m.downloadDuration, err = meter.Float64Histogram(
+		"core_ex_block_download_time",
+		metric.WithDescription("time to download block from core in milliseconds"),
+		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	m.edsConstructionDuration, err = meter.Float64Histogram(
+		"core_ex_eds_construction_time",
+		metric.WithDescription("time to construct EDS from block data in milliseconds"),
+		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	m.edsStorageDuration, err = meter.Float64Histogram(
+		"core_ex_eds_storage_time",
+		metric.WithDescription("time to store EDS in milliseconds"),
+		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	m.totalBlocksProcessed, err = meter.Int64Counter(
 		"core_ex_total_blocks_processed",
 		metric.WithDescription("total number of blocks processed by the exchange"),
