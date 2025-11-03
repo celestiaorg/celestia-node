@@ -199,7 +199,7 @@ func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network
 	written, err := serde.Write(stream, &shrexpb.Response{Status: status})
 	if err != nil {
 		log.Errorw("sending response status", "err", err)
-		return statusSendStatusErr, 0
+		return statusSendStatusErr, written
 	}
 
 	switch status {
