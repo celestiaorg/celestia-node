@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -40,6 +41,13 @@ func (m *exchangeMetrics) observe(ctx context.Context, observeFn func(ctx contex
 	ctx = utils.ResetContextOnError(ctx)
 
 	observeFn(ctx)
+}
+
+func (m *exchangeMetrics) observeBlockDownload(ctx context.Context, duration time.Duration, edsSize int) {
+	m.observe(ctx, func(ctx context.Context) {
+		m.downloadDuration.Record(ctx, float64(duration.Milliseconds()),
+			metric.WithAttributes(edsSizeAttribute(edsSize)))
+	})
 }
 
 func (m *exchangeMetrics) observeEDSConstruction(ctx context.Context, duration time.Duration, edsSize int) {

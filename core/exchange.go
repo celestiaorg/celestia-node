@@ -74,15 +74,11 @@ func (ce *Exchange) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
-	start := time.Now()
-
 	amount := to - (from.Height() + 1)
 	headers, err := ce.getRangeByHeight(ctx, from.Height()+1, amount)
 	if err != nil {
 		return nil, err
 	}
-
-	ce.metrics.requestDurationPerHeader(ctx, time.Since(start), amount)
 
 	for _, h := range headers {
 		err := libhead.Verify[*header.ExtendedHeader](from, h)
@@ -169,12 +165,16 @@ func (ce *Exchange) Head(
 }
 
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64) (*header.ExtendedHeader, error) {
+	start := time.Now()
+
 	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", height, err)
 	}
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
+	downloadTime := time.Since(start)
 
+	start = time.Now()
 	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
@@ -184,7 +184,9 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
+	constructTime := time.Since(start)
 
+	start = time.Now()
 	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
