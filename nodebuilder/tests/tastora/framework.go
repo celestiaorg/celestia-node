@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -164,6 +165,44 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	return lightNode
 }
 
+// NewBridgeNodeWithVersion creates and starts a new bridge node with a specific version.
+func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	// Create a separate DA network for this version if it doesn't exist
+	daNetwork := f.getOrCreateVersionedDANetwork(ctx, version)
+
+	// Get the first bridge node from the versioned network
+	bridgeNodes := daNetwork.GetBridgeNodes()
+	if len(bridgeNodes) == 0 {
+		f.t.Fatalf("No bridge nodes available in versioned DA network for version %s", version)
+	}
+	bridgeNode := bridgeNodes[0]
+
+	// Start the bridge node
+	err := f.startVersionedBridgeNode(ctx, bridgeNode, version)
+	require.NoError(f.t, err, "failed to start bridge node with version %s", version)
+
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
+
+// NewLightNodeWithVersion creates and starts a new light node with a specific version.
+func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	allLightNodes := f.daNetwork.GetLightNodes()
+	if len(f.lightNodes) >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", len(f.lightNodes), len(allLightNodes))
+	}
+
+	bridgeNode := f.bridgeNodes[0]
+	lightNode := f.startLightNodeWithVersion(ctx, bridgeNode, f.celestia, version)
+	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
+	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
+
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
+
+	f.lightNodes = append(f.lightNodes, lightNode)
+	return lightNode
+}
+
 // GetCelestiaChain returns the Celestia chain instance.
 func (f *Framework) GetCelestiaChain() *cosmos.Chain {
 	return f.celestia
@@ -189,7 +228,13 @@ func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailabili
 // CreateTestWallet creates a new test wallet with the specified amount.
 func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.Wallet {
 	sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount)))
-	testWallet, err := wallet.CreateAndFund(ctx, "test", sendAmount, f.celestia)
+
+	// Create wallet with longer timeout for transaction confirmation
+	walletCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	// Create wallet - should work reliably with proper synchronization
+	testWallet, err := wallet.CreateAndFund(walletCtx, "test", sendAmount, f.celestia)
 	require.NoError(f.t, err, "failed to create test wallet")
 	require.NotNil(f.t, testWallet, "wallet is nil")
 	return testWallet
@@ -237,7 +282,11 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 
 // waitForTransactionInclusion polls for a transaction hash to verify it was included in a block.
 func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash string) error {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	// Create a context with a longer timeout specifically for transaction confirmation
+	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	node := f.celestia.GetNodes()[0]
@@ -246,10 +295,11 @@ func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash stri
 		return fmt.Errorf("failed to get RPC client: %w", err)
 	}
 
+	startTime := time.Now()
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-waitCtx.Done():
+			return fmt.Errorf("timeout waiting for transaction %s after %v: %w", txHash, time.Since(startTime), waitCtx.Err())
 		case <-ticker.C:
 			// Query the transaction to see if it was included in a block
 			txHashBytes, err := hex.DecodeString(txHash)
@@ -257,10 +307,14 @@ func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash stri
 				f.t.Logf("Failed to decode transaction hash %s: %v", txHash, err)
 				continue
 			}
-			resp, err := rpcClient.Tx(ctx, txHashBytes, false)
+			resp, err := rpcClient.Tx(waitCtx, txHashBytes, false)
 			if err == nil && resp != nil {
 				f.t.Logf("Transaction %s confirmed at height %d", txHash, resp.Height)
 				return nil
+			}
+			// Log periodically to show we're still waiting
+			if time.Since(startTime).Seconds() > 10 && int(time.Since(startTime).Seconds())%10 == 0 {
+				f.t.Logf("Still waiting for transaction %s to be included...", txHash)
 			}
 			// Continue polling if transaction not found yet
 		}
@@ -371,10 +425,31 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 	}
 
 	// Create DA network builder with just one bridge node for now
-	daImage := container.Image{
-		Repository: getNodeImage(),
-		Version:    getNodeTag(),
-		UIDGID:     "10001:10001",
+	nodeTag := getNodeTag()
+	var daImage container.Image
+	if nodeTag == "current" {
+		// Build Docker image from current codebase
+		buildCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		imageName, err := f.buildCurrentNodeImage(buildCtx)
+		if err != nil {
+			f.t.Fatalf("Failed to build current node image: %v", err)
+		}
+		parts := strings.Split(imageName, ":")
+		if len(parts) != 2 {
+			f.t.Fatalf("Invalid built image name: %s", imageName)
+		}
+		daImage = container.Image{
+			Repository: parts[0],
+			Version:    parts[1],
+			UIDGID:     "10001:10001",
+		}
+	} else {
+		daImage = container.Image{
+			Repository: getNodeImage(),
+			Version:    nodeTag,
+			UIDGID:     "10001:10001",
+		}
 	}
 
 	// always have at least one bridge node.
@@ -413,13 +488,13 @@ func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Cha
 	require.NoError(f.t, err, "failed to build celestia chain")
 
 	// Use a longer timeout for chain startup to handle slow chain initialization
-	chainStartCtx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	chainStartCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	err = celestia.Start(chainStartCtx)
 	require.NoError(f.t, err, "failed to start celestia chain")
 
 	// Use a longer timeout for waiting for blocks after chain startup
-	blockWaitCtx, cancel2 := context.WithTimeout(context.Background(), 90*time.Second)
+	blockWaitCtx, cancel2 := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel2()
 	require.NoError(f.t, wait.ForBlocks(blockWaitCtx, 2, celestia))
 	return celestia
@@ -503,6 +578,48 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 	return lightNode
 }
 
+// startLightNodeWithVersion initializes and starts a light node with a specific version.
+func (f *Framework) startLightNodeWithVersion(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain, version string) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, chain)
+
+	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
+	require.NoError(f.t, err, "failed to get bridge node p2p info")
+
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	require.NoError(f.t, err, "failed to get bridge node p2p address")
+
+	// Get the core node hostname for state access
+	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	// Get the next available light node from the DA network
+	allLightNodes := f.daNetwork.GetLightNodes()
+	lightNodeIndex := len(f.lightNodes)
+	if lightNodeIndex >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", lightNodeIndex, len(allLightNodes))
+	}
+	lightNode := allLightNodes[lightNodeIndex]
+
+	f.t.Logf("Starting light node with version %s", version)
+
+	// Start light node with specific version
+	// Note: Currently using the same image as the DA network, but version is tracked for debugging
+	err = lightNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_NODE_VERSION": version, // Add version for debugging
+			},
+		),
+	)
+	require.NoError(f.t, err, "failed to start light node with version %s", version)
+	return lightNode
+}
+
 // getGenesisHash returns the genesis hash of the chain.
 func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) string {
 	node := chain.GetNodes()[0]
@@ -518,6 +635,153 @@ func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) str
 	return genesisHash
 }
 
+// buildCurrentNodeImage builds a Docker image from the current codebase.
+// Returns the full image name (repository:tag).
+func (f *Framework) buildCurrentNodeImage(ctx context.Context) (string, error) {
+	// Use a unique tag based on test name and timestamp
+	imageTag := fmt.Sprintf("celestia-node-test:%s-%d", strings.ToLower(strings.ReplaceAll(f.t.Name(), "/", "-")), time.Now().Unix())
+	imageName := imageTag
+
+	// Get the project root directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Find project root (where go.mod is)
+	projectRoot := cwd
+	for {
+		if _, err := os.Stat(filepath.Join(projectRoot, "go.mod")); err == nil {
+			break
+		}
+		parent := filepath.Dir(projectRoot)
+		if parent == projectRoot {
+			return "", fmt.Errorf("could not find project root (go.mod)")
+		}
+		projectRoot = parent
+	}
+
+	f.t.Logf("Building Docker image from current codebase: %s", imageName)
+	f.t.Logf("Project root: %s", projectRoot)
+
+	// Build Docker image
+	cmd := exec.CommandContext(ctx, "docker", "build", "-t", imageName, "-f", "Dockerfile", ".")
+	cmd.Dir = projectRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("docker build failed: %w", err)
+	}
+
+	f.t.Logf("Successfully built image: %s", imageName)
+	return imageName, nil
+}
+
+// getVersionImageTag returns the Docker image tag for a specific version.
+// Version strings should be in the format "v0.28.2-arabica" or similar.
+// If the version doesn't include the repository, it's prepended with the default.
+func (f *Framework) getVersionImageTag(version string) string {
+	// If version already contains a repository (has a slash), use it as-is
+	if strings.Contains(version, "/") {
+		return version
+	}
+	// Otherwise, prepend with the default repository
+	return fmt.Sprintf("ghcr.io/celestiaorg/celestia-node:%s", version)
+}
+
+// GetDockerClient returns the Docker client used by the framework.
+func (f *Framework) GetDockerClient() *client.Client {
+	return f.client
+}
+
+// GetDockerNetwork returns the Docker network ID used by the framework.
+func (f *Framework) GetDockerNetwork() string {
+	return f.network
+}
+
+// versionedDANetworks stores DA networks for different versions
+var versionedDANetworks = make(map[string]*dataavailability.Network)
+
+// getOrCreateVersionedDANetwork creates or returns a DA network for a specific version.
+func (f *Framework) getOrCreateVersionedDANetwork(ctx context.Context, version string) *dataavailability.Network {
+	// Check if we already have a DA network for this version
+	if daNetwork, exists := versionedDANetworks[version]; exists {
+		return daNetwork
+	}
+
+	// Create a new DA network for this version
+	imageTag := f.getVersionImageTag(version)
+	f.t.Logf("Creating DA network for version %s using image: %s", version, imageTag)
+
+	// Parse the image tag to get repository and version
+	parts := strings.Split(imageTag, ":")
+	var repository, tag string
+	if len(parts) == 2 {
+		repository = parts[0]
+		tag = parts[1]
+	} else {
+		f.t.Fatalf("Invalid image tag format: %s (expected 'repository:tag')", imageTag)
+	}
+
+	// Create DA image for this version
+	daImage := container.Image{
+		Repository: repository,
+		Version:    tag,
+		UIDGID:     "10001:10001",
+	}
+
+	// Create a single bridge node for this version
+	bridgeNodeConfig := dataavailability.NewNodeBuilder().
+		WithNodeType(types.BridgeNode).
+		Build()
+
+	// Create the DA network for this version
+	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, fmt.Sprintf("tastora-versioned-%s", version)).
+		WithDockerClient(f.client).
+		WithDockerNetworkID(f.network).
+		WithImage(daImage).
+		WithNodes(bridgeNodeConfig).
+		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
+		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
+
+	daNetwork, err := daNetworkBuilder.Build(ctx)
+	require.NoError(f.t, err, "failed to build DA network for version %s", version)
+
+	// Store the network for reuse
+	versionedDANetworks[version] = daNetwork
+	return daNetwork
+}
+
+// startVersionedBridgeNode starts a bridge node with version-specific configuration.
+func (f *Framework) startVersionedBridgeNode(ctx context.Context, bridgeNode *dataavailability.Node, version string) error {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	// Build start arguments with explicit core port
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
+	if f.config.TxWorkerAccounts > 0 {
+		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
+	}
+
+	// Start bridge node with version-specific configuration
+	return bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_BOOTSTRAPPER": "true",  // Make bridge node act as DHT bootstrapper
+				"CELESTIA_NODE_VERSION": version, // Add version for debugging
+			},
+		),
+	)
+}
+
 // getCelestiaTag returns the Celestia app image tag.
 func getCelestiaTag() string {
 	if tag := os.Getenv("CELESTIA_TAG"); tag != "" {
@@ -527,11 +791,18 @@ func getCelestiaTag() string {
 }
 
 // getNodeTag returns the Celestia node image tag.
+// If CELESTIA_NODE_TAG is "current" or unset, builds from current codebase.
+// Otherwise uses the specified tag or default.
 func getNodeTag() string {
-	if tag := os.Getenv("CELESTIA_NODE_TAG"); tag != "" {
-		return tag
+	tag := os.Getenv("CELESTIA_NODE_TAG")
+	if tag == "" || tag == "current" {
+		// Build from current codebase for cross-version testing
+		return "current"
 	}
-	return defaultCelestiaNodeTag
+	if tag == "default" {
+		return defaultCelestiaNodeTag
+	}
+	return tag
 }
 
 // getNodeImage returns the Celestia node image.
@@ -545,6 +816,10 @@ func getNodeImage() string {
 // getOrCreateFundingWallet returns the framework's funding wallet, creating it if needed.
 func (f *Framework) getOrCreateFundingWallet(ctx context.Context) *types.Wallet {
 	if f.fundingWallet == nil {
+		// Wait longer for chain to stabilize before creating funding wallet
+		// This is especially important right after chain startup when transactions may be slow to confirm
+		f.t.Logf("Waiting for chain to stabilize before creating funding wallet...")
+		time.Sleep(5 * time.Second)
 		f.fundingWallet = f.CreateTestWallet(ctx, 200_000_000_000)
 		f.t.Logf("Created funding wallet for automatic node funding")
 	}
