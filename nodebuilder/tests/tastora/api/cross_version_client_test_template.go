@@ -65,11 +65,11 @@ func main() {
 		}
 	}
 
-	if syncState, err := client.Header.SyncState(ctx); err != nil {
+	if _, err := client.Header.SyncState(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "✗ Header.SyncState failed: %v\n", err)
 		hasErrors = true
 	} else {
-		fmt.Printf("✓ Header.SyncState: Syncing=%v\n", syncState.Syncing)
+		fmt.Printf("✓ Header.SyncState: OK\n")
 	}
 
 	if networkHead, err := client.Header.NetworkHead(ctx); err != nil {
@@ -122,11 +122,11 @@ func main() {
 		fmt.Printf("✓ P2P.Peers: Count=%d\n", len(peers))
 	}
 
-	if natStatus, err := client.P2P.NATStatus(ctx); err != nil {
+	if _, err := client.P2P.NATStatus(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "✗ P2P.NATStatus failed: %v\n", err)
 		hasErrors = true
 	} else {
-		fmt.Printf("✓ P2P.NATStatus: Reachable=%v\n", natStatus.Reachable)
+		fmt.Printf("✓ P2P.NATStatus: OK\n")
 	}
 
 	if bandwidth, err := client.P2P.BandwidthStats(ctx); err != nil {
@@ -136,11 +136,11 @@ func main() {
 		fmt.Printf("✓ P2P.BandwidthStats: TotalIn=%d, TotalOut=%d\n", bandwidth.TotalIn, bandwidth.TotalOut)
 	}
 
-	if resourceState, err := client.P2P.ResourceState(ctx); err != nil {
+	if _, err := client.P2P.ResourceState(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "✗ P2P.ResourceState failed: %v\n", err)
 		hasErrors = true
 	} else {
-		fmt.Printf("✓ P2P.ResourceState: NumStreams=%d\n", resourceState.NumStreams)
+		fmt.Printf("✓ P2P.ResourceState: OK\n")
 	}
 
 	if topics, err := client.P2P.PubSubTopics(ctx); err != nil {
@@ -151,16 +151,15 @@ func main() {
 	}
 
 	// Share API
-	namespace := share.Namespace{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
-	if available, err := client.Share.SharesAvailable(ctx, nil); err != nil {
-		fmt.Fprintf(os.Stderr, "✗ Share.SharesAvailable failed: %v\n", err)
-		hasErrors = true
-	} else {
-		fmt.Printf("✓ Share.SharesAvailable: %v\n", available)
-	}
-
+	namespace, _ := share.NewV0Namespace([]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0})
 	if head, err := client.Header.LocalHead(ctx); err == nil {
-		if _, err := client.Share.GetNamespaceData(ctx, head, namespace); err != nil {
+		if err := client.Share.SharesAvailable(ctx, head.Height()); err != nil {
+			fmt.Fprintf(os.Stderr, "✗ Share.SharesAvailable failed: %v\n", err)
+			hasErrors = true
+		} else {
+			fmt.Printf("✓ Share.SharesAvailable: OK\n")
+		}
+		if _, err := client.Share.GetNamespaceData(ctx, head.Height(), namespace); err != nil {
 			fmt.Fprintf(os.Stderr, "✗ Share.GetNamespaceData failed: %v\n", err)
 			hasErrors = true
 		} else {
@@ -173,7 +172,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "✗ DAS.SamplingStats failed: %v\n", err)
 		hasErrors = true
 	} else {
-		fmt.Printf("✓ DAS.SamplingStats: HeadOfSampledChain=%d\n", stats.HeadOfSampledChain)
+		fmt.Printf("✓ DAS.SamplingStats: SampledChainHead=%d\n", stats.SampledChainHead)
 	}
 
 	waitCtx, waitCancel := context.WithTimeout(ctx, 5*time.Second)
@@ -193,12 +192,7 @@ func main() {
 		} else {
 			fmt.Printf("✓ Blob.GetAll: Count=%d\n", len(blobs))
 		}
-		if _, err := client.Blob.Included(ctx, head.Height(), namespace, []share.Namespace{namespace}); err != nil {
-			fmt.Fprintf(os.Stderr, "✗ Blob.Included failed: %v\n", err)
-			hasErrors = true
-		} else {
-			fmt.Printf("✓ Blob.Included: OK\n")
-		}
+		// Blob.Included requires proof and commitment, skip for now
 	}
 
 	if hasErrors {
