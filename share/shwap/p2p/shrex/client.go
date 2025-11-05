@@ -102,7 +102,9 @@ func (c *Client) doRequest(
 	var statusResp shrexpb.Response
 	statusLength, err := serde.Read(stream, &statusResp)
 	if err != nil {
-		return int64(statusLength), statusReadStatusErr, fmt.Errorf("unexpected error during reading the status from stream: %w", err)
+		return int64(statusLength),
+			statusReadStatusErr,
+			fmt.Errorf("unexpected error during reading the status from stream: %w", err)
 	}
 
 	switch statusResp.Status {
