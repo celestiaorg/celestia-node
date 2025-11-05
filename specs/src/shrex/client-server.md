@@ -57,10 +57,7 @@ Request and response messages use different encoding schemes:
 
 ### Request Messages
 
-Request messages are binary encoded.
-
-The request is serialized to binary format and written directly to the stream. Each request type includes:
-
+Requests use shwap id and associated encoding. Each request type includes:
 - Height: Block height for the requested data
 - Type-specific parameters
 
@@ -68,7 +65,7 @@ The request is serialized to binary format and written directly to the stream. E
 
 #### Status Message
 
-Every server response begins with a status message:
+After handling requests server MUST send Status message indicating result of handling
 
 ```protobuf
 enum Status {
@@ -89,7 +86,7 @@ Data is only sent when status is `OK`. After sending the OK status, the server s
 
 For all other status codes (`NOT_FOUND`, `INTERNAL`), the server closes the stream immediately after sending the status message without sending any data.
 
-The format and encoding of the data payload is defined in the SHWAP specification.
+The format and encoding of the data payload is defined in the [SHWAP](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md) specification.
 
 For certain request types (e.g., GetNamespaceData), a non-inclusion proof may be sent instead of data when the namespace is not present.
 
@@ -97,132 +94,15 @@ For certain request types (e.g., GetNamespaceData), a non-inclusion proof may be
 
 SHREX supports multiple endpoint types for retrieving different kinds of data. All endpoints follow the same request-response pattern but return different data structures.
 
-### Common Types
+All ProtocolIDs MUST be prefixed with the `networkID`.
 
-```protobuf
-message Share {
-   bytes data = 1;
-}
-
-enum AxisType {
-   ROW = 0;
-   COL = 1;
-}
-```
-
-### Row Endpoint
-
-Retrieves a row of shares (either left or right half).
-
-**Response Message:**
-
-```protobuf
-message Row {
-   repeated Share shares_half = 1;
-   HalfSide half_side = 2;
-
-   enum HalfSide {
-      LEFT = 0;
-      RIGHT = 1;
-   }
-}
-```
-
-**Fields:**
-
-- `shares_half`: The shares from the requested half of the row
-- `half_side`: Indicates which half (left or right) is being returned
-
-### Sample Endpoint
-
-Retrieves a single share with its proof.
-
-**Response Message:**
-
-```protobuf
-message Sample {
-   Share share = 1;
-   proof.pb.Proof proof = 2;
-   AxisType proof_type = 3;
-}
-```
-
-**Fields:**
-
-- `share`: The requested share data
-- `proof`: Merkle proof for the share
-- `proof_type`: Indicates if proof is for row or column axis
-
-### NamespaceData Endpoint
-
-Retrieves all shares for a specific namespace across all rows.
-
-**Response Message:**
-
-```protobuf
-message NamespaceData {
-   repeated RowNamespaceData namespaceData = 1;
-}
-
-message RowNamespaceData {
-   repeated Share shares = 1;
-   proof.pb.Proof proof = 2;
-}
-```
-
-**Fields:**
-
-- `namespaceData`: Collection of namespace data from each row
-- `shares`: Shares belonging to the namespace in a specific row
-- `proof`: Proof for the namespace data (may be inclusion or non-inclusion proof)
-
-### RangeNamespaceData Endpoint
-
-Retrieves namespace data for a range of rows.
-
-**Response Message:**
-
-```protobuf
-message RangeNamespaceData {
-   repeated RowShares shares = 1;
-   proof.pb.Proof firstIncompleteRowProof = 2;
-   proof.pb.Proof lastIncompleteRowProof = 3;
-}
-
-message RowShares {
-   repeated Share shares = 1;
-}
-```
-
-**Fields:**
-
-- `shares`: Collection of shares from each row in the range
-- `firstIncompleteRowProof`: Proof for the first incomplete row (if applicable)
-- `lastIncompleteRowProof`: Proof for the last incomplete row (if applicable)
-
-### EDS Endpoint
-
-Retrieves the complete Extended Data Square (EDS) for a block.
-
-**Response:**
-
-- Returns `rsmt2d.ExtendedDataSquare` - the full erasure-coded data square
-- The EDS contains all shares organized in a 2D matrix structure
-- Includes both original data and erasure-coded redundancy shares
-
-**Note:** This endpoint returns the entire data square and may transfer large amounts of data. The exact encoding format follows the rsmt2d specification.
-
-### Protocol ID Format
-
-Each endpoint has its own protocol ID:
-
-```text
-/<network-id>/shrex/v0.1.0/row_v0
-/<network-id>/shrex/v0.1.0/sample_v0
-/<network-id>/shrex/v0.1.0/nd_v0
-/<network-id>/shrex/v0.1.0/rangeNamespaceData_v0
-/<network-id>/shrex/v0.1.0/eds_v0
-```
+| ProtocolID                                       | Request                                                                                                                                                           | Response                                                                                                                                                     |
+|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `<networkID>/shrex/v0.1.0/row_v0`                | [RowID](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md#rowid)                                                                                      | [Row](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md#row-container)                                                                           |
+| `<networkID>/shrex/v0.1.0/sample_v0`             | [SampleID](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md#sampleid)                                                                                | [Sample](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md#sample-container)                                                                     |
+| `<networkID>/shrex/v0.1.0/nd_v0`                 | [NamespaceDataID](https://github.com/celestiaorg/celestia-node/blob/2c991a8cbb3be9afd413472e127b0e2b6e770100/share/shwap/namespace_data_id.go#L21C1-L26C2)        | [NamespaceData](https://github.com/celestiaorg/celestia-node/blob/2c991a8cbb3be9afd413472e127b0e2b6e770100/share/shwap/namespace_data.go#L20)                |
+| `<networkID>/shrex/v0.1.0/eds_v0`                | [EdsID](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md#edsid)                                                                                      | [Eds](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-019.md#eds-container)                                                                           |
+| `<networkID>/shrex/v0.1.0/rangeNamespaceData_v0` | [RangeNamespaceDataID](https://github.com/celestiaorg/celestia-node/blob/2c991a8cbb3be9afd413472e127b0e2b6e770100/share/shwap/range_namespace_data_id.go#L31-L37) | [RangeNamespaceData](https://github.com/celestiaorg/celestia-node/blob/2c991a8cbb3be9afd413472e127b0e2b6e770100/share/shwap/range_namespace_data.go#L38-L42) |
 
 ## Client
 
