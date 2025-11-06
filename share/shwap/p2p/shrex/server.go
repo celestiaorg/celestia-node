@@ -95,10 +95,13 @@ func (srv *Server) WithMetrics() error {
 
 func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.StreamHandler {
 	return func(s network.Stream) {
-		requestID := id()
-		handleTime := time.Now()
-		status := srv.handleDataRequest(ctx, requestID, s)
-		srv.metrics.observeRequests(ctx, 1, requestID.Name(), status, time.Since(handleTime))
+		requestID, handleTime := id(), time.Now()
+
+		status, size := srv.handleDataRequest(ctx, requestID, s)
+
+		srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
+		srv.metrics.observePayloadServed(ctx, requestID.Name(), status, size)
+
 		log.Debugw("server: handling request",
 			"name", requestID.Name(),
 			"status", status,
@@ -116,7 +119,9 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 	}
 }
 
-func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) status {
+// handleDataRequest handles incoming data requests from remote peers, returning the resulting
+// status of the request and, if successful, bytes written
+func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) (status, int) {
 	log.Debugf("server: handling data request: %s from peer: %s", requestID.Name(), stream.Conn().RemotePeer())
 
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
@@ -127,7 +132,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	_, err = requestID.ReadFrom(stream)
 	if err != nil {
 		log.Errorf("server: reading request %s from peer %s, %w", requestID.Name(), stream.Conn().RemotePeer(), err)
-		return statusReadReqErr
+		return statusReadReqErr, 0
 	}
 
 	logger := log.With(
@@ -145,7 +150,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	err = requestID.Validate()
 	if err != nil {
 		logger.Warnw("validate request", "err", err)
-		return statusBadRequest
+		return statusBadRequest, 0
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
@@ -174,35 +179,36 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
-	status := respondStatus(logger, shrexpb.Status_OK, stream)
+	status, writtenStatus := respondStatus(logger, shrexpb.Status_OK, stream)
 	logger.Debugw("sending status", "status", status)
 	if status != statusSuccess {
-		return status
+		return status, writtenStatus
 	}
 
-	_, err = io.Copy(stream, r)
+	writtenResponse, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
-		return statusSendRespErr
+		return statusSendRespErr, writtenStatus + int(writtenResponse)
 	}
 	logger.Debugw("sent the data to the client")
-	return statusSuccess
+	return statusSuccess, writtenStatus + int(writtenResponse)
 }
 
-func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) status {
-	_, err := serde.Write(stream, &shrexpb.Response{Status: status})
+// respondStatus returns the status written to stream and the size of the response.
+func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) (status, int) {
+	written, err := serde.Write(stream, &shrexpb.Response{Status: status})
 	if err != nil {
 		log.Errorw("sending response status", "err", err)
-		return statusSendStatusErr
+		return statusSendStatusErr, written
 	}
 
 	switch status {
 	case shrexpb.Status_INTERNAL:
-		return statusInternalErr
+		return statusInternalErr, written
 	case shrexpb.Status_NOT_FOUND:
-		return statusNotFound
+		return statusNotFound, written
 	case shrexpb.Status_OK:
-		return statusSuccess
+		return statusSuccess, written
 	default:
 		panic("unknown status")
 	}
