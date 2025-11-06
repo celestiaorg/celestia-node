@@ -39,15 +39,11 @@ func NewExchange(
 		opt(&p)
 	}
 
-	var metrics *exchangeMetrics
+	var (
+		metrics *exchangeMetrics
+		err     error
+	)
 	if p.metrics {
-		// set metrics for fetcher
-		fetcherMetrics, err := newFetcherMetrics()
-		if err != nil {
-			return nil, err
-		}
-		fetcher.metrics = fetcherMetrics
-
 		metrics, err = newExchangeMetrics()
 		if err != nil {
 			return nil, err
@@ -165,15 +161,12 @@ func (ce *Exchange) Head(
 }
 
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64) (*header.ExtendedHeader, error) {
-	start := time.Now()
 	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", height, err)
 	}
-	downloadTime := time.Since(start)
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
-	start = time.Now()
 	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
@@ -184,19 +177,12 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
-	constructTime := time.Since(start)
 
-	start = time.Now()
 	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
 	}
-	storeTime := time.Since(start)
 
-	ce.metrics.observeBlockDownload(ctx, downloadTime, eh.DAH.SquareSize())
-	ce.metrics.observeEDSConstruction(ctx, constructTime, eh.DAH.SquareSize())
-	ce.metrics.observeEDSStorage(ctx, storeTime, eh.DAH.SquareSize())
 	ce.metrics.observeBlockProcessed(ctx, eh.DAH.SquareSize())
-
 	return eh, nil
 }

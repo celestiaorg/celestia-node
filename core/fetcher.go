@@ -31,8 +31,6 @@ var (
 
 type BlockFetcher struct {
 	client coregrpc.BlockAPIClient
-
-	metrics *fetcherMetrics
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
@@ -69,7 +67,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock
 	if err != nil {
 		return nil, err
 	}
-	block, err := f.receiveBlockByHeight(ctx, stream)
+	block, err := f.receiveBlockByHeight(stream)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +97,7 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 	if err != nil {
 		return nil, err
 	}
-	return f.receiveBlockByHeight(ctx, stream)
+	return f.receiveBlockByHeight(stream)
 }
 
 // Commit queries Core for a `Commit` from the block at
@@ -222,12 +220,10 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	return resp.SyncInfo.CatchingUp, nil
 }
 
-func (f *BlockFetcher) receiveBlockByHeight(ctx context.Context, streamer coregrpc.BlockAPI_BlockByHeightClient) (
+func (f *BlockFetcher) receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	*SignedBlock,
 	error,
 ) {
-	start := time.Now()
-
 	parts := make([]*tmproto.Part, 0)
 
 	// receive the first part to get the block meta, commit, and validator set
@@ -255,8 +251,6 @@ func (f *BlockFetcher) receiveBlockByHeight(ctx context.Context, streamer coregr
 		parts = append(parts, resp.BlockPart)
 		isLast = resp.IsLast
 	}
-
-	f.metrics.observeReceiveBlock(ctx, time.Since(start), len(parts))
 
 	block, err := partsToBlock(parts)
 	if err != nil {
