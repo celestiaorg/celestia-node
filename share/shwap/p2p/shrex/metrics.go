@@ -88,6 +88,14 @@ func (m *Metrics) observePayloadServed(
 }
 
 func InitClientMetrics() (*Metrics, error) {
+	totalRequestCounter, err := meter.Int64Counter(
+		"shrex_server_total_responses",
+		metric.WithDescription("Total count of sent shrex responses"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_client_request_duration",
 		metric.WithDescription("Time taken to complete a shrex client request"),
@@ -97,7 +105,8 @@ func InitClientMetrics() (*Metrics, error) {
 	}
 
 	return &Metrics{
-		requestDuration: requestDuration,
+		requestDuration:     requestDuration,
+		totalRequestCounter: totalRequestCounter,
 	}, nil
 }
 
