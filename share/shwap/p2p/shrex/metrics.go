@@ -56,11 +56,13 @@ func (m *Metrics) observeRequest(
 
 	ctx = utils.ResetContextOnError(ctx)
 
-	m.requestDuration.Record(ctx, duration.Seconds(),
-		metric.WithAttributes(
-			attribute.String("protocol", requestName),
-			attribute.String("status", string(status)),
-		))
+	opt := metric.WithAttributes(
+		attribute.String("protocol", requestName),
+		attribute.String("status", string(status)),
+	)
+
+	m.totalRequestCounter.Add(ctx, 1, opt)
+	m.requestDuration.Record(ctx, duration.Seconds(), opt)
 }
 
 // observePayloadServed records the size of the payload served by the shrex
