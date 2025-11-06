@@ -360,6 +360,9 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
+	_, err := cctx.WaitForHeight(int64(2))
+	require.NoError(t, err)
+
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, opts...)
