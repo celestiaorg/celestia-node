@@ -47,12 +47,12 @@ func TestListenerWithNonEmptyBlocks(t *testing.T) {
 	t.Cleanup(sub.Cancel)
 
 	empty := share.EmptyEDSRoots()
-	// TODO extract 16
-	for range 16 {
+	const blockSize = 16
+	for range blockSize {
 		accounts := cfg.Genesis.Accounts()
 		require.Greater(t, len(accounts), 0)
 
-		resp, err := cctx.FillBlock(16, accounts[0].Name, flags.BroadcastSync)
+		resp, err := cctx.FillBlock(blockSize, accounts[0].Name, flags.BroadcastSync)
 		require.NoError(t, err)
 		require.NotEmpty(t, resp.TxHash)
 
