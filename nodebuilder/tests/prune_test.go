@@ -18,7 +18,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
@@ -100,11 +99,10 @@ func TestArchivalBlobSync(t *testing.T) {
 	err = pruningBN.Start(ctx)
 	require.NoError(t, err)
 
-	pruningCfg := nodebuilder.DefaultConfig(node.Bridge)
-	pruningCfg.DASer = das.DefaultConfig(node.Full)
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
 	for range 3 {
-		pruningFN := sw.NewNodeWithConfig(node.Full, pruningCfg, prunerOpts)
+		cfg := sw.DefaultTestConfig(node.Full)
+		pruningFN := sw.NewNodeWithConfig(node.Full, cfg, prunerOpts)
 		err = pruningFN.Start(ctx)
 		require.NoError(t, err)
 
@@ -186,15 +184,14 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 
 	// Light nodes have pruning enabled by default
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		store := nodebuilder.MockStore(t, nodebuilder.DefaultConfig(nt))
+		store := nodebuilder.MockStore(t, sw.DefaultTestConfig(nt))
 		pruningNode := sw.MustNewNodeWithStore(nt, store)
 		err := pruningNode.Start(ctx)
 		require.NoError(t, err)
 		err = pruningNode.Stop(ctx)
 		require.NoError(t, err)
 
-		archivalCfg := sw.DefaultTestConfig(nt)
-		err = store.PutConfig(archivalCfg)
+		err = store.PutConfig(sw.DefaultTestConfig(nt))
 		require.NoError(t, err)
 		// fx.Replace simulates the `--archival` flag being passed
 		pruningNode, err = sw.NewNodeWithStore(nt, store, fx.Replace(&pruner.Config{EnableService: false}))
@@ -222,7 +219,7 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 	}
 
 	for _, nt := range []node.Type{node.Bridge, node.Full} {
-		store := nodebuilder.MockStore(t, nodebuilder.DefaultConfig(nt))
+		store := nodebuilder.MockStore(t, sw.DefaultTestConfig(nt))
 		ds, err := store.Datastore()
 		require.NoError(t, err)
 
@@ -290,7 +287,7 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 		require.NoError(t, err)
 
 		// convert to pruned node
-		err = store.PutConfig(nodebuilder.DefaultConfig(nt))
+		err = store.PutConfig(sw.DefaultTestConfig(nt))
 		require.NoError(t, err)
 		prunedNd, err := sw.NewNodeWithStore(nt, store)
 		require.NoError(t, err)
