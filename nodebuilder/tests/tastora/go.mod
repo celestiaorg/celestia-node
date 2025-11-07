@@ -5,11 +5,9 @@ go 1.25.1
 require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v6 v6.2.0-mocha
-	github.com/celestiaorg/celestia-node v0.23.2-mocha
+	github.com/celestiaorg/celestia-node v0.28.1-arabica
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/tastora v0.7.0
-	github.com/cometbft/cometbft v0.38.17
-	github.com/containerd/errdefs v1.0.0
+	github.com/celestiaorg/tastora v0.7.5
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/moby/moby v27.5.1+incompatible
 	github.com/stretchr/testify v1.11.1
@@ -369,6 +367,8 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.50.0 // indirect
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/cometbft/cometbft v0.38.17 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
 	pgregory.net/rapid v1.2.0 // indirect
