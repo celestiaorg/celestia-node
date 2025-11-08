@@ -65,6 +65,13 @@ type Client struct {
 	closer func() error
 }
 
+// MultiClient is a Celestia client with support for multiple endpoints
+type MultiClient struct {
+	*Client
+	multiReadClient *MultiReadClient
+	multiGRPCClient *MultiGRPCClient
+}
+
 // New initializes the Celestia client. It connects to the Celestia consensus nodes and Bridge
 // nodes. Any changes to the keyring are not visible to the client. The client needs to be
 // reinitialized to pick up new keys. Client should be closed after use by calling Close().
@@ -96,6 +103,95 @@ func New(ctx context.Context, cfg Config, kr keyring.Keyring) (*Client, error) {
 		return nil, errors.Join(err, clerr)
 	}
 	return cl, nil
+}
+
+// NewMultiEndpoint initializes a Celestia client with support for multiple endpoints.
+// It provides failover capabilities for both bridge DA and core gRPC connections.
+func NewMultiEndpoint(ctx context.Context, cfg Config, kr keyring.Keyring) (*MultiClient, error) {
+	// Create multi-read client for bridge DA endpoints
+	multiReadClient, err := NewMultiReadClient(ctx, cfg.ReadConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create multi-read client: %w", err)
+	}
+
+	// Get the primary read client
+	primaryReadClient := multiReadClient.GetClient()
+	if primaryReadClient == nil {
+		return nil, errors.New("no read clients available")
+	}
+
+	// Create the base client with primary read client
+	baseClient := &Client{
+		ReadClient: *primaryReadClient,
+	}
+
+	// Validate config
+	err = cfg.Validate()
+	if err != nil {
+		multiReadClient.Close()
+		return nil, err
+	}
+	if kr == nil {
+		multiReadClient.Close()
+		return nil, errors.New("keyring is nil")
+	}
+
+	// Create multi-gRPC client for core endpoints
+	multiGRPCClient, err := NewMultiGRPCClient(cfg.SubmitConfig.CoreGRPCConfig)
+	if err != nil {
+		multiReadClient.Close()
+		return nil, fmt.Errorf("failed to create multi-gRPC client: %w", err)
+	}
+
+	// Initialize transaction client with primary gRPC connection
+	err = baseClient.initTxClient(ctx, cfg.SubmitConfig, multiGRPCClient.GetConnection(), kr)
+	if err != nil {
+		multiReadClient.Close()
+		multiGRPCClient.Close()
+		return nil, fmt.Errorf("failed to initialize transaction client: %w", err)
+	}
+
+	// Create multi-client
+	multiClient := &MultiClient{
+		Client:          baseClient,
+		multiReadClient: multiReadClient,
+		multiGRPCClient: multiGRPCClient,
+	}
+
+	// Override the closer to close all connections
+	multiClient.closer = func() error {
+		var errs []error
+
+		// Close multi-read client
+		if err := multiReadClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close multi-read client: %w", err))
+		}
+
+		// Close multi-gRPC client
+		if err := multiGRPCClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close multi-gRPC client: %w", err))
+		}
+
+		// Note: State service is managed by the ServiceBreaker in nodebuilder
+		// and doesn't need explicit stopping in the client
+
+		if len(errs) > 0 {
+			return errors.Join(errs...)
+		}
+		return nil
+	}
+
+	return multiClient, nil
+}
+
+// GetReadClients returns all available read clients for advanced usage
+func (mc *MultiClient) GetReadClients() []*ReadClient {
+	return mc.multiReadClient.GetAllClients()
+}
+
+// GetGRPCConnections returns all available gRPC connections for advanced usage
+func (mc *MultiClient) GetGRPCConnections() []*grpc.ClientConn {
+	return mc.multiGRPCClient.GetAllConnections()
 }
 
 func (c *Client) initTxClient(

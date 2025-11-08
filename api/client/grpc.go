@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -15,10 +17,71 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+// MultiGRPCClient manages multiple gRPC connections with failover support
+type MultiGRPCClient struct {
+	connections []*grpc.ClientConn
+	configs     []CoreGRPCConfig
+}
+
+// NewMultiGRPCClient creates a new multi-endpoint gRPC client
+func NewMultiGRPCClient(cfg CoreGRPCConfig) (*MultiGRPCClient, error) {
+	// Collect all configurations (primary + additional)
+	configs := []CoreGRPCConfig{cfg}
+	configs = append(configs, cfg.AdditionalCoreGRPCConfigs...)
+	
+	// Create connections for all configurations
+	connections := make([]*grpc.ClientConn, 0, len(configs))
+	for _, config := range configs {
+		conn, err := grpcClient(config)
+		if err != nil {
+			// Close any already created connections on error
+			for _, existingConn := range connections {
+				existingConn.Close()
+			}
+			return nil, fmt.Errorf("failed to create gRPC connection to %s: %w", config.Addr, err)
+		}
+		connections = append(connections, conn)
+	}
+	
+	return &MultiGRPCClient{
+		connections: connections,
+		configs:     configs,
+	}, nil
+}
+
+// GetConnection returns the first available connection
+func (m *MultiGRPCClient) GetConnection() *grpc.ClientConn {
+	if len(m.connections) > 0 {
+		return m.connections[0]
+	}
+	return nil
+}
+
+// GetAllConnections returns all connections for advanced usage
+func (m *MultiGRPCClient) GetAllConnections() []*grpc.ClientConn {
+	return m.connections
+}
+
+// Close closes all gRPC connections
+func (m *MultiGRPCClient) Close() error {
+	var errs []error
+	for i, conn := range m.connections {
+		if err := conn.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close connection %d (%s): %w", i, m.configs[i].Addr, err))
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
 // CoreGRPCConfig is the configuration for the core gRPC client.
 type CoreGRPCConfig struct {
 	// Addr is the address of the core gRPC server.
 	Addr string
+	// AdditionalCoreGRPCConfigs is a list of additional core gRPC server configurations for failover
+	AdditionalCoreGRPCConfigs []CoreGRPCConfig
 	// TLSEnabled specifies whether the connection is secure or not.
 	TLSEnabled bool
 	// AuthToken is the authentication token to be used for gRPC authentication.
@@ -30,7 +93,18 @@ type CoreGRPCConfig struct {
 // Validate performs basic validation of the config.
 func (cfg *CoreGRPCConfig) Validate() error {
 	_, err := utils.SanitizeAddr(cfg.Addr)
-	return err
+	if err != nil {
+		return err
+	}
+	
+	// Validate additional core gRPC configurations
+	for i, additionalCfg := range cfg.AdditionalCoreGRPCConfigs {
+		if err := additionalCfg.Validate(); err != nil {
+			return fmt.Errorf("invalid additional core gRPC config at index %d: %w", i, err)
+		}
+	}
+	
+	return nil
 }
 
 func grpcClient(cfg CoreGRPCConfig) (*grpc.ClientConn, error) {

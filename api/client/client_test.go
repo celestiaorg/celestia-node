@@ -335,6 +335,219 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 	return nd, mockAPI, adminToken, cleanup
 }
 
+// TestMultiEndpointClient tests the multi-endpoint client functionality
+func TestMultiEndpointClient(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	// Setup mock server with authed RPC
+	server, _, authToken, cleanup := setupMockRPCServer(t, ctx)
+	defer cleanup()
+
+	// Get the server URL
+	serverURL := "http://" + server.RPCServer.ListenAddr()
+
+	// Temporary directory for client storage
+	tmpDir, err := os.MkdirTemp("", "celestia-client-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	// Create keyring
+	kr, err := KeyringWithNewKey(KeyringConfig{
+		KeyName:     "test_key",
+		BackendName: keyring.BackendTest,
+	}, tmpDir)
+	require.NoError(t, err)
+
+	// Test that multi-endpoint client creation fails gracefully with invalid config
+	invalidCfg := Config{
+		ReadConfig: ReadConfig{
+			BridgeDAAddr: serverURL,
+			AdditionalBridgeDAAddrs: []string{
+				"", // Empty address should be invalid
+			},
+			DAAuthToken: authToken,
+			EnableDATLS: false,
+		},
+		SubmitConfig: SubmitConfig{
+			DefaultKeyName: "test_key",
+			Network:        "mocha-4",
+			CoreGRPCConfig: CoreGRPCConfig{
+				Addr:       "localhost:9090",
+				TLSEnabled: false,
+				AuthToken:  "",
+			},
+		},
+	}
+	_, err = NewMultiEndpoint(ctx, invalidCfg, kr)
+	require.Error(t, err)
+
+	// Test that multi-endpoint client creation fails gracefully with invalid gRPC config
+	invalidCfg = Config{
+		ReadConfig: ReadConfig{
+			BridgeDAAddr: serverURL,
+			DAAuthToken:  authToken,
+			EnableDATLS:  false,
+		},
+		SubmitConfig: SubmitConfig{
+			DefaultKeyName: "test_key",
+			Network:        "mocha-4",
+			CoreGRPCConfig: CoreGRPCConfig{
+				Addr: "localhost:9090",
+				AdditionalCoreGRPCConfigs: []CoreGRPCConfig{
+					{
+						Addr: "", // Empty address should be invalid
+					},
+				},
+				TLSEnabled: false,
+				AuthToken:  "",
+			},
+		},
+	}
+	_, err = NewMultiEndpoint(ctx, invalidCfg, kr)
+	require.Error(t, err)
+
+	// Test successful multi-read client creation (without gRPC to avoid connection issues)
+	multiReadClient, err := NewMultiReadClient(ctx, ReadConfig{
+		BridgeDAAddr: serverURL,
+		AdditionalBridgeDAAddrs: []string{
+			serverURL, // Same server for testing, in real usage would be different
+		},
+		DAAuthToken: authToken,
+		EnableDATLS: false,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, multiReadClient)
+	defer multiReadClient.Close()
+
+	// Test that we have multiple read clients
+	readClients := multiReadClient.GetAllClients()
+	require.GreaterOrEqual(t, len(readClients), 1)
+
+	// Test that the client works normally
+	require.NotNil(t, readClients[0].Header)
+	require.NotNil(t, readClients[0].Share)
+	require.NotNil(t, readClients[0].Blob)
+	require.NotNil(t, readClients[0].Blobstream)
+}
+
+// TestReadConfigValidation tests validation of ReadConfig with multiple endpoints
+func TestReadConfigValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       ReadConfig
+		expectErr bool
+	}{
+		{
+			name: "valid config with additional endpoints",
+			cfg: ReadConfig{
+				BridgeDAAddr: "http://localhost:26658",
+				AdditionalBridgeDAAddrs: []string{
+					"http://backup1:26658",
+					"http://backup2:26658",
+				},
+				DAAuthToken: "token",
+			},
+			expectErr: false,
+		},
+		{
+			name: "invalid additional endpoint",
+			cfg: ReadConfig{
+				BridgeDAAddr: "http://localhost:26658",
+				AdditionalBridgeDAAddrs: []string{
+					"", // Empty address should be invalid
+				},
+				DAAuthToken: "token",
+			},
+			expectErr: true,
+		},
+		{
+			name: "empty additional endpoints",
+			cfg: ReadConfig{
+				BridgeDAAddr:            "http://localhost:26658",
+				AdditionalBridgeDAAddrs: []string{},
+				DAAuthToken:             "token",
+			},
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cfg.Validate()
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestCoreGRPCConfigValidation tests validation of CoreGRPCConfig with multiple endpoints
+func TestCoreGRPCConfigValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       CoreGRPCConfig
+		expectErr bool
+	}{
+		{
+			name: "valid config with additional endpoints",
+			cfg: CoreGRPCConfig{
+				Addr: "localhost:9090",
+				AdditionalCoreGRPCConfigs: []CoreGRPCConfig{
+					{
+						Addr:       "backup1:9090",
+						TLSEnabled: true,
+						AuthToken:  "token",
+					},
+					{
+						Addr:       "backup2:9090",
+						TLSEnabled: false,
+						AuthToken:  "",
+					},
+				},
+				TLSEnabled: true,
+				AuthToken:  "token",
+			},
+			expectErr: false,
+		},
+		{
+			name: "invalid additional endpoint",
+			cfg: CoreGRPCConfig{
+				Addr: "localhost:9090",
+				AdditionalCoreGRPCConfigs: []CoreGRPCConfig{
+					{
+						Addr: "", // Empty address should be invalid
+					},
+				},
+				TLSEnabled: false,
+			},
+			expectErr: true,
+		},
+		{
+			name: "empty additional endpoints",
+			cfg: CoreGRPCConfig{
+				Addr:                      "localhost:9090",
+				AdditionalCoreGRPCConfigs: []CoreGRPCConfig{},
+				TLSEnabled:                false,
+			},
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cfg.Validate()
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func addAuth(t *testing.T) (fx.Option, string) {
 	// Generate JWT signer and verifier for the server
 	key := make([]byte, 32)

@@ -69,6 +69,55 @@ readCfg := client.ReadConfig{
 readClient, err := client.NewReadClient(context.Background(), readCfg)
 ```
 
+### Creating a Multi-Endpoint Client
+
+```go
+// Configure client with multiple endpoints for failover
+cfg := client.Config{
+    ReadConfig: client.ReadConfig{
+        BridgeDAAddr: "http://localhost:26658",
+        AdditionalBridgeDAAddrs: []string{
+            "http://backup-bridge-1:26658",
+            "http://backup-bridge-2:26658",
+        },
+        DAAuthToken:  "your_auth_token",
+        EnableDATLS:  false,
+    },
+    SubmitConfig: client.SubmitConfig{
+        DefaultKeyName: "my_key",
+        Network:        "mocha-4",
+        CoreGRPCConfig: client.CoreGRPCConfig{
+            Addr: "celestia-consensus.example.com:9090",
+            AdditionalCoreGRPCConfigs: []client.CoreGRPCConfig{
+                {
+                    Addr:       "backup-consensus-1.example.com:9090",
+                    TLSEnabled: true,
+                    AuthToken:  "your_core_auth_token",
+                },
+                {
+                    Addr:       "backup-consensus-2.example.com:9090",
+                    TLSEnabled: true,
+                    AuthToken:  "your_core_auth_token",
+                },
+            },
+            TLSEnabled: true,
+            AuthToken:  "your_core_auth_token",
+        },
+    },
+}
+
+// Create multi-endpoint client
+multiClient, err := client.NewMultiEndpoint(context.Background(), cfg, kr)
+if err != nil {
+    log.Fatal(err)
+}
+defer multiClient.Close()
+
+// Access all available connections for advanced usage
+readClients := multiClient.GetReadClients()
+grpcConnections := multiClient.GetGRPCConnections()
+```
+
 ### Submitting a Blob
 
 ```go
