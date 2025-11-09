@@ -29,6 +29,7 @@ func registerEndpoints(
 	daMod da.Module, //nolint: staticcheck
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
+	cfg *Config,
 ) {
 	serv.RegisterService("fraud", fraudMod, &fraud.API{})
 	serv.RegisterService("das", daserMod, &das.API{})
@@ -38,6 +39,7 @@ func registerEndpoints(
 	serv.RegisterService("p2p", p2pMod, &p2p.API{})
 	serv.RegisterService("node", nodeMod, &node.API{})
 	serv.RegisterService("blob", blobMod, &blob.API{})
+
 	serv.RegisterService("da", daMod, &da.API{})
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
 }
