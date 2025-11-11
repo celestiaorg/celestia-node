@@ -15,7 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -55,7 +54,7 @@ var (
 type Framework struct {
 	t       *testing.T
 	logger  *zap.Logger
-	client  *client.Client
+	client  types.TastoraDockerClient
 	network string
 
 	chainBuilder     *cosmos.ChainBuilder
@@ -90,7 +89,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	}
 
 	f.logger.Info("Setting up Tastora framework", zap.String("test", t.Name()))
-	f.client, f.network = docker.DockerSetup(t)
+	f.client, f.network = docker.Setup(t)
 	f.chainBuilder, f.daNetworkBuilder = f.createBuilders(cfg)
 
 	return f
