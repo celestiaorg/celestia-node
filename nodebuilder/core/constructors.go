@@ -191,7 +191,8 @@ func parseTokenPath(xtokenPath string) (string, error) {
 		if val, ok := tokenData[key]; ok && val != "" {
 			tokenValue = val
 			if i > 0 {
-				log.Warnf("Using alternate JSON key '%s' in file '%s'. Consider using '%s' for consistency.", key, tokenFilePath, xtokenJSONKeys[0])
+				log.Warnf("Using alternate JSON key '%s' in file '%s'. Consider using '%s' for consistency.",
+					key, tokenFilePath, xtokenJSONKeys[0])
 			}
 			break
 		}
