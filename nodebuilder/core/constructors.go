@@ -35,9 +35,11 @@ const (
 	// actual response size = 10,85mb
 	// TODO(@vgonkivs): Revisit this constant once the block size reaches 64MB.
 	defaultGRPCMessageSize = 64 * 1024 * 1024 // 64Mb
+)
 
-	xtokenFileName    = "xtoken.json"
-	xtokenFileNameAlt = "x-token.json" //nolint:gosec
+var (
+	xtokenFileNames = []string{"xtoken.json", "x-token.json"}
+	xtokenJSONKeys  = []string{"x-token", "xtoken", "token"}
 )
 
 type AdditionalCoreConns []*grpc.ClientConn
@@ -153,19 +155,20 @@ func authStreamInterceptor(xtoken string) grpc.StreamClientInterceptor {
 func parseTokenPath(xtokenPath string) (string, error) {
 	// Try both filename variants: xtoken.json and x-token.json
 	var tokenFilePath string
+	for i, fileName := range xtokenFileNames {
+		path := filepath.Join(xtokenPath, fileName)
+		if utils.Exists(path) {
+			tokenFilePath = path
+			if i > 0 {
+				log.Warnf("Using alternate filename '%s'. Consider using '%s' for consistency.", fileName, xtokenFileNames[0])
+			}
+			break
+		}
+	}
 
-	primaryPath := filepath.Join(xtokenPath, xtokenFileName)
-	altPath := filepath.Join(xtokenPath, xtokenFileNameAlt)
-
-	switch {
-	case utils.Exists(primaryPath):
-		tokenFilePath = primaryPath
-	case utils.Exists(altPath):
-		tokenFilePath = altPath
-		log.Warnf("Using alternate filename '%s'. Consider using '%s' for consistency.", xtokenFileNameAlt, xtokenFileName)
-	default:
-		return "", fmt.Errorf("authentication token file not found. Expected '%s' or '%s' in directory: %s",
-			xtokenFileName, xtokenFileNameAlt, xtokenPath)
+	if tokenFilePath == "" {
+		return "", fmt.Errorf("authentication token file not found. Expected one of %v in directory: %s",
+			xtokenFileNames, xtokenPath)
 	}
 
 	token, err := os.ReadFile(tokenFilePath)
@@ -173,43 +176,32 @@ func parseTokenPath(xtokenPath string) (string, error) {
 		return "", fmt.Errorf("failed to read token file '%s': %w", tokenFilePath, err)
 	}
 
-	// Support "x-token" (preferred), "xtoken", and "token" JSON keys for maximum compatibility
-	auth := struct {
-		XToken    string `json:"x-token"`
-		XTokenAlt string `json:"xtoken"`
-		Token     string `json:"token"`
-	}{}
-
-	err = json.Unmarshal(token, &auth)
+	// Parse JSON into a map to support multiple key variants
+	var tokenData map[string]string
+	err = json.Unmarshal(token, &tokenData)
 	if err != nil {
 		return "", fmt.Errorf(
-			"failed to parse token file '%s': %w. Expected JSON with 'x-token', 'xtoken', or 'token' key",
-			tokenFilePath, err)
+			"failed to parse token file '%s': %w. Expected JSON with one of %v key",
+			tokenFilePath, err, xtokenJSONKeys)
 	}
 
+	// Try each JSON key in order of preference
 	var tokenValue string
-
-	switch {
-	case auth.XToken != "":
-		tokenValue = auth.XToken
-	case auth.XTokenAlt != "":
-		tokenValue = auth.XTokenAlt
-		log.Warnf("Using alternate JSON key 'xtoken' in file '%s'. Consider using 'x-token' for consistency.", tokenFilePath)
-	case auth.Token != "":
-		tokenValue = auth.Token
-		log.Warnf("Using alternate JSON key 'token' in file '%s'. Consider using 'x-token' for consistency.", tokenFilePath)
-	default:
-		return "", fmt.Errorf(
-			"authentication token is empty or missing in file '%s'. "+
-				"Please provide a JSON file with 'x-token' (preferred), 'xtoken', or 'token' key containing the token value",
-			tokenFilePath)
+	for i, key := range xtokenJSONKeys {
+		if val, ok := tokenData[key]; ok && val != "" {
+			tokenValue = val
+			if i > 0 {
+				log.Warnf("Using alternate JSON key '%s' in file '%s'. Consider using '%s' for consistency.", key, tokenFilePath, xtokenJSONKeys[0])
+			}
+			break
+		}
 	}
 
 	if tokenValue == "" {
 		return "", fmt.Errorf(
-			"authentication token is empty in file '%s'. "+
-				"Please setup a valid token or remove the xtokenPath configuration",
-			tokenFilePath)
+			"authentication token is empty or missing in file '%s'. "+
+				"Please provide a JSON file with one of %v key containing the token value",
+			tokenFilePath, xtokenJSONKeys)
 	}
 
 	return tokenValue, nil
