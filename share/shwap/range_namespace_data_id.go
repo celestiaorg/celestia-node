@@ -9,7 +9,7 @@ import (
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
 // combining EdsIDSize size and 4 additional bytes
 // for the start and end ODS indexes of share of the range.
-const RangeNamespaceDataIDSize = EdsIDSize + 4
+const RangeNamespaceDataIDSize = EdsIDSize + 8
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within an Original DataSquare (ODS)
 // The range is defined by the indexes of the first (`From`)
@@ -31,9 +31,9 @@ const RangeNamespaceDataIDSize = EdsIDSize + 4
 type RangeNamespaceDataID struct {
 	EdsID
 	// From specifies the index of the first share in the range.
-	From int
+	From uint32
 	// To specifies the index of the last share in the range(exclusively).
-	To int
+	To uint32
 }
 
 func NewRangeNamespaceDataID(
@@ -42,8 +42,8 @@ func NewRangeNamespaceDataID(
 ) (RangeNamespaceDataID, error) {
 	rngid := RangeNamespaceDataID{
 		EdsID: edsID,
-		From:  from,
-		To:    to,
+		From:  uint32(from),
+		To:    uint32(to),
 	}
 
 	err := rngid.Verify(odsSize)
@@ -61,12 +61,10 @@ func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
 		return fmt.Errorf("invalid EdsID: %w", err)
 	}
 
-	sharesAmount := odsSize * odsSize
-	if rngid.From < 0 {
-		return fmt.Errorf("from must be greater than or equal to 0: %d", rngid.From)
-	}
-	if rngid.To <= 0 {
-		return fmt.Errorf("to must be greater than 0: %d", rngid.To)
+	sharesAmount := uint32(odsSize * odsSize)
+
+	if rngid.To == uint32(0) {
+		return fmt.Errorf("invalid range: to must be greater than 0: %d", rngid.To)
 	}
 	if rngid.From >= rngid.To {
 		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
@@ -132,8 +130,8 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 
 	rngID := RangeNamespaceDataID{
 		EdsID: edsID,
-		From:  int(binary.BigEndian.Uint16(data[EdsIDSize : EdsIDSize+2])),
-		To:    int(binary.BigEndian.Uint16(data[EdsIDSize+2 : EdsIDSize+4])),
+		From:  binary.BigEndian.Uint32(data[EdsIDSize : EdsIDSize+2]),
+		To:    binary.BigEndian.Uint32(data[EdsIDSize+2 : EdsIDSize+4]),
 	}
 	return rngID, rngID.Validate()
 }
@@ -151,7 +149,7 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("appending EdsID: %w", err)
 	}
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To))
+	data = binary.BigEndian.AppendUint32(data, rngid.From)
+	data = binary.BigEndian.AppendUint32(data, rngid.To)
 	return data, nil
 }
