@@ -26,8 +26,8 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rngid, err := NewRangeNamespaceDataID(
 				EdsID{1},
-				tc.from,
-				tc.to,
+				uint32(tc.from),
+				uint32(tc.to),
 				tc.total/2,
 			)
 			if tc.valid {
