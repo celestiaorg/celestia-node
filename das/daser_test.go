@@ -219,6 +219,47 @@ func TestDASerSampleTimeout(t *testing.T) {
 	}
 }
 
+// TestDASerHeaderPruneRaceCondition checks that when a header is pruned while
+// the DASer is sampling it, any failed header state is properly cleared.
+// The DASer's OnDelete callback handles this cleanup.
+func TestDASerHeaderPruneRaceCondition(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	avail := mocks.NewMockAvailability(ctrl)
+	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	// 30 headers from the past and 15 future headers
+	mockGet, sub, mockService := createDASerSubcomponents(t, 30, 15)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+
+	daser, err := NewDASer(avail, sub, mockGet, ds_sync.MutexWrap(datastore.NewMapDatastore()),
+		mockService, newBroadcastMock(1))
+	require.NoError(t, err)
+
+	err = daser.Start(ctx)
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	// delete 15 headers while the DASer is trying to sample them
+	// [1:16)
+	err = mockGet.DeleteTo(ctx, 16)
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	// prune one more header to trigger a cleanup of failed headers
+	err = mockGet.DeleteTo(ctx, 17)
+	require.NoError(t, err)
+
+	err = daser.Stop(ctx)
+	require.NoError(t, err)
+
+	cp, err := daser.store.load(ctx)
+	require.NoError(t, err)
+	require.Zero(t, len(cp.Failed))
+}
+
 // createDASerSubcomponents takes numGetter (number of headers
 // to store in mockGetter) and numSub (number of headers to store
 // in the mock header.Subscriber), returning a newly instantiated
