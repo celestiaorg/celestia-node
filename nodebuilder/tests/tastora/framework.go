@@ -648,15 +648,21 @@ func (f *Framework) buildCurrentNodeImage(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	// Find project root (where go.mod is)
+	// Find project root (where go.mod and Dockerfile are)
 	projectRoot := cwd
 	for {
-		if _, err := os.Stat(filepath.Join(projectRoot, "go.mod")); err == nil {
-			break
+		goModPath := filepath.Join(projectRoot, "go.mod")
+		dockerfilePath := filepath.Join(projectRoot, "Dockerfile")
+		if _, err := os.Stat(goModPath); err == nil {
+			// Found go.mod, check if Dockerfile also exists here
+			if _, err := os.Stat(dockerfilePath); err == nil {
+				// Found both, this is the project root
+				break
+			}
 		}
 		parent := filepath.Dir(projectRoot)
 		if parent == projectRoot {
-			return "", fmt.Errorf("could not find project root (go.mod)")
+			return "", fmt.Errorf("could not find project root (go.mod and Dockerfile)")
 		}
 		projectRoot = parent
 	}
@@ -664,9 +670,14 @@ func (f *Framework) buildCurrentNodeImage(ctx context.Context) (string, error) {
 	f.t.Logf("Building Docker image from current codebase: %s", imageName)
 	f.t.Logf("Project root: %s", projectRoot)
 
+	// Verify Dockerfile exists
+	dockerfilePath := filepath.Join(projectRoot, "Dockerfile")
+	if _, err := os.Stat(dockerfilePath); err != nil {
+		return "", fmt.Errorf("Dockerfile not found at %s: %w", dockerfilePath, err)
+	}
+
 	// Build Docker image
-	cmd := exec.CommandContext(ctx, "docker", "build", "-t", imageName, "-f", "Dockerfile", ".")
-	cmd.Dir = projectRoot
+	cmd := exec.CommandContext(ctx, "docker", "build", "-t", imageName, "-f", dockerfilePath, projectRoot)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -913,9 +924,10 @@ func (f *Framework) Stop(ctx context.Context) error {
 
 // dockerCleanup uses Docker's built-in commands to clean up unused resources
 func (f *Framework) dockerCleanup() {
-	// Clean up containers with Tastora test-related names (da-* and test-val-*)
+	// Clean up containers with Tastora test-related names (da-*, test-val-*, and old-client-test-*)
 	f.cleanupContainersByPattern("da-")
 	f.cleanupContainersByPattern("test-val-")
+	f.cleanupContainersByPattern("old-client-test-")
 
 	// Use Docker's built-in cleanup commands for comprehensive cleanup
 	exec.Command("docker", "system", "prune", "-f").Run()
