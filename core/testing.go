@@ -2,8 +2,10 @@ package core
 
 import (
 	"context"
+	"errors"
 	"net"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -117,6 +119,9 @@ type Network struct {
 	stopNode func() error
 	stopGRPC func() error
 	stopAPI  func() error
+
+	stopOnce sync.Once
+	stopErr  error
 }
 
 func NewNetwork(t testing.TB, config *testnode.Config) *Network {
@@ -182,19 +187,29 @@ func (n *Network) Start() error {
 }
 
 func (n *Network) Stop() error {
-	err := n.stopNode()
-	if err != nil {
-		return err
-	}
+	n.stopOnce.Do(func() {
+		var errs []error
 
-	err = n.stopGRPC()
-	if err != nil {
-		return err
-	}
+		if n.stopNode != nil {
+			if err := n.stopNode(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 
-	err = n.stopAPI()
-	if err != nil {
-		return err
-	}
-	return nil
+		if n.stopGRPC != nil {
+			if err := n.stopGRPC(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		if n.stopAPI != nil {
+			if err := n.stopAPI(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		n.stopErr = errors.Join(errs...)
+	})
+
+	return n.stopErr
 }

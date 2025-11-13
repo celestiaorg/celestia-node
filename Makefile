@@ -4,16 +4,24 @@ DIR_FULLPATH=$(shell pwd)
 versioningPath := github.com/celestiaorg/celestia-node/nodebuilder/node
 tastoraPath := github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 OS := $(shell uname -s)
+VERSION = $(shell git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
+              git describe --tags --dirty=-dev 2>/dev/null || \
+              git rev-parse --short HEAD)
+
 LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
                     -X $(versioningPath).semanticVersion=$(shell \
-                      git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
-                      git describe --tags --dirty=-dev 2>/dev/null || \
-                      git rev-parse --short HEAD) \
+                      if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
+                        echo "$(VERSION)" | cut -d'-' -f1; \
+                      else \
+                        echo "$(VERSION)"; \
+                      fi) \
                     -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(shell \
-                      git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
-                      git describe --tags --dirty=-dev 2>/dev/null || \
-                      git rev-parse --short HEAD))"
+                      if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
+                        echo "$(VERSION)" | cut -d'-' -f1; \
+                      else \
+                        echo "$(VERSION)"; \
+                      fi))"
 TAGS=integration
 SHORT=
 ifeq (${PREFIX},)

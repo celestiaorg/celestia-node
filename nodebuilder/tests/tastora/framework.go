@@ -15,7 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -56,7 +55,7 @@ var (
 type Framework struct {
 	t       *testing.T
 	logger  *zap.Logger
-	client  *client.Client
+	client  types.TastoraDockerClient
 	network string
 
 	chainBuilder     *cosmos.ChainBuilder
@@ -100,16 +99,15 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f.dockerCleanup()
 
 	// Setup Docker client and network - should work reliably with proper cleanup
-	cli, netID := docker.DockerSetup(t)
-	f.client, f.network = cli, netID
+	f.client, f.network = docker.Setup(t)
+	f.chainBuilder, f.daNetworkBuilder = f.createBuilders(cfg)
+
 	// Ensure cleanup runs even if tests fail midway
 	t.Cleanup(func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 		_ = f.Stop(cleanupCtx)
 	})
-
-	f.chainBuilder, f.daNetworkBuilder = f.createBuilders(cfg)
 
 	return f
 }
@@ -702,7 +700,7 @@ func (f *Framework) getVersionImageTag(version string) string {
 }
 
 // GetDockerClient returns the Docker client used by the framework.
-func (f *Framework) GetDockerClient() *client.Client {
+func (f *Framework) GetDockerClient() types.TastoraDockerClient {
 	return f.client
 }
 

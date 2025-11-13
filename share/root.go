@@ -68,7 +68,7 @@ func RowsWithNamespace(root *AxisRoots, namespace libshare.Namespace) (idxs []in
 			idxs = append(idxs, i)
 		}
 	}
-	return idxs, err
+	return idxs, nil
 }
 
 // RootHashForCoordinates returns the root hash for the given coordinates.

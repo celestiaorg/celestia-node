@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	logging "github.com/ipfs/go-log/v2"
@@ -61,6 +62,8 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	// metrics tracks blob-related metrics
+	metrics *metrics
 }
 
 func NewService(
@@ -74,6 +77,7 @@ func NewService(
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
 		headerSub:     headerSub,
+		metrics:       nil, // Will be initialized via WithMetrics() if needed
 	}
 }
 
@@ -84,6 +88,7 @@ func (s *Service) Start(context.Context) error {
 
 func (s *Service) Stop(context.Context) error {
 	s.cancel()
+	// No cleanup needed for metrics
 	return nil
 }
 
@@ -196,9 +201,11 @@ func (s *Service) Get(
 	namespace libshare.Namespace,
 	commitment Commitment,
 ) (blob *Blob, err error) {
+	start := time.Now()
 	ctx, span := tracer.Start(ctx, "get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		s.metrics.observeRetrieval(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
@@ -222,9 +229,11 @@ func (s *Service) GetProof(
 	namespace libshare.Namespace,
 	commitment Commitment,
 ) (proof *Proof, err error) {
+	start := time.Now()
 	ctx, span := tracer.Start(ctx, "get-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		s.metrics.observeProof(ctx, time.Since(start), err)
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),

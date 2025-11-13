@@ -2,9 +2,7 @@ package shrex
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -64,7 +62,7 @@ func (c *Client) Get(
 	if err != nil {
 		logger.Warnw("requesting data from peer failed", "error", err)
 	}
-	c.metrics.observeRequests(ctx, 1, req.Name(), status, time.Since(requestTime))
+	c.metrics.observeRequest(ctx, req.Name(), status, time.Since(requestTime))
 	logger.Debugw("requested data", "status", status, "duration", time.Since(requestTime))
 	return err
 }
@@ -104,9 +102,6 @@ func (c *Client) doRequest(
 	var statusResp shrexpb.Response
 	_, err = serde.Read(stream, &statusResp)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return statusRateLimited, fmt.Errorf("reading a response: %w", ErrRateLimited)
-		}
 		return statusReadStatusErr, fmt.Errorf("unexpected error during reading the status from stream: %w", err)
 	}
 

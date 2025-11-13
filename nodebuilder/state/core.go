@@ -49,7 +49,7 @@ func coreAccessor(
 		opts = append(opts, state.WithTxWorkerAccounts(cfg.TxWorkerAccounts))
 	}
 
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), opts...)
+	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), nil, opts...)
 
 	sBreaker := &modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader]{
 		Service:   ca,
