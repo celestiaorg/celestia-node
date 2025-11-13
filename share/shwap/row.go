@@ -2,10 +2,13 @@ package shwap
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -13,8 +16,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// RowName is the name identifier for the row container.
-const RowName = "row_v0"
+// rowName is the name identifier for the row container.
+const rowName = "row_v0"
 
 // RowSide enumerates the possible sides of a row within an Extended Data Square (EDS).
 type RowSide int
@@ -239,4 +242,43 @@ func toRowSide(s string) RowSide {
 	default:
 		panic("invalid row side")
 	}
+}
+
+func (r *Row) WriteTo(writer io.Writer) (int64, error) {
+	pbsample := r.ToProto()
+	n, err := serde.Write(writer, pbsample)
+	if err != nil {
+		return int64(n), fmt.Errorf("writing RowNamespaceData: %w", err)
+	}
+
+	return int64(n), nil
+}
+
+// ReadFrom reads NamespaceData from the provided reader implementing io.ReaderFrom.
+// It reads series of length-delimited RowNamespaceData until EOF draining the stream.
+func (r *Row) ReadFrom(reader io.Reader) (int64, error) {
+	var rowpb pb.Row
+	n, err := serde.Read(reader, &rowpb)
+	if err != nil {
+		return int64(n), fmt.Errorf("reading Row: %w", err)
+	}
+
+	*r, err = RowFromProto(&rowpb)
+	return int64(n), err
+}
+
+func (rid RowID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	halfRow, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
+	if err != nil {
+		return nil, fmt.Errorf("getting half row from accessor: %w", err)
+	}
+	row := halfRow.ToRow()
+
+	// TODO(@vgonkivs): This is a temporary solution that will be reworked
+	buf := &bytes.Buffer{}
+	_, err = row.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing row: %w", err)
+	}
+	return buf, nil
 }
