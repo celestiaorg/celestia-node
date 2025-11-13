@@ -102,8 +102,20 @@ func newTestClient(t *testing.T, ip, port string) *grpc.ClientConn {
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
-	ready := client.WaitForStateChange(ctx, connectivity.Ready)
-	require.True(t, ready)
+	for {
+		state := client.GetState()
+		if state == connectivity.Ready {
+			break
+		}
+		if state == connectivity.Shutdown {
+			require.Fail(t, "couldn't connect to core endpoint")
+		}
+		ready := client.WaitForStateChange(ctx, state)
+		require.True(t, ready)
+		if ctx.Err() != nil {
+			require.Fail(t, "couldn't connect to core endpoint: "+ctx.Err().Error())
+		}
+	}
 	return client
 }
 
