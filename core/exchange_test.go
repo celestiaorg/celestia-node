@@ -186,8 +186,13 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 }
 
 func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {
+	t.Helper()
+
 	network := NewNetwork(t, cfg)
 	require.NoError(t, network.Start())
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 	// wait for height 2 in order to be able to start submitting txs (this prevents
 	// flakiness with accessing account state)
 	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?

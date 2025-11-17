@@ -15,7 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -55,7 +54,7 @@ var (
 type Framework struct {
 	t       *testing.T
 	logger  *zap.Logger
-	client  *client.Client
+	client  types.TastoraDockerClient
 	network string
 
 	chainBuilder     *cosmos.ChainBuilder
@@ -90,7 +89,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	}
 
 	f.logger.Info("Setting up Tastora framework", zap.String("test", t.Name()))
-	f.client, f.network = docker.DockerSetup(t)
+	f.client, f.network = docker.Setup(t)
 	f.chainBuilder, f.daNetworkBuilder = f.createBuilders(cfg)
 
 	return f
@@ -377,16 +376,26 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		UIDGID:     "10001:10001",
 	}
 
-	// always have at least one bridge node.
-	bridgeNodeConfig := dataavailability.NewNodeBuilder().
-		WithNodeType(types.BridgeNode).
-		Build()
+	totalNodes := cfg.BridgeNodeCount + cfg.LightNodeCount
+	nodeConfigs := make([]dataavailability.NodeConfig, 0, totalNodes)
+
+	for i := 0; i < cfg.BridgeNodeCount; i++ {
+		nodeConfigs = append(nodeConfigs, dataavailability.NewNodeBuilder().
+			WithNodeType(types.BridgeNode).
+			Build())
+	}
+
+	for i := 0; i < cfg.LightNodeCount; i++ {
+		nodeConfigs = append(nodeConfigs, dataavailability.NewNodeBuilder().
+			WithNodeType(types.LightNode).
+			Build())
+	}
 
 	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, f.t.Name()).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(daImage).
-		WithNodes(bridgeNodeConfig)
+		WithNodes(nodeConfigs...)
 
 	return chainBuilder, daNetworkBuilder
 }
@@ -395,6 +404,7 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Chain {
 	celestia, err := f.chainBuilder.Build(ctx)
 	require.NoError(f.t, err, "failed to build celestia chain")
+	f.celestia = celestia
 	err = f.celestia.Start(ctx)
 	require.NoError(f.t, err, "failed to start celestia chain")
 
