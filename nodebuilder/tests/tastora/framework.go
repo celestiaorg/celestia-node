@@ -376,16 +376,26 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		UIDGID:     "10001:10001",
 	}
 
-	// always have at least one bridge node.
-	bridgeNodeConfig := dataavailability.NewNodeBuilder().
-		WithNodeType(types.BridgeNode).
-		Build()
+	totalNodes := cfg.BridgeNodeCount + cfg.LightNodeCount
+	nodeConfigs := make([]dataavailability.NodeConfig, 0, totalNodes)
+
+	for i := 0; i < cfg.BridgeNodeCount; i++ {
+		nodeConfigs = append(nodeConfigs, dataavailability.NewNodeBuilder().
+			WithNodeType(types.BridgeNode).
+			Build())
+	}
+
+	for i := 0; i < cfg.LightNodeCount; i++ {
+		nodeConfigs = append(nodeConfigs, dataavailability.NewNodeBuilder().
+			WithNodeType(types.LightNode).
+			Build())
+	}
 
 	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, f.t.Name()).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(daImage).
-		WithNodes(bridgeNodeConfig)
+		WithNodes(nodeConfigs...)
 
 	return chainBuilder, daNetworkBuilder
 }
@@ -394,6 +404,7 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Chain {
 	celestia, err := f.chainBuilder.Build(ctx)
 	require.NoError(f.t, err, "failed to build celestia chain")
+	f.celestia = celestia
 	err = f.celestia.Start(ctx)
 	require.NoError(f.t, err, "failed to start celestia chain")
 
