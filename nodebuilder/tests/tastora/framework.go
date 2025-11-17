@@ -14,7 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -35,18 +34,18 @@ import (
 )
 
 const (
-	defaultCelestiaAppTag = "v6.1.2-arabica"
+	defaultCelestiaAppTag = "v6.2.0-mocha"
 	celestiaAppImage      = "ghcr.io/celestiaorg/celestia-app"
 	// defaultNodeTag can be overridden at build time using ldflags
 	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultCelestiaNodeTag = "v0.28.2-arabica"
+	defaultCelestiaNodeTag = "v0.28.3-arabica"
 	nodeImage              = "ghcr.io/celestiaorg/celestia-node"
 
 	testChainID = "test"
 )
 
 var (
-	defaultNodeTag = "v0.28.2-arabica" // Official release with queued submission feature and fixes
+	defaultNodeTag = "v0.28.3-arabica" // Official release with queued submission feature and fixes
 )
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
@@ -55,7 +54,7 @@ var (
 type Framework struct {
 	t       *testing.T
 	logger  *zap.Logger
-	client  *client.Client
+	client  types.TastoraDockerClient
 	network string
 
 	chainBuilder     *cosmos.ChainBuilder
@@ -97,10 +96,6 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 
 	// Simple cleanup: use Docker's built-in cleanup to remove all unused resources
 	f.dockerCleanup()
-
-	// Setup Docker client and network - should work reliably with proper cleanup
-	cli, netID := docker.DockerSetup(t)
-	f.client, f.network = cli, netID
 	// Ensure cleanup runs even if tests fail midway
 	t.Cleanup(func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -108,6 +103,8 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 		_ = f.Stop(cleanupCtx)
 	})
 
+	// Setup Docker client and network - should work reliably with proper cleanup
+	f.client, f.network = docker.Setup(t)
 	f.chainBuilder, f.daNetworkBuilder = f.createBuilders(cfg)
 
 	return f
@@ -419,7 +416,8 @@ func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Cha
 	require.NoError(f.t, err, "failed to start celestia chain")
 
 	// Use a longer timeout for waiting for blocks after chain startup
-	blockWaitCtx, cancel2 := context.WithTimeout(context.Background(), 90*time.Second)
+	// Increased timeout to handle slow chain initialization and block production
+	blockWaitCtx, cancel2 := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel2()
 	require.NoError(f.t, wait.ForBlocks(blockWaitCtx, 2, celestia))
 	return celestia

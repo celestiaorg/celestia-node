@@ -54,7 +54,7 @@ func (s *CrossVersionClientTestSuite) TearDownSuite() {
 func (s *CrossVersionClientTestSuite) TestCrossVersionBidirectional() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	oldVersion := "v0.28.2-arabica"
+	oldVersion := "v0.28.3-arabica"
 
 	s.T().Run("CurrentClient_OldBridgeServer", func(t *testing.T) {
 		oldServer := s.f.NewBridgeNodeWithVersion(ctx, oldVersion)
