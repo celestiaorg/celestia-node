@@ -136,6 +136,16 @@ func (f *Framework) GetLightNodes() []*dataavailability.Node {
 	return f.lightNodes
 }
 
+// GetDockerClient returns the Docker client used by the framework.
+func (f *Framework) GetDockerClient() types.TastoraDockerClient {
+	return f.client
+}
+
+// GetDockerNetwork returns the Docker network ID used by the framework.
+func (f *Framework) GetDockerNetwork() string {
+	return f.network
+}
+
 // NewBridgeNode creates and starts a new bridge node.
 func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)
@@ -156,6 +166,133 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
 	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
+
+	f.lightNodes = append(f.lightNodes, lightNode)
+	return lightNode
+}
+
+// NewBridgeNodeWithVersion creates and starts a new bridge node with a specific version.
+func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+
+	// Create a new node builder with the specified version
+	daImage := container.Image{
+		Repository: nodeImage,
+		Version:    version,
+		UIDGID:     "10001:10001",
+	}
+
+	// Create a new network builder for this specific version node
+	testName := fmt.Sprintf("%s-%s-%d", f.t.Name(), version, time.Now().UnixNano())
+	bridgeNodeConfig := dataavailability.NewNodeBuilder().
+		WithNodeType(types.BridgeNode).
+		Build()
+
+	versionedNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, testName).
+		WithDockerClient(f.client).
+		WithDockerNetworkID(f.network).
+		WithImage(daImage).
+		WithNodes(bridgeNodeConfig).
+		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
+		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
+
+	// Build the network
+	versionedNetwork, err := versionedNetworkBuilder.Build(ctx)
+	require.NoError(f.t, err, "failed to build versioned bridge node network")
+
+	// Get the bridge node from the versioned network
+	bridgeNodes := versionedNetwork.GetBridgeNodes()
+	require.Greater(f.t, len(bridgeNodes), 0, "no bridge nodes in versioned network")
+	bridgeNode := bridgeNodes[0]
+
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
+	if f.config.TxWorkerAccounts > 0 {
+		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
+	}
+
+	err = bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":           testChainID,
+				"CELESTIA_BOOTSTRAPPER": "true",
+			},
+		),
+	)
+	require.NoError(f.t, err, "failed to start versioned bridge node")
+
+	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "versioned bridge node")
+
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
+
+// NewLightNodeWithVersion creates and starts a new light node with a specific version.
+func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+	bridgeNode := f.bridgeNodes[0]
+
+	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
+	require.NoError(f.t, err, "failed to get bridge node p2p info")
+
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	require.NoError(f.t, err, "failed to get bridge node p2p address")
+
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	// Create a new node builder with the specified version
+	daImage := container.Image{
+		Repository: nodeImage,
+		Version:    version,
+		UIDGID:     "10001:10001",
+	}
+
+	// Create a new network builder for this specific version node
+	testName := fmt.Sprintf("%s-%s-%d", f.t.Name(), version, time.Now().UnixNano())
+	lightNodeConfig := dataavailability.NewNodeBuilder().
+		WithNodeType(types.LightNode).
+		Build()
+
+	versionedNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, testName).
+		WithDockerClient(f.client).
+		WithDockerNetworkID(f.network).
+		WithImage(daImage).
+		WithNodes(lightNodeConfig).
+		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
+		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
+
+	// Build the network
+	versionedNetwork, err := versionedNetworkBuilder.Build(ctx)
+	require.NoError(f.t, err, "failed to build versioned light node network")
+
+	// Get the light node from the versioned network
+	lightNodes := versionedNetwork.GetLightNodes()
+	require.Greater(f.t, len(lightNodes), 0, "no light nodes in versioned network")
+	lightNode := lightNodes[0]
+
+	err = lightNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+				"P2P_NETWORK":     testChainID,
+			},
+		),
+	)
+	require.NoError(f.t, err, "failed to start versioned light node")
+
+	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "versioned light node")
 
 	f.lightNodes = append(f.lightNodes, lightNode)
 	return lightNode
