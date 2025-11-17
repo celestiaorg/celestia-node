@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -40,6 +41,9 @@ func NewRangeNamespaceDataID(
 	edsID EdsID,
 	from, to, odsSize int,
 ) (RangeNamespaceDataID, error) {
+	if from < 0 || to < 0 {
+		return RangeNamespaceDataID{}, errors.New("invalid range: failed to build range with negative indexes")
+	}
 	rngid := RangeNamespaceDataID{
 		EdsID: edsID,
 		From:  uint32(from),
@@ -130,8 +134,8 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 
 	rngID := RangeNamespaceDataID{
 		EdsID: edsID,
-		From:  binary.BigEndian.Uint32(data[EdsIDSize : EdsIDSize+2]),
-		To:    binary.BigEndian.Uint32(data[EdsIDSize+2 : EdsIDSize+4]),
+		From:  binary.BigEndian.Uint32(data[EdsIDSize : EdsIDSize+4]),
+		To:    binary.BigEndian.Uint32(data[EdsIDSize+4 : EdsIDSize+8]),
 	}
 	return rngID, rngID.Validate()
 }
