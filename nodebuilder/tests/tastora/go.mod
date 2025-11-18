@@ -393,5 +393,3 @@ replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork-4
 replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4
 
 replace github.com/celestiaorg/celestia-node => ../../..
-
-replace github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.18.0

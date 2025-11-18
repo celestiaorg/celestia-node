@@ -1,8 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.24.6
-
-toolchain go1.24.7
+go 1.25.1
 
 require (
 	cosmossdk.io/log v1.6.0
@@ -398,5 +396,3 @@ replace (
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork-4
 
 replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4
-
-replace github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.18.0

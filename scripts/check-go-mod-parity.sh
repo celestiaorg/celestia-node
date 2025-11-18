@@ -46,8 +46,9 @@ echo "📋 Extracting dependencies using 'go list -m all'..."
 
 # Extract all dependencies using Go toolchain with resolved versions
 # Use -f format to get resolved version (Replace.Version if replaced, otherwise Version)
-go list -m -f '{{.Path}} {{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' all > "$ROOT_DEPS"
-(cd "$TASTORA_DIR" && go list -m -f '{{.Path}} {{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' all) > "$TASTORA_DEPS"
+# Only check direct dependencies (not .Indirect) to avoid false positives from transitive deps
+go list -m -f '{{if not .Indirect}}{{.Path}} {{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}{{end}}' all | grep -v "^$" > "$ROOT_DEPS"
+(cd "$TASTORA_DIR" && go list -m -f '{{if not .Indirect}}{{.Path}} {{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}{{end}}' all | grep -v "^$") > "$TASTORA_DEPS"
 
 echo "📊 Generating dependency graphs using 'go mod graph'..."
 go mod graph > "$ROOT_GRAPH"
