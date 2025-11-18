@@ -32,6 +32,32 @@ func (s *stubBroadcaster[H]) Broadcast(ctx context.Context, header H, opts ...pu
 	return nil
 }
 
+// stubSubscriber is a no-op subscriber for when P2P is disabled.
+type stubSubscriber[H libhead.Header[H]] struct{}
+
+func (s *stubSubscriber[H]) Subscribe() (libhead.Subscription[H], error) {
+	return &stubSubscription[H]{}, nil
+}
+
+func (s *stubSubscriber[H]) SetVerifier(func(context.Context, H) error) error {
+	// No-op: storage-only nodes don't verify headers via P2P
+	return nil
+}
+
+// stubSubscription is a no-op subscription for when P2P is disabled.
+type stubSubscription[H libhead.Header[H]] struct{}
+
+func (s *stubSubscription[H]) NextHeader(ctx context.Context) (H, error) {
+	// Block forever - storage-only nodes don't receive headers via P2P
+	<-ctx.Done()
+	var zero H
+	return zero, ctx.Err()
+}
+
+func (s *stubSubscription[H]) Cancel() {
+	// No-op
+}
+
 func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config, p2pCfg *modp2p.Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
@@ -39,10 +65,21 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config, p2pCfg *mod
 	// Check if P2P is disabled
 	p2pDisabled := p2pCfg != nil && p2pCfg.Disabled
 
+	var headerServiceOption fx.Option
+	if p2pDisabled {
+		// When P2P is disabled, make p2pServer optional in newHeaderService
+		headerServiceOption = fx.Provide(fx.Annotate(
+			newHeaderService,
+			fx.ParamTags(``, ``, `optional:"true"`, ``, ``),
+		))
+	} else {
+		headerServiceOption = fx.Provide(newHeaderService)
+	}
+
 	baseComponents := fx.Options(
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
-		fx.Provide(newHeaderService),
+		headerServiceOption,
 		fx.Provide(newStore[H]),
 		fx.Provide(newSyncer[H]),
 		fx.Provide(fx.Annotate(
@@ -134,13 +171,17 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config, p2pCfg *mod
 		)
 	case node.Bridge:
 		if p2pDisabled {
-			// Provide stub broadcaster for Bridge nodes when P2P is disabled
-			stub := &stubBroadcaster[H]{}
+			// Provide stub broadcaster and subscriber for Bridge nodes when P2P is disabled
+			stubBroadcast := &stubBroadcaster[H]{}
+			stubSub := &stubSubscriber[H]{}
 			return fx.Module(
 				"header",
 				baseComponents,
 				fx.Provide(func() libhead.Broadcaster[H] {
-					return stub
+					return stubBroadcast
+				}),
+				fx.Provide(func() libhead.Subscriber[H] {
+					return stubSub
 				}),
 				fx.Supply(header.MakeExtendedHeader),
 			)
