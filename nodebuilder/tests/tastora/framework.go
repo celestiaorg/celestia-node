@@ -511,20 +511,19 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		UIDGID:     "10001:10001",
 	}
 
-	// always have at least one bridge node.
-	bridgeNodeConfig := dataavailability.NewNodeBuilder().
-		WithNodeType(types.BridgeNode).
-		Build()
+	totalNodes := cfg.BridgeNodeCount + cfg.LightNodeCount
+	nodeConfigs := make([]dataavailability.NodeConfig, 0, totalNodes)
 
-	// Add light nodes based on configuration
-	var nodeConfigs []dataavailability.NodeConfig
-	nodeConfigs = append(nodeConfigs, bridgeNodeConfig)
+	for i := 0; i < cfg.BridgeNodeCount; i++ {
+		nodeConfigs = append(nodeConfigs, dataavailability.NewNodeBuilder().
+			WithNodeType(types.BridgeNode).
+			Build())
+	}
 
 	for i := 0; i < cfg.LightNodeCount; i++ {
-		lightNodeConfig := dataavailability.NewNodeBuilder().
+		nodeConfigs = append(nodeConfigs, dataavailability.NewNodeBuilder().
 			WithNodeType(types.LightNode).
-			Build()
-		nodeConfigs = append(nodeConfigs, lightNodeConfig)
+			Build())
 	}
 
 	daNetworkBuilder := dataavailability.NewNetworkBuilderWithTestName(f.t, testName).
