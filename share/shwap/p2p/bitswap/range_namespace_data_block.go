@@ -97,8 +97,8 @@ func (rndb *RangeNamespaceDataBlock) Marshal() ([]byte, error) {
 func (rndb *RangeNamespaceDataBlock) Populate(ctx context.Context, eds eds.Accessor) error {
 	rnd, err := eds.RangeNamespaceData(
 		ctx,
-		int(rndb.ID.From),
-		int(rndb.ID.To),
+		rndb.ID.From,
+		rndb.ID.To,
 	)
 	if err != nil {
 		return fmt.Errorf("accessing RangeNamespaceData: %w", err)
@@ -137,11 +137,11 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 			return fmt.Errorf("unmarshaling RangeNamespaceData for %+v: %w", rndb.ID, err)
 		}
 
-		from, err := shwap.SampleCoordsFrom1DIndex(int(rndid.From), odsSize)
+		from, err := shwap.SampleCoordsFrom1DIndex(rndid.From, odsSize)
 		if err != nil {
 			return fmt.Errorf("converting from index to coordinates for %+v: %w", rndb.ID, err)
 		}
-		to, err := shwap.SampleCoordsFrom1DIndex(int(rndid.To-1), odsSize)
+		to, err := shwap.SampleCoordsFrom1DIndex(rndid.To-1, odsSize)
 		if err != nil {
 			return fmt.Errorf("converting to index to coordinates for %+v: %w", rndb.ID, err)
 		}

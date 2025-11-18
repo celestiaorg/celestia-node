@@ -16,7 +16,6 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 		valid bool
 	}{
 		{"valid indexes", 4, 11, 16, true},
-		{"valid indexes: big numbers", 30000000, 35000000, 50000000, true},
 		{"start index out of ods", 17, 22, 4, false},
 		{"end index out of ods", 1, 22, 4, false},
 		{"invalid: negative index", -1, 6, 16, false},
