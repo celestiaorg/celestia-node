@@ -14,6 +14,7 @@ type params struct {
 	chainID            string
 	availabilityWindow time.Duration
 	archival           bool
+	odsOnly            bool
 }
 
 func defaultParams() params {
@@ -46,5 +47,13 @@ func WithAvailabilityWindow(window time.Duration) Option {
 func WithArchivalMode() Option {
 	return func(p *params) {
 		p.archival = true
+	}
+}
+
+// WithODSOnly is a functional option that enables ODS-only storage mode.
+// When enabled, all blocks are stored using PutODS instead of PutODSQ4.
+func WithODSOnly() Option {
+	return func(p *params) {
+		p.odsOnly = true
 	}
 }

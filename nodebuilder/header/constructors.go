@@ -12,7 +12,7 @@ import (
 
 	libfraud "github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-header/p2p"
+	headp2p "github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
@@ -30,7 +30,7 @@ func newP2PExchange[H libhead.Header[H]](
 	network modp2p.Network,
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
-	pidstore p2p.PeerIDStore,
+	pidstore headp2p.PeerIDStore,
 ) (libhead.Exchange[H], error) {
 	peers, err := cfg.trustedPeers(bpeers)
 	if err != nil {
@@ -42,17 +42,17 @@ func newP2PExchange[H libhead.Header[H]](
 		host.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
 	}
 
-	opts := []p2p.Option[p2p.ClientParameters]{
-		p2p.WithParams(cfg.Client),
-		p2p.WithNetworkID[p2p.ClientParameters](network.String()),
-		p2p.WithChainID(network.String()),
-		p2p.WithPeerIDStore[p2p.ClientParameters](pidstore),
+	opts := []headp2p.Option[headp2p.ClientParameters]{
+		headp2p.WithParams(cfg.Client),
+		headp2p.WithNetworkID[headp2p.ClientParameters](network.String()),
+		headp2p.WithChainID(network.String()),
+		headp2p.WithPeerIDStore[headp2p.ClientParameters](pidstore),
 	}
 	if MetricsEnabled {
-		opts = append(opts, p2p.WithMetrics[p2p.ClientParameters]())
+		opts = append(opts, headp2p.WithMetrics[headp2p.ClientParameters]())
 	}
 
-	exchange, err := p2p.NewExchange[H](host, ids, conngater, opts...)
+	exchange, err := headp2p.NewExchange[H](host, ids, conngater, opts...)
 	if err != nil {
 		return nil, err
 	}

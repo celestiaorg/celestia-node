@@ -2,6 +2,7 @@ package nodebuilder
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/fx"
 
@@ -29,6 +30,11 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		return fx.Error(err)
 	}
 
+	// Validate P2P config with Share config (for cross-module validation)
+	if err := cfg.P2P.ValidateWithShareConfig(tp, &cfg.Share); err != nil {
+		return fx.Error(fmt.Errorf("nodebuilder: config validation: %w", err))
+	}
+
 	baseComponents := fx.Options(
 		fx.Supply(tp),
 		fx.Supply(network),
@@ -41,12 +47,12 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		fx.Supply(store.Config),
 		fx.Provide(store.Datastore),
 		fx.Provide(store.Keystore),
-		core.ConstructModule(tp, &cfg.Core),
+		core.ConstructModule(tp, &cfg.Core, &cfg.Share),
 		fx.Supply(node.StorePath(store.Path())),
 		// modules provided by the node
 		p2p.ConstructModule(tp, &cfg.P2P),
-		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header),
-		share.ConstructModule(tp, &cfg.Share),
+		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header, &cfg.P2P),
+		share.ConstructModule(tp, &cfg.Share, &cfg.P2P),
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		das.ConstructModule(tp, &cfg.DASer),
 		fraud.ConstructModule(tp),

@@ -55,10 +55,10 @@ func bridgeAndFullGetter(
 ) shwap.Getter {
 	var cascade []shwap.Getter
 	cascade = append(cascade, storeGetter)
-	if cfg.UseShareExchange {
+	if cfg.UseShareExchange && shrexGetter != nil {
 		cascade = append(cascade, shrexGetter)
 	}
-	if cfg.UseBitswap {
+	if cfg.UseBitswap && bitswapGetter != nil {
 		cascade = append(cascade, bitswapGetter)
 	}
 	return getters.NewCascadeGetter(cascade)
