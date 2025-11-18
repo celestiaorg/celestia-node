@@ -211,7 +211,7 @@ func (m *module) BandwidthForProtocol(_ context.Context, proto protocol.ID) (met
 	return m.bw.GetBandwidthForProtocol(proto), nil
 }
 
-func (m *module) ResourceState(ctx context.Context) (rcmgr.ResourceManagerStat, error) {
+func (m *module) ResourceState(_ context.Context) (rcmgr.ResourceManagerStat, error) {
 	rms, ok := m.rm.(rcmgr.ResourceManagerState)
 	if !ok {
 		return rcmgr.ResourceManagerStat{}, fmt.Errorf("network.resourceManager does not implement " +

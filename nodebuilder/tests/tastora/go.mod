@@ -8,8 +8,6 @@ require (
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/tastora v0.8.0
-	github.com/cometbft/cometbft v0.38.17
-	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
@@ -89,7 +87,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.6.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.3.3+incompatible // indirect
+	github.com/docker/docker v28.3.3+incompatible
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -368,6 +366,8 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.53.0 // indirect
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/cometbft/cometbft v0.38.17 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/moby/moby v27.5.1+incompatible // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
