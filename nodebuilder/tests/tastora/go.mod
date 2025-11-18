@@ -358,6 +358,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
@@ -387,13 +388,10 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35
 )
 
-// align replacement with main go.mod so the go mod parity script correctly identifies a match
-replace github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.18.0
-
 replace github.com/ipfs/boxo => github.com/celestiaorg/boxo v0.29.0-fork-4
 
 replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4
 
 replace github.com/celestiaorg/celestia-node => ../../..
 
-replace github.com/moby/term => github.com/moby/term v0.5.2
+replace github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.18.0
