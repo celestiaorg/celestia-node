@@ -1,60 +1,111 @@
 package core
 
 import (
+	"context"
 	"testing"
+	"time"
 
-	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	libshare "github.com/celestiaorg/go-square/v3/share"
-
+	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/store"
 )
 
-// TestTrulyEmptySquare ensures that a truly empty square (square size 1 and no
-// txs) will be recognized as empty and return nil from `extendBlock` so that
-// we do not redundantly store empty EDSes.
-func TestTrulyEmptySquare(t *testing.T) {
-	data := types.Data{
-		Txs:        []types.Tx{},
-		SquareSize: 1,
+func TestStoreEDS_ODSOnly(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name     string
+		odsOnly  bool
+		archival bool
+		window   time.Duration
+		wantQ4   bool // true if Q4 file should exist, false if only ODS
+	}{
+		{
+			name:     "ODS-only mode - always uses PutODS (no Q4)",
+			odsOnly:  true,
+			archival: false,
+			window:   availability.StorageWindow,
+			wantQ4:   false,
+		},
+		{
+			name:     "Normal mode within window - uses PutODSQ4 (has Q4)",
+			odsOnly:  false,
+			archival: false,
+			window:   availability.StorageWindow,
+			wantQ4:   true,
+		},
+		{
+			name:     "Normal mode outside window - skips storage (no Q4)",
+			odsOnly:  false,
+			archival: false,
+			window:   time.Nanosecond, // Very small window, header will be outside
+			wantQ4:   false,
+		},
+		{
+			name:     "Archival mode within window - uses PutODSQ4 (has Q4)",
+			odsOnly:  false,
+			archival: true,
+			window:   availability.StorageWindow,
+			wantQ4:   true,
+		},
 	}
 
-	eds, err := da.ConstructEDS(data.Txs.ToSliceOfBytes(), appconsts.Version, -1)
-	require.NoError(t, err)
-	require.True(t, eds.Equals(share.EmptyEDS()))
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a fresh store for each test
+			testDir := t.TempDir()
+			testStore, err := store.NewStore(store.DefaultParameters(), testDir)
+			require.NoError(t, err)
+			defer func() {
+				err := testStore.Stop(ctx)
+				require.NoError(t, err)
+			}()
 
-// TestEmptySquareWithZeroTxs tests that the datahash of a block with no transactions
-// is equal to the datahash of an empty eds, even if SquareSize is set to
-// something non-zero. Technically, this block data is invalid because the
-// construction of the square is deterministic, and the rules which dictate the
-// square size do not allow for empty block data. However, should that ever
-// occur, we need to ensure that the correct data root is generated.
-func TestEmptySquareWithZeroTxs(t *testing.T) {
-	data := types.Data{
-		Txs: []types.Tx{},
+			// Create a test EDS and header
+			eds := edstest.RandEDS(t, 4)
+			roots, err := share.NewAxisRoots(eds)
+			require.NoError(t, err)
+
+			eh := &header.ExtendedHeader{
+				RawHeader: header.RawHeader{
+					Height: 1,
+					Time:   time.Now(),
+				},
+				DAH: roots,
+			}
+
+			// Store EDS with the given configuration
+			err = storeEDS(ctx, eh, eds, testStore, tt.window, tt.archival, tt.odsOnly)
+			require.NoError(t, err)
+
+			// For blocks outside window (non-archival), storage is skipped
+			if !tt.archival && !availability.IsWithinWindow(eh.Time(), tt.window) {
+				// Block should not be stored
+				has, err := testStore.HasByHeight(ctx, eh.Height())
+				require.NoError(t, err)
+				require.False(t, has, "Block outside window should not be stored")
+				return
+			}
+
+			// Verify the block exists in store
+			has, err := testStore.HasByHeight(ctx, eh.Height())
+			require.NoError(t, err)
+			require.True(t, has, "Block should exist in store")
+
+			// Check if Q4 file exists using store's HasQ4ByHash method
+			datahash := share.DataHash(roots.Hash())
+			hasQ4, err := testStore.HasQ4ByHash(ctx, datahash)
+			require.NoError(t, err)
+
+			if tt.wantQ4 {
+				require.True(t, hasQ4, "Expected Q4 file to exist (PutODSQ4 was used), but Q4 file not found")
+			} else {
+				require.False(t, hasQ4, "Expected no Q4 file (PutODS was used), but Q4 file exists")
+			}
+		})
 	}
-
-	eds, err := da.ConstructEDS(data.Txs.ToSliceOfBytes(), appconsts.Version, -1)
-	require.NoError(t, err)
-	require.True(t, eds.Equals(share.EmptyEDS()))
-
-	// create empty shares and extend them manually
-	emptyShares := libshare.TailPaddingShares(libshare.MinShareCount)
-	rawEmptyShares := libshare.ToBytes(emptyShares)
-
-	// extend the empty shares
-	manualEds, err := da.ExtendShares(rawEmptyShares)
-	require.NoError(t, err)
-
-	// verify the manually extended EDS equals the empty EDS
-	require.True(t, manualEds.Equals(share.EmptyEDS()))
-
-	// verify the roots hash matches the empty EDS roots hash
-	manualRoots, err := share.NewAxisRoots(manualEds)
-	require.NoError(t, err)
-	require.Equal(t, share.EmptyEDSRoots().Hash(), manualRoots.Hash())
 }

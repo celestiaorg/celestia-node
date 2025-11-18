@@ -12,7 +12,7 @@ import (
 	"go.uber.org/fx/fxtest"
 
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/go-header/p2p"
+	headp2p "github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -40,7 +40,7 @@ func TestConstructModule_StoreParams(t *testing.T) {
 			ds := datastore.NewMapDatastore()
 			return ds, ds
 		}),
-		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg, &modp2p.Config{}),
 		fx.Invoke(
 			func(s libhead.Store[*header.ExtendedHeader]) {
 				ss := s.(*store.Store[*header.ExtendedHeader])
@@ -59,8 +59,8 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 	cfg := DefaultConfig(node.Light)
 	cfg.Client.MaxHeadersPerRangeRequest = 15
 	cfg.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
-	var exchange *p2p.Exchange[*header.ExtendedHeader]
-	var exchangeServer *p2p.ExchangeServer[*header.ExtendedHeader]
+	var exchange *headp2p.Exchange[*header.ExtendedHeader]
+	var exchangeServer *headp2p.ExchangeServer[*header.ExtendedHeader]
 
 	app := fxtest.New(t,
 		fx.Provide(pidstore.NewPeerIDStore),
@@ -71,13 +71,13 @@ func TestConstructModule_ExchangeParams(t *testing.T) {
 		fx.Provide(func() datastore.Batching {
 			return datastore.NewMapDatastore()
 		}),
-		ConstructModule[*header.ExtendedHeader](node.Light, &cfg),
+		ConstructModule[*header.ExtendedHeader](node.Light, &cfg, &modp2p.Config{}),
 		fx.Provide(func(b datastore.Batching) (*conngater.BasicConnectionGater, error) {
 			return conngater.NewBasicConnectionGater(b)
 		}),
 		fx.Invoke(
-			func(e libhead.Exchange[*header.ExtendedHeader], server *p2p.ExchangeServer[*header.ExtendedHeader]) {
-				ex := e.(*p2p.Exchange[*header.ExtendedHeader])
+			func(e libhead.Exchange[*header.ExtendedHeader], server *headp2p.ExchangeServer[*header.ExtendedHeader]) {
+				ex := e.(*headp2p.Exchange[*header.ExtendedHeader])
 				exchange = ex
 				exchangeServer = server
 			}),

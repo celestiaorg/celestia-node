@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -30,6 +31,17 @@ type Config struct {
 
 	// Allowlist for IPColocation PubSub parameter, a list of string CIDRs
 	IPColocationWhitelist []string
+
+	// Disabled disables all P2P networking when true.
+	// When disabled, the node will not initialize:
+	// - P2P host
+	// - DHT
+	// - Gossip (PubSub)
+	// - Shrex servers/clients
+	// - Bitswap servers/clients
+	// This is useful for storage-only nodes (e.g., hosted RPC providers).
+	// Only supported for Bridge nodes.
+	Disabled bool
 }
 
 // DefaultConfig returns default configuration for P2P subsystem.
@@ -76,6 +88,49 @@ func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 	}
 
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
+}
+
+// Validate performs basic validation of the config.
+func (cfg *Config) Validate(tp node.Type) error {
+	if cfg.Disabled {
+		// P2P disabled is only supported for Bridge nodes
+		if tp != node.Bridge {
+			return fmt.Errorf("p2p.disabled is only supported for Bridge nodes")
+		}
+		// If disabled, other P2P configs are ignored
+		return nil
+	}
+	return nil
+}
+
+// ValidateWithShareConfig performs validation that requires Share config.
+// This is called separately to avoid circular dependencies.
+// shareCfg should be a pointer to share.Config (passed as interface{} to avoid import cycle).
+func (cfg *Config) ValidateWithShareConfig(tp node.Type, shareCfg interface{}) error {
+	if cfg.Disabled {
+		if tp != node.Bridge {
+			return fmt.Errorf("p2p.disabled is only supported for Bridge nodes")
+		}
+		// When P2P is disabled, ODS-only storage should be enabled
+		// This ensures storage-only nodes don't waste space storing Q4
+		if shareCfg != nil {
+			// Use reflection to access StoreODSOnly field to avoid import cycle
+			val := reflect.ValueOf(shareCfg)
+			if val.Kind() == reflect.Ptr {
+				val = val.Elem()
+			}
+			if val.Kind() == reflect.Struct {
+				field := val.FieldByName("StoreODSOnly")
+				if field.IsValid() && field.Kind() == reflect.Bool {
+					if !field.Bool() {
+						return fmt.Errorf("p2p.disabled requires share.store_ods_only to be enabled")
+					}
+				}
+			}
+		}
+		return nil
+	}
+	return nil
 }
 
 // Upgrade updates the `ListenAddresses` and `NoAnnounceAddresses` to

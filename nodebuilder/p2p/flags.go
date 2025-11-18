@@ -14,8 +14,9 @@ import (
 const EnvCustomNetwork = "CELESTIA_CUSTOM"
 
 const (
-	networkFlag = "p2p.network"
-	mutualFlag  = "p2p.mutual"
+	networkFlag  = "p2p.network"
+	mutualFlag   = "p2p.mutual"
+	disabledFlag = "p2p.disabled"
 )
 
 // Flags gives a set of p2p flags.
@@ -37,6 +38,14 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
 			listAvailableNetworks(),
 			DefaultNetwork.String()),
+	)
+	flags.Bool(
+		disabledFlag,
+		false,
+		"Disables all P2P networking. When enabled, the node will not initialize P2P host, DHT, "+
+			"Gossip (PubSub), Shrex servers/clients, or Bitswap servers/clients. "+
+			"This is useful for storage-only Bridge nodes (e.g., hosted RPC providers). "+
+			"Only supported for Bridge nodes.",
 	)
 
 	return flags
@@ -62,6 +71,15 @@ func ParseFlags(
 	if len(mutualPeers) != 0 {
 		cfg.MutualPeers = mutualPeers
 	}
+
+	disabled, err := cmd.Flags().GetBool(disabledFlag)
+	if err != nil {
+		return err
+	}
+	if disabled {
+		cfg.Disabled = true
+	}
+
 	return nil
 }
 
