@@ -27,7 +27,7 @@ var log = logging.Logger("module/header")
 // stubBroadcaster is a no-op broadcaster for when P2P is disabled.
 type stubBroadcaster[H libhead.Header[H]] struct{}
 
-func (s *stubBroadcaster[H]) Broadcast(ctx context.Context, header H, opts ...pubsub.PubOpt) error {
+func (s *stubBroadcaster[H]) Broadcast(_ context.Context, _ H, _ ...pubsub.PubOpt) error {
 	// No-op: storage-only nodes don't broadcast headers
 	return nil
 }

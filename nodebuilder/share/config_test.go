@@ -74,4 +74,3 @@ func TestConfig_Validate_StoreODSOnly(t *testing.T) {
 		})
 	}
 }
-

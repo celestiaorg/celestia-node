@@ -11,7 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 func TestStorageOnlyMode_P2PDisabled(t *testing.T) {
@@ -71,7 +71,7 @@ func TestStorageOnlyMode_ValidationFailure(t *testing.T) {
 
 	// Attempt to create node - should fail during module construction
 	store := MockStore(t, cfg)
-	_, err = New(node.Bridge, p2p.Private, store)
+	_, err = New(node.Bridge, modp2p.Private, store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "p2p.disabled requires share.store_ods_only to be enabled")
 }
@@ -120,8 +120,7 @@ func TestStorageOnlyMode_OnlyBridgeSupported(t *testing.T) {
 	cfg.Share.StoreODSOnly = true
 
 	store := MockStore(t, cfg)
-	_, err = New(node.Light, p2p.Private, store)
+	_, err = New(node.Light, modp2p.Private, store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "p2p.disabled is only supported for Bridge nodes")
 }
-

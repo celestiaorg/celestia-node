@@ -148,4 +148,3 @@ func TestConfig_ValidateWithShareConfig(t *testing.T) {
 		})
 	}
 }
-

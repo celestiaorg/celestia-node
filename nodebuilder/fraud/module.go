@@ -20,12 +20,12 @@ var log = logging.Logger("module/fraud")
 // stubFraudService is a no-op fraud service for when P2P is disabled.
 type stubFraudService struct{}
 
-func (s *stubFraudService) Get(ctx context.Context, proofType fraud.ProofType) ([]fraud.Proof[*header.ExtendedHeader], error) {
+func (s *stubFraudService) Get(_ context.Context, _ fraud.ProofType) ([]fraud.Proof[*header.ExtendedHeader], error) {
 	// Return ErrNotFound so ServiceBreaker thinks there are no fraud proofs
 	return nil, datastore.ErrNotFound
 }
 
-func (s *stubFraudService) Subscribe(proofType fraud.ProofType) (fraud.Subscription[*header.ExtendedHeader], error) {
+func (s *stubFraudService) Subscribe(_ fraud.ProofType) (fraud.Subscription[*header.ExtendedHeader], error) {
 	return &stubFraudSubscription{}, nil
 }
 
@@ -42,27 +42,29 @@ func (s *stubFraudSubscription) Cancel() {
 	// No-op
 }
 
-func (s *stubFraudService) Broadcast(ctx context.Context, proof fraud.Proof[*header.ExtendedHeader]) error {
+func (s *stubFraudService) Broadcast(_ context.Context, _ fraud.Proof[*header.ExtendedHeader]) error {
 	return errors.New("fraud service is disabled (P2P is disabled)")
 }
 
-func (s *stubFraudService) AddVerifier(proofType fraud.ProofType, verifier fraud.Verifier[*header.ExtendedHeader]) error {
+func (s *stubFraudService) AddVerifier(_ fraud.ProofType, _ fraud.Verifier[*header.ExtendedHeader]) error {
 	// No-op: storage-only nodes don't verify fraud proofs
 	return nil
 }
 
-var _ fraud.Service[*header.ExtendedHeader] = (*stubFraudService)(nil)
-var _ Module = (*stubModule)(nil)
+var (
+	_ fraud.Service[*header.ExtendedHeader] = (*stubFraudService)(nil)
+	_ Module                                = (*stubModule)(nil)
+)
 
 type stubModule struct {
 	fraud.Service[*header.ExtendedHeader]
 }
 
-func (s *stubModule) Subscribe(ctx context.Context, proofType fraud.ProofType) (<-chan *Proof, error) {
+func (s *stubModule) Subscribe(_ context.Context, _ fraud.ProofType) (<-chan *Proof, error) {
 	return nil, errors.New("fraud service is disabled (P2P is disabled)")
 }
 
-func (s *stubModule) Get(ctx context.Context, proofType fraud.ProofType) ([]Proof, error) {
+func (s *stubModule) Get(_ context.Context, _ fraud.ProofType) ([]Proof, error) {
 	return nil, errors.New("fraud service is disabled (P2P is disabled)")
 }
 
