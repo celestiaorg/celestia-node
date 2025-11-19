@@ -72,6 +72,48 @@ func (s *CrossVersionClientTestSuite) TestCrossVersionBidirectional() {
 		require.NotNil(s.T(), oldServer)
 
 		client := s.f.GetNodeRPCClient(ctx, oldServer)
+
+		// Wait for the old light server to be ready and synced before testing APIs
+		// Old light servers may take longer to start and sync
+		readyCtx, readyCancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer readyCancel()
+		ready := false
+		for !ready {
+			select {
+			case <-readyCtx.Done():
+				s.T().Fatalf("Old light server did not become ready within timeout")
+			default:
+				var err error
+				ready, err = client.Node.Ready(readyCtx)
+				if err == nil && ready {
+					ready = true
+				} else {
+					time.Sleep(2 * time.Second)
+				}
+			}
+		}
+
+		// Wait for the node to sync at least a few headers
+		syncCtx, syncCancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer syncCancel()
+		synced := false
+		for !synced {
+			select {
+			case <-syncCtx.Done():
+				s.T().Logf("Warning: Old light server may not be fully synced, proceeding with tests")
+				synced = true // Proceed anyway
+			default:
+				// Check if we have at least one header synced
+				head, err := client.Header.LocalHead(syncCtx)
+				if err == nil && head != nil && head.Height() > 0 {
+					s.T().Logf("Old light server synced to height %d", head.Height())
+					synced = true
+				} else {
+					time.Sleep(2 * time.Second)
+				}
+			}
+		}
+
 		// Skip GetRow for old light servers due to bitswap compatibility issues
 		s.testAllAPIsWithOptions(ctx, client, true)
 	})
