@@ -110,18 +110,20 @@ func (c *Client) doRequest(
 	switch statusResp.Status {
 	case shrexpb.Status_OK:
 	case shrexpb.Status_NOT_FOUND:
-		return 0, statusNotFound, ErrNotFound
+		return int64(statusLength), statusNotFound, ErrNotFound
 	case shrexpb.Status_INTERNAL:
-		return 0, statusInternalErr, ErrInternalServer
+		return int64(statusLength), statusInternalErr, ErrInternalServer
 	default:
-		return 0, statusReadRespErr, ErrInvalidResponse
+		return int64(statusLength), statusReadRespErr, ErrInvalidResponse
 	}
 
 	dataLength, err := resp.ReadFrom(stream)
+	st := statusSuccess
 	if err != nil {
-		return 0, statusReadRespErr, fmt.Errorf("%w: %w", ErrInvalidResponse, err)
+		err = fmt.Errorf("%w: %w", ErrInvalidResponse, err)
+		st = statusReadRespErr
 	}
-	return int64(statusLength) + dataLength, statusSuccess, nil
+	return int64(statusLength) + dataLength, st, err
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogger, stream network.Stream) {

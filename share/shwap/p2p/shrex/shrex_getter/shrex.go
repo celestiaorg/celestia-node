@@ -100,15 +100,16 @@ func (sg *Getter) GetSamples(
 	header *header.ExtendedHeader,
 	coords []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
-	var err error
-	ctx, span := tracer.Start(ctx, "shrex/get-eds")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
 	// short circuit if the data root is empty
 	if header.DAH.Equals(share.EmptyEDSRoots()) {
 		return []shwap.Sample{}, nil
 	}
+
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/get-samples")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	requests := make([]shwap.SampleID, len(coords))
 	for i, coord := range coords {
@@ -155,15 +156,16 @@ func (sg *Getter) GetSamples(
 }
 
 func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
-	var err error
-	ctx, span := tracer.Start(ctx, "shrex/get-eds")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
 	// short circuit if the data root is empty
 	if header.DAH.Equals(share.EmptyEDSRoots()) {
 		return shwap.Row{}, nil
 	}
+
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/get-row")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	request, err := shwap.NewRowID(header.Height(), rowIndex, len(header.DAH.RowRoots))
 	if err != nil {
@@ -199,16 +201,16 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		return share.EmptyEDS(), nil
+	}
+
 	var err error
 	ctx, span := tracer.Start(ctx, "shrex/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
-
-	// short circuit if the data root is empty
-	if header.DAH.Equals(share.EmptyEDSRoots()) {
-		return share.EmptyEDS(), nil
-	}
 
 	request, err := shwap.NewEdsID(header.Height())
 	if err != nil {
@@ -290,7 +292,7 @@ func (sg *Getter) GetNamespaceData(
 	}
 
 	verify := func() error {
-		if response == nil {
+		if response.IsEmpty() {
 			return errors.New("nil response")
 		}
 		return response.Verify(dah, namespace)
