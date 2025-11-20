@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -119,6 +120,9 @@ func (sg *Getter) GetSamples(
 	}
 
 	samples := make([]shwap.Sample, len(requests))
+	errGroup, ctx := errgroup.WithContext(ctx)
+	errGroup.SetLimit(len(requests))
+
 	for i, request := range requests {
 		logger := log.With(
 			"source", "shrex_getter",
@@ -127,23 +131,26 @@ func (sg *Getter) GetSamples(
 			"rowIndex", request.RowIndex,
 			"colIndex", request.ShareIndex,
 		)
-
-		req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
-			return sg.client.Get(ctx, &request, &samples[i], peer)
-		}
-
-		verify := func() error {
-			if samples[i].IsEmpty() {
-				return errors.New("nil response")
+		errGroup.Go(func() error {
+			req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
+				return sg.client.Get(ctx, &request, &samples[i], peer)
 			}
-			return samples[i].Verify(header.DAH, request.RowIndex, request.ShareIndex)
-		}
-		err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
-		if err != nil {
-			return nil, err
-		}
+			verify := func() error {
+				if samples[i].IsEmpty() {
+					return errors.New("nil response")
+				}
+				return samples[i].Verify(header.DAH, request.RowIndex, request.ShareIndex)
+			}
+			err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 	}
-
+	if err = errGroup.Wait(); err != nil {
+		return nil, err
+	}
 	return samples, nil
 }
 
