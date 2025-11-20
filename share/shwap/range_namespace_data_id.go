@@ -14,7 +14,7 @@ import (
 // for the start and end ODS indexes of share of the range.
 const RangeNamespaceDataIDSize = EdsIDSize + 8
 
-const rangeNamespaceData = "rangeNamespaceData_v0"
+const rangeNamespaceDataName = "rangeNamespaceData_v0"
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within an Original DataSquare (ODS)
 // The range is defined by the indexes of the first (`From`)
@@ -90,7 +90,7 @@ func (rngid *RangeNamespaceDataID) UnmarshalJSON(data []byte) error {
 }
 
 func (rngid RangeNamespaceDataID) Name() string {
-	return rangeNamespaceData
+	return rangeNamespaceDataName
 }
 
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
