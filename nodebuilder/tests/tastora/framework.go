@@ -72,7 +72,6 @@ type Framework struct {
 	fundingWallet        *types.Wallet
 	defaultFundingAmount int64
 
-	// Configuration
 	config *Config
 }
 
@@ -173,8 +172,6 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 
 // NewBridgeNodeWithVersion creates and starts a new bridge node with a specific version.
 func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
-	genesisHash := f.getGenesisHash(ctx, f.celestia)
-
 	// Create a new node builder with the specified version
 	daImage := container.Image{
 		Repository: nodeImage,
@@ -205,26 +202,7 @@ func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string
 	require.Greater(f.t, len(bridgeNodes), 0, "no bridge nodes in versioned network")
 	bridgeNode := bridgeNodes[0]
 
-	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
-	require.NoError(f.t, err, "failed to get network info")
-	hostname := networkInfo.Internal.Hostname
-
-	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
-	if f.config.TxWorkerAccounts > 0 {
-		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
-	}
-
-	err = bridgeNode.Start(ctx,
-		dataavailability.WithChainID(testChainID),
-		dataavailability.WithAdditionalStartArguments(startArgs...),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
-				"P2P_NETWORK":           testChainID,
-				"CELESTIA_BOOTSTRAPPER": "true",
-			},
-		),
-	)
+	err = f.startBridgeNodeWithConfig(ctx, bridgeNode, f.celestia)
 	require.NoError(f.t, err, "failed to start versioned bridge node")
 
 	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
@@ -236,18 +214,7 @@ func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string
 
 // NewLightNodeWithVersion creates and starts a new light node with a specific version.
 func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
-	genesisHash := f.getGenesisHash(ctx, f.celestia)
 	bridgeNode := f.bridgeNodes[0]
-
-	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
-	require.NoError(f.t, err, "failed to get bridge node p2p info")
-
-	p2pAddr, err := p2pInfo.GetP2PAddress()
-	require.NoError(f.t, err, "failed to get bridge node p2p address")
-
-	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
-	require.NoError(f.t, err, "failed to get network info")
-	hostname := networkInfo.Internal.Hostname
 
 	// Create a new node builder with the specified version
 	daImage := container.Image{
@@ -279,16 +246,7 @@ func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string)
 	require.Greater(f.t, len(lightNodes), 0, "no light nodes in versioned network")
 	lightNode := lightNodes[0]
 
-	err = lightNode.Start(ctx,
-		dataavailability.WithChainID(testChainID),
-		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-				"P2P_NETWORK":     testChainID,
-			},
-		),
-	)
+	err = f.startLightNodeWithConfig(ctx, lightNode, bridgeNode, f.celestia)
 	require.NoError(f.t, err, "failed to start versioned light node")
 
 	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
@@ -559,20 +517,15 @@ func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Cha
 	return celestia
 }
 
-// startBridgeNode initializes and starts a bridge node.
-func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *dataavailability.Node {
+// startBridgeNodeWithConfig starts a bridge node with the given configuration.
+// This is a helper function that contains the common startup logic for bridge nodes.
+func (f *Framework) startBridgeNodeWithConfig(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain) error {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
-	// Get the next available bridge node from the DA network
-	bridgeNodes := f.daNetwork.GetBridgeNodes()
-	bridgeNodeIndex := len(f.bridgeNodes)
-	if bridgeNodeIndex >= len(bridgeNodes) {
-		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", bridgeNodeIndex, len(bridgeNodes))
-	}
-	bridgeNode := bridgeNodes[bridgeNodeIndex]
-
 	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
-	require.NoError(f.t, err, "failed to get network info")
+	if err != nil {
+		return fmt.Errorf("failed to get network info: %w", err)
+	}
 	hostname := networkInfo.Internal.Hostname
 
 	// Build start arguments with explicit core port
@@ -593,34 +546,48 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 			},
 		),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to start bridge node: %w", err)
+	}
+	return nil
+}
+
+// startBridgeNode initializes and starts a bridge node.
+func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *dataavailability.Node {
+	// Get the next available bridge node from the DA network
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	bridgeNodeIndex := len(f.bridgeNodes)
+	if bridgeNodeIndex >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", bridgeNodeIndex, len(bridgeNodes))
+	}
+	bridgeNode := bridgeNodes[bridgeNodeIndex]
+
+	err := f.startBridgeNodeWithConfig(ctx, bridgeNode, chain)
 	require.NoError(f.t, err, "failed to start bridge node")
 	return bridgeNode
 }
 
-// startLightNode initializes and starts a light node.
-func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain) *dataavailability.Node {
+// startLightNodeWithConfig starts a light node with the given configuration.
+// This is a helper function that contains the common startup logic for light nodes.
+func (f *Framework) startLightNodeWithConfig(ctx context.Context, lightNode *dataavailability.Node, bridgeNode *dataavailability.Node, chain *cosmos.Chain) error {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
 	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
-	require.NoError(f.t, err, "failed to get bridge node p2p info")
+	if err != nil {
+		return fmt.Errorf("failed to get bridge node p2p info: %w", err)
+	}
 
 	p2pAddr, err := p2pInfo.GetP2PAddress()
-	require.NoError(f.t, err, "failed to get bridge node p2p address")
+	if err != nil {
+		return fmt.Errorf("failed to get bridge node p2p address: %w", err)
+	}
 
 	// Get the core node hostname for state access
 	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
-	require.NoError(f.t, err, "failed to get network info")
-	hostname := networkInfo.Internal.Hostname
-
-	// Get the next available light node from the DA network
-	allLightNodes := f.daNetwork.GetLightNodes()
-	lightNodeIndex := len(f.lightNodes)
-
-	if lightNodeIndex >= len(allLightNodes) {
-		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", lightNodeIndex, len(allLightNodes))
+	if err != nil {
+		return fmt.Errorf("failed to get network info: %w", err)
 	}
-
-	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
+	hostname := networkInfo.Internal.Hostname
 
 	// Start light node - should work reliably with proper resource isolation
 	err = lightNode.Start(ctx,
@@ -633,6 +600,25 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 			},
 		),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to start light node: %w", err)
+	}
+	return nil
+}
+
+// startLightNode initializes and starts a light node.
+func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain) *dataavailability.Node {
+	// Get the next available light node from the DA network
+	allLightNodes := f.daNetwork.GetLightNodes()
+	lightNodeIndex := len(f.lightNodes)
+
+	if lightNodeIndex >= len(allLightNodes) {
+		f.t.Fatalf("Cannot create more light nodes: already have %d, max is %d", lightNodeIndex, len(allLightNodes))
+	}
+
+	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
+
+	err := f.startLightNodeWithConfig(ctx, lightNode, bridgeNode, chain)
 	require.NoError(f.t, err, "failed to start light node")
 	return lightNode
 }
