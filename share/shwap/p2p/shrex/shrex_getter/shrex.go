@@ -122,7 +122,7 @@ func (sg *Getter) GetSamples(
 	for i, request := range requests {
 		logger := log.With(
 			"source", "shrex_getter",
-			"request_type", rangeRequest.String(),
+			"request_type", request.Name(),
 			"hash", header.DAH.String(),
 			"rowIndex", request.RowIndex,
 			"colIndex", request.ShareIndex,
@@ -138,7 +138,7 @@ func (sg *Getter) GetSamples(
 			}
 			return samples[i].Verify(header.DAH, request.RowIndex, request.ShareIndex)
 		}
-		err = sg.executeRequest(ctx, logger, header, samplesRequest, req, verify)
+		err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +167,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 
 	logger := log.With(
 		"source", "shrex_getter",
-		"request_type", rangeRequest.String(),
+		"request_type", request.Name(),
 		"hash", header.DAH.String(),
 		"rowIndex", rowIndex,
 	)
@@ -183,7 +183,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 		return response.Verify(header.DAH, rowIndex)
 	}
 
-	err = sg.executeRequest(ctx, logger, header, rowRequest, req, verify)
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 	if err != nil {
 		return shwap.Row{}, err
 	}
@@ -215,7 +215,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 
 	logger := log.With(
 		"source", "shrex_getter",
-		"request_type", edsRequest,
+		"request_type", request.Name(),
 		"hash", header.DAH.String(),
 	)
 
@@ -231,7 +231,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		return err
 	}
 
-	err = sg.executeRequest(ctx, logger, header, edsRequest, req, build)
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, build)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func (sg *Getter) GetNamespaceData(
 
 	logger := log.With(
 		"source", "shrex_getter",
-		"request_type", namespaceDataRequest.String(),
+		"request_type", request.Name(),
 		"hash", dah.String(),
 		"namespace", namespace.String(),
 	)
@@ -289,7 +289,7 @@ func (sg *Getter) GetNamespaceData(
 		return response.Verify(dah, namespace)
 	}
 
-	err = sg.executeRequest(ctx, logger, header, namespaceDataRequest, req, verify)
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +326,7 @@ func (sg *Getter) GetRangeNamespaceData(
 
 	logger := log.With(
 		"source", "shrex_getter",
-		"request_type", rangeRequest.String(),
+		"request_type", request.Name(),
 		"hash", header.DAH.String(),
 		"from", from,
 		"to", to,
@@ -358,7 +358,7 @@ func (sg *Getter) GetRangeNamespaceData(
 			header.DAH.RowRoots[fromCoords.Row:toCoords.Row+1])
 	}
 
-	err = sg.executeRequest(ctx, logger, header, rangeRequest, req, verify)
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, err
 	}
@@ -397,7 +397,7 @@ func (sg *Getter) executeRequest(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
 	extHeader *header.ExtendedHeader,
-	reqType requestType,
+	reqType string,
 	req requestFn,
 	handle handleFn,
 ) error {
