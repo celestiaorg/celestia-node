@@ -266,6 +266,12 @@ func TestShrexGetter(t *testing.T) {
 		got, err := getter.GetSamples(ctx, eh, coords)
 		require.NoError(t, err)
 		assert.Len(t, got, len(coords))
+
+		rowShares := randEDS.Row(0)
+		require.NoError(t, err)
+		for i, samples := range got {
+			assert.Equal(t, rowShares[i], samples.ToBytes())
+		}
 	})
 
 	t.Run("Samples_Failed_coords_out_of_bound", func(t *testing.T) {
@@ -291,6 +297,7 @@ func TestShrexGetter(t *testing.T) {
 
 		_, err := getter.GetSamples(ctx, eh, coords)
 		require.Error(t, err)
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
 	})
 
 	t.Run("Samples_Failed_no_partial_response", func(t *testing.T) {
@@ -365,6 +372,7 @@ func TestShrexGetter(t *testing.T) {
 
 		_, err := getter.GetRow(ctx, eh, 20)
 		require.Error(t, err)
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
 	})
 
 	// tests getPeer's ability to route requests based on whether
