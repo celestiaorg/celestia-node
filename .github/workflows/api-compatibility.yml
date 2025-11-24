@@ -50,7 +50,7 @@ jobs:
           CURRENT_VERSION=$(git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --short HEAD)
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current version (PR branch): $CURRENT_VERSION"
-          
+
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_REF="${{ github.event.pull_request.base.ref }}"
             echo "PR base branch: $BASE_REF"
@@ -73,7 +73,7 @@ jobs:
         run: |
           BASE_VERSION="${{ steps.versions.outputs.base_version }}"
           BASE_IMAGE="ghcr.io/celestiaorg/celestia-node-compat-test:${BASE_VERSION}"
-          
+
           if docker pull "$BASE_IMAGE" 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Base version image exists: $BASE_IMAGE"
@@ -83,16 +83,19 @@ jobs:
           fi
 
       - name: Build compat-test image for base version (if needed)
-        if: steps.check_base_image.outputs.exists == 'false'
+        if: >
+          steps.check_base_image.outputs.exists == 'false' &&
+          (github.event.pull_request.head.repo.full_name == github.repository ||
+           github.event_name != 'pull_request')
         run: |
           BASE_VERSION="${{ steps.versions.outputs.base_version }}"
           BASE_IMAGE="ghcr.io/celestiaorg/celestia-node-compat-test:${BASE_VERSION}"
-          
+
           echo "Building base version image: $BASE_IMAGE"
-          
+
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           CURRENT_COMMIT=$(git rev-parse HEAD)
-          
+
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_REF="${{ github.event.pull_request.base.ref }}"
             echo "Checking out base branch: $BASE_REF"
@@ -103,21 +106,22 @@ jobs:
               git checkout "$BASE_VERSION"
             fi
           fi
-          
+
           if [ ! -f "cmd/compat-test/Dockerfile" ]; then
             echo "Warning: compat-test code not found in base version. Skipping build."
             echo "This version may need a one-time backport of the compat-test code."
             git checkout $CURRENT_COMMIT
             exit 0
           fi
-          
+
           docker build -f cmd/compat-test/Dockerfile -t "$BASE_IMAGE" .
           docker push "$BASE_IMAGE"
           echo "Built and pushed base version image: $BASE_IMAGE"
-          
+
           git checkout $CURRENT_COMMIT
 
       - name: Build compat-test image for current version
+        if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
         run: |
           CURRENT_VERSION="${{ steps.versions.outputs.current_version }}"
           IMAGE_NAME="ghcr.io/celestiaorg/celestia-node-compat-test:$CURRENT_VERSION"
@@ -132,6 +136,7 @@ jobs:
           cd nodebuilder/tests/tastora/api
           go test -tags=integration -v -run TestCrossVersionClientTestSuite/TestCrossVersionBidirectional -timeout 30m
         timeout-minutes: 30
+        continue-on-error: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
 
       - name: Cleanup
         if: always()

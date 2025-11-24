@@ -15,9 +15,13 @@ import (
 )
 
 var (
-	rpcURL    = flag.String("rpc-url", "", "RPC URL of the celestia-node server to test against")
-	skipGetRow = flag.Bool("skip-get-row", false, "Skip Share.GetRow test (for light nodes with bitswap compatibility issues)")
-	timeout   = flag.Duration("timeout", 5*time.Minute, "Timeout for the entire test suite")
+	rpcURL     = flag.String("rpc-url", "", "RPC URL of the celestia-node server to test against")
+	skipGetRow = flag.Bool(
+		"skip-get-row",
+		false,
+		"Skip Share.GetRow test (for light nodes with bitswap compatibility issues)",
+	)
+	timeout = flag.Duration("timeout", 5*time.Minute, "Timeout for the entire test suite")
 )
 
 func main() {
@@ -39,12 +43,14 @@ func main() {
 	client, err := rpcclient.NewClient(ctx, serverAddr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create client: %v\n", err)
+		cancel()
 		os.Exit(1)
 	}
 	defer client.Close()
 
 	if err := runCompatibilityTests(ctx, client, *skipGetRow); err != nil {
 		fmt.Fprintf(os.Stderr, "Compatibility test failed: %v\n", err)
+		cancel()
 		os.Exit(1)
 	}
 
@@ -153,7 +159,10 @@ func runCompatibilityTests(ctx context.Context, client *rpcclient.Client, skipGe
 	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	err = client.DAS.WaitCatchUp(waitCtx)
-	if err != nil && !strings.Contains(err.Error(), "stubbed") && !strings.Contains(err.Error(), "deadline exceeded") && !strings.Contains(err.Error(), "context deadline exceeded") {
+	if err != nil &&
+		!strings.Contains(err.Error(), "stubbed") &&
+		!strings.Contains(err.Error(), "deadline exceeded") &&
+		!strings.Contains(err.Error(), "context deadline exceeded") {
 		return fmt.Errorf("DAS.WaitCatchUp failed: %w", err)
 	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "DAS.WaitCatchUp failed (known limitation): %v\n", err)
