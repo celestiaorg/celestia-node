@@ -130,6 +130,18 @@ install-key:
 	@go install ./cmd/cel-key
 .PHONY: install-key
 
+## compat-test: Build compat-test binary.
+compat-test:
+	@echo "--> Building compat-test"
+	@go build -o build/celestia-node-compat-test ./cmd/compat-test
+.PHONY: compat-test
+
+## install-compat-test: Build and install the compat-test binary into the GOBIN directory.
+install-compat-test:
+	@echo "--> Installing compat-test"
+	@go install ./cmd/compat-test
+.PHONY: install-compat-test
+
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go).
 # Runs `gofmt & goimports` internally.
 fmt: sort-imports

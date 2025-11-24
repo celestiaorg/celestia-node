@@ -261,14 +261,12 @@ func (f *Framework) GetCelestiaChain() *cosmos.Chain {
 	return f.celestia
 }
 
-// GetNodeRPCClient retrieves an RPC client for the provided DA node.
 func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailability.Node) *rpcclient.Client {
 	networkInfo, err := daNode.GetNetworkInfo(ctx)
 	require.NoError(f.t, err, "failed to get network info")
 	rpcAddr := fmt.Sprintf("%s:%s", networkInfo.External.Hostname, networkInfo.External.Ports.RPC)
 	require.NotEmpty(f.t, rpcAddr, "rpc address is empty")
 
-	// Normalize wildcard bind address to loopback for outbound connections
 	if strings.HasPrefix(rpcAddr, "0.0.0.0:") {
 		rpcAddr = "127.0.0.1:" + strings.TrimPrefix(rpcAddr, "0.0.0.0:")
 	}
@@ -278,7 +276,6 @@ func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailabili
 	return rpcClient
 }
 
-// CreateTestWallet creates a new test wallet with the specified amount.
 func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.Wallet {
 	sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount)))
 	testWallet, err := wallet.CreateAndFund(ctx, "test", sendAmount, f.celestia)
@@ -287,7 +284,6 @@ func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.W
 	return testWallet
 }
 
-// newBridgeNode creates and starts a bridge node.
 func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.startBridgeNode(ctx, f.celestia)
 
@@ -304,7 +300,6 @@ func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	return bridgeNode
 }
 
-// fundWallet sends funds from one wallet to another address.
 func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, toAddr sdk.AccAddress, amount int64) {
 	fromAddr, err := sdkacc.AddressFromWallet(fromWallet)
 	require.NoError(f.t, err, "failed to get from address")
@@ -671,11 +666,9 @@ func (f *Framework) getOrCreateFundingWallet(ctx context.Context) *types.Wallet 
 	return f.fundingWallet
 }
 
-// Stop cleans up all Docker containers and resources created by the framework.
 func (f *Framework) Stop(ctx context.Context) error {
 	f.logger.Info("Stopping framework and cleaning up containers")
 
-	// Stop all bridge nodes
 	for i, node := range f.bridgeNodes {
 		if node != nil {
 			f.logger.Info("Stopping bridge node", zap.Int("index", i))
@@ -692,7 +685,6 @@ func (f *Framework) Stop(ctx context.Context) error {
 		}
 	}
 
-	// Stop all light nodes
 	for i, node := range f.lightNodes {
 		if node != nil {
 			f.logger.Info("Stopping light node", zap.Int("index", i))
@@ -709,10 +701,8 @@ func (f *Framework) Stop(ctx context.Context) error {
 		}
 	}
 
-	// Stop DA network
 	if f.daNetwork != nil {
 		f.logger.Info("Stopping DA network")
-		// Get all node names to remove
 		allNodes := f.daNetwork.GetNodes()
 		nodeNames := make([]string, len(allNodes))
 		for i, node := range allNodes {
@@ -725,7 +715,6 @@ func (f *Framework) Stop(ctx context.Context) error {
 		}
 	}
 
-	// Stop Celestia chain (validator containers)
 	if f.celestia != nil {
 		f.logger.Info("Stopping Celestia chain")
 		if err := f.celestia.Stop(ctx); err != nil {
@@ -738,7 +727,6 @@ func (f *Framework) Stop(ctx context.Context) error {
 				f.logger.Warn("Failed to remove Celestia chain", zap.Error(err))
 			}
 		}
-
 	}
 
 	if f.client != nil && f.network != "" {
@@ -749,39 +737,32 @@ func (f *Framework) Stop(ctx context.Context) error {
 		}
 	}
 
-	// Use Docker's built-in cleanup commands for comprehensive cleanup
 	f.dockerCleanup()
 
 	f.logger.Info("Framework cleanup completed")
 	return nil
 }
 
-// dockerCleanup uses Docker's built-in commands to clean up unused resources
 func (f *Framework) dockerCleanup() {
-	// Clean up containers with Tastora test-related names (da-* and test-val-*)
 	f.cleanupContainersByPattern("da-")
 	f.cleanupContainersByPattern("test-val-")
 
-	// Use Docker's built-in cleanup commands for comprehensive cleanup
 	exec.Command("docker", "system", "prune", "-f").Run()
 	exec.Command("docker", "volume", "prune", "-f").Run()
 }
 
-// cleanupContainersByPattern stops and removes containers matching the given name pattern
 func (f *Framework) cleanupContainersByPattern(pattern string) {
 	cmd := exec.Command("docker", "ps", "-a", "--filter", "name="+pattern, "--format", "{{.Names}}")
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
 
-		// Stop all containers
 		for _, name := range containerNames {
 			if name != "" {
 				exec.Command("docker", "stop", name).Run()
 			}
 		}
 
-		// Remove all containers
 		for _, name := range containerNames {
 			if name != "" {
 				exec.Command("docker", "rm", name).Run()
