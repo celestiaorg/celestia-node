@@ -33,8 +33,18 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
+	err := runMain(ctx)
+	cancel()
 
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("All compatibility tests passed")
+}
+
+func runMain(ctx context.Context) error {
 	serverAddr := *rpcURL
 	if !strings.HasPrefix(serverAddr, "http://") && !strings.HasPrefix(serverAddr, "https://") {
 		serverAddr = "http://" + serverAddr
@@ -42,19 +52,11 @@ func main() {
 
 	client, err := rpcclient.NewClient(ctx, serverAddr, "")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create client: %v\n", err)
-		cancel()
-		os.Exit(1)
+		return fmt.Errorf("failed to create client: %w", err)
 	}
 	defer client.Close()
 
-	if err := runCompatibilityTests(ctx, client, *skipGetRow); err != nil {
-		fmt.Fprintf(os.Stderr, "Compatibility test failed: %v\n", err)
-		cancel()
-		os.Exit(1)
-	}
-
-	fmt.Println("All compatibility tests passed")
+	return runCompatibilityTests(ctx, client, *skipGetRow)
 }
 
 func runCompatibilityTests(ctx context.Context, client *rpcclient.Client, skipGetRow bool) error {
