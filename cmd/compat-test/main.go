@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/go-square/v3/share"
+
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/state"
-	"github.com/celestiaorg/go-square/v3/share"
 )
 
 var (
