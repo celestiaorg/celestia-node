@@ -30,7 +30,6 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		return fx.Error(err)
 	}
 
-	// Validate P2P config with Share config (for cross-module validation)
 	if err := cfg.P2P.ValidateWithShareConfig(tp, &cfg.Share); err != nil {
 		return fx.Error(fmt.Errorf("nodebuilder: config validation: %w", err))
 	}

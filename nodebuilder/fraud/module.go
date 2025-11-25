@@ -21,7 +21,6 @@ var log = logging.Logger("module/fraud")
 type stubFraudService struct{}
 
 func (s *stubFraudService) Get(_ context.Context, _ fraud.ProofType) ([]fraud.Proof[*header.ExtendedHeader], error) {
-	// Return ErrNotFound so ServiceBreaker thinks there are no fraud proofs
 	return nil, datastore.ErrNotFound
 }
 
@@ -33,13 +32,11 @@ func (s *stubFraudService) Subscribe(_ fraud.ProofType) (fraud.Subscription[*hea
 type stubFraudSubscription struct{}
 
 func (s *stubFraudSubscription) Proof(ctx context.Context) (fraud.Proof[*header.ExtendedHeader], error) {
-	// Block forever - storage-only nodes don't receive fraud proofs via P2P
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
 
 func (s *stubFraudSubscription) Cancel() {
-	// No-op
 }
 
 func (s *stubFraudService) Broadcast(_ context.Context, _ fraud.Proof[*header.ExtendedHeader]) error {
@@ -47,7 +44,6 @@ func (s *stubFraudService) Broadcast(_ context.Context, _ fraud.Proof[*header.Ex
 }
 
 func (s *stubFraudService) AddVerifier(_ fraud.ProofType, _ fraud.Verifier[*header.ExtendedHeader]) error {
-	// No-op: storage-only nodes don't verify fraud proofs
 	return nil
 }
 
@@ -83,7 +79,6 @@ func ConstructModule(tp node.Type, p2pCfg *modp2p.Config) fx.Option {
 		}),
 	)
 
-	// If P2P is disabled, provide stub fraud service
 	if p2pDisabled && tp == node.Bridge {
 		return fx.Module(
 			"fraud",
