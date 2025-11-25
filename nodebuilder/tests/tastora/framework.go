@@ -172,7 +172,6 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 
 // NewBridgeNodeWithVersion creates and starts a new bridge node with a specific version.
 func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
-	// Create a new node builder with the specified version
 	daImage := container.Image{
 		Repository: nodeImage,
 		Version:    version,
@@ -193,11 +192,9 @@ func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string
 		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
 		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
 
-	// Build the network
 	versionedNetwork, err := versionedNetworkBuilder.Build(ctx)
 	require.NoError(f.t, err, "failed to build versioned bridge node network")
 
-	// Get the bridge node from the versioned network
 	bridgeNodes := versionedNetwork.GetBridgeNodes()
 	require.Greater(f.t, len(bridgeNodes), 0, "no bridge nodes in versioned network")
 	bridgeNode := bridgeNodes[0]
@@ -216,14 +213,12 @@ func (f *Framework) NewBridgeNodeWithVersion(ctx context.Context, version string
 func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string) *dataavailability.Node {
 	bridgeNode := f.bridgeNodes[0]
 
-	// Create a new node builder with the specified version
 	daImage := container.Image{
 		Repository: nodeImage,
 		Version:    version,
 		UIDGID:     "10001:10001",
 	}
 
-	// Create a new network builder for this specific version node
 	testName := fmt.Sprintf("%s-%s-%d", f.t.Name(), version, time.Now().UnixNano())
 	lightNodeConfig := dataavailability.NewNodeBuilder().
 		WithNodeType(types.LightNode).
@@ -237,11 +232,9 @@ func (f *Framework) NewLightNodeWithVersion(ctx context.Context, version string)
 		WithEnv("CELESTIA_KEYRING_BACKEND", "memory").
 		WithEnv("CELESTIA_NODE_KEY", "test-key-mnemonic")
 
-	// Build the network
 	versionedNetwork, err := versionedNetworkBuilder.Build(ctx)
 	require.NoError(f.t, err, "failed to build versioned light node network")
 
-	// Get the light node from the versioned network
 	lightNodes := versionedNetwork.GetLightNodes()
 	require.Greater(f.t, len(lightNodes), 0, "no light nodes in versioned network")
 	lightNode := lightNodes[0]
@@ -308,13 +301,11 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 
 	bankSend := banktypes.NewMsgSend(fromAddr, toAddr.Bytes(), sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount))))
 
-	// Broadcast transaction
 	resp, err := f.celestia.BroadcastMessages(ctx, fromWallet, bankSend)
 	if err != nil {
 		f.t.Fatalf("Failed to broadcast funding transaction: %v", err)
 	}
 
-	// Wait for transaction to be confirmed
 	if err := f.waitForTransactionInclusion(ctx, resp.TxHash); err != nil {
 		f.t.Fatalf("Failed to wait for transaction inclusion: %v", err)
 	}
@@ -338,7 +329,6 @@ func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash stri
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			// Query the transaction to see if it was included in a block
 			txHashBytes, err := hex.DecodeString(txHash)
 			if err != nil {
 				f.t.Logf("Failed to decode transaction hash %s: %v", txHash, err)
@@ -349,7 +339,6 @@ func (f *Framework) waitForTransactionInclusion(ctx context.Context, txHash stri
 				f.t.Logf("Transaction %s confirmed at height %d", txHash, resp.Height)
 				return nil
 			}
-			// Continue polling if transaction not found yet
 		}
 	}
 }
@@ -413,7 +402,6 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *dataavailabilit
 	fundingWallet := f.getOrCreateFundingWallet(ctx)
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 
-	// Get the node's account address - should work reliably with proper synchronization
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get node account address")
 
@@ -428,7 +416,6 @@ func (f *Framework) fundNodeAccount(ctx context.Context, daNode *dataavailabilit
 func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavailability.NetworkBuilder) {
 	enc := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
-	// Create chain builder
 	chainImage := container.Image{
 		Repository: celestiaAppImage,
 		Version:    getCelestiaTag(),
@@ -451,7 +438,6 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 			"--timeout-commit", "1s",
 		)
 
-	// Add validator nodes based on config
 	for i := 0; i < cfg.NumValidators; i++ {
 		nodeConfig := cosmos.NewChainNodeConfigBuilder().Build()
 		chainBuilder = chainBuilder.WithNode(nodeConfig)
@@ -494,18 +480,14 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Chain {
 	var celestia *cosmos.Chain
 	var err error
-	// Build and start chain - should work reliably with proper resource isolation
 	celestia, err = f.chainBuilder.Build(ctx)
 	require.NoError(f.t, err, "failed to build celestia chain")
 
-	// Use a longer timeout for chain startup to handle slow chain initialization
 	chainStartCtx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 	err = celestia.Start(chainStartCtx)
 	require.NoError(f.t, err, "failed to start celestia chain")
 
-	// Use a longer timeout for waiting for blocks after chain startup
-	// Increased timeout to handle slow chain initialization and block production
 	blockWaitCtx, cancel2 := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel2()
 	require.NoError(f.t, wait.ForBlocks(blockWaitCtx, 2, celestia))
@@ -523,13 +505,11 @@ func (f *Framework) startBridgeNodeWithConfig(ctx context.Context, bridgeNode *d
 	}
 	hostname := networkInfo.Internal.Hostname
 
-	// Build start arguments with explicit core port
 	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--keyring.backend", "test"}
 	if f.config.TxWorkerAccounts > 0 {
 		startArgs = append(startArgs, "--tx.worker.accounts", fmt.Sprintf("%d", f.config.TxWorkerAccounts))
 	}
 
-	// Start bridge node - should work reliably with proper resource isolation
 	err = bridgeNode.Start(ctx,
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(startArgs...),
@@ -549,7 +529,6 @@ func (f *Framework) startBridgeNodeWithConfig(ctx context.Context, bridgeNode *d
 
 // startBridgeNode initializes and starts a bridge node.
 func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *dataavailability.Node {
-	// Get the next available bridge node from the DA network
 	bridgeNodes := f.daNetwork.GetBridgeNodes()
 	bridgeNodeIndex := len(f.bridgeNodes)
 	if bridgeNodeIndex >= len(bridgeNodes) {
@@ -577,14 +556,12 @@ func (f *Framework) startLightNodeWithConfig(ctx context.Context, lightNode *dat
 		return fmt.Errorf("failed to get bridge node p2p address: %w", err)
 	}
 
-	// Get the core node hostname for state access
 	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get network info: %w", err)
 	}
 	hostname := networkInfo.Internal.Hostname
 
-	// Start light node - should work reliably with proper resource isolation
 	err = lightNode.Start(ctx,
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--core.port", "9090", "--rpc.addr", "0.0.0.0", "--p2p.mutual", p2pAddr),
@@ -603,7 +580,6 @@ func (f *Framework) startLightNodeWithConfig(ctx context.Context, lightNode *dat
 
 // startLightNode initializes and starts a light node.
 func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain) *dataavailability.Node {
-	// Get the next available light node from the DA network
 	allLightNodes := f.daNetwork.GetLightNodes()
 	lightNodeIndex := len(f.lightNodes)
 
