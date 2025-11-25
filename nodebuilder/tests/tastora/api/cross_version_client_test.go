@@ -424,16 +424,39 @@ func (s *CrossVersionClientTestSuite) runCompatTest(ctx context.Context, clientV
 func (s *CrossVersionClientTestSuite) buildCompatTestImageLocally(ctx context.Context, version, imageName string) error {
 	s.T().Logf("Building compat-test image locally for version %s...", version)
 
-	buildCmd := []string{
-		"docker", "build",
+	repoRoot := s.getRepoRoot()
+	currentCommitCmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	currentCommitCmd.Dir = repoRoot
+	currentCommit, err := currentCommitCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get current commit: %w", err)
+	}
+	currentCommitStr := strings.TrimSpace(string(currentCommit))
+
+	defer func() {
+		restoreCmd := exec.CommandContext(ctx, "git", "checkout", currentCommitStr)
+		restoreCmd.Dir = repoRoot
+		_ = restoreCmd.Run()
+	}()
+
+	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", version)
+	checkoutCmd.Dir = repoRoot
+	if output, err := checkoutCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to checkout version %s: %w. Output: %s. Note: compat-test code may need to be backported to this version", version, err, string(output))
+	}
+
+	dockerfilePath := filepath.Join(repoRoot, "cmd/compat-test/Dockerfile")
+	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+		return fmt.Errorf("cmd/compat-test/Dockerfile not found in version %s. The compat-test code needs to be backported to this version", version)
+	}
+
+	buildCmd := exec.CommandContext(ctx, "docker", "build",
 		"-f", "cmd/compat-test/Dockerfile",
 		"-t", imageName,
 		".",
-	}
-
-	cmd := exec.CommandContext(ctx, buildCmd[0], buildCmd[1:]...)
-	cmd.Dir = s.getRepoRoot()
-	output, err := cmd.CombinedOutput()
+	)
+	buildCmd.Dir = repoRoot
+	output, err := buildCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker build failed: %w\nOutput: %s", err, string(output))
 	}
