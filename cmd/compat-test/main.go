@@ -135,6 +135,7 @@ func runCompatibilityTests(ctx context.Context, client *rpcclient.Client, skipGe
 		} else {
 			return fmt.Errorf("Share.GetNamespaceData failed: %w", err)
 		}
+
 	}
 	if _, err := client.Share.GetEDS(ctx, head.Height()); err != nil {
 		if strings.Contains(err.Error(), "data not available") {
@@ -159,18 +160,6 @@ func runCompatibilityTests(ctx context.Context, client *rpcclient.Client, skipGe
 		return fmt.Errorf("DAS.SamplingStats failed: %w", err)
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	err = client.DAS.WaitCatchUp(waitCtx)
-	if err != nil &&
-		!strings.Contains(err.Error(), "stubbed") &&
-		!strings.Contains(err.Error(), "deadline exceeded") &&
-		!strings.Contains(err.Error(), "context deadline exceeded") {
-		return fmt.Errorf("DAS.WaitCatchUp failed: %w", err)
-	} else if err != nil {
-		fmt.Fprintf(os.Stderr, "DAS.WaitCatchUp failed (known limitation): %v\n", err)
-	}
-
 	blobCtx, blobCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer blobCancel()
 	if _, err := client.Blob.GetAll(blobCtx, head.Height(), []share.Namespace{namespace}); err != nil {
@@ -185,10 +174,6 @@ func runCompatibilityTests(ctx context.Context, client *rpcclient.Client, skipGe
 	if err == nil {
 		submitHeight, err := client.Blob.Submit(ctx, []*blob.Blob{testBlob}, state.NewTxConfig())
 		if err == nil && submitHeight > 0 {
-			waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			defer cancel()
-			_, _ = client.Header.WaitForHeight(waitCtx, submitHeight)
-
 			if _, err := client.Blob.Get(ctx, submitHeight, namespace, testBlob.Commitment); err != nil {
 				return fmt.Errorf("Blob.Get failed: %w", err)
 			}

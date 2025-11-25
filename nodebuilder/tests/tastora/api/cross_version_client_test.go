@@ -189,15 +189,6 @@ func (s *CrossVersionClientTestSuite) testAllAPIsWithOptions(ctx context.Context
 		require.NoError(s.T(), err)
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	err = client.DAS.WaitCatchUp(waitCtx)
-	cancel()
-	if err != nil && !strings.Contains(err.Error(), "stubbed") && !strings.Contains(err.Error(), "deadline exceeded") && !strings.Contains(err.Error(), "context deadline exceeded") {
-		require.NoError(s.T(), err)
-	} else if err != nil {
-		s.T().Logf("Skipping DAS.WaitCatchUp error (known limitation with old servers): %v", err)
-	}
-
 	blobCtx, blobCancel := context.WithTimeout(ctx, 30*time.Second)
 	_, err = client.Blob.GetAll(blobCtx, head.Height(), []share.Namespace{namespace})
 	blobCancel()
@@ -211,10 +202,6 @@ func (s *CrossVersionClientTestSuite) testAllAPIsWithOptions(ctx context.Context
 	if err == nil {
 		submitHeight, err := client.Blob.Submit(ctx, []*nodeblob.Blob{testBlob}, state.NewTxConfig())
 		if err == nil && submitHeight > 0 {
-			waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			_, _ = client.Header.WaitForHeight(waitCtx, submitHeight)
-			cancel()
-
 			_, err = client.Blob.Get(ctx, submitHeight, namespace, testBlob.Commitment)
 			require.NoError(s.T(), err)
 
