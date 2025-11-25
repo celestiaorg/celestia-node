@@ -135,7 +135,6 @@ func runCompatibilityTests(ctx context.Context, client *rpcclient.Client, skipGe
 		} else {
 			return fmt.Errorf("Share.GetNamespaceData failed: %w", err)
 		}
-
 	}
 	if _, err := client.Share.GetEDS(ctx, head.Height()); err != nil {
 		if strings.Contains(err.Error(), "data not available") {
