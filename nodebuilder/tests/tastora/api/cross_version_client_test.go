@@ -87,9 +87,6 @@ func (s *CrossVersionClientTestSuite) TestCrossVersionBidirectional() {
 		serverRPC := "http://" + rpcAddr
 
 		err = s.runCompatTest(testCtx, oldVersion, serverRPC, false)
-		if err != nil && strings.Contains(err.Error(), "Dockerfile not found") {
-			t.Skipf("Skipping test: compat-test code not available in base version %s. Image needs to be built and pushed for this version.", oldVersion)
-		}
 		require.NoError(s.T(), err)
 	})
 
@@ -107,9 +104,6 @@ func (s *CrossVersionClientTestSuite) TestCrossVersionBidirectional() {
 		serverRPC := "http://" + rpcAddr
 
 		err = s.runCompatTest(testCtx, oldVersion, serverRPC, true)
-		if err != nil && strings.Contains(err.Error(), "Dockerfile not found") {
-			t.Skipf("Skipping test: compat-test code not available in base version %s. Image needs to be built and pushed for this version.", oldVersion)
-		}
 		require.NoError(s.T(), err)
 	})
 }
