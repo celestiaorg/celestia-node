@@ -269,6 +269,33 @@ func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailabili
 	return rpcClient
 }
 
+// WaitForNodeReadyAndSynced waits for a node to be ready and synced to network head.
+func (f *Framework) WaitForNodeReadyAndSynced(ctx context.Context, client *rpcclient.Client, timeout time.Duration) {
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	f.t.Logf("Waiting for node to be ready...")
+	for {
+		ready, err := client.Node.Ready(waitCtx)
+		if err == nil && ready {
+			f.t.Logf("Node is ready")
+			break
+		}
+		select {
+		case <-waitCtx.Done():
+			f.t.Fatalf("node did not become ready within %v", timeout)
+		default:
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	f.t.Logf("Waiting for node to sync to network head...")
+	if err := client.Header.SyncWait(waitCtx); err != nil {
+		f.t.Fatalf("node did not sync within %v: %v", timeout, err)
+	}
+	f.t.Logf("Node synced to network head")
+}
+
 func (f *Framework) CreateTestWallet(ctx context.Context, amount int64) *types.Wallet {
 	sendAmount := sdk.NewCoins(sdk.NewCoin("utia", sdkmath.NewInt(amount)))
 	testWallet, err := wallet.CreateAndFund(ctx, "test", sendAmount, f.celestia)

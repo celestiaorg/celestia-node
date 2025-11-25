@@ -69,7 +69,7 @@ func (s *CrossVersionClientTestSuite) TestCrossVersionBidirectional() {
 		require.NotNil(s.T(), oldServer)
 
 		client := s.f.GetNodeRPCClient(ctx, oldServer)
-		s.waitForNodeReadyAndSynced(ctx, client, "old light server", 3*time.Minute)
+		s.f.WaitForNodeReadyAndSynced(ctx, client, 3*time.Minute)
 		s.testAllAPIsWithOptions(ctx, client, true)
 	})
 
@@ -106,88 +106,6 @@ func (s *CrossVersionClientTestSuite) TestCrossVersionBidirectional() {
 		err = s.runCompatTest(testCtx, oldVersion, serverRPC, true)
 		require.NoError(s.T(), err)
 	})
-}
-
-func (s *CrossVersionClientTestSuite) waitForNodeReadyAndSynced(ctx context.Context, client *rpcclient.Client, nodeName string, timeout time.Duration) {
-	waitCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	s.T().Logf("Waiting for %s to be ready...", nodeName)
-	ready := false
-	for !ready {
-		select {
-		case <-waitCtx.Done():
-			s.T().Fatalf("%s did not become ready within %v", nodeName, timeout)
-		default:
-			var err error
-			ready, err = client.Node.Ready(waitCtx)
-			if err == nil && ready {
-				s.T().Logf("%s is ready", nodeName)
-			} else {
-				time.Sleep(2 * time.Second)
-			}
-		}
-	}
-
-	s.T().Logf("Waiting for %s to sync to network head...", nodeName)
-	var lastLocalHeight uint64
-	for i := 0; i < 60; i++ {
-		select {
-		case <-waitCtx.Done():
-			s.T().Logf("Warning: %s may not be fully synced, proceeding anyway", nodeName)
-			return
-		default:
-			localHead, err := client.Header.LocalHead(waitCtx)
-			if err != nil {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			if localHead == nil {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-
-			networkHead, err := client.Header.NetworkHead(waitCtx)
-			if err != nil {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			if networkHead == nil {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-
-			localHeight := localHead.Height()
-			networkHeight := networkHead.Height()
-
-			if localHeight >= networkHeight || (networkHeight-localHeight) <= 2 {
-				s.T().Logf("%s synced to height %d (network: %d)", nodeName, localHeight, networkHeight)
-				sharesCtx, sharesCancel := context.WithTimeout(waitCtx, 10*time.Second)
-				err = client.Share.SharesAvailable(sharesCtx, localHeight)
-				sharesCancel()
-				if err == nil {
-					s.T().Logf("%s share data is available", nodeName)
-					return
-				}
-				if strings.Contains(err.Error(), "data not available") {
-					s.T().Logf("%s share data not yet available, waiting...", nodeName)
-					time.Sleep(2 * time.Second)
-					continue
-				}
-				s.T().Logf("%s share check returned error (may be compatibility issue), proceeding: %v", nodeName, err)
-				return
-			}
-
-			if localHeight == lastLocalHeight {
-				time.Sleep(2 * time.Second)
-			} else {
-				lastLocalHeight = localHeight
-				s.T().Logf("%s syncing... local: %d, network: %d", nodeName, localHeight, networkHeight)
-			}
-			time.Sleep(2 * time.Second)
-		}
-	}
-	s.T().Logf("Warning: %s sync check timed out, proceeding anyway", nodeName)
 }
 
 func (s *CrossVersionClientTestSuite) testAllAPIs(ctx context.Context, client *rpcclient.Client) {
