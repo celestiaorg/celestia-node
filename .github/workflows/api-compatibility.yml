@@ -108,10 +108,14 @@ jobs:
           fi
 
           if [ ! -f "cmd/compat-test/Dockerfile" ]; then
-            echo "Warning: compat-test code not found in base version. Skipping build."
-            echo "This version may need a one-time backport of the compat-test code."
+            echo "Warning: compat-test code not found in base version $BASE_VERSION"
+            echo "Building base image from current branch as fallback..."
+            echo "Note: For proper compatibility testing, compat-test code should be backported to $BASE_VERSION"
             git checkout $CURRENT_COMMIT
-            exit 0
+            if [ ! -f "cmd/compat-test/Dockerfile" ]; then
+              echo "Error: compat-test code not found in current branch either"
+              exit 1
+            fi
           fi
 
           docker build -f cmd/compat-test/Dockerfile -t "$BASE_IMAGE" .
