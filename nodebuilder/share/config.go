@@ -66,7 +66,6 @@ func (cfg *Config) Validate(tp node.Type) error {
 		}
 	}
 
-	// StoreODSOnly is only valid for Bridge nodes
 	if cfg.StoreODSOnly && tp != node.Bridge {
 		return fmt.Errorf("store.ods_only is only supported for Bridge nodes")
 	}

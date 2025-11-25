@@ -54,7 +54,6 @@ func TestConfig_Validate_StoreODSOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set required fields to avoid validation errors
 			tt.cfg.EDSStoreParams = DefaultConfig(tt.tp).EDSStoreParams
 			tt.cfg.Discovery = DefaultConfig(tt.tp).Discovery
 			tt.cfg.ShrexClient = DefaultConfig(tt.tp).ShrexClient

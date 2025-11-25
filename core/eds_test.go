@@ -56,7 +56,6 @@ func TestStoreEDS_ODSOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a fresh store for each test
 			testDir := t.TempDir()
 			testStore, err := store.NewStore(store.DefaultParameters(), testDir)
 			require.NoError(t, err)
@@ -65,7 +64,6 @@ func TestStoreEDS_ODSOnly(t *testing.T) {
 				require.NoError(t, err)
 			}()
 
-			// Create a test EDS and header
 			eds := edstest.RandEDS(t, 4)
 			roots, err := share.NewAxisRoots(eds)
 			require.NoError(t, err)
@@ -78,25 +76,20 @@ func TestStoreEDS_ODSOnly(t *testing.T) {
 				DAH: roots,
 			}
 
-			// Store EDS with the given configuration
 			err = storeEDS(ctx, eh, eds, testStore, tt.window, tt.archival, tt.odsOnly)
 			require.NoError(t, err)
 
-			// For blocks outside window (non-archival), storage is skipped
 			if !tt.archival && !availability.IsWithinWindow(eh.Time(), tt.window) {
-				// Block should not be stored
 				has, err := testStore.HasByHeight(ctx, eh.Height())
 				require.NoError(t, err)
 				require.False(t, has, "Block outside window should not be stored")
 				return
 			}
 
-			// Verify the block exists in store
 			has, err := testStore.HasByHeight(ctx, eh.Height())
 			require.NoError(t, err)
 			require.True(t, has, "Block should exist in store")
 
-			// Check if Q4 file exists using store's HasQ4ByHash method
 			datahash := share.DataHash(roots.Hash())
 			hasQ4, err := testStore.HasQ4ByHash(ctx, datahash)
 			require.NoError(t, err)

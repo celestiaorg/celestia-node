@@ -93,11 +93,9 @@ func (cfg *Config) mutualPeers() (_ []peer.AddrInfo, err error) {
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate(tp node.Type) error {
 	if cfg.Disabled {
-		// P2P disabled is only supported for Bridge nodes
 		if tp != node.Bridge {
 			return fmt.Errorf("p2p.disabled is only supported for Bridge nodes")
 		}
-		// If disabled, other P2P configs are ignored
 		return nil
 	}
 	return nil
