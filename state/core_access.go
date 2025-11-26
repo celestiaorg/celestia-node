@@ -262,7 +262,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	}
 
 	var response *user.TxResponse
-	if ca.txWorkerAccounts > 0 {
+	if ca.txWorkerAccounts > 0 && author.Equals(ca.defaultSignerAddress) {
 		response, err = client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
 	} else {
 		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
