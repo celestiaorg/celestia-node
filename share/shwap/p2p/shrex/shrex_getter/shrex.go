@@ -142,11 +142,7 @@ func (sg *Getter) GetSamples(
 				}
 				return samples[i].Verify(header.DAH, request.RowIndex, request.ShareIndex)
 			}
-			err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
-			if err != nil {
-				return err
-			}
-			return nil
+			return sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 		})
 	}
 	if err = errGroup.Wait(); err != nil {
