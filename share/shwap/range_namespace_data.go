@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
@@ -180,7 +180,7 @@ func (rngdata *RangeNamespaceData) verifyShares(
 		return fmt.Errorf("mismatched number of rows: expected %d vs got %d", to.Row-from.Row+1, len(shares))
 	}
 	if len(expectedRoots) != len(shares) {
-		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), expectedRoots)
+		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), len(expectedRoots))
 	}
 	if rngdata.FirstIncompleteRowProof != nil && rngdata.FirstIncompleteRowProof.Start() != from.Col {
 		return fmt.Errorf(

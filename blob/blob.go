@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -115,7 +115,8 @@ func (b *Blob) Length() (int, error) {
 	if len(s) == 0 {
 		return 0, errors.New("blob with zero shares received")
 	}
-	return libshare.SparseSharesNeeded(s[0].SequenceLen()), nil
+	containsSigner := b.ShareVersion() == libshare.ShareVersionOne
+	return libshare.SparseSharesNeeded(s[0].SequenceLen(), containsSigner), nil
 }
 
 // Signer returns blob's author.

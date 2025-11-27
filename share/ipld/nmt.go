@@ -15,7 +15,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	mhcore "github.com/multiformats/go-multihash/core"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 
 	"github.com/celestiaorg/celestia-node/share"
