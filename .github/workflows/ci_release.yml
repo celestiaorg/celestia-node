@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
-      GO_VERSION: "1.24"
+      GO_VERSION: "1.25"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
       branch: ${{ steps.trim_ref.outputs.branch }}
