@@ -20,8 +20,6 @@ var ErrHeightZero = errors.New("height is equal to 0")
 // Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
 type Service struct {
-	ex libhead.Exchange[*header.ExtendedHeader]
-
 	syncer    syncer
 	sub       libhead.Subscriber[*header.ExtendedHeader]
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader]
@@ -42,14 +40,12 @@ func newHeaderService(
 	syncer *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader], *header.ExtendedHeader],
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
-	ex libhead.Exchange[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 ) Module {
 	return &Service{
 		syncer:    syncer.Service,
 		sub:       sub,
 		p2pServer: p2pServer,
-		ex:        ex,
 		store:     store,
 	}
 }
