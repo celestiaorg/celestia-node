@@ -298,7 +298,7 @@ func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 			return nil, err
 		}
 		if !ok {
-			return nil, err
+			return nil, fmt.Errorf("core/fetcher: failed to add part (index %d): duplicate or invalid", part.Index)
 		}
 	}
 	pbb := new(tmproto.Block)
