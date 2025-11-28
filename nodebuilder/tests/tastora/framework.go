@@ -34,11 +34,11 @@ import (
 )
 
 const (
-	defaultCelestiaAppTag = "v6.1.2-arabica"
+	defaultCelestiaAppTag = "v6.3.0"
 	celestiaAppImage      = "ghcr.io/celestiaorg/celestia-app"
 	// defaultNodeTag can be overridden at build time using ldflags
 	// Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-	defaultCelestiaNodeTag = "v0.28.2-arabica"
+	defaultCelestiaNodeTag = "v0.28.4"
 	nodeImage              = "ghcr.io/celestiaorg/celestia-node"
 
 	testChainID = "test"
