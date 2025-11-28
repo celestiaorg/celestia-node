@@ -1,5 +1,3 @@
-//go:build integration
-
 package tastora
 
 import (
@@ -37,13 +35,7 @@ func (s *BlobTestSuite) SetupSuite() {
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
 
-func (s *BlobTestSuite) TearDownSuite() {
-	if s.framework != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		s.framework.Stop(ctx)
-	}
-}
+func (s *BlobTestSuite) TearDownSuite() {}
 
 // TestBlobSubmit_SingleBlob tests blob submission API with a single blob
 func (s *BlobTestSuite) TestBlobSubmit_SingleBlob() {

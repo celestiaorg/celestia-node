@@ -4,6 +4,7 @@ package tastora
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -92,6 +93,8 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 		}
 	}
 
+	mu := sync.Mutex{}
+	heights := make(map[uint64][]*nodeblob.Blob)
 	var (
 		numRounds    = 5
 		failureCount atomic.Int32
@@ -111,6 +114,12 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 					return
 				}
 				s.T().Logf("Round %d, Worker %d: SUCCESS - height %d", roundNum+1, workerNum+1, height)
+
+				mu.Lock()
+				blobs := heights[height]
+				blobs = append(blobs, nodeBlobs...)
+				heights[height] = blobs
+				mu.Unlock()
 			}(round, worker)
 		}
 
@@ -118,9 +127,21 @@ func (s *TransactionTestSuite) TestSubmitParallelTxs() {
 		s.T().Logf("Round %d completed", round+1)
 	}
 
+	var retrievalErr error
+	for height, blobs := range heights {
+		for _, b := range blobs {
+			_, err = client.Blob.Get(ctx, height, b.Namespace(), b.Commitment)
+			if err != nil {
+				s.T().Logf("Error retrieving blob at height %d: %v", height, err)
+				errors.Join(retrievalErr, err)
+			}
+		}
+	}
+
 	// Verify all submissions succeeded
 	s.Require().Equal(int32(0), failureCount.Load(), "No parallel submissions should fail")
 	s.T().Logf("Parallel submission test completed: %d failed", failureCount.Load())
+	s.Require().NoError(retrievalErr, "All submitted blobs should be retrievable at the height they were included")
 }
 
 // createTestBlob creates a test blob for parallel worker testing

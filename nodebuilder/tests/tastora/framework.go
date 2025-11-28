@@ -378,10 +378,6 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 			Build())
 	}
 
-	// Add light nodes based on configuration
-	var nodeConfigs []dataavailability.NodeConfig
-	nodeConfigs = append(nodeConfigs, bridgeNodeConfig)
-
 	for i := 0; i < cfg.LightNodeCount; i++ {
 		lightNodeConfig := dataavailability.NewNodeBuilder().
 			WithNodeType(types.LightNode).
