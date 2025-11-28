@@ -41,7 +41,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8.0.0
+        uses: golangci/golangci-lint-action@v9.1.0
         with:
           args: --timeout 10m
           version: latest
