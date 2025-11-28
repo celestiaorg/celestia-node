@@ -34,6 +34,7 @@ type Listener struct {
 	store              *store.Store
 	availabilityWindow time.Duration
 	archival           bool
+	odsOnly            bool
 
 	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
 	hashBroadcaster   shrexsub.BroadcastFn
@@ -80,6 +81,7 @@ func NewListener(
 		store:              store,
 		availabilityWindow: p.availabilityWindow,
 		archival:           p.archival,
+		odsOnly:            p.odsOnly,
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
@@ -191,7 +193,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
 	)
 
-	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
+	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival, cl.odsOnly)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}

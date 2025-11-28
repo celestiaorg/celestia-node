@@ -12,13 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
 // ConstructModule collects all the components and services related to managing the relationship
 // with the Core node.
-func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config, shareCfg *share.Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
 
@@ -48,6 +49,10 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
+					// Add ODS-only option if configured
+					if shareCfg != nil && shareCfg.StoreODSOnly {
+						opts = append(opts, core.WithODSOnly())
+					}
 
 					return core.NewExchange(fetcher, store, construct, opts...)
 				},
@@ -67,9 +72,24 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
 					}
+					// Add ODS-only option if configured
+					if shareCfg != nil && shareCfg.StoreODSOnly {
+						opts = append(opts, core.WithODSOnly())
+					}
 
-					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime, opts...)
+					// If PubSub is nil (P2P disabled), use no-op broadcaster
+					var hashBroadcaster shrexsub.BroadcastFn
+					if pubsub != nil {
+						hashBroadcaster = pubsub.Broadcast
+					} else {
+						hashBroadcaster = func(context.Context, shrexsub.Notification) error {
+							return nil // no-op
+						}
+					}
+
+					return core.NewListener(bcast, fetcher, hashBroadcaster, construct, store, p2p.BlockTime, opts...)
 				},
+				fx.ParamTags(``, ``, `optional:"true"`, ``, ``, ``, ``),
 				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
 				}),

@@ -19,6 +19,7 @@ func storeEDS(
 	store *store.Store,
 	window time.Duration,
 	archival bool,
+	odsOnly bool,
 ) error {
 	if !archival && !availability.IsWithinWindow(eh.Time(), window) {
 		log.Debugw("skipping storage of historic block", "height", eh.Height())
@@ -26,11 +27,16 @@ func storeEDS(
 	}
 
 	var err error
-	// archival nodes should not store Q4 outside the availability window.
-	if availability.IsWithinWindow(eh.Time(), window) {
-		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
-	} else {
+	// If ODS-only mode, always use PutODS
+	if odsOnly {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
+	} else {
+		// archival nodes should not store Q4 outside the availability window.
+		if availability.IsWithinWindow(eh.Time(), window) {
+			err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
+		} else {
+			err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
+		}
 	}
 	if err == nil {
 		log.Debugw("stored EDS for height", "height", eh.Height(), "EDS size", len(eh.DAH.RowRoots))
