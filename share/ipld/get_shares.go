@@ -42,8 +42,8 @@ func GetShares(ctx context.Context, bg blockservice.BlockGetter, root cid.Cid, s
 }
 
 // GetSharesByNamespace walks the tree of a given root and returns its shares within the given
-// Namespace. If a share could not be retrieved, err is not nil, and the returned array
-// contains nil shares in place of the shares it was unable to retrieve.
+// Namespace. If retrieval is partial or any share cannot be fetched, a non-nil error is returned.
+// If the namespace is absent in the row, the function returns no shares and a proof with err == nil.
 func GetSharesByNamespace(
 	ctx context.Context,
 	bGetter blockservice.BlockGetter,
@@ -65,13 +65,11 @@ func GetSharesByNamespace(
 
 	shares := make([]libshare.Share, len(leaves))
 	for i, leaf := range leaves {
-		if leaf != nil {
-			sh, err := libshare.NewShare(leaf.RawData()[libshare.NamespaceSize:])
-			if err != nil {
-				return nil, nil, err
-			}
-			shares[i] = *sh
+		sh, err := libshare.NewShare(leaf.RawData()[libshare.NamespaceSize:])
+		if err != nil {
+			return nil, nil, err
 		}
+		shares[i] = *sh
 	}
 	return shares, data.Proof(), nil
 }
