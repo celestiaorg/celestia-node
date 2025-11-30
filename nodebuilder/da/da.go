@@ -6,7 +6,7 @@ import (
 	"github.com/rollkit/go-da"
 )
 
-var _ da.DA = (Module)(nil)
+var _ da.DA = (*API)(nil)
 
 // Deprecated: The DA API is experimental and deprecated. It is no longer supported and will be removed in the future.
 //
