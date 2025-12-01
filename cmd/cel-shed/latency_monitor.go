@@ -11,12 +11,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 var runLatencyMonitorCmd = &cobra.Command{
@@ -78,29 +76,18 @@ func initializeMetrics(
 	endpoint,
 	peerID string,
 ) (func(context.Context) error, *latencyMetrics, error) {
-	opts := []otlpmetrichttp.Option{
-		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
-		otlpmetrichttp.WithEndpoint(endpoint),
-		// Using secure HTTPS connection by default (omit WithInsecure)
+	cfg := utils.MetricProviderConfig{
+		ServiceNamespace:  "latency-monitor",
+		ServiceName:       "cel-shed",
+		ServiceInstanceID: peerID,
+		Interval:          10 * time.Second,
+		OTLPOptions:       []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(endpoint)},
 	}
 
-	exp, err := otlpmetrichttp.New(ctx, opts...)
+	provider, err := utils.NewMetricProvider(ctx, cfg)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
+		return nil, nil, err
 	}
-
-	provider := sdk.NewMeterProvider(
-		sdk.WithReader(
-			sdk.NewPeriodicReader(exp,
-				sdk.WithTimeout(10*time.Second),
-				sdk.WithInterval(10*time.Second))),
-		sdk.WithResource(
-			resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNamespaceKey.String("latency-monitor"),
-				semconv.ServiceNameKey.String("cel-shed"),
-				semconv.ServiceInstanceIDKey.String(peerID),
-			)))
 
 	otel.SetMeterProvider(provider)
 
