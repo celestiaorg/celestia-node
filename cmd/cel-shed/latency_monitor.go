@@ -6,11 +6,12 @@ import (
 	"math/rand"
 	"time"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
+
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
