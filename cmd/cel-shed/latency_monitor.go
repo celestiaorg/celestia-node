@@ -37,7 +37,6 @@ var runLatencyMonitorCmd = &cobra.Command{
 		}
 		fmt.Printf("\nConnected to node with ID: %s\n", info.ID)
 
-		// Initialize metrics
 		metricsEndpoint := args[3]
 		shutdown, latencyMetrics, err := initializeMetrics(cmd.Context(), metricsEndpoint, info.ID.String())
 		if err != nil {

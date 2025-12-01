@@ -27,7 +27,6 @@ type MetricProviderConfig struct {
 
 // NewMetricProvider creates a new OTLP metric provider with the given configuration
 func NewMetricProvider(ctx context.Context, cfg MetricProviderConfig) (*sdk.MeterProvider, error) {
-	// Build OTLP options with compression enabled
 	opts := []otlpmetrichttp.Option{otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression)}
 	opts = append(opts, cfg.OTLPOptions...)
 
@@ -36,7 +35,6 @@ func NewMetricProvider(ctx context.Context, cfg MetricProviderConfig) (*sdk.Mete
 		return nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
 	}
 
-	// Use default interval if not specified
 	interval := cfg.Interval
 	if interval == 0 {
 		interval = 10 * time.Second
