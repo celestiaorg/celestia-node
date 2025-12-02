@@ -56,7 +56,7 @@ func newHeaderService(
 }
 
 func (s *Service) GetByHash(ctx context.Context, hash libhead.Hash) (_ *header.ExtendedHeader, err error) {
-	ctx, span := tracer.Start(ctx, "get-by-hash")
+	ctx, span := tracer.Start(ctx, "header/get-by-hash")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -73,7 +73,7 @@ func (s *Service) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) (_ []*header.ExtendedHeader, err error) {
-	ctx, span := tracer.Start(ctx, "get-range-by-height")
+	ctx, span := tracer.Start(ctx, "header/get-range-by-height")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -90,7 +90,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 		return nil, ErrHeightZero
 	}
 
-	ctx, span := tracer.Start(ctx, "get-by-height")
+	ctx, span := tracer.Start(ctx, "header/get-by-height")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -139,7 +139,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 }
 
 func (s *Service) WaitForHeight(ctx context.Context, height uint64) (_ *header.ExtendedHeader, err error) {
-	ctx, span := tracer.Start(ctx, "wait-for-height")
+	ctx, span := tracer.Start(ctx, "header/wait-for-height")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -152,7 +152,7 @@ func (s *Service) WaitForHeight(ctx context.Context, height uint64) (_ *header.E
 }
 
 func (s *Service) LocalHead(ctx context.Context) (_ *header.ExtendedHeader, err error) {
-	ctx, span := tracer.Start(ctx, "local-head")
+	ctx, span := tracer.Start(ctx, "header/local-head")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -169,7 +169,7 @@ func (s *Service) SyncState(context.Context) (sync.State, error) {
 }
 
 func (s *Service) SyncWait(ctx context.Context) (err error) {
-	ctx, span := tracer.Start(ctx, "sync-wait")
+	ctx, span := tracer.Start(ctx, "header/sync-wait")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -182,7 +182,7 @@ func (s *Service) SyncWait(ctx context.Context) (err error) {
 }
 
 func (s *Service) NetworkHead(ctx context.Context) (_ *header.ExtendedHeader, err error) {
-	ctx, span := tracer.Start(ctx, "network-head")
+	ctx, span := tracer.Start(ctx, "header/network-head")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -195,7 +195,7 @@ func (s *Service) NetworkHead(ctx context.Context) (_ *header.ExtendedHeader, er
 }
 
 func (s *Service) Tail(ctx context.Context) (_ *header.ExtendedHeader, err error) {
-	ctx, span := tracer.Start(ctx, "tail")
+	ctx, span := tracer.Start(ctx, "header/tail")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {

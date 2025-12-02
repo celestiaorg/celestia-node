@@ -176,12 +176,23 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (_ uint64, err error) {
+	ctx, span := tracer.Start(ctx, "blob/submit")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("submitting blobs failed", "err", err,
+				"err", err,
+			)
+		}
+	}()
+
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
 		libBlobs[i] = blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
+	spanCtx := trace.ContextWithSpan(ctx, span)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(spanCtx, libBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
@@ -200,7 +211,7 @@ func (s *Service) Get(
 	commitment Commitment,
 ) (blob *Blob, err error) {
 	start := time.Now()
-	ctx, span := tracer.Start(ctx, "get")
+	ctx, span := tracer.Start(ctx, "blob/get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		s.metrics.observeRetrieval(ctx, time.Since(start), err)
@@ -241,7 +252,7 @@ func (s *Service) GetProof(
 	commitment Commitment,
 ) (proof *Proof, err error) {
 	start := time.Now()
-	ctx, span := tracer.Start(ctx, "get-proof")
+	ctx, span := tracer.Start(ctx, "blob/get-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		s.metrics.observeProof(ctx, time.Since(start), err)
@@ -282,7 +293,7 @@ func (s *Service) GetProof(
 //
 // All blobs will preserve the order of the namespaces that were requested.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) (_ []*Blob, err error) {
-	ctx, span := tracer.Start(ctx, "get-all")
+	ctx, span := tracer.Start(ctx, "blob/get-all")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -350,7 +361,7 @@ func (s *Service) Included(
 	proof *Proof,
 	commitment Commitment,
 ) (_ bool, err error) {
-	ctx, span := tracer.Start(ctx, "included")
+	ctx, span := tracer.Start(ctx, "blob/included")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -530,8 +541,8 @@ func (s *Service) getBlobs(
 	namespace libshare.Namespace,
 	header *header.ExtendedHeader,
 ) (_ []*Blob, err error) {
-	ctx, span := tracer.Start(ctx, "get-blobs-namespace")
-	defer span.End()
+	ctx, span := tracer.Start(ctx, "blob/get-blobs-namespace")
+	defer utils.SetStatusAndEnd(span, err)
 	span.SetAttributes(attribute.String("namespace", namespace.String()))
 	log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", header.Height())
 
@@ -562,11 +573,7 @@ func (s *Service) GetCommitmentProof(
 	namespace libshare.Namespace,
 	shareCommitment []byte,
 ) (_ *CommitmentProof, err error) {
-	if height == 0 {
-		return nil, fmt.Errorf("height cannot be equal to 0")
-	}
-
-	ctx, span := tracer.Start(ctx, "get-commitment-proof")
+	ctx, span := tracer.Start(ctx, "blob/get-commitment-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -578,6 +585,11 @@ func (s *Service) GetCommitmentProof(
 			)
 		}
 	}()
+
+	if height == 0 {
+		err = fmt.Errorf("height cannot be equal to 0")
+		return nil, err
+	}
 
 	log.Infow("getting commitment proof",
 		"height", height,
@@ -639,7 +651,18 @@ func ProveCommitment(
 	eds *rsmt2d.ExtendedDataSquare,
 	namespace libshare.Namespace,
 	blobShares []libshare.Share,
-) (*CommitmentProof, error) {
+) (_ *CommitmentProof, err error) {
+	_, span := tracer.Start(context.Background(), "blob/prove-commitment-proof")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("proving commitment proof",
+				"err", err,
+				"namespace", namespace.String(),
+			)
+		}
+	}()
+
 	// find the blob shares in the EDS
 	blobSharesStartIndex := -1
 	for index, share := range eds.FlattenedODS() {

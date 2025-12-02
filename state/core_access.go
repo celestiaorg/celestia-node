@@ -23,6 +23,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -201,17 +202,22 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		ca.metrics.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
 	}()
 
+	span := trace.SpanFromContext(ctx)
+	// span will be set to noopSpan if SubmitPayForBlob is called directly
+	if !span.SpanContext().IsValid() {
+		ctx, span = tracer.Start(ctx, "state/submit")
+		defer func() {
+			utils.SetStatusAndEnd(span, err)
+		}()
+	}
+
 	if len(libBlobs) == 0 {
 		err = errors.New("state: no blobs provided")
 		return nil, err
 	}
 
-	ctx, span := tracer.Start(ctx, "submit")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
-
 	span.SetAttributes(
+		attribute.Int("amount", len(libBlobs)),
 		attribute.Float64("gas-price", cfg.GasPrice()),
 		attribute.Int64("gas-limit", int64(cfg.GasLimit())),
 		attribute.String("signer", cfg.SignerAddress()),
@@ -329,7 +335,16 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		if response.Code == 0 {
 			ca.markSuccessfulPFB()
 		}
-		return convertToSdkTxResponse(response), nil
+
+		resp := convertToSdkTxResponse(response)
+		span.SetAttributes(
+			attribute.Int64("height", resp.Height),
+			attribute.String("hash", resp.TxHash),
+			attribute.Int("code", int(resp.Code)),
+			attribute.Int64("gas-wanted", resp.GasWanted),
+			attribute.Int64("gas-used", resp.GasUsed),
+		)
+		return resp, nil
 	}
 
 	if apperrors.IsInsufficientFee(err) {
