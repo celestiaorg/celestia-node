@@ -169,7 +169,7 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
 	var err error
 
-	ctx, span := tracer.Start(ctx, "listener: handleNewSignedBlock")
+	ctx, span := tracer.Start(ctx, "listener/handleNewSignedBlock")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
