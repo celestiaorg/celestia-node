@@ -11,6 +11,7 @@ import (
 )
 
 func init() {
+	authCmd.Flags().Duration("ttl", 0, "Set a Time-to-live (TTL) for the token")
 	Cmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
 }
 
@@ -99,7 +100,10 @@ var authCmd = &cobra.Command{
 			perms[i] = (auth.Permission)(p)
 		}
 
-		ttl, _ := cmd.Flags().GetDuration("ttl")
+		ttl, err := cmd.Flags().GetDuration("ttl")
+		if err != nil {
+			return err
+		}
 		if ttl != 0 {
 			result, err := client.Node.AuthNewWithExpiry(cmd.Context(), perms, ttl)
 			return cmdnode.PrintOutput(result, err, nil)
