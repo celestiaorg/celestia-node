@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -26,6 +26,15 @@ func (nd NamespaceData) Flatten() []libshare.Share {
 		shares = append(shares, row.Shares...)
 	}
 	return shares
+}
+
+// Length returns the total number of shares in the NamespaceData.
+func (nd NamespaceData) Length() int {
+	var length int
+	for _, row := range nd {
+		length += len(row.Shares)
+	}
+	return length
 }
 
 // Verify checks the integrity of the NamespaceData against a provided root and namespace.

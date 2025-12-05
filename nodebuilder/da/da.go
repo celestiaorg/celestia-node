@@ -59,6 +59,7 @@ type Module interface {
 
 	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the
 	// Blobs.
+	//
 	// Deprecated: This method is deprecated and will be removed in the future.
 	Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, namespace da.Namespace) ([]bool, error)
 }

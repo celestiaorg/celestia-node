@@ -10,7 +10,7 @@ import (
 
 	math "cosmossdk.io/math"
 	state "github.com/celestiaorg/celestia-node/state"
-	share "github.com/celestiaorg/go-square/v2/share"
+	share "github.com/celestiaorg/go-square/v3/share"
 	types "github.com/cosmos/cosmos-sdk/types"
 	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"

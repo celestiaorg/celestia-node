@@ -7,10 +7,11 @@ import (
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/proof"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -83,17 +84,29 @@ func (commitmentProof *CommitmentProof) Validate() error {
 }
 
 // Verify verifies that a commitment proof is valid, i.e., the subtree roots commit
-// to some data that was posted to a square.
-// Expects the commitment proof to be properly formulated and validated
-// using the Validate() function.
-func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold int) (bool, error) {
-	if len(root) == 0 {
-		return false, errors.New("root must be non-empty")
+// to specific data that was posted to a square.
+func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) error {
+	if len(dataRoot) == 0 {
+		return errors.New("root must be non-empty")
+	}
+
+	if len(commitment) == 0 {
+		return errors.New("commitment must be non-empty")
+	}
+
+	err := commitmentProof.Validate()
+	if err != nil {
+		return err
+	}
+
+	root := merkle.HashFromByteSlices(commitmentProof.SubtreeRoots)
+	if !bytes.Equal(commitment, root) {
+		return errors.New("current proof does not belong to the provided commitment")
 	}
 
 	rp := commitmentProof.RowProof
-	if err := rp.Validate(root); err != nil {
-		return false, err
+	if err := rp.Validate(dataRoot); err != nil {
+		return err
 	}
 
 	nmtHasher := nmt.NewNmtHasher(appconsts.NewBaseHashFunc(), libshare.NamespaceSize, true)
@@ -102,10 +115,6 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 	numberOfShares := 0
 	for _, proof := range commitmentProof.SubtreeRootProofs {
 		numberOfShares += proof.End() - proof.Start()
-	}
-
-	if subtreeRootThreshold <= 0 {
-		return false, errors.New("subtreeRootThreshold must be > 0")
 	}
 
 	// use the computed total number of shares to calculate the subtree roots
@@ -121,15 +130,15 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 		// calculate the share range that each subtree root commits to.
 		ranges, err := nmt.ToLeafRanges(subtreeRootProof.Start(), subtreeRootProof.End(), subtreeRootsWidth)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		if len(commitmentProof.SubtreeRoots) < subtreeRootsCursor {
-			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor=%d",
+			return fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor=%d",
 				len(commitmentProof.SubtreeRoots), subtreeRootsCursor)
 		}
 		if len(commitmentProof.SubtreeRoots) < subtreeRootsCursor+len(ranges) {
-			return false, fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor+len(ranges)=%d",
+			return fmt.Errorf("len(commitmentProof.SubtreeRoots)=%d < subtreeRootsCursor+len(ranges)=%d",
 				len(commitmentProof.SubtreeRoots), subtreeRootsCursor+len(ranges))
 		}
 		valid, err := subtreeRootProof.VerifySubtreeRootInclusion(
@@ -139,21 +148,24 @@ func (commitmentProof *CommitmentProof) Verify(root []byte, subtreeRootThreshold
 			commitmentProof.RowProof.RowRoots[i],
 		)
 		if err != nil {
-			return false, err
+			return err
 		}
 		if !valid {
-			return false,
-				fmt.Errorf(
-					"subtree root proof for range [%d, %d) is invalid",
-					subtreeRootProof.Start(),
-					subtreeRootProof.End(),
-				)
+			return fmt.Errorf(
+				"subtree root proof for range [%d, %d) is invalid",
+				subtreeRootProof.Start(),
+				subtreeRootProof.End(),
+			)
 		}
 		subtreeRootsCursor += len(ranges)
 	}
 
 	// verify row roots to data root proof
-	return commitmentProof.RowProof.VerifyProof(root), nil
+	valid := commitmentProof.RowProof.VerifyProof(dataRoot)
+	if !valid {
+		return fmt.Errorf("row roots were not included in the data root")
+	}
+	return nil
 }
 
 // MarshalJSON marshals an CommitmentProof to JSON. Uses tendermint encoder for row proof for compatibility.

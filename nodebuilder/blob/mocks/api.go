@@ -10,7 +10,7 @@ import (
 
 	blob "github.com/celestiaorg/celestia-node/blob"
 	state "github.com/celestiaorg/celestia-node/state"
-	share "github.com/celestiaorg/go-square/v2/share"
+	share "github.com/celestiaorg/go-square/v3/share"
 	gomock "github.com/golang/mock/gomock"
 )
 

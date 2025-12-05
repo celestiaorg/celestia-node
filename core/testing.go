@@ -2,8 +2,10 @@ package core
 
 import (
 	"context"
+	"errors"
 	"net"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,8 +21,8 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 )
 
 const chainID = "private"
@@ -33,20 +35,10 @@ const chainID = "private"
 //
 // Additionally, it instructs Tendermint + Celestia App tandem to setup 10 funded accounts.
 func DefaultTestConfig() *testnode.Config {
-	genesis := genesis.NewDefaultGenesis().
-		WithChainID(chainID).
-		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
-		WithConsensusParams(testnode.DefaultConsensusParams())
-
-	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Consensus.TimeoutCommit = time.Millisecond * 200
-
 	return testnode.DefaultConfig().
-		WithGenesis(genesis).
+		WithDelayedPrecommitTimeout(200 * time.Millisecond).
 		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
-		WithChainID(chainID).
-		WithTendermintConfig(tmConfig).
-		WithSuppressLogs(true)
+		WithChainID(chainID)
 }
 
 // StartTestNode simply starts Tendermint and Celestia App tandem with default testing
@@ -127,6 +119,9 @@ type Network struct {
 	stopNode func() error
 	stopGRPC func() error
 	stopAPI  func() error
+
+	stopOnce sync.Once
+	stopErr  error
 }
 
 func NewNetwork(t testing.TB, config *testnode.Config) *Network {
@@ -192,19 +187,29 @@ func (n *Network) Start() error {
 }
 
 func (n *Network) Stop() error {
-	err := n.stopNode()
-	if err != nil {
-		return err
-	}
+	n.stopOnce.Do(func() {
+		var errs []error
 
-	err = n.stopGRPC()
-	if err != nil {
-		return err
-	}
+		if n.stopNode != nil {
+			if err := n.stopNode(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 
-	err = n.stopAPI()
-	if err != nil {
-		return err
-	}
-	return nil
+		if n.stopGRPC != nil {
+			if err := n.stopGRPC(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		if n.stopAPI != nil {
+			if err := n.stopAPI(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		n.stopErr = errors.Join(errs...)
+	})
+
+	return n.stopErr
 }

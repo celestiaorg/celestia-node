@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
 )
 
 func TestEstimatorService(t *testing.T) {
@@ -173,8 +173,7 @@ func (m *mockEstimatorServer) stop() {
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	t.Helper()
 
-	freePort, err := testnode.GetFreePort()
-	require.NoError(t, err)
+	freePort := testnode.MustGetFreePort()
 	addr := fmt.Sprintf(":%d", freePort)
 	net, err := net.Listen("tcp", addr)
 	require.NoError(t, err)
