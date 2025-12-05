@@ -130,6 +130,12 @@ install-key:
 	@go install ./cmd/cel-key
 .PHONY: install-key
 
+## cel-compat: Build cel-compat binary
+cel-compat:
+	@echo "--> Building cel-compat"
+	@go build ./cmd/cel-compat
+.PHONY: cel-compat
+
 ## fmt: Formats only *.go (excluding *.pb.go *pb_test.go).
 # Runs `gofmt & goimports` internally.
 fmt: sort-imports
