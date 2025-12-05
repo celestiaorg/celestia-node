@@ -347,6 +347,122 @@ func TestTxWorkerSetup(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestSubmitFromDefaultAccountWithoutTxWorkers ensures users can submit transactions
+// bypassing the queue from the default account
+func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
+	}
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond)
+
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	// configured without txworkers
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID, nil)
+	require.NoError(t, err)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+
+	randBlob, err := libshare.GenerateV0Blobs([]int{8}, false)
+	require.NoError(t, err)
+
+	nonDefaultAcct, err := cctx.Keyring.Key(accounts[3])
+	require.NoError(t, err)
+	addr, err := nonDefaultAcct.GetAddress()
+	require.NoError(t, err)
+
+	// check bals of accounts before tx (TODO @renaynay: hack til we get signer in txresp)
+	sdkAddress, err := sdktypes.AccAddressFromHexUnsafe(fmt.Sprintf("%X", addr.Bytes()))
+	require.NoError(t, err)
+	balNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	balDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+
+	// default tx config (submit from default acct)
+	_, err = ca.SubmitPayForBlob(ctx, randBlob, NewTxConfig())
+	require.NoError(t, err)
+
+	// ensure balance has remained the same for non-default account
+	updatedBalNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	require.True(t, updatedBalNonDefault.Amount.Equal(balNonDefault.Amount))
+
+	// ensure balance decreased for default account
+	updatedBalDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+	require.True(t, updatedBalDefault.Amount.LT(balDefault.Amount))
+
+	// TODO @renaynay: once tx response contains signer, check signer here
+}
+
+// TestSubmitFromCustomAccount ensures users can submit transactions
+// from a non-default account
+func TestSubmitFromCustomAccount(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
+	}
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond)
+
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID, nil,
+		WithTxWorkerAccounts(8))
+	require.NoError(t, err)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+
+	randBlob, err := libshare.GenerateV0Blobs([]int{8}, false)
+	require.NoError(t, err)
+
+	nonDefaultAcct, err := cctx.Keyring.Key(accounts[3])
+	require.NoError(t, err)
+	addr, err := nonDefaultAcct.GetAddress()
+	require.NoError(t, err)
+
+	// check bals of accounts before tx (TODO @renaynay: hack til we get signer in txresp)
+	sdkAddress, err := sdktypes.AccAddressFromHexUnsafe(fmt.Sprintf("%X", addr.Bytes()))
+	require.NoError(t, err)
+	balNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	balDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+
+	txConf := NewTxConfig(WithSignerAddress(addr.String()))
+	_, err = ca.SubmitPayForBlob(ctx, randBlob, txConf)
+	require.NoError(t, err)
+
+	// ensure balance has decreased for non-default account
+	updatedBalNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	require.True(t, updatedBalNonDefault.Amount.LT(balNonDefault.Amount))
+
+	// ensure balance remained same for default account
+	updatedBalDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+	require.True(t, updatedBalDefault.Equal(balDefault))
+
+	// TODO @renaynay: once tx response contains signer, check signer here
+}
+
 func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	t.Helper()
 	accounts := []string{

@@ -6,16 +6,22 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
 const concurrencyLimit = 16
+
+var tracer = otel.Tracer("core")
 
 type Exchange struct {
 	fetcher   *BlockFetcher
@@ -70,15 +76,11 @@ func (ce *Exchange) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
-	start := time.Now()
-
 	amount := to - (from.Height() + 1)
 	headers, err := ce.getRangeByHeight(ctx, from.Height()+1, amount)
 	if err != nil {
 		return nil, err
 	}
-
-	ce.metrics.requestDurationPerHeader(ctx, time.Since(start), amount)
 
 	for _, h := range headers {
 		err := libhead.Verify[*header.ExtendedHeader](from, h)
@@ -165,26 +167,41 @@ func (ce *Exchange) Head(
 }
 
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64) (*header.ExtendedHeader, error) {
+	var err error
+
+	ctx, span := tracer.Start(ctx, "exchange/getExtendedHeaderByHeight")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+	span.SetAttributes(attribute.Int64("height", height))
+
 	b, err := ce.fetcher.GetSignedBlock(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("fetching signed block at height %d from core: %w", height, err)
 	}
+	span.AddEvent("fetched signed block from core")
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
 
 	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
 		return nil, fmt.Errorf("extending block data for height %d: %w", b.Header.Height, err)
 	}
+
 	// create extended header
 	eh, err := ce.construct(b.Header, b.Commit, b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("constructing extended header for height %d: %w", b.Header.Height, err))
 	}
+	span.AddEvent("exchange: constructed extended header",
+		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
+	)
 
 	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
 	if err != nil {
 		return nil, err
 	}
+	span.AddEvent("exchange: stored square")
 
+	ce.metrics.observeBlockProcessed(ctx, eh.DAH.SquareSize())
 	return eh, nil
 }

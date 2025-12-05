@@ -10,6 +10,7 @@ import (
 	"github.com/cometbft/cometbft/types"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -67,7 +68,7 @@ func (f *BlockFetcher) GetBlock(ctx context.Context, height int64) (*SignedBlock
 	if err != nil {
 		return nil, err
 	}
-	block, err := receiveBlockByHeight(stream)
+	block, err := f.receiveBlockByHeight(ctx, stream)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (f *BlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*Signe
 	if err != nil {
 		return nil, err
 	}
-	return receiveBlockByHeight(stream)
+	return f.receiveBlockByHeight(ctx, stream)
 }
 
 // Commit queries Core for a `Commit` from the block at
@@ -220,10 +221,12 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	return resp.SyncInfo.CatchingUp, nil
 }
 
-func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
+func (f *BlockFetcher) receiveBlockByHeight(ctx context.Context, streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	*SignedBlock,
 	error,
 ) {
+	span := trace.SpanFromContext(ctx)
+
 	parts := make([]*tmproto.Part, 0)
 
 	// receive the first part to get the block meta, commit, and validator set
@@ -231,6 +234,8 @@ func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	if err != nil {
 		return nil, err
 	}
+	span.AddEvent("fetcher: received first block part")
+
 	commit, err := types.CommitFromProto(firstPart.Commit)
 	if err != nil {
 		return nil, err
@@ -248,13 +253,17 @@ func receiveBlockByHeight(streamer coregrpc.BlockAPI_BlockByHeightClient) (
 		if err != nil {
 			return nil, err
 		}
+		span.AddEvent("fetcher: received block part")
+
 		parts = append(parts, resp.BlockPart)
 		isLast = resp.IsLast
 	}
+
 	block, err := partsToBlock(parts)
 	if err != nil {
 		return nil, err
 	}
+
 	return &SignedBlock{
 		Header:       &block.Header,
 		Commit:       commit,
@@ -289,7 +298,7 @@ func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 			return nil, err
 		}
 		if !ok {
-			return nil, err
+			return nil, fmt.Errorf("core/fetcher: failed to add part (index %d): duplicate or invalid", part.Index)
 		}
 	}
 	pbb := new(tmproto.Block)

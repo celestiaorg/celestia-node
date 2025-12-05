@@ -11,7 +11,6 @@ import (
 	"github.com/ipfs/boxo/exchange"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
@@ -19,6 +18,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -83,23 +83,21 @@ func (g *Getter) GetSamples(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	indices []shwap.SampleCoords,
-) ([]shwap.Sample, error) {
+) (_ []shwap.Sample, err error) {
+	ctx, span := tracer.Start(ctx, "bitswap/get-samples", trace.WithAttributes(
+		attribute.Int("amount", len(indices)),
+	))
+	defer utils.SetStatusAndEnd(span, err)
+
 	if len(indices) == 0 {
 		return nil, shwap.ErrNoSampleIndicies
 	}
-
-	ctx, span := tracer.Start(ctx, "get-samples", trace.WithAttributes(
-		attribute.Int("amount", len(indices)),
-	))
-	defer span.End()
 
 	blks := make([]Block, len(indices))
 	for i, idx := range indices {
 		sid, err := NewEmptySampleBlock(hdr.Height(), idx, len(hdr.DAH.RowRoots))
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "NewEmptySampleBlock")
-			return nil, err
+			return nil, fmt.Errorf("NewEmptySampleBlock: %w", err)
 		}
 
 		blks[i] = sid
@@ -111,7 +109,7 @@ func (g *Getter) GetSamples(
 	ses, release := g.getSession(isArchival)
 	defer release()
 
-	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
+	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithStore(g.bstore), WithFetcher(ses))
 
 	var fetched int
 	smpls := make([]shwap.Sample, len(blks))
@@ -124,28 +122,22 @@ func (g *Getter) GetSamples(
 	}
 
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Fetch")
 		if fetched > 0 {
 			span.SetAttributes(attribute.Int("fetched", fetched))
 			return smpls, err
 		}
-		return nil, err
+		return nil, fmt.Errorf("fetched blocks: %w", err)
 	}
-
-	span.SetStatus(codes.Ok, "")
 	return smpls, nil
 }
 
-func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
-	ctx, span := tracer.Start(ctx, "get-eds")
-	defer span.End()
+func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx int) (_ shwap.Row, err error) {
+	ctx, span := tracer.Start(ctx, "bitswap/get-eds")
+	defer utils.SetStatusAndEnd(span, err)
 
 	blk, err := NewEmptyRowBlock(hdr.Height(), rowIdx, len(hdr.DAH.RowRoots))
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "NewEmptyRowBlock")
-		return shwap.Row{}, err
+		return shwap.Row{}, fmt.Errorf("NewEmptyRowBlock: %w", err)
 	}
 
 	isArchival := g.isArchival(hdr)
@@ -156,9 +148,7 @@ func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx 
 
 	err = Fetch(ctx, g.exchange, hdr.DAH, []Block{blk}, WithFetcher(ses))
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Fetch")
-		return shwap.Row{}, err
+		return shwap.Row{}, fmt.Errorf("fetching row: %w", err)
 	}
 	return blk.Container, nil
 }
@@ -170,18 +160,16 @@ func (g *Getter) GetRow(ctx context.Context, hdr *header.ExtendedHeader, rowIdx 
 func (g *Getter) GetEDS(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
-) (*rsmt2d.ExtendedDataSquare, error) {
-	ctx, span := tracer.Start(ctx, "get-eds")
-	defer span.End()
+) (_ *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "bitswap/get-eds")
+	defer utils.SetStatusAndEnd(span, err)
 
 	sqrLn := len(hdr.DAH.RowRoots)
 	blks := make([]Block, sqrLn/2)
 	for i := range sqrLn / 2 {
 		blk, err := NewEmptyRowBlock(hdr.Height(), i, sqrLn)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "NewEmptyRowBlock")
-			return nil, err
+			return nil, fmt.Errorf("NewEmptyRowBlock: %w", err)
 		}
 
 		blks[i] = blk
@@ -193,11 +181,9 @@ func (g *Getter) GetEDS(
 	ses, release := g.getSession(isArchival)
 	defer release()
 
-	err := Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
+	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Fetch")
-		return nil, err
+		return nil, fmt.Errorf("fetching blocks: %w", err)
 	}
 
 	rows := make([]shwap.Row, len(blks))
@@ -207,12 +193,8 @@ func (g *Getter) GetEDS(
 
 	square, err := edsFromRows(hdr.DAH, rows)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "edsFromRows")
-		return nil, err
+		return nil, fmt.Errorf("building eds from rows: %w", err)
 	}
-
-	span.SetStatus(codes.Ok, "")
 	return square, nil
 }
 
@@ -223,25 +205,23 @@ func (g *Getter) GetNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	ns libshare.Namespace,
-) (shwap.NamespaceData, error) {
+) (_ shwap.NamespaceData, err error) {
+	ctx, span := tracer.Start(ctx, "bitswap/get-shares-by-namespace")
+	defer utils.SetStatusAndEnd(span, err)
+
 	if err := ns.ValidateForData(); err != nil {
 		return nil, err
 	}
 
-	ctx, span := tracer.Start(ctx, "get-shares-by-namespace")
-	defer span.End()
-
 	rowIdxs, err := share.RowsWithNamespace(hdr.DAH, ns)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting namespace rows: %w", err)
 	}
 	blks := make([]Block, len(rowIdxs))
 	for i, rowNdIdx := range rowIdxs {
 		rndblk, err := NewEmptyRowNamespaceDataBlock(hdr.Height(), rowNdIdx, ns, len(hdr.DAH.RowRoots))
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "NewEmptyRowNamespaceDataBlock")
-			return nil, err
+			return nil, fmt.Errorf("NewEmptyRowNamespaceDataBlock: %w", err)
 		}
 		blks[i] = rndblk
 	}
@@ -253,9 +233,7 @@ func (g *Getter) GetNamespaceData(
 	defer release()
 
 	if err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses)); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Fetch")
-		return nil, err
+		return nil, fmt.Errorf("fetching blocks: %w", err)
 	}
 
 	nsShrs := make(shwap.NamespaceData, len(blks))
@@ -266,8 +244,6 @@ func (g *Getter) GetNamespaceData(
 			Proof:  rnd.Proof,
 		}
 	}
-
-	span.SetStatus(codes.Ok, "")
 	return nsShrs, nil
 }
 
@@ -275,15 +251,15 @@ func (g *Getter) GetRangeNamespaceData(
 	ctx context.Context,
 	hdr *header.ExtendedHeader,
 	from, to int,
-) (shwap.RangeNamespaceData, error) {
-	ctx, span := tracer.Start(ctx, "get-shares-range")
-	defer span.End()
+) (_ shwap.RangeNamespaceData, err error) {
+	ctx, span := tracer.Start(ctx, "bitswap/get-range-namespace-data")
+	defer utils.SetStatusAndEnd(span, err)
 
 	rangeDataBlock, err := NewEmptyRangeNamespaceDataBlock(
 		hdr.Height(), from, to, len(hdr.DAH.RowRoots)/2,
 	)
 	if err != nil {
-		return shwap.RangeNamespaceData{}, err
+		return shwap.RangeNamespaceData{}, fmt.Errorf("NewEmptyRangeNamespaceDataBlock: %w", err)
 	}
 
 	isArchival := g.isArchival(hdr)
@@ -296,9 +272,7 @@ func (g *Getter) GetRangeNamespaceData(
 
 	err = Fetch(ctx, g.exchange, hdr.DAH, blks, WithFetcher(ses))
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Fetch")
-		return shwap.RangeNamespaceData{}, err
+		return shwap.RangeNamespaceData{}, fmt.Errorf("fetching blocks: %w", err)
 	}
 	return blks[0].(*RangeNamespaceDataBlock).Container, nil
 }

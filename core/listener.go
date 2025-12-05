@@ -8,18 +8,17 @@ import (
 
 	"github.com/cometbft/cometbft/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
-
-var tracer = otel.Tracer("core/listener")
 
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
@@ -168,8 +167,12 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 }
 
 func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
-	ctx, span := tracer.Start(ctx, "handle-new-signed-block")
-	defer span.End()
+	var err error
+
+	ctx, span := tracer.Start(ctx, "listener/handleNewSignedBlock")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
@@ -184,16 +187,21 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
+	span.AddEvent("listener: constructed extended header",
+		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
+	)
 
 	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
+	span.AddEvent("listener: stored square")
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
 	if err != nil {
 		return fmt.Errorf("getting sync state: %w", err)
 	}
+	span.AddEvent("listener: fetched sync state")
 
 	// notify network of new EDS hash only if core is already synced
 	if !syncing {
