@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
@@ -470,4 +472,23 @@ func GenerateSharesProofs(
 		return nil, fmt.Errorf("failed to generate proof for row %d, range %d-%d: %w", row, fromCol, toCol, err)
 	}
 	return &proof, nil
+}
+
+func (rngdata *RangeNamespaceData) WriteTo(writer io.Writer) (int64, error) {
+	pbrngData := rngdata.ToProto()
+	l, err := serde.Write(writer, pbrngData)
+	return int64(l), err
+}
+
+// ReadFrom reads length-delimited protobuf representation of RangeNamespaceData
+// implementing io.ReaderFrom.
+func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
+	var pbrng pb.RangeNamespaceData
+	n, err := serde.Read(reader, &pbrng)
+	if err != nil {
+		return int64(n), fmt.Errorf("reading RowNamespaceData: %w", err)
+	}
+
+	*rngdata, err = RangeNamespaceDataFromProto(&pbrng)
+	return int64(n), err
 }
