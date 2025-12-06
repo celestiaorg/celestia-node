@@ -24,11 +24,34 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
+func ConstructModule(tp node.Type, cfg *Config, p2pCfg *modp2p.Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
 	err := cfg.Validate(tp)
 	if err != nil {
 		return fx.Error(fmt.Errorf("nodebuilder/share: validate config: %w", err))
+	}
+
+	// If P2P is disabled, skip P2P-dependent components
+	p2pDisabled := p2pCfg != nil && p2pCfg.Disabled
+
+	var p2pComponents fx.Option
+	if p2pDisabled && tp == node.Bridge {
+		// Provide stub implementations for P2P-dependent components
+		p2pComponents = fx.Options(
+			fx.Provide(func() shrexsub.BroadcastFn {
+				return func(context.Context, shrexsub.Notification) error {
+					return nil // no-op
+				}
+			}),
+			fx.Provide(func() *shrex_getter.Getter { return nil }),
+			fx.Provide(func() *bitswap.Getter { return nil }),
+		)
+	} else {
+		p2pComponents = fx.Options(
+			shrexComponents(tp, cfg),
+			bitswapComponents(tp, cfg),
+			peerManagementComponents(tp, cfg),
+		)
 	}
 
 	baseComponents := fx.Options(
@@ -36,18 +59,24 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Options(options...),
 		fx.Provide(newShareModule),
 		availabilityComponents(tp, cfg),
-		shrexComponents(tp, cfg),
-		bitswapComponents(tp, cfg),
-		peerManagementComponents(tp, cfg),
+		p2pComponents,
 	)
 
 	switch tp {
 	case node.Bridge, node.Full:
+		getterOption := fx.Provide(bridgeAndFullGetter)
+		if p2pDisabled {
+			// When P2P is disabled, make getters optional
+			getterOption = fx.Provide(fx.Annotate(
+				bridgeAndFullGetter,
+				fx.ParamTags(`optional:"true"`, `optional:"true"`),
+			))
+		}
 		return fx.Module(
 			"share",
 			baseComponents,
 			edsStoreComponents(cfg),
-			fx.Provide(bridgeAndFullGetter),
+			getterOption,
 		)
 	case node.Light:
 		return fx.Module(
@@ -233,7 +262,12 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				s *store.Store,
 				getter shwap.Getter,
 				opts []full.Option,
+				shareCfg Config,
 			) *full.ShareAvailability {
+				// Add ODS-only option if configured
+				if shareCfg.StoreODSOnly {
+					opts = append(opts, full.WithODSOnly())
+				}
 				return full.NewShareAvailability(s, getter, opts...)
 			}),
 			fx.Provide(func(avail *full.ShareAvailability) share.Availability {

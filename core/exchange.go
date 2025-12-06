@@ -30,6 +30,7 @@ type Exchange struct {
 
 	availabilityWindow time.Duration
 	archival           bool
+	odsOnly            bool
 
 	metrics *exchangeMetrics
 }
@@ -62,6 +63,7 @@ func NewExchange(
 		construct:          construct,
 		availabilityWindow: p.availabilityWindow,
 		archival:           p.archival,
+		odsOnly:            p.odsOnly,
 		metrics:            metrics,
 	}, nil
 }
@@ -150,7 +152,7 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			&block.Height, hash, eh.Hash())
 	}
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival, ce.odsOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +198,7 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64)
 		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
 	)
 
-	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
+	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival, ce.odsOnly)
 	if err != nil {
 		return nil, err
 	}

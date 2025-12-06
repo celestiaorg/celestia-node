@@ -33,6 +33,7 @@ type ShareAvailability struct {
 
 	storageWindow time.Duration
 	archival      bool
+	odsOnly       bool
 }
 
 // NewShareAvailability creates a new full ShareAvailability.
@@ -51,6 +52,7 @@ func NewShareAvailability(
 		getter:        getter,
 		storageWindow: availability.StorageWindow,
 		archival:      p.archival,
+		odsOnly:       p.odsOnly,
 	}
 }
 
@@ -70,7 +72,12 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 
 	// if the data square is empty, we can safely link the header height in the store to an empty EDS.
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
-		err := fa.store.PutODSQ4(ctx, dah, header.Height(), share.EmptyEDS())
+		var err error
+		if fa.odsOnly {
+			err = fa.store.PutODS(ctx, dah, header.Height(), share.EmptyEDS())
+		} else {
+			err = fa.store.PutODSQ4(ctx, dah, header.Height(), share.EmptyEDS())
+		}
 		if err != nil {
 			return fmt.Errorf("put empty EDS: %w", err)
 		}
@@ -95,11 +102,16 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		return err
 	}
 
-	// archival nodes should not store Q4 outside the availability window.
-	if availability.IsWithinWindow(header.Time(), fa.storageWindow) {
-		err = fa.store.PutODSQ4(ctx, dah, header.Height(), eds)
-	} else {
+	// If ODS-only mode, always use PutODS
+	if fa.odsOnly {
 		err = fa.store.PutODS(ctx, dah, header.Height(), eds)
+	} else {
+		// archival nodes should not store Q4 outside the availability window.
+		if availability.IsWithinWindow(header.Time(), fa.storageWindow) {
+			err = fa.store.PutODSQ4(ctx, dah, header.Height(), eds)
+		} else {
+			err = fa.store.PutODS(ctx, dah, header.Height(), eds)
+		}
 	}
 
 	if err != nil {

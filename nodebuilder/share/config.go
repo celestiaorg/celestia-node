@@ -31,6 +31,12 @@ type Config struct {
 
 	LightAvailability *light.Parameters `toml:",omitempty"`
 	Discovery         *discovery.Parameters
+
+	// StoreODSOnly when true, stores only ODS (Original Data Square) instead of ODSQ4.
+	// This is useful for storage-only Bridge nodes that don't serve samples via P2P.
+	// When enabled, all blocks are stored using PutODS regardless of availability window.
+	// Only supported for Bridge nodes.
+	StoreODSOnly bool
 }
 
 func DefaultConfig(tp node.Type) Config {
@@ -58,6 +64,10 @@ func (cfg *Config) Validate(tp node.Type) error {
 		if err := cfg.LightAvailability.Validate(); err != nil {
 			return fmt.Errorf("nodebuilder/share: %w", err)
 		}
+	}
+
+	if cfg.StoreODSOnly && tp != node.Bridge {
+		return fmt.Errorf("store.ods_only is only supported for Bridge nodes")
 	}
 
 	if err := cfg.Discovery.Validate(); err != nil {
