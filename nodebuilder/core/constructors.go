@@ -97,8 +97,17 @@ func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			conn.Connect()
-			if !conn.WaitForStateChange(ctx, connectivity.Ready) {
-				return errors.New("couldn't connect to core endpoint")
+			for {
+				state := conn.GetState()
+				if state == connectivity.Ready {
+					break
+				}
+				if state == connectivity.Shutdown {
+					return errors.New("couldn't connect to core endpoint")
+				}
+				if !conn.WaitForStateChange(ctx, state) {
+					return errors.New("couldn't connect to core endpoint")
+				}
 			}
 			return nil
 		},
