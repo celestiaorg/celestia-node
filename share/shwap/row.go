@@ -272,9 +272,8 @@ func (rid RowID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, e
 	if err != nil {
 		return nil, fmt.Errorf("getting half row from accessor: %w", err)
 	}
-	row := halfRow.ToRow()
 
-	// TODO(@vgonkivs): This is a temporary solution that will be reworked
+	row := halfRow.ToRow()
 	buf := &bytes.Buffer{}
 	_, err = row.WriteTo(buf)
 	if err != nil {
