@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -37,33 +36,6 @@ func NewRowID(height uint64, rowIdx, edsSize int) (RowID, error) {
 	}
 
 	return rid, nil
-}
-
-// MarshalJSON encodes RowID to the json encoded bytes.
-func (rid RowID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Height   uint64 `json:"height"`
-		RowIndex int    `json:"row_index"`
-	}{
-		Height:   rid.height,
-		RowIndex: rid.RowIndex,
-	})
-}
-
-// UnmarshalJSON decodes json bytes to the RowID.
-func (rid *RowID) UnmarshalJSON(data []byte) error {
-	jsonRowID := struct {
-		Height   uint64 `json:"height"`
-		RowIndex int    `json:"row_index"`
-	}{}
-
-	err := json.Unmarshal(data, &jsonRowID)
-	if err != nil {
-		return err
-	}
-	rid.height = jsonRowID.Height
-	rid.RowIndex = jsonRowID.RowIndex
-	return nil
 }
 
 func (rid RowID) Name() string {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -56,37 +55,6 @@ func NewRangeNamespaceDataID(
 		return RangeNamespaceDataID{}, fmt.Errorf("verifying range id: %w", err)
 	}
 	return rngid, nil
-}
-
-// MarshalJSON encodes RangeNamespaceDataID to the json encoded bytes.
-func (rngid RangeNamespaceDataID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Height uint64 `json:"height"`
-		From   int    `json:"from"`
-		To     int    `json:"to"`
-	}{
-		Height: rngid.height,
-		From:   rngid.From,
-		To:     rngid.To,
-	})
-}
-
-// UnmarshalJSON decodes json bytes to the RangeNamespaceDataID.
-func (rngid *RangeNamespaceDataID) UnmarshalJSON(data []byte) error {
-	jsonRngID := struct {
-		Height uint64 `json:"height"`
-		From   int    `json:"from"`
-		To     int    `json:"to"`
-	}{}
-
-	err := json.Unmarshal(data, &jsonRngID)
-	if err != nil {
-		return err
-	}
-	rngid.height = jsonRngID.Height
-	rngid.From = jsonRngID.From
-	rngid.To = jsonRngID.To
-	return nil
 }
 
 func (rngid RangeNamespaceDataID) Name() string {
