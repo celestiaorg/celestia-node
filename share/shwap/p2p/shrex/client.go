@@ -63,8 +63,10 @@ func (c *Client) Get(
 		logger.Warnw("requesting data from peer failed", "error", err)
 	}
 	c.metrics.observeRequest(ctx, req.Name(), status, time.Since(requestTime))
-	c.metrics.observePayloadRequested(ctx, req.Name(), status, int(n))
-	logger.Debugw("requested data", "status", status, "duration", time.Since(requestTime))
+	logger.Debugw("requested data",
+		"status", status, "duration",
+		time.Since(requestTime), "total bytes received", n,
+	)
 	return err
 }
 
