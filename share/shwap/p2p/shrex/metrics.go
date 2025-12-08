@@ -40,6 +40,10 @@ type Metrics struct {
 	// payloadServed will aggregate the total payload served
 	// by the shrex server
 	payloadServed metric.Int64Counter
+
+	// payloadServed will aggregate the total payload requested
+	// by the shrex client
+	payloadRequested metric.Int64Counter
 }
 
 // observeRequest increments the total number of requests sent with the given status as an
@@ -87,6 +91,28 @@ func (m *Metrics) observePayloadServed(
 	))
 }
 
+// observePayloadRequested records the size of the payload requested by the shrex
+// client for successful requests only
+func (m *Metrics) observePayloadRequested(
+	ctx context.Context,
+	requestName string,
+	status status,
+	payloadSize int,
+) {
+	if m == nil || payloadSize == 0 {
+		return
+	}
+
+	// if the request was unsuccessful, assume it's a partial response
+	// this attribute can be used to filter successful throughput vs total
+	incomplete := status != statusSuccess
+
+	m.payloadServed.Add(ctx, int64(payloadSize), metric.WithAttributes(
+		attribute.String("protocol", requestName),
+		attribute.Bool("incomplete", incomplete),
+	))
+}
+
 func InitClientMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
 		"shrex_server_total_responses",
@@ -104,9 +130,18 @@ func InitClientMetrics() (*Metrics, error) {
 		return nil, err
 	}
 
+	payloadRequestedHist, err := meter.Int64Counter(
+		"shrex_payload_requested_bytes",
+		metric.WithDescription("Total data requested by shrex client in bytes"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Metrics{
 		requestDuration:     requestDuration,
 		totalRequestCounter: totalRequestCounter,
+		payloadRequested:    payloadRequestedHist,
 	}, nil
 }
 
