@@ -3,7 +3,6 @@ package shwap
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -40,33 +39,6 @@ func NewNamespaceDataID(height uint64, namespace libshare.Namespace) (NamespaceD
 		return NamespaceDataID{}, err
 	}
 	return ndid, nil
-}
-
-// MarshalJSON encodes NamespaceDataID to the json encoded bytes.
-func (ndid NamespaceDataID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Height        uint64             `json:"height"`
-		DataNamespace libshare.Namespace `json:"data_namespace"`
-	}{
-		Height:        ndid.height,
-		DataNamespace: ndid.DataNamespace,
-	})
-}
-
-// UnmarshalJSON decodes json bytes to the NamespaceDataID.
-func (ndid *NamespaceDataID) UnmarshalJSON(data []byte) error {
-	jsonNdID := struct {
-		Height        uint64             `json:"height"`
-		DataNamespace libshare.Namespace `json:"data_namespace"`
-	}{}
-
-	err := json.Unmarshal(data, &jsonNdID)
-	if err != nil {
-		return err
-	}
-	ndid.height = jsonNdID.Height
-	ndid.DataNamespace = jsonNdID.DataNamespace
-	return nil
 }
 
 func (ndid NamespaceDataID) Name() string {

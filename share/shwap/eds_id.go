@@ -3,7 +3,6 @@ package shwap
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -23,30 +22,6 @@ func NewEdsID(height uint64) (EdsID, error) {
 		height: height,
 	}
 	return eid, eid.Validate()
-}
-
-// MarshalJSON encodes edsID to the json encoded bytes.
-func (eid EdsID) MarshalJSON() ([]byte, error) {
-	jsonEdsID := struct {
-		Height uint64 `json:"height"`
-	}{
-		Height: eid.height,
-	}
-	return json.Marshal(&jsonEdsID)
-}
-
-// UnmarshalJSON decodes json bytes to the edsID.
-func (eid *EdsID) UnmarshalJSON(data []byte) error {
-	jsonEdsID := struct {
-		Height uint64 `json:"height"`
-	}{}
-
-	err := json.Unmarshal(data, &jsonEdsID)
-	if err != nil {
-		return err
-	}
-	eid.height = jsonEdsID.Height
-	return nil
 }
 
 // EdsIDFromBinary decodes a byte slice into an EdsID, validating the length of the data.
