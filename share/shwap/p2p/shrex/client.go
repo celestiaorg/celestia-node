@@ -50,7 +50,7 @@ func (c *Client) Get(
 	req request,
 	resp response,
 	peer peer.ID,
-) (int64, error) {
+) error {
 	logger := log.With(
 		"source", "client",
 		"name", req.Name(),
@@ -63,8 +63,9 @@ func (c *Client) Get(
 		logger.Warnw("requesting data from peer failed", "error", err)
 	}
 	c.metrics.observeRequest(ctx, req.Name(), status, time.Since(requestTime))
+	c.metrics.observePayloadRequested(ctx, req.Name(), status, int(n))
 	logger.Debugw("requested data", "status", status, "duration", time.Since(requestTime))
-	return n, err
+	return err
 }
 
 // doRequest performs a request to the given peer
