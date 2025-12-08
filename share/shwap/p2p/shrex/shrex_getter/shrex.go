@@ -99,13 +99,12 @@ func (sg *Getter) GetSamples(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	coords []shwap.SampleCoords,
-) ([]shwap.Sample, error) {
+) (_ []shwap.Sample, err error) {
 	// short circuit if the data root is empty
 	if header.DAH.Equals(share.EmptyEDSRoots()) {
 		return []shwap.Sample{}, nil
 	}
 
-	var err error
 	ctx, span := tracer.Start(ctx, "shrex/get-samples")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -435,13 +434,13 @@ func (sg *Getter) executeRequest(
 		switch {
 		case getErr == nil:
 			setStatus(peers.ResultNoop)
-			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
 			verifyErr := handle()
 			if verifyErr != nil {
 				getErr = verifyErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
+			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
 			setStatus(peers.ResultNoop)
 			return nil
 		case errors.Is(getErr, context.DeadlineExceeded),

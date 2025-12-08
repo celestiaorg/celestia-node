@@ -170,7 +170,6 @@ func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Access
 		return nil, fmt.Errorf("getting rngdata from accessor: %w", err)
 	}
 
-	// TODO(@vgonkivs): This is a temporary solution that will be reworked
 	buf := &bytes.Buffer{}
 	_, err = rngdata.WriteTo(buf)
 	if err != nil {

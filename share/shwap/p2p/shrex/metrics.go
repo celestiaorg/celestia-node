@@ -107,7 +107,7 @@ func (m *Metrics) observePayloadRequested(
 	// this attribute can be used to filter successful throughput vs total
 	incomplete := status != statusSuccess
 
-	m.payloadServed.Add(ctx, int64(payloadSize), metric.WithAttributes(
+	m.payloadRequested.Add(ctx, int64(payloadSize), metric.WithAttributes(
 		attribute.String("protocol", requestName),
 		attribute.Bool("incomplete", incomplete),
 	))

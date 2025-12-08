@@ -2,6 +2,7 @@ package shrex_getter //nolint:stylecheck // underscore in pkg name will be fixed
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -241,7 +242,7 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("Samples_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Minute)
 		t.Cleanup(cancel)
 
 		// generate test data
@@ -257,20 +258,24 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		coords := []shwap.SampleCoords{
-			{Row: 0, Col: 0},
-			{Row: 0, Col: 1},
-			{Row: 0, Col: 2},
-			{Row: 0, Col: 3},
+		odsSize := len(eh.DAH.RowRoots) / 2
+		coords := make([]shwap.SampleCoords, odsSize*odsSize)
+		total := 0
+		for i := 0; i < odsSize; i++ {
+			for j := 0; j < odsSize; j++ {
+				coords[total] = shwap.SampleCoords{Row: i, Col: j}
+				total++
+			}
 		}
+
 		got, err := getter.GetSamples(ctx, eh, coords)
 		require.NoError(t, err)
 		assert.Len(t, got, len(coords))
 
-		rowShares := randEDS.Row(0)
+		odsShares := randEDS.FlattenedODS()
 		require.NoError(t, err)
 		for i, samples := range got {
-			assert.Equal(t, rowShares[i], samples.ToBytes())
+			assert.Equal(t, odsShares[i], samples.ToBytes(), fmt.Sprintf("sample %d", i))
 		}
 	})
 
@@ -343,13 +348,16 @@ func TestShrexGetter(t *testing.T) {
 			Height:   height,
 		})
 
-		row, err := getter.GetRow(ctx, eh, 0)
-		require.NoError(t, err)
-		shrs, err := row.Shares()
-		require.NoError(t, err)
-		edsRow := randEDS.Row(0)
-		for i, shr := range shrs {
-			require.Equal(t, edsRow[i], shr.ToBytes())
+		odsSize := len(roots.RowRoots)
+		for i := 0; i < odsSize; i++ {
+			row, err := getter.GetRow(ctx, eh, i)
+			require.NoError(t, err)
+			shrs, err := row.Shares()
+			require.NoError(t, err)
+			edsRow := randEDS.Row(uint(i))
+			for j, shr := range shrs {
+				require.Equal(t, edsRow[j], shr.ToBytes())
+			}
 		}
 	})
 
