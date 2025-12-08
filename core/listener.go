@@ -182,8 +182,14 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		return fmt.Errorf("extending block data: %w", err)
 	}
 
+	// TODO(walldiss): Header pkg will capture pointers to those pointers in constructed extended header.
+	// copy to avoid keeping reference to whole block in memory after this function returns.
+	header := &b.Header
+	commit := &b.Commit
+	valSet := &b.ValidatorSet
+
 	// generate extended header
-	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := cl.construct(header, commit, valSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
@@ -212,7 +218,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
-				"hash", b.Header.Hash(), "err", err) // TODO: hash or datahash?
+				"datahash", eh.DAH.String(), "err", err)
 		}
 	}
 
