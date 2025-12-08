@@ -3,6 +3,7 @@ package shrex_getter //nolint:stylecheck // underscore in pkg name will be fixed
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -412,6 +413,47 @@ func TestShrexGetter(t *testing.T) {
 		id, _, err = getter.getPeer(ctx, eh)
 		require.NoError(t, err)
 		assert.Equal(t, fullPeer.ID(), id)
+	})
+
+	t.Run("GetRangeNamespaceData", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
+		t.Cleanup(cancel)
+
+		// generate test data
+		size := 64
+		namespace := libshare.RandomNamespace()
+		height := height.Add(1)
+		randEDS, roots := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+		_, err = getter.GetNamespaceData(ctx, eh, namespace)
+		require.NoError(t, err)
+
+		odsSize := len(roots.RowRoots) / 2
+
+		sharesAmount := odsSize * odsSize
+		fromIndex := rand.IntN(odsSize)
+		inclusiveToIndex := sharesAmount - fromIndex
+
+		from, err := shwap.SampleCoordsFrom1DIndex(fromIndex, odsSize)
+		require.NoError(t, err)
+		to, err := shwap.SampleCoordsFrom1DIndex(inclusiveToIndex, odsSize)
+		require.NoError(t, err)
+		rngdata, err := getter.GetRangeNamespaceData(context.Background(), eh, fromIndex, inclusiveToIndex+1)
+		require.NoError(t, err)
+		err = rngdata.VerifyInclusion(
+			from, to,
+			len(eh.DAH.RowRoots)/2,
+			eh.DAH.RowRoots[from.Row:to.Row+1],
+		)
+		require.NoError(t, err)
 	})
 }
 

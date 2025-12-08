@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
@@ -476,7 +475,12 @@ func GenerateSharesProofs(
 
 func (rngdata *RangeNamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	pbrngData := rngdata.ToProto()
-	l, err := serde.Write(writer, pbrngData)
+
+	b, err := pbrngData.Marshal()
+	if err != nil {
+		return 0, err
+	}
+	l, err := writer.Write(b)
 	return int64(l), err
 }
 
@@ -484,11 +488,15 @@ func (rngdata *RangeNamespaceData) WriteTo(writer io.Writer) (int64, error) {
 // implementing io.ReaderFrom.
 func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 	var pbrng pb.RangeNamespaceData
-	n, err := serde.Read(reader, &pbrng)
+	b, err := io.ReadAll(reader)
 	if err != nil {
-		return int64(n), fmt.Errorf("reading RowNamespaceData: %w", err)
+		return 0, err
+	}
+	err = pbrng.Unmarshal(b)
+	if err != nil {
+		return 0, err
 	}
 
 	*rngdata, err = RangeNamespaceDataFromProto(&pbrng)
-	return int64(n), err
+	return int64(len(b)), err
 }
