@@ -207,7 +207,6 @@ func (sid SampleID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader
 		return nil, fmt.Errorf("getting sample from accessor: %w", err)
 	}
 
-	// TODO(@vgonkivs): This is a temporary solution that will be reworked
 	buf := &bytes.Buffer{}
 	_, err = sample.WriteTo(buf)
 	if err != nil {
