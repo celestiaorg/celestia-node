@@ -68,8 +68,12 @@ func ParseFlags(
 // ParseNetwork tries to parse the network from the flags and environment,
 // and returns either the parsed network or the build's default network
 func ParseNetwork(cmd *cobra.Command) (Network, error) {
-	if envNetwork, err := parseNetworkFromEnv(); envNetwork != "" {
-		return envNetwork, err
+	envNetwork, err := parseNetworkFromEnv()
+	if err != nil {
+		return "", err
+	}
+	if envNetwork != "" {
+		return envNetwork, nil
 	}
 	parsed := cmd.Flag(networkFlag).Value.String()
 	switch parsed {
