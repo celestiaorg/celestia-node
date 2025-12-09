@@ -25,6 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
@@ -43,9 +44,10 @@ func TestShrexGetter(t *testing.T) {
 	clHost, srvHost := net.Hosts()[0], net.Hosts()[1]
 
 	// launch eds store and put test data into it
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
 
+	st, err := newStore(t)
+	require.NoError(t, err)
+	edsStore := newWrappedStore(st)
 	client, _ := newShrexClientServer(ctx, t, edsStore, srvHost, clHost)
 
 	// create shrex Getter
@@ -243,7 +245,7 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("Samples_Available", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
 		// generate test data
@@ -306,7 +308,7 @@ func TestShrexGetter(t *testing.T) {
 		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
 	})
 
-	t.Run("Samples_Failed_no_partial_response", func(t *testing.T) {
+	t.Run("Samples_partial_response", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
 
@@ -322,14 +324,19 @@ func TestShrexGetter(t *testing.T) {
 			DataHash: roots.Hash(),
 			Height:   height,
 		})
-
+		edsStore.targetHeight = int64(height)
+		edsStore.targetCoords = shwap.SampleCoords{Row: 0, Col: 5}
 		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 1},
+			{Row: 0, Col: 2},
 			{Row: 0, Col: 5},
-			{Row: 0, Col: 10},
+			{Row: 1, Col: 0},
 		}
 
-		_, err := getter.GetSamples(ctx, eh, coords)
+		samples, err := getter.GetSamples(ctx, eh, coords)
 		require.Error(t, err)
+		assert.NotNil(t, samples)
+		assert.Len(t, samples, 3)
 	})
 
 	t.Run("Row_Available", func(t *testing.T) {
@@ -416,7 +423,7 @@ func TestShrexGetter(t *testing.T) {
 	})
 
 	t.Run("GetRangeNamespaceData", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*2)
 		t.Cleanup(cancel)
 
 		// generate test data
@@ -496,7 +503,7 @@ func testManager(
 }
 
 func newShrexClientServer(
-	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
+	ctx context.Context, t *testing.T, edsStore store.AccessorGetter, srvHost, clHost host.Host,
 ) (*shrex.Client, *shrex.Server) {
 	// create server and register handler
 	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore)
@@ -512,4 +519,43 @@ func newShrexClientServer(
 	require.NoError(t, err)
 	require.NoError(t, client.WithMetrics())
 	return client, server
+}
+
+type wrappedStore struct {
+	*store.Store
+
+	targetCoords shwap.SampleCoords
+	targetHeight int64
+}
+
+func newWrappedStore(store *store.Store) *wrappedStore {
+	return &wrappedStore{
+		Store:        store,
+		targetHeight: -1,
+	}
+}
+
+func (w *wrappedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
+	accessorStreamer, err := w.Store.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	if int64(height) != w.targetHeight {
+		return accessorStreamer, nil
+	}
+	return wrappedAccessorStreamer{AccessorStreamer: accessorStreamer, targetCoords: w.targetCoords}, nil
+}
+
+type wrappedAccessorStreamer struct {
+	eds.AccessorStreamer
+
+	targetCoords shwap.SampleCoords
+}
+
+func (w wrappedAccessorStreamer) Sample(ctx context.Context, coords shwap.SampleCoords) (shwap.Sample, error) {
+	if w.targetCoords.Row == coords.Row && w.targetCoords.Col == coords.Col {
+		return shwap.Sample{}, shwap.ErrNotFound
+	}
+
+	return w.AccessorStreamer.Sample(ctx, coords)
 }
