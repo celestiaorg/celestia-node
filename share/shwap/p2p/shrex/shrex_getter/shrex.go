@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -144,10 +145,13 @@ func (sg *Getter) GetSamples(
 			return sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 		})
 	}
-	if err = errGroup.Wait(); err != nil {
-		return nil, err
-	}
-	return samples, nil
+
+	err = errGroup.Wait()
+	// Delete empty entries if samples were not found or any other error occurred and return partial response
+	samples = slices.DeleteFunc(samples, func(sample shwap.Sample) bool {
+		return sample.IsEmpty()
+	})
+	return samples, err
 }
 
 func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
