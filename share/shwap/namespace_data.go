@@ -28,6 +28,15 @@ func (nd NamespaceData) Flatten() []libshare.Share {
 	return shares
 }
 
+// Length returns the total number of shares in the NamespaceData.
+func (nd NamespaceData) Length() int {
+	var length int
+	for _, row := range nd {
+		length += len(row.Shares)
+	}
+	return length
+}
+
 // Verify checks the integrity of the NamespaceData against a provided root and namespace.
 func (nd NamespaceData) Verify(root *share.AxisRoots, namespace libshare.Namespace) error {
 	rowIdxs, err := share.RowsWithNamespace(root, namespace)

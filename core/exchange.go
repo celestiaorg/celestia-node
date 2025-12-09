@@ -169,7 +169,7 @@ func (ce *Exchange) Head(
 func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64) (*header.ExtendedHeader, error) {
 	var err error
 
-	ctx, span := tracer.Start(ctx, "exchange: getExtendedHeaderByHeight")
+	ctx, span := tracer.Start(ctx, "exchange/getExtendedHeaderByHeight")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
