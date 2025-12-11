@@ -461,6 +461,7 @@ func TestShrexGetter(t *testing.T) {
 			eh.DAH.RowRoots[from.Row:to.Row+1],
 		)
 		require.NoError(t, err)
+		t.Logf("range of %d shares", inclusiveToIndex-fromIndex+1)
 	})
 }
 
