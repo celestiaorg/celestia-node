@@ -474,29 +474,41 @@ func GenerateSharesProofs(
 }
 
 func (rngdata *RangeNamespaceData) WriteTo(writer io.Writer) (int64, error) {
-	pbrngData := rngdata.ToProto()
+	length := int64(0)
+	for i, shr := range rngdata.Shares {
+		rowData := RowNamespaceData{Shares: shr}
+		if i == 0 {
+			rowData.Proof = rngdata.FirstIncompleteRowProof
+		} else if i == len(rngdata.Shares)-1 {
+			rowData.Proof = rngdata.LastIncompleteRowProof
+		}
 
-	b, err := pbrngData.Marshal()
-	if err != nil {
-		return 0, err
+		n, err := rowData.WriteTo(writer)
+		if err != nil {
+			return 0, fmt.Errorf("failed to write data: %w", err)
+		}
+		length += n
 	}
-	l, err := writer.Write(b)
-	return int64(l), err
+	return length, nil
 }
 
 // ReadFrom reads length-delimited protobuf representation of RangeNamespaceData
 // implementing io.ReaderFrom.
 func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
-	var pbrng pb.RangeNamespaceData
-	b, err := io.ReadAll(reader)
+	nd := NamespaceData{}
+	n, err := nd.ReadFrom(reader)
 	if err != nil {
-		return 0, err
-	}
-	err = pbrng.Unmarshal(b)
-	if err != nil {
-		return 0, err
+		return n, fmt.Errorf("failed to read data: %w", err)
 	}
 
-	*rngdata, err = RangeNamespaceDataFromProto(&pbrng)
-	return int64(len(b)), err
+	rngdata.Shares = make([][]libshare.Share, len(nd))
+	for i, row := range nd {
+		rngdata.Shares[i] = row.Shares
+		if i == 0 {
+			rngdata.FirstIncompleteRowProof = row.Proof
+		} else {
+			rngdata.LastIncompleteRowProof = row.Proof
+		}
+	}
+	return n, nil
 }
