@@ -117,11 +117,14 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		// return partial range if err
-		for _, h := range headers {
-			// adjacency check
-			// if failed, return slice from all headers that are adjacent
-			// and nil err
+		// return partial range if possible
+		for i, h := range headers {
+			if h == nil || h.IsZero() {
+				if i > 0 {
+					return headers[:i], nil
+				}
+				break
+			}
 		}
 		return nil, err
 	}
