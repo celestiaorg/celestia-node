@@ -26,8 +26,8 @@ func (s *Service) WithMetrics() error {
 		return err
 	}
 
-	failedPrunes, err := meter.Int64ObservableGauge("prnr_failed_counter",
-		metric.WithDescription("pruner failed prunes counter"))
+	failedPrunes, err := meter.Int64ObservableGauge("prnr_failed_prunes_amount",
+		metric.WithDescription("current number of headers failed to prune"))
 	if err != nil {
 		return err
 	}
