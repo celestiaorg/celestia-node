@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -210,13 +211,28 @@ func (m *module) BandwidthForProtocol(_ context.Context, proto protocol.ID) (met
 	return m.bw.GetBandwidthForProtocol(proto), nil
 }
 
-func (m *module) ResourceState(context.Context) (rcmgr.ResourceManagerStat, error) {
+func (m *module) ResourceState(_ context.Context) (rcmgr.ResourceManagerStat, error) {
 	rms, ok := m.rm.(rcmgr.ResourceManagerState)
 	if !ok {
 		return rcmgr.ResourceManagerStat{}, fmt.Errorf("network.resourceManager does not implement " +
 			"rcmgr.ResourceManagerState")
 	}
-	return rms.Stat(), nil
+	stat := rms.Stat()
+
+	// Sanitize peer IDs to ensure backward compatibility with old clients that cannot decode certain peer ID formats.
+	sanitizedPeers := make(map[peer.ID]network.ScopeStat)
+	for peerID, scopeStat := range stat.Peers {
+		peerIDStr := peerID.String()
+		if peerIDStr == "" || strings.Contains(peerIDStr, "$") || !strings.HasPrefix(peerIDStr, "Qm") {
+			continue
+		}
+		if decoded, err := peer.Decode(peerIDStr); err == nil && decoded == peerID {
+			sanitizedPeers[peerID] = scopeStat
+		}
+	}
+	stat.Peers = sanitizedPeers
+
+	return stat, nil
 }
 
 func (m *module) PubSubPeers(_ context.Context, topic string) ([]peer.ID, error) {
