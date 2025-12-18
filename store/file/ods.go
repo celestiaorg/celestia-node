@@ -19,6 +19,9 @@ import (
 
 var _ eds.AccessorStreamer = (*ODS)(nil)
 
+// NamespaceFilter is a filter for namespaces.
+type NamespaceFilter func(libshare.Namespace) bool
+
 // ODS implements eds.Accessor as an FS file.
 // It stores the original data square(ODS), which is the first quadrant of EDS,
 // and it's metadata in file's header.
@@ -48,6 +51,7 @@ func CreateODS(
 	path string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
+	filter NamespaceFilter,
 ) error {
 	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
 	f, err := os.OpenFile(path, mod, filePermissions)
@@ -63,7 +67,7 @@ func CreateODS(
 		datahash:    roots.Hash(),
 	}
 
-	err = writeODSFile(f, roots, eds, hdr)
+	err = writeODSFile(f, roots, eds, hdr, filter)
 	if errClose := f.Close(); errClose != nil {
 		err = errors.Join(err, fmt.Errorf("closing created ODS file: %w", errClose))
 	}
@@ -72,7 +76,7 @@ func CreateODS(
 }
 
 // writeQ4File full ODS content into OS File.
-func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0) error {
+func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0, filter NamespaceFilter) error {
 	// buffering gives us ~4x speed up
 	buf := bufio.NewWriterSize(f, writeBufferSize)
 
@@ -84,7 +88,7 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 		return fmt.Errorf("writing axis roots: %w", err)
 	}
 
-	if err := writeODS(buf, eds); err != nil {
+	if err := writeODS(buf, eds, filter); err != nil {
 		return fmt.Errorf("writing ODS: %w", err)
 	}
 
@@ -98,7 +102,7 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 // writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in
 // row-major order. Write finishes once all the shares are written or on the first instance of tail
 // padding share. Tail padding share are constant and aren't stored.
-func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare, filter NamespaceFilter) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
@@ -108,6 +112,10 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 			}
 			if ns.Equals(libshare.TailPaddingNamespace) {
 				return nil
+			}
+
+			if filter != nil && !filter(ns) {
+				shr = make([]byte, len(shr))
 			}
 
 			_, err = w.Write(shr)

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/rsmt2d"
+
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
@@ -44,6 +47,10 @@ type Store struct {
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
 	metrics   *metrics
+
+	params *Parameters
+
+	nsStore *namespaceStore
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -77,6 +84,11 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		basepath:  basePath,
 		cache:     recentCache,
 		stripLock: newStripLock(1024),
+		params:    params,
+	}
+
+	if params.Datastore != nil {
+		store.nsStore = newNamespaceStore(params.Datastore)
 	}
 
 	if err := store.populateEmptyFile(); err != nil {
@@ -115,6 +127,28 @@ func (s *Store) put(
 	square *rsmt2d.ExtendedDataSquare,
 	writeQ4 bool,
 ) error {
+	// 1. If we are tracking a specific namespace, extract and store its data first.
+	if s.nsStore != nil && !bytes.Equal(s.params.NamespaceID.Bytes(), make([]byte, libshare.NamespaceSize)) {
+		nd, err := eds.NamespaceData(ctx, &eds.Rsmt2D{ExtendedDataSquare: square}, s.params.NamespaceID)
+		if err == nil && len(nd.Flatten()) > 0 {
+			err = s.nsStore.put(ctx, height, nd)
+			if err != nil {
+				log.Errorw("failed to store namespace data", "height", height, "err", err)
+			} else {
+				log.Debugw("stored namespace data", "height", height)
+			}
+		}
+
+		// 2. Optimization: Zero-ODS Storage.
+		// We ALWAYS skip writing the 128MB ODS file because we have either:
+		// a) Stored the verified NamespaceData in our persistent cache (if data was present).
+		// b) Determined the block is irrelevant (if no data was present).
+		// Verified retrieval for this namespace will work via nsStore, while all other
+		// requests will gracefully fall back to the network.
+		log.Debugw("Zero-ODS: skipping full store write", "height", height, "namespace", s.params.NamespaceID.String())
+		return nil
+	}
+
 	datahash := share.DataHash(roots.Hash())
 	// we don't need to store empty EDS, just link the height to the empty file
 	if datahash.IsEmptyEDS() {
@@ -171,7 +205,7 @@ func (s *Store) createODSQ4File(
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
-	err := file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	err := file.CreateODSQ4(pathODS, pathQ4, roots, square, s.params.NamespaceFilter)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
@@ -222,7 +256,7 @@ func (s *Store) validateAndRecoverODSQ4(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
 	}
-	err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	err = file.CreateODSQ4(pathODS, pathQ4, roots, square, s.params.NamespaceFilter)
 	if err != nil {
 		return fmt.Errorf("recreating ODSQ4 file: %w", err)
 	}
@@ -235,7 +269,7 @@ func (s *Store) createODSFile(
 	height uint64,
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
-	err := file.CreateODS(pathODS, roots, square)
+	err := file.CreateODS(pathODS, roots, square, s.params.NamespaceFilter)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
@@ -287,7 +321,7 @@ func (s *Store) validateAndRecoverODS(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODS file: %w", err)
 	}
-	err = file.CreateODS(pathODS, roots, square)
+	err = file.CreateODS(pathODS, roots, square, s.params.NamespaceFilter)
 	if err != nil {
 		return fmt.Errorf("recreating ODS file: %w", err)
 	}
@@ -319,7 +353,7 @@ func (s *Store) populateEmptyFile() error {
 		return fmt.Errorf("cleaning old empty EDS file: %w", err)
 	}
 
-	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare)
+	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare, nil)
 	if err != nil {
 		return fmt.Errorf("creating fresh empty EDS file: %w", err)
 	}
@@ -463,22 +497,25 @@ func (s *Store) removeODSQ4(height uint64, datahash share.DataHash) error {
 }
 
 func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
+	if s.nsStore != nil {
+		err := s.nsStore.delete(context.TODO(), height)
+		if err != nil {
+			log.Warnw("failed to prune namespace data", "height", height, "err", err)
+		}
+	}
+
 	if err := s.cache.Remove(height); err != nil {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
 
-	pathLink := s.heightToPath(height, odsFileExt)
-	if err := remove(pathLink); err != nil {
-		return fmt.Errorf("removing hardlink: %w", err)
-	}
-
-	// if datahash is empty, we don't need to remove the ODS file, only the hardlink
-	if datahash.IsEmptyEDS() {
-		return nil
-	}
-
-	pathODS := s.hashToPath(datahash, odsFileExt)
+	pathODS := s.heightToPath(height, odsFileExt)
 	if err := remove(pathODS); err != nil {
+		return fmt.Errorf("removing ODS file by height: %w", err)
+	}
+
+	// we don't return error if the file doesn't exist, as it may have been already removed
+	pathODSFile := s.hashToPath(datahash, odsFileExt)
+	if err := remove(pathODSFile); err != nil {
 		return fmt.Errorf("removing ODS file: %w", err)
 	}
 	return nil

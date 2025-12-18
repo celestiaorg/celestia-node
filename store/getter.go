@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -91,6 +92,16 @@ func (g *Getter) GetNamespaceData(
 	h *header.ExtendedHeader,
 	ns libshare.Namespace,
 ) (shwap.NamespaceData, error) {
+	if g.store.nsStore != nil && bytes.Equal(ns.Bytes(), g.store.params.NamespaceID.Bytes()) {
+		nd, err := g.store.nsStore.get(ctx, h.Height())
+		if err == nil {
+			return nd, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			log.Errorw("failed to get namespace data from cache", "height", h.Height(), "err", err)
+		}
+	}
+
 	acc, err := g.store.GetByHeight(ctx, h.Height())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {

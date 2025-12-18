@@ -45,10 +45,9 @@ func DefaultConfig(tp node.Type) Config {
 	}
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Full, node.Bridge, node.Pin:
 		cfg.Store.StoreCacheSize = 2048
 		cfg.Store.IndexCacheSize = 4096
-
 		cfg.Syncer.PruningWindow = 0 // reset pruning window to zero
 		return cfg
 	case node.Light:
@@ -99,6 +98,9 @@ func (cfg *Config) Validate(tp node.Type) error {
 			return fmt.Errorf("module/header: Syncer.PruningWindow must not be less then sampling storage window (%s)",
 				availability.StorageWindow)
 		}
+	case node.Pin:
+		// Pin nodes are allowed to sync from a specific height/hash
+		return nil
 	default:
 		panic("invalid node type")
 	}

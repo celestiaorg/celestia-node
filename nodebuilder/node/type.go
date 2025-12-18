@@ -23,6 +23,8 @@ const (
 	Light
 	// Full is a Celestia Node that stores blocks in their entirety.
 	Full
+	// Pin is a Celestia Node that pins and stores data for a specific namespace.
+	Pin
 )
 
 // String converts Type to its string representation.
@@ -54,6 +56,7 @@ var typeToString = map[Type]string{
 	Bridge: "Bridge",
 	Light:  "Light",
 	Full:   "Full",
+	Pin:    "Pin",
 }
 
 // typeToString maps strings representations of all valid Types.
@@ -61,10 +64,11 @@ var stringToType = map[string]Type{
 	"bridge": Bridge,
 	"light":  Light,
 	"full":   Full,
+	"pin":    Pin,
 }
 
 // orderedTypes is a slice of all valid types in order of priority.
-var orderedTypes = []Type{Bridge, Full, Light}
+var orderedTypes = []Type{Bridge, Full, Light, Pin}
 
 // GetTypes returns a list of all known types in order of priority.
 func GetTypes() []Type {

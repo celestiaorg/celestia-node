@@ -1,7 +1,9 @@
 package share
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/ipfs/boxo/blockstore"
@@ -22,6 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
+	"github.com/celestiaorg/celestia-node/store/file"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
@@ -42,7 +46,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Bridge, node.Full:
+	case node.Bridge, node.Full, node.Pin:
 		return fx.Module(
 			"share",
 			baseComponents,
@@ -77,7 +81,7 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 				),
 			),
 		)
-	case node.Full, node.Bridge:
+	case node.Full, node.Bridge, node.Pin:
 		return fx.Options(
 			opts,
 			fx.Provide(
@@ -142,7 +146,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				}
 			}),
 		)
-	case node.Full:
+	case node.Full, node.Pin:
 		return fx.Options(
 			opts,
 			shrexServerComponents(cfg),
@@ -197,7 +201,20 @@ func shrexServerComponents(cfg *Config) fx.Option {
 func edsStoreComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(fx.Annotate(
-			func(path node.StorePath) (*store.Store, error) {
+			func(path node.StorePath, ds datastore.Batching) (*store.Store, error) {
+				if cfg.NamespaceID != "" {
+					filter, err := compileFilter(cfg.NamespaceID)
+					if err != nil {
+						return nil, fmt.Errorf("nodebuilder/share: compiling namespace filter: %w", err)
+					}
+					cfg.EDSStoreParams.NamespaceFilter = filter
+
+					cfg.EDSStoreParams.NamespaceID, err = parseNamespaceID(cfg.NamespaceID)
+					if err != nil {
+						return nil, fmt.Errorf("nodebuilder/share: parsing namespace id: %w", err)
+					}
+				}
+				cfg.EDSStoreParams.Datastore = ds
 				return store.NewStore(cfg.EDSStoreParams, string(path))
 			},
 			fx.OnStop(func(ctx context.Context, store *store.Store) error {
@@ -227,7 +244,7 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				}),
 			)),
 		)
-	case node.Bridge, node.Full:
+	case node.Bridge, node.Full, node.Pin:
 		return fx.Options(
 			fx.Provide(func(
 				s *store.Store,
@@ -243,4 +260,43 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 	default:
 		panic("invalid node type")
 	}
+}
+
+func compileFilter(id string) (file.NamespaceFilter, error) {
+	if id == "" {
+		return nil, nil
+	}
+	ns, err := parseNamespaceID(id)
+	if err != nil {
+		return nil, err
+	}
+	return func(other libshare.Namespace) bool {
+		return bytes.Equal(other.Bytes(), ns.Bytes())
+	}, nil
+}
+
+// parseNamespaceID parses a namespace ID from a hex string.
+// It supports both:
+//   - Full 58-character hex (29 bytes): version byte + 28 byte ID
+//   - Short hex (up to 20 characters / 10 bytes): user portion only, left-padded as v0
+func parseNamespaceID(id string) (libshare.Namespace, error) {
+	decoded, err := hex.DecodeString(id)
+	if err != nil {
+		return libshare.Namespace{}, fmt.Errorf("invalid hex: %w", err)
+	}
+
+	// Full namespace (29 bytes = 1 version + 28 ID)
+	if len(decoded) == libshare.NamespaceSize {
+		return libshare.NewNamespaceFromBytes(decoded)
+	}
+
+	// Short format: treat as user portion of a v0 namespace (max 10 bytes)
+	if len(decoded) <= 10 {
+		return libshare.NewV0Namespace(decoded)
+	}
+
+	return libshare.Namespace{}, fmt.Errorf(
+		"invalid namespace length: got %d bytes, expected %d (full) or <= 10 (short v0)",
+		len(decoded), libshare.NamespaceSize,
+	)
 }

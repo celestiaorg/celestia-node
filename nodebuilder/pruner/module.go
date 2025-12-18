@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/share/availability"
+	corepruner "github.com/celestiaorg/celestia-node/pruner"
 	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
@@ -23,16 +23,16 @@ func ConstructModule(tp node.Type) fx.Option {
 	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
-			fx.OnStart(func(ctx context.Context, p *pruner.Service) error {
+			fx.OnStart(func(ctx context.Context, p *corepruner.Service) error {
 				return p.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, p *pruner.Service) error {
+			fx.OnStop(func(ctx context.Context, p *corepruner.Service) error {
 				return p.Stop(ctx)
 			}),
 		)),
 		// This is necessary to invoke the pruner service as independent thanks to a
 		// quirk in FX.
-		fx.Invoke(func(_ *pruner.Service) {}),
+		fx.Invoke(func(_ *corepruner.Service) {}),
 	)
 
 	baseComponents := fx.Options(
@@ -49,35 +49,56 @@ func ConstructModule(tp node.Type) fx.Option {
 		// LNs enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
-			fx.Supply(modshare.Window(availability.SamplingWindow)),
+			fx.Provide(func(cfg *Config) modshare.Window {
+				return modshare.Window(cfg.StorageWindow)
+			}),
 			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 			//  note this provide exists in pruner module to avoid cyclical imports
-			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
+			fx.Provide(func(la *light.ShareAvailability) corepruner.Pruner { return la }),
 		)
 	case node.Full:
 		return fx.Module("prune",
 			baseComponents,
-			fx.Supply(modshare.Window(availability.StorageWindow)),
+			fx.Provide(func(cfg *Config) modshare.Window {
+				return modshare.Window(cfg.StorageWindow)
+			}),
 			fx.Provide(func(cfg *Config) []fullavail.Option {
 				if cfg.EnableService {
 					return make([]fullavail.Option, 0)
 				}
 				return []fullavail.Option{fullavail.WithArchivalMode()}
 			}),
-			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
+			fx.Provide(func(fa *fullavail.ShareAvailability) corepruner.Pruner { return fa }),
 			fx.Invoke(convertToPruned),
 		)
 	case node.Bridge:
 		return fx.Module("prune",
 			baseComponents,
+			fx.Provide(func(cfg *Config) modshare.Window {
+				return modshare.Window(cfg.StorageWindow)
+			}),
 			fx.Provide(func(cfg *Config) ([]core.Option, []fullavail.Option) {
 				if cfg.EnableService {
 					return make([]core.Option, 0), make([]fullavail.Option, 0)
 				}
 				return []core.Option{core.WithArchivalMode()}, []fullavail.Option{fullavail.WithArchivalMode()}
 			}),
-			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
-			fx.Supply(modshare.Window(availability.StorageWindow)),
+			fx.Provide(func(fa *fullavail.ShareAvailability) corepruner.Pruner { return fa }),
+			fx.Invoke(convertToPruned),
+		)
+	case node.Pin:
+		return fx.Module("prune",
+			baseComponents,
+			fx.Provide(func(cfg *Config) modshare.Window {
+				return modshare.Window(cfg.StorageWindow)
+			}),
+			fx.Provide(func(cfg *Config) ([]core.Option, []fullavail.Option) {
+				if cfg.EnableService {
+					return make([]core.Option, 0), make([]fullavail.Option, 0)
+				}
+				return []core.Option{core.WithArchivalMode()}, []fullavail.Option{fullavail.WithArchivalMode()}
+			}),
+			fx.Provide(func(fa *fullavail.ShareAvailability) corepruner.Pruner { return fa }),
 			fx.Invoke(convertToPruned),
 		)
 	default:
@@ -87,7 +108,7 @@ func ConstructModule(tp node.Type) fx.Option {
 
 func advertiseArchival() fx.Option {
 	return fx.Provide(func(tp node.Type, pruneCfg *Config) discovery.Option {
-		if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
+		if (tp == node.Full || tp == node.Bridge || tp == node.Pin) && !pruneCfg.EnableService {
 			return discovery.WithAdvertise()
 		}
 		var opt discovery.Option

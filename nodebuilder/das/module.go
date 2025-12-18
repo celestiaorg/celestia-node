@@ -14,7 +14,7 @@ import (
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// If DASer is disabled, provide the stub implementation for any node type
 	// Also provide the stub implementation for bridge nodes as they do not need DASer
-	if !cfg.Enabled || tp == node.Bridge {
+	if !cfg.Enabled || tp == node.Bridge || tp == node.Pin {
 		return fx.Module(
 			"das",
 			fx.Provide(newDaserStub),
