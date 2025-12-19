@@ -88,18 +88,16 @@ func (f *fsKeystore) Get(n KeyName) (PrivKey, error) {
 func (f *fsKeystore) Delete(n KeyName) error {
 	path := f.pathTo(n.Base32())
 
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("keystore: key '%s' not found", n)
-	} else if err != nil {
-		return fmt.Errorf("keystore: check before reading key '%s' failed: %w", n, err)
+	err := os.Remove(path)
+	if err == nil {
+		return nil
 	}
 
-	err = os.Remove(path)
-	if err != nil {
-		return fmt.Errorf("keystore: failed to delete key '%s': %w", n, err)
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("keystore: key '%s' not found", n)
 	}
-	return nil
+
+	return fmt.Errorf("keystore: failed to delete key '%s': %w", n, err)
 }
 
 func (f *fsKeystore) List() ([]KeyName, error) {
