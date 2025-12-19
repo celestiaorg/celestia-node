@@ -19,9 +19,6 @@ import (
 
 var _ eds.AccessorStreamer = (*ODS)(nil)
 
-// NamespaceFilter is a filter for namespaces.
-type NamespaceFilter func(libshare.Namespace) bool
-
 // ODS implements eds.Accessor as an FS file.
 // It stores the original data square(ODS), which is the first quadrant of EDS,
 // and it's metadata in file's header.
@@ -44,10 +41,25 @@ type ODS struct {
 	disableCache bool
 }
 
+// NamespaceFilter is a predicate for filtering shares by namespace.
+// Used by Pin nodes to selectively store only relevant data.
+type NamespaceFilter func(libshare.Namespace) bool
+
 // CreateODS creates a new file under given FS path and
 // writes the ODS into it out of given EDS.
 // It may leave partially written file if any of the writes fail.
 func CreateODS(
+	path string,
+	roots *share.AxisRoots,
+	eds *rsmt2d.ExtendedDataSquare,
+) error {
+	return CreateODSWithFilter(path, roots, eds, nil)
+}
+
+// CreateODSWithFilter creates an ODS file with optional namespace filtering.
+// If filter is provided, shares not matching the filter are zeroed out.
+// This is used by Pin nodes to store only data for tracked namespaces.
+func CreateODSWithFilter(
 	path string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
@@ -75,7 +87,7 @@ func CreateODS(
 	return err
 }
 
-// writeQ4File full ODS content into OS File.
+// writeODSFile writes full ODS content into OS File.
 func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0, filter NamespaceFilter) error {
 	// buffering gives us ~4x speed up
 	buf := bufio.NewWriterSize(f, writeBufferSize)
@@ -102,6 +114,7 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 // writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in
 // row-major order. Write finishes once all the shares are written or on the first instance of tail
 // padding share. Tail padding share are constant and aren't stored.
+// If filter is provided, shares not matching the filter are zeroed out (for Pin nodes).
 func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare, filter NamespaceFilter) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
@@ -114,6 +127,7 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare, filter NamespaceFilte
 				return nil
 			}
 
+			// If filter is set and share doesn't match, zero it out
 			if filter != nil && !filter(ns) {
 				shr = make([]byte, len(shr))
 			}
