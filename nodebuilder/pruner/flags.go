@@ -6,6 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share/availability"
 )
 
 const (
@@ -44,6 +45,10 @@ func ParseFlags(cmd *cobra.Command, tp node.Type) fx.Option {
 		dur, err := cmd.Flags().GetDuration(windowFlag)
 		if err != nil {
 			log.Fatal(err)
+		}
+		if dur < availability.SamplingWindow {
+			log.Fatalf("pruning window (%s) cannot be less than sampling window (%s)",
+				dur, availability.SamplingWindow)
 		}
 		cfg.StorageWindow = dur
 	}
