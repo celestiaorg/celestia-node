@@ -89,9 +89,11 @@ func TestValidateODSSize(t *testing.T) {
 		valid      bool
 	}{
 		{
-			name:       "valid",
-			createFile: CreateODS,
-			valid:      true,
+			name: "valid",
+			createFile: func(path string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error {
+				return CreateODS(path, roots, eds)
+			},
+			valid: true,
 		},
 		{
 			name: "shorter",

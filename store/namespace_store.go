@@ -3,14 +3,16 @@ package store
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
+
+var nsStorePrefix = datastore.NewKey("ns_data")
 
 // namespaceStore provides persistent storage for verified NamespaceData (shares + proofs).
 // This is used by Pin nodes to cache namespace-specific data for fast retrieval.
@@ -22,8 +24,8 @@ func newNamespaceStore(ds datastore.Batching) *namespaceStore {
 	return &namespaceStore{ds: ds}
 }
 
-func (ns *namespaceStore) put(ctx context.Context, height uint64, data shwap.NamespaceData) error {
-	key := ns.heightToKey(height)
+func (s *namespaceStore) put(ctx context.Context, height uint64, data shwap.NamespaceData) error {
+	key := s.heightToKey(height)
 
 	var buf bytes.Buffer
 	_, err := data.WriteTo(&buf)
@@ -31,12 +33,12 @@ func (ns *namespaceStore) put(ctx context.Context, height uint64, data shwap.Nam
 		return fmt.Errorf("serializing namespace data: %w", err)
 	}
 
-	return ns.ds.Put(ctx, key, buf.Bytes())
+	return s.ds.Put(ctx, key, buf.Bytes())
 }
 
-func (ns *namespaceStore) get(ctx context.Context, height uint64) (shwap.NamespaceData, error) {
-	key := ns.heightToKey(height)
-	data, err := ns.ds.Get(ctx, key)
+func (s *namespaceStore) get(ctx context.Context, height uint64) (shwap.NamespaceData, error) {
+	key := s.heightToKey(height)
+	data, err := s.ds.Get(ctx, key)
 	if errors.Is(err, datastore.ErrNotFound) {
 		return nil, ErrNotFound
 	}
@@ -52,14 +54,12 @@ func (ns *namespaceStore) get(ctx context.Context, height uint64) (shwap.Namespa
 	return nd, nil
 }
 
-func (ns *namespaceStore) delete(ctx context.Context, height uint64) error {
-	key := ns.heightToKey(height)
-	return ns.ds.Delete(ctx, key)
+func (s *namespaceStore) delete(ctx context.Context, height uint64) error {
+	key := s.heightToKey(height)
+	return s.ds.Delete(ctx, key)
 }
 
-func (ns *namespaceStore) heightToKey(height uint64) datastore.Key {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, height)
-	return datastore.NewKey("/ns_data").ChildString(string(buf))
+func (s *namespaceStore) heightToKey(height uint64) datastore.Key {
+	return nsStorePrefix.ChildString(strconv.FormatUint(height, 10))
 }
 
