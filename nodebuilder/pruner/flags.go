@@ -1,8 +1,6 @@
 package pruner
 
 import (
-	"time"
-
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/fx"
@@ -42,9 +40,8 @@ func ParseFlags(cmd *cobra.Command, tp node.Type) fx.Option {
 	log.Info("PRUNING MODE ENABLED. Node will prune blocks to save space.")
 
 	cfg := DefaultConfig()
-	window := cmd.Flag(windowFlag).Value.String()
-	if window != "0s" {
-		dur, err := time.ParseDuration(window)
+	if cmd.Flag(windowFlag).Changed {
+		dur, err := cmd.Flags().GetDuration(windowFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
