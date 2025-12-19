@@ -45,6 +45,23 @@ type ODS struct {
 // Used by Pin nodes to selectively store only relevant data.
 type NamespaceFilter func(libshare.Namespace) bool
 
+// WriteOptions configures ODS/Q4 file creation.
+type WriteOptions struct {
+	// Filter, if set, zeros out shares that don't match the predicate.
+	// Used by Pin nodes to store only data for tracked namespaces.
+	Filter NamespaceFilter
+}
+
+// WriteOption is a functional option for WriteOptions.
+type WriteOption func(*WriteOptions)
+
+// WithFilter sets a namespace filter for ODS file creation.
+func WithFilter(filter NamespaceFilter) WriteOption {
+	return func(opts *WriteOptions) {
+		opts.Filter = filter
+	}
+}
+
 // CreateODS creates a new file under given FS path and
 // writes the ODS into it out of given EDS.
 // It may leave partially written file if any of the writes fail.
@@ -52,19 +69,13 @@ func CreateODS(
 	path string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
+	options ...WriteOption,
 ) error {
-	return CreateODSWithFilter(path, roots, eds, nil)
-}
+	var opts WriteOptions
+	for _, opt := range options {
+		opt(&opts)
+	}
 
-// CreateODSWithFilter creates an ODS file with optional namespace filtering.
-// If filter is provided, shares not matching the filter are zeroed out.
-// This is used by Pin nodes to store only data for tracked namespaces.
-func CreateODSWithFilter(
-	path string,
-	roots *share.AxisRoots,
-	eds *rsmt2d.ExtendedDataSquare,
-	filter NamespaceFilter,
-) error {
 	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
 	f, err := os.OpenFile(path, mod, filePermissions)
 	if err != nil {
@@ -79,7 +90,7 @@ func CreateODSWithFilter(
 		datahash:    roots.Hash(),
 	}
 
-	err = writeODSFile(f, roots, eds, hdr, filter)
+	err = writeODSFile(f, roots, eds, hdr, opts.Filter)
 	if errClose := f.Close(); errClose != nil {
 		err = errors.Join(err, fmt.Errorf("closing created ODS file: %w", errClose))
 	}

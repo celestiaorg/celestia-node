@@ -45,14 +45,14 @@ type Store struct {
 	stripLock *striplock
 	metrics   *metrics
 
-	// ---- Pin Node fields (optional, nil for standard nodes) ----
+	// ---- Pin Node fields (optional, nil/empty for standard nodes) ----
 
 	// params stores configuration, needed for Pin node namespace tracking
 	params *Parameters
 	// nsStore is used to cache namespace-specific data for Pin nodes
 	nsStore *namespaceStore
-	// nsFilter is used to filter shares when writing ODS files (Pin nodes only)
-	nsFilter file.NamespaceFilter
+	// writeOpts are options passed to ODS file creation (e.g., namespace filter for Pin nodes)
+	writeOpts []file.WriteOption
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -92,7 +92,9 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	// Initialize namespace tracking for Pin nodes (if configured)
 	if params.IsNamespaceTrackingEnabled() {
 		store.nsStore = newNamespaceStore(params.NamespaceDatastore)
-		store.nsFilter = NewNamespaceFilter(params.TrackedNamespace)
+		store.writeOpts = []file.WriteOption{
+			file.WithFilter(NewNamespaceFilter(params.TrackedNamespace)),
+		}
 		log.Infow("namespace tracking enabled",
 			"namespace", params.TrackedNamespace.String(),
 		)
@@ -200,13 +202,7 @@ func (s *Store) createODSQ4File(
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
-	// Use filtered version for Pin nodes, standard version otherwise
-	var err error
-	if s.nsFilter != nil {
-		err = file.CreateODSQ4WithFilter(pathODS, pathQ4, roots, square, s.nsFilter)
-	} else {
-		err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
-	}
+	err := file.CreateODSQ4(pathODS, pathQ4, roots, square, s.writeOpts...)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
@@ -257,12 +253,7 @@ func (s *Store) validateAndRecoverODSQ4(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
 	}
-	// Use filtered version for Pin nodes, standard version otherwise
-	if s.nsFilter != nil {
-		err = file.CreateODSQ4WithFilter(pathODS, pathQ4, roots, square, s.nsFilter)
-	} else {
-		err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
-	}
+	err = file.CreateODSQ4(pathODS, pathQ4, roots, square, s.writeOpts...)
 	if err != nil {
 		return fmt.Errorf("recreating ODSQ4 file: %w", err)
 	}
@@ -275,13 +266,7 @@ func (s *Store) createODSFile(
 	height uint64,
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
-	// Use filtered version for Pin nodes, standard version otherwise
-	var err error
-	if s.nsFilter != nil {
-		err = file.CreateODSWithFilter(pathODS, roots, square, s.nsFilter)
-	} else {
-		err = file.CreateODS(pathODS, roots, square)
-	}
+	err := file.CreateODS(pathODS, roots, square, s.writeOpts...)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
@@ -333,12 +318,7 @@ func (s *Store) validateAndRecoverODS(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODS file: %w", err)
 	}
-	// Use filtered version for Pin nodes, standard version otherwise
-	if s.nsFilter != nil {
-		err = file.CreateODSWithFilter(pathODS, roots, square, s.nsFilter)
-	} else {
-		err = file.CreateODS(pathODS, roots, square)
-	}
+	err = file.CreateODS(pathODS, roots, square, s.writeOpts...)
 	if err != nil {
 		return fmt.Errorf("recreating ODS file: %w", err)
 	}

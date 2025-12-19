@@ -39,18 +39,7 @@ func CreateODSQ4(
 	pathODS, pathQ4 string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
-) error {
-	return CreateODSQ4WithFilter(pathODS, pathQ4, roots, eds, nil)
-}
-
-// CreateODSQ4WithFilter creates ODS and Q4 files with optional namespace filtering.
-// If filter is provided, shares not matching the filter are zeroed out in the ODS file.
-// This is used by Pin nodes to store only data for tracked namespaces.
-func CreateODSQ4WithFilter(
-	pathODS, pathQ4 string,
-	roots *share.AxisRoots,
-	eds *rsmt2d.ExtendedDataSquare,
-	filter NamespaceFilter,
+	options ...WriteOption,
 ) error {
 	errCh := make(chan error)
 	go func() {
@@ -59,7 +48,7 @@ func CreateODSQ4WithFilter(
 		errCh <- createQ4(pathQ4, eds)
 	}()
 
-	err := CreateODSWithFilter(pathODS, roots, eds, filter)
+	err := CreateODS(pathODS, roots, eds, options...)
 	q4Err := <-errCh
 
 	if err != nil && q4Err != nil {
