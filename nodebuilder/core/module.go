@@ -7,12 +7,11 @@ import (
 
 	libhead "github.com/celestiaorg/go-header"
 
-	corelib "github.com/celestiaorg/celestia-node/core"
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	modpruner "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -38,52 +37,43 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Bridge, node.Pin:
 		return fx.Module("core",
 			baseComponents,
-			fx.Provide(corelib.NewBlockFetcher),
+			fx.Provide(core.NewBlockFetcher),
 			fxutil.ProvideAs(
 				func(
-					fetcher *corelib.BlockFetcher,
+					fetcher *core.BlockFetcher,
 					store *store.Store,
 					construct header.ConstructFn,
-					prunerCfg *modpruner.Config,
-					opts []corelib.Option,
-				) (*corelib.Exchange, error) {
-					opts = append(opts,
-						corelib.WithAvailabilityWindow(prunerCfg.StorageWindow),
-					)
-
+					opts []core.Option,
+				) (*core.Exchange, error) {
 					if MetricsEnabled {
-						opts = append(opts, corelib.WithMetrics())
+						opts = append(opts, core.WithMetrics())
 					}
 
-					return corelib.NewExchange(fetcher, store, construct, opts...)
+					return core.NewExchange(fetcher, store, construct, opts...)
 				},
 				new(libhead.Exchange[*header.ExtendedHeader])),
 			fx.Invoke(fx.Annotate(
 				func(
 					bcast libhead.Broadcaster[*header.ExtendedHeader],
-					fetcher *corelib.BlockFetcher,
+					fetcher *core.BlockFetcher,
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *store.Store,
 					chainID p2p.Network,
-					prunerCfg *modpruner.Config,
-					opts []corelib.Option,
-				) (*corelib.Listener, error) {
-					opts = append(opts,
-						corelib.WithChainID(chainID),
-						corelib.WithAvailabilityWindow(prunerCfg.StorageWindow),
-					)
+					opts []core.Option,
+				) (*core.Listener, error) {
+					opts = append(opts, core.WithChainID(chainID))
 
 					if MetricsEnabled {
-						opts = append(opts, corelib.WithMetrics())
+						opts = append(opts, core.WithMetrics())
 					}
 
-					return corelib.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime, opts...)
+					return core.NewListener(bcast, fetcher, pubsub.Broadcast, construct, store, p2p.BlockTime, opts...)
 				},
-				fx.OnStart(func(ctx context.Context, listener *corelib.Listener) error {
+				fx.OnStart(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Start(ctx)
 				}),
-				fx.OnStop(func(ctx context.Context, listener *corelib.Listener) error {
+				fx.OnStop(func(ctx context.Context, listener *core.Listener) error {
 					return listener.Stop(ctx)
 				}),
 			)),
