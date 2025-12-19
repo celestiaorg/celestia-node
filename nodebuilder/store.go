@@ -297,11 +297,11 @@ func constraintBadgerConfig() *dsbadger.Options {
 	// enabling this option may allow us to see detect corrupted data
 	opts.ChecksumVerificationMode = options.OnBlockRead
 	opts.VerifyValueChecksum = true
-	// default 64mib => 16mib - enable block cache for compression support
-	// BadgerDB requires a non-zero block cache when compression is enabled
-	opts.BlockCacheSize = 16 << 20
-	// enable compression for significant disk space savings
-	opts.Compression = options.ZSTD
+	// default 64mib => 0 - disable block cache
+	// most of our component maintain their own caches, so this is not needed
+	opts.BlockCacheSize = 0
+	// not much gain as it compresses the LSM only as well compression requires block cache
+	opts.Compression = options.None
 
 	// MemTables:
 	// default 64mib => 16mib - decreases memory usage and makes compaction more often
