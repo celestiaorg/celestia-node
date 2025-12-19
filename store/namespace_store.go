@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -12,8 +13,7 @@ import (
 )
 
 // namespaceStore provides persistent storage for verified NamespaceData (shares + proofs).
-// It allows the node to serve verified blob data for a specific namespace without storing
-// the full ODS/EDS files.
+// This is used by Pin nodes to cache namespace-specific data for fast retrieval.
 type namespaceStore struct {
 	ds datastore.Batching
 }
@@ -23,40 +23,43 @@ func newNamespaceStore(ds datastore.Batching) *namespaceStore {
 }
 
 func (ns *namespaceStore) put(ctx context.Context, height uint64, data shwap.NamespaceData) error {
-	if len(data) == 0 {
-		return nil
-	}
+	key := ns.heightToKey(height)
 
-	buf := new(bytes.Buffer)
-	_, err := data.WriteTo(buf)
+	var buf bytes.Buffer
+	_, err := data.WriteTo(&buf)
 	if err != nil {
 		return fmt.Errorf("serializing namespace data: %w", err)
 	}
 
-	key := datastore.NewKey(fmt.Sprintf("%d", height))
 	return ns.ds.Put(ctx, key, buf.Bytes())
 }
 
 func (ns *namespaceStore) get(ctx context.Context, height uint64) (shwap.NamespaceData, error) {
-	key := datastore.NewKey(fmt.Sprintf("%d", height))
-	val, err := ns.ds.Get(ctx, key)
+	key := ns.heightToKey(height)
+	data, err := ns.ds.Get(ctx, key)
+	if errors.Is(err, datastore.ErrNotFound) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, datastore.ErrNotFound) {
-			return nil, ErrNotFound
-		}
-		return nil, err
+		return nil, fmt.Errorf("getting namespace data: %w", err)
 	}
 
-	var data shwap.NamespaceData
-	_, err = data.ReadFrom(bytes.NewReader(val))
+	var nd shwap.NamespaceData
+	_, err = nd.ReadFrom(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("deserializing namespace data: %w", err)
 	}
-
-	return data, nil
+	return nd, nil
 }
 
 func (ns *namespaceStore) delete(ctx context.Context, height uint64) error {
-	key := datastore.NewKey(fmt.Sprintf("%d", height))
+	key := ns.heightToKey(height)
 	return ns.ds.Delete(ctx, key)
 }
+
+func (ns *namespaceStore) heightToKey(height uint64) datastore.Key {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, height)
+	return datastore.NewKey("/ns_data").ChildString(string(buf))
+}
+

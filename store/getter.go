@@ -92,34 +92,21 @@ func (g *Getter) GetNamespaceData(
 	h *header.ExtendedHeader,
 	ns libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	// Debug: log namespace lookup attempts
-	if g.store.nsStore != nil {
-		log.Debugw("nsStore lookup attempt",
-			"height", h.Height(),
-			"requested_ns", ns.String(),
-			"configured_ns", g.store.params.NamespaceID.String(),
-			"match", bytes.Equal(ns.Bytes(), g.store.params.NamespaceID.Bytes()),
-		)
-	}
-
-	if g.store.nsStore != nil && bytes.Equal(ns.Bytes(), g.store.params.NamespaceID.Bytes()) {
+	// Pin Node optimization: try namespace cache first for tracked namespace
+	if g.store.nsStore != nil && bytes.Equal(ns.Bytes(), g.store.params.TrackedNamespace.Bytes()) {
 		nd, err := g.store.nsStore.get(ctx, h.Height())
 		if err == nil {
-			log.Debugw("nsStore HIT - fast path", "height", h.Height())
 			return nd, nil
 		}
 		if !errors.Is(err, ErrNotFound) {
-			log.Errorw("failed to get namespace data from cache", "height", h.Height(), "err", err)
-		} else {
-			log.Warnw("nsStore MISS - data not found, falling back", "height", h.Height())
+			log.Warnw("failed to get namespace data from cache", "height", h.Height(), "err", err)
 		}
+		// Fall through to standard path if not in cache
 	}
 
-	log.Debugw("falling back to ODS accessor (slow path)", "height", h.Height(), "namespace", ns.String())
 	acc, err := g.store.GetByHeight(ctx, h.Height())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			log.Debugw("ODS not found, will cascade to network", "height", h.Height())
 			return nil, shwap.ErrNotFound
 		}
 		return nil, fmt.Errorf("get accessor from store:%w", err)
@@ -130,7 +117,6 @@ func (g *Getter) GetNamespaceData(
 	)
 	defer utils.CloseAndLog(logger, "getter/nd", acc)
 
-	log.Debugw("reading namespace data from ODS file", "height", h.Height())
 	nd, err := eds.NamespaceData(ctx, acc, ns)
 	if err != nil {
 		return nil, fmt.Errorf("get nd from accessor:%w", err)

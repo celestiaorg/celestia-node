@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,8 +12,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/celestiaorg/rsmt2d"
-
-	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
@@ -48,9 +45,14 @@ type Store struct {
 	stripLock *striplock
 	metrics   *metrics
 
-	params *Parameters
+	// ---- Pin Node fields (optional, nil for standard nodes) ----
 
+	// params stores configuration, needed for Pin node namespace tracking
+	params *Parameters
+	// nsStore is used to cache namespace-specific data for Pin nodes
 	nsStore *namespaceStore
+	// nsFilter is used to filter shares when writing ODS files (Pin nodes only)
+	nsFilter file.NamespaceFilter
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -87,8 +89,13 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		params:    params,
 	}
 
-	if params.Datastore != nil {
-		store.nsStore = newNamespaceStore(params.Datastore)
+	// Initialize namespace tracking for Pin nodes (if configured)
+	if params.IsNamespaceTrackingEnabled() {
+		store.nsStore = newNamespaceStore(params.NamespaceDatastore)
+		store.nsFilter = NewNamespaceFilter(params.TrackedNamespace)
+		log.Infow("namespace tracking enabled",
+			"namespace", params.TrackedNamespace.String(),
+		)
 	}
 
 	if err := store.populateEmptyFile(); err != nil {
@@ -127,28 +134,6 @@ func (s *Store) put(
 	square *rsmt2d.ExtendedDataSquare,
 	writeQ4 bool,
 ) error {
-	// 1. If we are tracking a specific namespace, extract and store its data first.
-	if s.nsStore != nil && !bytes.Equal(s.params.NamespaceID.Bytes(), make([]byte, libshare.NamespaceSize)) {
-		nd, err := eds.NamespaceData(ctx, &eds.Rsmt2D{ExtendedDataSquare: square}, s.params.NamespaceID)
-		if err == nil && len(nd.Flatten()) > 0 {
-			err = s.nsStore.put(ctx, height, nd)
-			if err != nil {
-				log.Errorw("failed to store namespace data", "height", height, "err", err)
-			} else {
-				log.Debugw("stored namespace data", "height", height)
-			}
-		}
-
-		// 2. Optimization: Zero-ODS Storage.
-		// We ALWAYS skip writing the 128MB ODS file because we have either:
-		// a) Stored the verified NamespaceData in our persistent cache (if data was present).
-		// b) Determined the block is irrelevant (if no data was present).
-		// Verified retrieval for this namespace will work via nsStore, while all other
-		// requests will gracefully fall back to the network.
-		log.Debugw("Zero-ODS: skipping full store write", "height", height, "namespace", s.params.NamespaceID.String())
-		return nil
-	}
-
 	datahash := share.DataHash(roots.Hash())
 	// we don't need to store empty EDS, just link the height to the empty file
 	if datahash.IsEmptyEDS() {
@@ -160,6 +145,16 @@ func (s *Store) put(
 			return nil
 		}
 		return err
+	}
+
+	// Pin Node: If tracking a specific namespace, cache its data for fast retrieval
+	if s.nsStore != nil {
+		nd, err := eds.NamespaceData(ctx, &eds.Rsmt2D{ExtendedDataSquare: square}, s.params.TrackedNamespace)
+		if err == nil && len(nd.Flatten()) > 0 {
+			if err := s.nsStore.put(ctx, height, nd); err != nil {
+				log.Warnw("failed to cache namespace data", "height", height, "err", err)
+			}
+		}
 	}
 
 	// put to cache before writing to make it accessible while write is happening
@@ -205,7 +200,13 @@ func (s *Store) createODSQ4File(
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
-	err := file.CreateODSQ4(pathODS, pathQ4, roots, square, s.params.NamespaceFilter)
+	// Use filtered version for Pin nodes, standard version otherwise
+	var err error
+	if s.nsFilter != nil {
+		err = file.CreateODSQ4WithFilter(pathODS, pathQ4, roots, square, s.nsFilter)
+	} else {
+		err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	}
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
@@ -256,7 +257,12 @@ func (s *Store) validateAndRecoverODSQ4(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
 	}
-	err = file.CreateODSQ4(pathODS, pathQ4, roots, square, s.params.NamespaceFilter)
+	// Use filtered version for Pin nodes, standard version otherwise
+	if s.nsFilter != nil {
+		err = file.CreateODSQ4WithFilter(pathODS, pathQ4, roots, square, s.nsFilter)
+	} else {
+		err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	}
 	if err != nil {
 		return fmt.Errorf("recreating ODSQ4 file: %w", err)
 	}
@@ -269,7 +275,13 @@ func (s *Store) createODSFile(
 	height uint64,
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
-	err := file.CreateODS(pathODS, roots, square, s.params.NamespaceFilter)
+	// Use filtered version for Pin nodes, standard version otherwise
+	var err error
+	if s.nsFilter != nil {
+		err = file.CreateODSWithFilter(pathODS, roots, square, s.nsFilter)
+	} else {
+		err = file.CreateODS(pathODS, roots, square)
+	}
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
@@ -321,7 +333,12 @@ func (s *Store) validateAndRecoverODS(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODS file: %w", err)
 	}
-	err = file.CreateODS(pathODS, roots, square, s.params.NamespaceFilter)
+	// Use filtered version for Pin nodes, standard version otherwise
+	if s.nsFilter != nil {
+		err = file.CreateODSWithFilter(pathODS, roots, square, s.nsFilter)
+	} else {
+		err = file.CreateODS(pathODS, roots, square)
+	}
 	if err != nil {
 		return fmt.Errorf("recreating ODS file: %w", err)
 	}
@@ -353,7 +370,7 @@ func (s *Store) populateEmptyFile() error {
 		return fmt.Errorf("cleaning old empty EDS file: %w", err)
 	}
 
-	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare, nil)
+	err = file.CreateODSQ4(pathOds, pathQ4, share.EmptyEDSRoots(), eds.EmptyAccessor.ExtendedDataSquare)
 	if err != nil {
 		return fmt.Errorf("creating fresh empty EDS file: %w", err)
 	}
@@ -497,10 +514,10 @@ func (s *Store) removeODSQ4(height uint64, datahash share.DataHash) error {
 }
 
 func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
+	// Pin Node: clean up cached namespace data
 	if s.nsStore != nil {
-		err := s.nsStore.delete(context.TODO(), height)
-		if err != nil {
-			log.Warnw("failed to prune namespace data", "height", height, "err", err)
+		if err := s.nsStore.delete(context.TODO(), height); err != nil {
+			log.Warnw("failed to remove namespace data", "height", height, "err", err)
 		}
 	}
 
