@@ -27,8 +27,8 @@ func Flags() *flag.FlagSet {
 func ParseFlags(cmd *cobra.Command, tp node.Type) fx.Option {
 	archivalChanged := cmd.Flag(archivalFlag).Changed
 	if archivalChanged {
-		if tp != node.Full && tp != node.Bridge {
-			log.Fatal("Archival mode is only supported for Full and Bridge nodes")
+		if tp != node.Full && tp != node.Bridge && tp != node.Pin {
+			log.Fatal("Archival mode is only supported for Full, Bridge, and Pin nodes")
 		}
 		log.Info("ARCHIVAL MODE ENABLED. All blocks will be synced and stored, however archival blocks will " +
 			"be trimmed after the storage window. Expect to see pruning logs as the pruner will still run to trim")
