@@ -67,7 +67,7 @@ func ConstructModule(tp node.Type) fx.Option {
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
 			fx.Invoke(convertToPruned),
 		)
-	case node.Bridge:
+	case node.Bridge, node.Pin:
 		return fx.Module("prune",
 			baseComponents,
 			fx.Provide(func(cfg *Config) ([]core.Option, []fullavail.Option) {
@@ -87,7 +87,7 @@ func ConstructModule(tp node.Type) fx.Option {
 
 func advertiseArchival() fx.Option {
 	return fx.Provide(func(tp node.Type, pruneCfg *Config) discovery.Option {
-		if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
+		if (tp == node.Full || tp == node.Bridge || tp == node.Pin) && !pruneCfg.EnableService {
 			return discovery.WithAdvertise()
 		}
 		var opt discovery.Option

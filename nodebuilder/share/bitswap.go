@@ -35,7 +35,7 @@ func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	}
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Full, node.Bridge, node.Pin:
 		bs := bitswap.New(params.Ctx, net, params.Bs)
 		net.Start(bs.Client, bs.Server)
 		params.Lifecycle.Append(fx.Hook{

@@ -109,7 +109,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return pidstore.NewPeerIDStore(ctx, ds)
 			}),
 		)
-	case node.Bridge:
+	case node.Bridge, node.Pin:
 		return fx.Module(
 			"header",
 			baseComponents,

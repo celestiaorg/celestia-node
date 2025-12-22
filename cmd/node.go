@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
@@ -22,6 +23,7 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		rpc.Flags(),
 		state.Flags(),
 		pruner.Flags(),
+		share.Flags(),
 	}
 	cmd := &cobra.Command{
 		Use:   "bridge [subcommand]",
@@ -50,6 +52,7 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		rpc.Flags(),
 		state.Flags(),
 		pruner.Flags(),
+		share.Flags(),
 	}
 	cmd := &cobra.Command{
 		Use:   "light [subcommand]",
@@ -77,6 +80,7 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 		rpc.Flags(),
 		state.Flags(),
 		pruner.Flags(),
+		share.Flags(),
 	}
 	cmd := &cobra.Command{
 		Use:   "full [subcommand]",
@@ -89,6 +93,34 @@ func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
 			)
 			ctx := WithNodeType(cmd.Context(), node.Full)
 			cmd.SetContext(ctx)
+			return nil
+		},
+	}
+	for _, option := range options {
+		option(cmd, flags)
+	}
+	return cmd
+}
+func NewPin(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
+	flags := []*pflag.FlagSet{
+		NodeFlags(),
+		p2p.Flags(),
+		header.Flags(),
+		MiscFlags(),
+		core.Flags(),
+		rpc.Flags(),
+		state.Flags(),
+		pruner.Flags(),
+		share.Flags(),
+	}
+	cmd := &cobra.Command{
+		Use:   "pin [subcommand]",
+		Args:  cobra.NoArgs,
+		Short: "Manage your Pin node (targeted namespace storage)",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := WithNodeType(cmd.Context(), node.Pin)
+			cmd.SetContext(ctx)
+
 			return nil
 		},
 	}
