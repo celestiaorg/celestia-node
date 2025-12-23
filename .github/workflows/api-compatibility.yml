@@ -1,0 +1,149 @@
+name: API Compatibility Tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch: {}
+
+jobs:
+  api-compatibility:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@19bb51245e9c80abacb2e91cc42b33fa478b8639  # v4
+        with:
+          go-version: '1.24.6'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435  # v3
+
+      - name: Verify Docker is available
+        run: docker --version && docker ps
+
+      - name: Install dependencies
+        run: |
+          go mod download
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef  # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine versions
+        id: versions
+        run: |
+          CURRENT_VERSION=$(git describe --tags --dirty=-dev 2>/dev/null || git rev-parse --short HEAD)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version (PR branch): $CURRENT_VERSION"
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+            echo "PR base branch: $BASE_REF"
+            git fetch origin $BASE_REF:refs/remotes/origin/$BASE_REF || true
+            BASE_VERSION=$(git describe --tags origin/$BASE_REF 2>/dev/null || \
+                          git rev-parse --short origin/$BASE_REF 2>/dev/null || \
+                          echo "v0.28.3-arabica")
+          else
+            BASE_VERSION=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "v0.28.3-arabica")
+          fi
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "Base version: $BASE_VERSION"
+          echo ""
+          echo "Testing compatibility:"
+          echo "  Current client (api_revised) → Old server ($BASE_VERSION)"
+          echo "  Old client ($BASE_VERSION) → Current server (api_revised)"
+
+      - name: Check if base version image exists
+        id: check_base_image
+        run: |
+          BASE_VERSION="${{ steps.versions.outputs.base_version }}"
+          BASE_IMAGE="ghcr.io/celestiaorg/celestia-node-compat-test:${BASE_VERSION}"
+
+          if docker pull "$BASE_IMAGE" 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Base version image exists: $BASE_IMAGE"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Base version image not found: $BASE_IMAGE"
+          fi
+
+      - name: Build compat-test image for base version (if needed)
+        if: >
+          steps.check_base_image.outputs.exists == 'false' &&
+          (github.event.pull_request.head.repo.full_name == github.repository ||
+           github.event_name != 'pull_request')
+        run: |
+          BASE_VERSION="${{ steps.versions.outputs.base_version }}"
+          BASE_IMAGE="ghcr.io/celestiaorg/celestia-node-compat-test:${BASE_VERSION}"
+
+          echo "Building base version image: $BASE_IMAGE"
+
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+            echo "Checking out base branch: $BASE_REF"
+            git checkout origin/$BASE_REF || git checkout $BASE_REF
+          else
+            if git rev-parse "$BASE_VERSION" >/dev/null 2>&1; then
+              echo "Checking out base version tag: $BASE_VERSION"
+              git checkout "$BASE_VERSION"
+            fi
+          fi
+
+          if [ ! -f "cmd/compat-test/Dockerfile" ]; then
+            echo "Warning: compat-test code not found in base version $BASE_VERSION"
+            echo "Building base image from current branch as fallback..."
+            echo "Note: For proper compatibility testing, compat-test code should be backported to $BASE_VERSION"
+            git checkout $CURRENT_COMMIT
+            if [ ! -f "cmd/compat-test/Dockerfile" ]; then
+              echo "Error: compat-test code not found in current branch either"
+              exit 1
+            fi
+          fi
+
+          docker build -f cmd/compat-test/Dockerfile -t "$BASE_IMAGE" .
+          docker push "$BASE_IMAGE"
+          echo "Built and pushed base version image: $BASE_IMAGE"
+
+          git checkout $CURRENT_COMMIT
+
+      - name: Build compat-test image for current version
+        if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+        run: |
+          CURRENT_VERSION="${{ steps.versions.outputs.current_version }}"
+          IMAGE_NAME="ghcr.io/celestiaorg/celestia-node-compat-test:$CURRENT_VERSION"
+          docker build -f cmd/compat-test/Dockerfile -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
+          echo "Built and pushed image: $IMAGE_NAME"
+
+      - name: Run API Compatibility Tests
+        env:
+          CELESTIA_NODE_BASE_VERSION: ${{ steps.versions.outputs.base_version }}
+        run: |
+          cd nodebuilder/tests/tastora/api
+          go test -tags=integration -v -run TestCrossVersionClientTestSuite/TestCrossVersionBidirectional -timeout 30m
+        timeout-minutes: 30
+        continue-on-error: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker system prune -f
+          docker volume prune -f
