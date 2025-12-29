@@ -2,6 +2,7 @@ package blob
 
 import (
 	"context"
+	"errors"
 
 	"go.uber.org/fx"
 
@@ -12,7 +13,13 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
+var ErrReadOnlyMode = errors.New("node is running in read-only mode")
+
 func ConstructModule() fx.Option {
+	return ConstructModuleWithReadOnly(false)
+}
+
+func ConstructModuleWithReadOnly(readOnly bool) fx.Option {
 	return fx.Module("blob",
 		fx.Provide(
 			func(service headerService.Module) func(context.Context, uint64) (*header.ExtendedHeader, error) {
@@ -41,7 +48,24 @@ func ConstructModule() fx.Option {
 			}),
 		)),
 		fx.Provide(func(serv *blob.Service) Module {
-			return serv
+			var mod Module = serv
+			if readOnly {
+				mod = &readOnlyBlobModule{mod}
+			}
+			return mod
 		}),
 	)
+}
+
+// readOnlyBlobModule is a wrapper that disables the Submit operation of the blob module
+type readOnlyBlobModule struct {
+	Module
+}
+
+func (b *readOnlyBlobModule) Submit(
+	_ context.Context,
+	_ []*blob.Blob,
+	_ *blob.SubmitOptions,
+) (uint64, error) {
+	return 0, ErrReadOnlyMode
 }

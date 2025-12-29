@@ -254,3 +254,58 @@ func TestParseFlagsErrors(t *testing.T) {
 	err := ParseFlags(cmd, cfg)
 	assert.Error(t, err)
 }
+
+func TestReadOnlyFlag(t *testing.T) {
+	tests := []struct {
+		name         string
+		readOnlyFlag bool
+		expected     *Config
+		expectError  bool
+	}{
+		{
+			name:         "Read-only mode disabled",
+			readOnlyFlag: false,
+			expected: &Config{
+				Address:  "",
+				Port:     "",
+				ReadOnly: false,
+				CORS:     CORSConfig{},
+			},
+			expectError: false,
+		},
+		{
+			name:         "Read-only mode enabled",
+			readOnlyFlag: true,
+			expected: &Config{
+				Address:  "",
+				Port:     "",
+				ReadOnly: true,
+				CORS:     CORSConfig{},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cfg := &Config{
+				CORS: CORSConfig{},
+			}
+			cmd.Flags().AddFlagSet(Flags())
+
+			// Set read-only flag
+			err := cmd.Flags().Set(readOnlyFlag, fmt.Sprintf("%t", tt.readOnlyFlag))
+			require.NoError(t, err)
+
+			err = ParseFlags(cmd, cfg)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected.ReadOnly, cfg.ReadOnly)
+			}
+		})
+	}
+}
