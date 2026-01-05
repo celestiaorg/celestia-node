@@ -30,9 +30,11 @@ var (
 	metricsEndpointFlag = "metrics.endpoint"
 	metricsTlS          = "metrics.tls"
 	p2pMetrics          = "p2p.metrics"
-	pyroscopeFlag       = "pyroscope"
-	pyroscopeTracing    = "pyroscope.tracing"
-	pyroscopeEndpoint   = "pyroscope.endpoint"
+
+	// Pyroscope flags
+	pyroscopeFlag     = "pyroscope"
+	pyroscopeTracing  = "pyroscope.tracing"
+	pyroscopeEndpoint = "pyroscope.endpoint"
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
