@@ -240,28 +240,6 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	span.SetAttributes(attribute.StringSlice("namespaces", ids))
 	span.SetAttributes(attribute.IntSlice("blob-data-lengths", dataLengths))
 
-	log.Infow("submitting blobs",
-		"amount", len(libBlobs),
-		"namespaces", ids,
-		"data-lengths", dataLengths,
-		"signer", cfg.SignerAddress(),
-		"key-name", cfg.KeyName(),
-		"gas-price", cfg.GasPrice(),
-		"gas-limit", cfg.GasLimit(),
-		"fee-granter", cfg.FeeGranterAddress(),
-		"tx-priority", int(cfg.TxPriority()),
-	)
-	defer func() {
-		if err != nil {
-			log.Errorw("submitting blobs",
-				"err", err,
-				"namespaces", ids,
-				"signer", cfg.SignerAddress(),
-				"key-name", cfg.KeyName(),
-			)
-		}
-	}()
-
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
 		return nil, err
@@ -276,32 +254,12 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	// Gas estimation with metrics - only record when actual estimation occurs
-	gas := cfg.GasLimit()
-	var author AccAddress
-
-	if gas == 0 {
-		gasEstimationStart := time.Now()
-		// get tx signer account name first for gas estimation
-		author, err = ca.getTxAuthorAccAddress(cfg)
-		if err != nil {
-			return nil, err
-		}
-		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
-		gasEstimationDuration = time.Since(gasEstimationStart)
-		ca.metrics.observeGasEstimation(ctx, gasEstimationDuration, err)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// get tx signer account name
-		author, err = ca.getTxAuthorAccAddress(cfg)
-		if err != nil {
-			return nil, err
-		}
+	// get signer address
+	author, err := ca.getTxAuthorAccAddress(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	// Account query with metrics
 	accountQueryStart := time.Now()
 	account := ca.client.AccountByAddress(ctx, author)
 	ca.metrics.observeAccountQuery(ctx, time.Since(accountQueryStart), nil)
@@ -311,7 +269,19 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		return nil, err
 	}
 
-	// Gas price estimation with metrics
+	gas := cfg.GasLimit()
+	// Gas estimation if needed
+	if gas == 0 {
+		gasEstimationStart := time.Now()
+		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
+		gasEstimationDuration = time.Since(gasEstimationStart)
+		ca.metrics.observeGasEstimation(ctx, gasEstimationDuration, err)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Gas price estimation
 	gasPriceEstimationStart := time.Now()
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
 	ca.metrics.observeGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
@@ -323,6 +293,28 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	if feeGrant != nil {
 		opts = append(opts, feeGrant)
 	}
+
+	log.Infow("submitting blobs",
+		"amount", len(libBlobs),
+		"namespaces", ids,
+		"data-lengths", dataLengths,
+		"signer", account.Address().String(),
+		"key-name", account.Name(),
+		"gas-price", gasPrice,
+		"gas-limit", gas,
+		"fee-granter", cfg.FeeGranterAddress(),
+		"tx-priority", int(cfg.TxPriority()),
+	)
+	defer func() {
+		if err != nil {
+			log.Errorw("submitting blobs",
+				"err", err,
+				"namespaces", ids,
+				"signer", account.Address().String(),
+				"key-name", account.Name(),
+			)
+		}
+	}()
 
 	var response *user.TxResponse
 	if ca.txWorkerAccounts > 0 && author.Equals(ca.defaultSignerAddress) {
