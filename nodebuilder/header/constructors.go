@@ -77,15 +77,19 @@ func newSyncer[H libhead.Header[H]](
 	cfg Config,
 ) (*sync.Syncer[H], error) {
 	if ndtp == node.Full || ndtp == node.Bridge {
-		genesis, err := modp2p.GenesisFor(net)
-		if err != nil {
-			return nil, err
-		}
+		// Only set sync parameters if they haven't been configured by the user.
+		// This allows users to specify SyncFromHeight or SyncFromHash in their config.
+		if cfg.Syncer.SyncFromHash == "" && cfg.Syncer.SyncFromHeight == 0 {
+			genesis, err := modp2p.GenesisFor(net)
+			if err != nil {
+				return nil, err
+			}
 
-		cfg.Syncer.SyncFromHash = genesis
-		if genesis == "" {
-			// set by height if hash is not available
-			cfg.Syncer.SyncFromHeight = 1
+			cfg.Syncer.SyncFromHash = genesis
+			if genesis == "" {
+				// set by height if hash is not available
+				cfg.Syncer.SyncFromHeight = 1
+			}
 		}
 	}
 
