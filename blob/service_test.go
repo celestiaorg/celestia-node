@@ -658,7 +658,7 @@ func TestService_Subscribe(t *testing.T) {
 	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
-	service := createServiceWithSub(ctx, t, blobs)
+	service, headers := createServiceWithSub(ctx, t, blobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -671,6 +671,7 @@ func TestService_Subscribe(t *testing.T) {
 			select {
 			case resp := <-subCh:
 				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, headers[i].Time(), resp.Time)
 				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for subscription response %d", i)
@@ -691,6 +692,7 @@ func TestService_Subscribe(t *testing.T) {
 			case resp := <-subCh:
 				assert.Empty(t, resp.Blobs)
 				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, headers[i].Time(), resp.Time)
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for empty subscription response %d", i)
 			}
@@ -775,7 +777,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	//nolint: gocritic
 	allBlobs := append(blobs1, blobs2...)
 
-	service := createServiceWithSub(ctx, t, allBlobs)
+	service, _ := createServiceWithSub(ctx, t, allBlobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -852,7 +854,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
-func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Service, []*header.ExtendedHeader) {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
@@ -896,7 +898,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
