@@ -86,12 +86,6 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 func (cfg *Config) Validate(tp node.Type) error {
 	switch tp {
 	case node.Full, node.Bridge:
-		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 || cfg.Syncer.PruningWindow != 0 {
-			return fmt.Errorf(
-				"module/header: Syncer.SyncFromHash/Syncer.SyncFromHeight/Syncer.PruningWindow must not be set for FN/BN nodes" +
-					"until https://github.com/celestiaorg/go-header/issues/333 is completed. Full and Bridge must sync all the headers until then",
-			)
-		}
 	case node.Light:
 		if cfg.Syncer.PruningWindow < availability.StorageWindow {
 			// TODO(@Wondertan): Technically, a LN may break this restriction by setting SyncFromHeight/Hash to a header
