@@ -802,8 +802,8 @@ github.com/celestiaorg/boxo v0.29.0-fork-4 h1:A202u8w3Iqjw4ZlqSukfiMbefQEN+740GU
 github.com/celestiaorg/boxo v0.29.0-fork-4/go.mod h1:rXql6ncaLZZfLqDG3Cuw9ZYQKd3rMU5bk1TGXF0+ZL0=
 github.com/celestiaorg/celestia-app/v6 v6.4.6-arabica h1:3RPFSRyJKdYMhp/EdW5tEEfoF0yNbjYAVn6q4EzuakQ=
 github.com/celestiaorg/celestia-app/v6 v6.4.6-arabica/go.mod h1:Q2FW4+Y8OyPMky2wDmS24y0pud/eliQs1Qp7MF6Pqzg=
-github.com/celestiaorg/celestia-core v0.39.13 h1:WJjQ+Mq5DkDTjNuZYY7jU3V7obbOnGVdDwIOiLTvREE=
-github.com/celestiaorg/celestia-core v0.39.13/go.mod h1:uJPRDBfk83X/bJ/MhfBLJj33T6UyhDS3vY2rW8eI1Mc=
+github.com/celestiaorg/celestia-core v0.39.21 h1:tuptv5BNzEl40oDj6N85cS8+W72VDuPXKXQkjU8b3I8=
+github.com/celestiaorg/celestia-core v0.39.21/go.mod h1:ujm+v9Rj6/bb6WQUweXvYJS8kVVBQsBgPjwGRpW8Pgg=
 github.com/celestiaorg/cosmos-sdk v0.51.6 h1:sUDSbbg6SjPjWHW7mow4j6i+I8X8nHDmpojnPOeAwYI=
 github.com/celestiaorg/cosmos-sdk v0.51.6/go.mod h1:z5sV0ONMM7Qww3FuLZ2xmqjFblbivkb/jmwQfnHAxrE=
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAszUegMXgB6cTbDm7CA=
@@ -1589,6 +1589,8 @@ github.com/mitchellh/gox v0.4.0/go.mod h1:Sd9lOJ0+aimLBi73mGofS1ycjY8lL3uZM3JPS4
 github.com/mitchellh/iochan v1.0.0/go.mod h1:JwYml1nuB7xOzsp52dPpHFffvOCDupsG0QubkSMEySY=
 github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
+github.com/moby/sys/user v0.3.0 h1:9ni5DlcW5an3SvRSx4MouotOygvzaXbaSrc/wGDFWPo=
+github.com/moby/sys/user v0.3.0/go.mod h1:bG+tYYYJgaMtRKgEmuueC0hJEAZWwtIbZTB+85uoHjs=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
@@ -1670,8 +1672,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/opencontainers/runc v1.1.14 h1:rgSuzbmgz5DUJjeSnw337TxDbRuqjs6iqQck/2weR6w=
-github.com/opencontainers/runc v1.1.14/go.mod h1:E4C2z+7BxR7GHXp0hAY53mek+x49X1LjPNeMTfRGvOA=
+github.com/opencontainers/runc v1.2.8 h1:RnEICeDReapbZ5lZEgHvj7E9Q3Eex9toYmaGBsbvU5Q=
+github.com/opencontainers/runc v1.2.8/go.mod h1:cC0YkmZcuvr+rtBZ6T7NBoVbMGNAdLa/21vIElJDOzI=
 github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492/go.mod h1:Ngi6UdF0k5OKD5t5wlmGhe/EDKPoUM3BXZSSfIuJbis=
 github.com/opentracing/basictracer-go v1.0.0/go.mod h1:QfBfYuafItcjQuMwinw9GhYKwFXS9KnPs5lxoYwgW74=
 github.com/opentracing/opentracing-go v1.0.2/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=

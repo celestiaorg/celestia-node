@@ -378,7 +378,7 @@ require (
 replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	//github.com/celestiaorg/tastora => ../../tastora
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.13
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.21
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.51.6
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
