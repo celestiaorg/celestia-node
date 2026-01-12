@@ -93,12 +93,11 @@ func (s *Service) Stop(context.Context) error {
 }
 
 // SubscriptionResponse is the response type for the Subscribe method.
-// It contains the blobs, the height and time at which they were included.
+// It contains the blobs and the header at which they were included.
 // If the Blobs slice is empty, it means that no blobs were included at the given height.
 type SubscriptionResponse struct {
 	Blobs  []*Blob
-	Height uint64
-	Time   time.Time
+	header *header.ExtendedHeader
 }
 
 // Subscribe returns a channel that will receive SubscriptionResponse objects.
@@ -158,7 +157,7 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 				case <-ctx.Done():
 					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
 					return
-				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height(), Time: header.Time()}:
+				case blobCh <- &SubscriptionResponse{Blobs: blobs, header: header}:
 				}
 			case <-ctx.Done():
 				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
