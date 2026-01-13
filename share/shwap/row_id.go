@@ -139,17 +139,17 @@ func (rid RowID) AppendBinary(data []byte) ([]byte, error) {
 	return binary.BigEndian.AppendUint16(data, uint16(rid.RowIndex)), nil
 }
 
-func (rid RowID) ResponseDataReader(ctx context.Context, acc Accessor) (io.Reader, error) {
-	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
+func (rid RowID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	halfRow, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting half row from accessor: %w", err)
 	}
 
-	r := axisHalf.ToRow()
+	row := halfRow.ToRow()
 	buf := &bytes.Buffer{}
-	_, err = r.WriteTo(buf)
+	_, err = row.WriteTo(buf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("writing row: %w", err)
 	}
 	return buf, nil
 }

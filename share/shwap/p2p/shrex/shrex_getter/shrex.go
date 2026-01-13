@@ -146,6 +146,10 @@ func (sg *Getter) GetSamples(
 		})
 	}
 
+	// Wait for all sample requests to complete. On partial failures, we return
+	// whatever samples were successfully retrieved along with the error.
+	// Callers should check both the returned samples slice and error - a non-nil
+	// error with non-empty samples indicates partial success.
 	err = errGroup.Wait()
 	// Delete empty entries if samples were not found or any other error occurred and return partial response
 	samples = slices.DeleteFunc(samples, func(sample shwap.Sample) bool {
@@ -228,6 +232,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 	)
 
 	req := func(ctx context.Context, peer libpeer.ID) error {
+		buff.Reset()
 		return sg.client.Get(ctx, &request, buff, peer)
 	}
 
@@ -319,6 +324,11 @@ func (sg *Getter) GetRangeNamespaceData(
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
+
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		return shwap.RangeNamespaceData{}, nil
+	}
 
 	edsID, err := shwap.NewEdsID(header.Height())
 	if err != nil {
@@ -445,7 +455,6 @@ func (sg *Getter) executeRequest(
 				break
 			}
 			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
-			setStatus(peers.ResultNoop)
 			return nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
