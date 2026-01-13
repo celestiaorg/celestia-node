@@ -16,9 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// RowNamespaceDataName is the name identifier for the row namespace data container.
-const RowNamespaceDataName = "rnd_v0"
-
 // ErrNamespaceOutsideRange is returned by RowNamespaceDataFromShares when the target namespace is
 // outside of the namespace range for the given row. In this case, the implementation cannot return
 // the non-inclusion proof and will return ErrNamespaceOutsideRange.

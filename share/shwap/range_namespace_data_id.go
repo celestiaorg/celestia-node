@@ -64,21 +64,12 @@ func (rngid RangeNamespaceDataID) Name() string {
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
 // does not exceed the number of shares inside the ODS.
 func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
-	err := rngid.EdsID.Validate()
+	err := rngid.Validate()
 	if err != nil {
-		return fmt.Errorf("invalid EdsID: %w", err)
+		return err
 	}
 
 	sharesAmount := odsSize * odsSize
-	if rngid.From < 0 {
-		return fmt.Errorf("from must be greater than or equal to 0: %d", rngid.From)
-	}
-	if rngid.To <= 0 {
-		return fmt.Errorf("to must be greater than 0: %d", rngid.To)
-	}
-	if rngid.From >= rngid.To {
-		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
-	}
 	if rngid.From >= sharesAmount {
 		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, odsSize)
 	}
@@ -90,6 +81,19 @@ func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
 
 // Validate performs basic fields validation.
 func (rngid RangeNamespaceDataID) Validate() error {
+	err := rngid.EdsID.Validate()
+	if err != nil {
+		return fmt.Errorf("invalid EdsID: %w", err)
+	}
+	if rngid.From < 0 {
+		return fmt.Errorf("%w: From: %d < 0", ErrInvalidID, rngid.From)
+	}
+	if rngid.To <= 0 {
+		return fmt.Errorf("%w: To: %d <= 0", ErrInvalidID, rngid.To)
+	}
+	if rngid.From >= rngid.To {
+		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
+	}
 	return nil
 }
 
@@ -111,6 +115,10 @@ func (rngid *RangeNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo writes the binary form of RangeNamespaceDataID to the provided writer.
 func (rngid RangeNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
+	if err := rngid.Validate(); err != nil {
+		return int64(0), err
+	}
+
 	data, err := rngid.MarshalBinary()
 	if err != nil {
 		return 0, err
