@@ -97,7 +97,7 @@ require (
 	github.com/emicklei/dot v1.6.2 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
-	github.com/ethereum/go-ethereum v1.16.3 // indirect
+	github.com/ethereum/go-ethereum v1.16.8 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/filecoin-project/go-clock v0.1.0 // indirect
@@ -122,7 +122,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
+	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -368,6 +368,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.53.0 // indirect
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/moby/moby v27.5.1+incompatible // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
