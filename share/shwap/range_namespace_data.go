@@ -257,7 +257,7 @@ func (rngdata *RangeNamespaceData) verifyShares(
 // If the RangeNamespaceData is empty (i.e., contains no shares), Flatten returns nil.
 // Otherwise, it returns a flattened slice of libshare.Share combining shares from all rows.
 func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
-	var shares []libshare.Share
+	var shares []libshare.Share //nolint:prealloc
 	for _, shrs := range rngdata.Shares {
 		shares = append(shares, shrs...)
 	}
