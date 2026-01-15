@@ -86,6 +86,32 @@ func TestBEFP_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid BEFP with unordered shares list",
+			prepareFn: func() error {
+				validSquare := edstest.RandEDS(t, 2)
+				validRoots, err := share.NewAxisRoots(validSquare)
+				require.NoError(t, err)
+				err = ipld.ImportEDS(ctx, validSquare, bServ)
+				require.NoError(t, err)
+				validShares := validSquare.Flattened()
+				errInvalidByz := NewErrByzantine(ctx, bServ.Blockstore(), validRoots,
+					&rsmt2d.ErrByzantineData{
+						Axis:   rsmt2d.Row,
+						Index:  0,
+						Shares: validShares[0:4],
+					},
+				)
+				var errInvalid *ErrByzantine
+				require.ErrorAs(t, errInvalidByz, &errInvalid)
+				errInvalid.Shares[0], errInvalid.Shares[1] = errInvalid.Shares[0], errInvalid.Shares[1]
+				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalid)
+				return invalidBefp.Validate(&header.ExtendedHeader{DAH: validRoots})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
+			},
+		},
+		{
 			name: "incorrect share with Proof",
 			prepareFn: func() error {
 				// break the first shareWithProof to test negative case
