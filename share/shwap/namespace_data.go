@@ -21,7 +21,7 @@ type NamespaceData []RowNamespaceData
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
 func (nd NamespaceData) Flatten() []libshare.Share {
-	var shares []libshare.Share
+	var shares []libshare.Share //nolint:prealloc
 	for _, row := range nd {
 		shares = append(shares, row.Shares...)
 	}
