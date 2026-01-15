@@ -116,7 +116,6 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 		return nil, err
 	}
 
-	var ids []da.ID //nolint:prealloc
 	log.Debugw("getting ids", "height", height, "namespace", ns)
 	blobs, err := s.blobServ.GetAll(ctx, height, []libshare.Namespace{ns})
 	log.Debugw("got ids", "height", height, "namespace", ns)
@@ -126,6 +125,8 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 		}
 		return nil, err
 	}
+
+	ids := make([]da.ID, 0, len(blobs))
 	for _, b := range blobs {
 		ids = append(ids, MakeID(height, b.Commitment))
 	}

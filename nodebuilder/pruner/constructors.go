@@ -7,14 +7,13 @@ import (
 	headsync "github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/pruner"
 )
 
 // ensures Pruner always starts after Syncer
-type syncerAnchor = modfraud.ServiceBreaker[*headsync.Syncer[*header.ExtendedHeader], *header.ExtendedHeader]
+type syncerAnchor = headsync.Syncer[*header.ExtendedHeader]
 
 func newPrunerService(
 	p pruner.Pruner,
