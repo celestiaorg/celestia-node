@@ -191,7 +191,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			return errIncorrectShare
 		}
 		shares[index] = shr.ToBytes()
-		indexes = append(indexes, index)
+		indexes = append(indexes, shr.Proof.Start())
 	}
 
 	isSorted := slices.IsSorted(indexes)

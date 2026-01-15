@@ -103,7 +103,7 @@ func TestBEFP_Validate(t *testing.T) {
 				)
 				var errInvalid *ErrByzantine
 				require.ErrorAs(t, errInvalidByz, &errInvalid)
-				errInvalid.Shares[0], errInvalid.Shares[1] = errInvalid.Shares[0], errInvalid.Shares[1]
+				errInvalid.Shares[0], errInvalid.Shares[1] = errInvalid.Shares[1], errInvalid.Shares[0]
 				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalid)
 				return invalidBefp.Validate(&header.ExtendedHeader{DAH: validRoots})
 			},
@@ -333,4 +333,44 @@ func (n *namespacedBlockService) GetBlocks(ctx context.Context, cids []cid.Cid) 
 		}
 	}()
 	return resultCh
+}
+
+// TestBEFP_ForgedByReorderedShares checks whether a valid row can be made to look
+// byzantine by reordering otherwise valid shares with valid inclusion proofs.
+func TestBEFP_ForgedByReorderedShares(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+	bServ := ipld.NewMemBlockservice()
+	size := 4
+	shares, err := libshare.RandShares(size * size)
+	require.NoError(t, err)
+	eds, err := ipld.AddShares(ctx, shares, bServ)
+	require.NoError(t, err)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	rowIdx := 0
+	width := int(eds.Width())
+	row := eds.Row(uint(rowIdx))
+	shareProofs := make([]*ShareWithProof, width)
+	for i := 0; i < width; i++ {
+		sh, err := libshare.NewShare(row[i])
+		require.NoError(t, err)
+		proof, err := GetShareWithProof(ctx, bServ, roots, *sh, rsmt2d.Row, rowIdx, i)
+		require.NoError(t, err)
+		shareProofs[i] = proof
+	}
+	// Reorder two shares while keeping their proofs intact.
+	shareProofs[0], shareProofs[1] = shareProofs[1], shareProofs[0]
+	fakeErr := ErrByzantine{
+		Index:  uint32(rowIdx),
+		Shares: shareProofs,
+		Axis:   rsmt2d.Row,
+	}
+	h := &header.ExtendedHeader{
+		RawHeader: core.Header{Height: 1},
+		DAH:       roots,
+	}
+	proof := CreateBadEncodingProof([]byte("hash"), h.Height(), &fakeErr)
+	err = proof.Validate(h)
+	require.Error(t, err)
 }
