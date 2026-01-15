@@ -178,7 +178,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		return errIncorrectAmountOfShares
 	}
 
-	indexes := make([]int, 0) // nolint:prealoc
+	indexes := make([]int, 0) //nolint:prealoc
 	// verify that Merkle proofs correspond to particular shares.
 	shares := make([][]byte, width)
 	for index, shr := range p.Shares {
