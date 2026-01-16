@@ -67,9 +67,11 @@ func TestValidateODSQ4FileSize(t *testing.T) {
 		valid      bool
 	}{
 		{
-			name:       "valid",
-			createFile: CreateODSQ4,
-			valid:      true,
+			name: "valid",
+			createFile: func(pathODS, pathQ4 string, roots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare) error {
+				return CreateODSQ4(pathODS, pathQ4, roots, eds)
+			},
+			valid: true,
 		},
 		{
 			name: "shorter q4",

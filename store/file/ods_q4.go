@@ -39,6 +39,7 @@ func CreateODSQ4(
 	pathODS, pathQ4 string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
+	options ...WriteOption,
 ) error {
 	errCh := make(chan error)
 	go func() {
@@ -47,7 +48,7 @@ func CreateODSQ4(
 		errCh <- createQ4(pathQ4, eds)
 	}()
 
-	err := CreateODS(pathODS, roots, eds)
+	err := CreateODS(pathODS, roots, eds, options...)
 	q4Err := <-errCh
 
 	if err != nil && q4Err != nil {

@@ -31,6 +31,10 @@ type Config struct {
 
 	LightAvailability *light.Parameters `toml:",omitempty"`
 	Discovery         *discovery.Parameters
+
+	// NamespaceID is used to filter shares to be stored in the EDS store.
+	// Only shares with the specific namespace will be stored.
+	NamespaceID string
 }
 
 func DefaultConfig(tp node.Type) Config {

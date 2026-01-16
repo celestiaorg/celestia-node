@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -42,7 +43,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Bridge, node.Full:
+	case node.Bridge, node.Full, node.Pin:
 		return fx.Module(
 			"share",
 			baseComponents,
@@ -77,7 +78,7 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 				),
 			),
 		)
-	case node.Full, node.Bridge:
+	case node.Full, node.Bridge, node.Pin:
 		return fx.Options(
 			opts,
 			fx.Provide(
@@ -142,7 +143,7 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				}
 			}),
 		)
-	case node.Full:
+	case node.Full, node.Pin:
 		return fx.Options(
 			opts,
 			shrexServerComponents(cfg),
@@ -197,8 +198,20 @@ func shrexServerComponents(cfg *Config) fx.Option {
 func edsStoreComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Provide(fx.Annotate(
-			func(path node.StorePath) (*store.Store, error) {
-				return store.NewStore(cfg.EDSStoreParams, string(path))
+			func(path node.StorePath, ds datastore.Batching) (*store.Store, error) {
+				params := cfg.EDSStoreParams
+
+				// Configure namespace tracking for Pin nodes (if NamespaceID is set)
+				if cfg.NamespaceID != "" {
+					ns, err := utils.ParseNamespace(cfg.NamespaceID)
+					if err != nil {
+						return nil, fmt.Errorf("parsing namespace ID: %w", err)
+					}
+					params.TrackedNamespace = ns
+					params.NamespaceDatastore = ds
+				}
+
+				return store.NewStore(params, string(path))
 			},
 			fx.OnStop(func(ctx context.Context, store *store.Store) error {
 				return store.Stop(ctx)
@@ -227,7 +240,7 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				}),
 			)),
 		)
-	case node.Bridge, node.Full:
+	case node.Bridge, node.Full, node.Pin:
 		return fx.Options(
 			fx.Provide(func(
 				s *store.Store,
@@ -244,3 +257,4 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 		panic("invalid node type")
 	}
 }
+

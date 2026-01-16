@@ -131,7 +131,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			baseComponents,
 			samplingMetrics,
 		)
-	case node.Bridge:
+	case node.Bridge, node.Pin:
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
