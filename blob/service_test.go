@@ -754,6 +754,91 @@ func TestService_Subscribe(t *testing.T) {
 	})
 }
 
+func TestService_SubscribeFrom(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	libBlobs, err := libshare.GenerateV0Blobs([]int{16, 16, 16, 16, 16}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(libBlobs...)
+	require.NoError(t, err)
+
+	service := createServiceWithSub(ctx, t, blobs)
+	err = service.Start(ctx)
+	require.NoError(t, err)
+
+	t.Run("subscribe from height 1", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		subCh, err := service.SubscribeFrom(ctx, 1, ns)
+		require.NoError(t, err)
+
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscribe from with no matching blobs", func(t *testing.T) {
+		ns, err := libshare.NewV0Namespace([]byte("randomNs"))
+		require.NoError(t, err)
+
+		subCh, err := service.SubscribeFrom(ctx, 1, ns)
+		require.NoError(t, err)
+
+		// Should receive empty responses for all heights
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Empty(t, resp.Blobs)
+				assert.Equal(t, i+1, resp.Height)
+			case <-time.After(time.Second * 2):
+				t.Fatalf("timeout waiting for empty subscription response %d", i)
+			}
+		}
+	})
+
+	t.Run("subscribe from future height fails", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		futureHeight := uint64(1000)
+		_, err := service.SubscribeFrom(ctx, futureHeight, ns)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "network height")
+	})
+
+	t.Run("subscribe from with cancellation", func(t *testing.T) {
+		subCtx, subCancel := context.WithCancel(ctx)
+
+		ns := blobs[0].Namespace()
+		subCh, err := service.SubscribeFrom(subCtx, 1, ns)
+		require.NoError(t, err)
+
+		// Receive first response then cancel
+		select {
+		case <-subCh:
+			subCancel()
+		case <-time.After(time.Second * 2):
+			t.Fatal("timeout waiting for first subscription response")
+		}
+
+		// Channel should eventually close
+		for {
+			select {
+			case _, ok := <-subCh:
+				if !ok {
+					return
+				}
+			case <-time.After(time.Second * 2):
+				t.Fatal("timeout waiting for subscription channel to close")
+			}
+		}
+	})
+}
+
 func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
@@ -787,11 +872,11 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	subCh2, err := service.Subscribe(ctx, ns2)
 	require.NoError(t, err)
 
-	var i int
-	for ; i < len(blobs1); i++ {
+	var i uint64
+	for i = uint64(0); i < uint64(len(blobs1)); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, i+1, resp.Height)
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns1, b.Namespace())
@@ -801,10 +886,10 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 		}
 	}
 
-	for ; i < len(blobs2); i++ {
+	for i := i; i < uint64(len(blobs2)); i++ {
 		select {
 		case resp := <-subCh2:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, i+1, resp.Height)
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns2, b.Namespace())

@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v6/pkg/proof"
@@ -50,6 +51,13 @@ type Submitter interface {
 	SubmitPayForBlob(context.Context, []*libshare.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
+// SubscriptionResponse contains the blobs and the height at which they were included.
+// If the Blobs slice is empty, it means that no blobs were included at the given height.
+type SubscriptionResponse struct {
+	Blobs  []*Blob
+	Height uint64
+}
+
 type Service struct {
 	// ctx represents the Service's lifecycle context.
 	ctx    context.Context
@@ -60,8 +68,8 @@ type Service struct {
 	shareGetter shwap.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
-	// headerSub subscribes to new headers to supply to blob subscriptions.
-	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	// headerSub subscribes to new headers
+	headerSub func(context.Context) (<-chan *header.ExtendedHeader, error)
 	// metrics tracks blob-related metrics
 	metrics *metrics
 }
@@ -92,14 +100,6 @@ func (s *Service) Stop(context.Context) error {
 	return nil
 }
 
-// SubscriptionResponse is the response type for the Subscribe method.
-// It contains the blobs and the height at which they were included.
-// If the Blobs slice is empty, it means that no blobs were included at the given height.
-type SubscriptionResponse struct {
-	Blobs  []*Blob
-	Height uint64
-}
-
 // Subscribe returns a channel that will receive SubscriptionResponse objects.
 // The channel will be closed when the context is canceled or the service is stopped.
 // Please note that no errors are returned: underlying operations are retried until successful.
@@ -109,65 +109,71 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 		return nil, fmt.Errorf("service has not been started")
 	}
 
-	log.Infow("subscribing for blobs",
-		"namespaces", ns.String(),
-	)
+	log.Infow("subscribing for blobs", "namespaces", ns.String())
+
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	blobCh := make(chan *SubscriptionResponse, 16)
-	go func() {
-		defer close(blobCh)
+	go s.handleSubscription(ctx, headerCh, blobCh, ns)
+	return blobCh, nil
+}
 
-		for {
-			select {
-			case header, ok := <-headerCh:
-				if ctx.Err() != nil {
-					log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-					return
-				}
-				if !ok {
-					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
-					return
-				}
-				// close subscription before buffer overflows
-				if len(blobCh) == cap(blobCh) {
-					log.Debugw("blobsub: canceling subscription due to buffer overflow from slow reader", "namespace", ns.ID())
-					return
-				}
+// SubscribeFrom subscribes to blobs starting from the given height.
+// It first retrieves historical blobs from the specified height up to the current network head,
+// then continues with live subscription for new blocks.
+// Returns an error if the requested height is greater than the current network height.
+func (s *Service) SubscribeFrom(
+	ctx context.Context,
+	height uint64,
+	ns libshare.Namespace,
+) (<-chan *SubscriptionResponse, error) {
+	if s.ctx == nil {
+		return nil, fmt.Errorf("service has not been started")
+	}
 
-				var blobs []*Blob
-				var err error
-				for {
-					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
-					if ctx.Err() != nil {
-						// context canceled, continuing would lead to unexpected missed heights for the client
-						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-						return
-					}
-					if err == nil {
-						// operation successful, break the loop
-						break
-					}
-				}
+	log.Infow("subscribing for blobs", "from", height, "namespaces", ns.String())
 
-				select {
-				case <-ctx.Done():
-					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
-					return
-				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
-				}
-			case <-ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-				return
-			case <-s.ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to service ctx closing", "namespace", ns.ID())
-				return
-			}
+	headerCh, err := s.headerSub(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// wait for current network head
+	var hdr *header.ExtendedHeader
+	select {
+	case hdr = <-headerCh:
+		if hdr.Height() < height {
+			return nil, fmt.Errorf("network height %d is less than requested height %d", hdr.Height(), height)
 		}
-	}()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	hdrs, err := s.fetchHistoricalHeaders(ctx, height, hdr)
+	if err != nil {
+		return nil, err
+	}
+
+	blobCh := make(chan *SubscriptionResponse, 16)
+
+	// Send historical blobs before starting live subscription
+	for _, h := range hdrs {
+		blobs, err := s.retrieveBlobs(ctx, h, ns)
+		if err != nil {
+			log.Errorw("failed to retrieve blobs", "height", h.Height(), "error", err)
+			continue
+		}
+		select {
+		case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: h.Height()}:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	go s.handleSubscription(ctx, headerCh, blobCh, ns)
 	return blobCh, nil
 }
 
@@ -781,4 +787,102 @@ func computeSubtreeRoots(shares []libshare.Share, ranges []nmt.LeafRange, offset
 		subtreeRoots = append(subtreeRoots, root)
 	}
 	return subtreeRoots, nil
+}
+
+// fetchHistoricalHeaders fetches headers from startHeight up to and including currentHdr.
+func (s *Service) fetchHistoricalHeaders(
+	ctx context.Context,
+	startHeight uint64,
+	currentHdr *header.ExtendedHeader,
+) ([]*header.ExtendedHeader, error) {
+	numHistorical := currentHdr.Height() - startHeight
+	hdrs := make([]*header.ExtendedHeader, numHistorical+1)
+
+	errGroup, egCtx := errgroup.WithContext(ctx)
+	errGroup.SetLimit(10)
+	for i := uint64(0); i < numHistorical; i++ {
+		errGroup.Go(func() error {
+			h, err := s.headerGetter(egCtx, startHeight+i)
+			if err != nil {
+				return err
+			}
+			hdrs[i] = h
+			return nil
+		})
+	}
+	if err := errGroup.Wait(); err != nil {
+		return nil, err
+	}
+
+	hdrs[numHistorical] = currentHdr
+	return hdrs, nil
+}
+
+// handleSubscription processes incoming headers and sends blob responses.
+func (s *Service) handleSubscription(
+	ctx context.Context,
+	headerCh <-chan *header.ExtendedHeader,
+	blobCh chan *SubscriptionResponse,
+	ns libshare.Namespace,
+) {
+	defer close(blobCh)
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+			return
+		case <-s.ctx.Done():
+			log.Debugw("blobsub: canceling subscription due to service stopping", "namespace", ns.ID())
+			return
+		case hdr, ok := <-headerCh:
+			if !ok {
+				log.Errorw("blobsub: header channel closed", "namespace", ns.ID())
+				return
+			}
+
+			// Close subscription before buffer overflows
+			if len(blobCh) == cap(blobCh) {
+				log.Debugw("blobsub: canceling subscription due to buffer overflow", "namespace", ns.ID())
+				return
+			}
+
+			blobs, err := s.retrieveBlobs(ctx, hdr, ns)
+			if err != nil {
+				log.Debugw("blobsub: error retrieving blobs", "namespace", ns.ID(), "err", err)
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				log.Debugw("blobsub: canceled while sending response", "namespace", ns.ID())
+				return
+			case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: hdr.Height()}:
+			}
+		}
+	}
+}
+
+// retrieveBlobs retrieves blobs for a header, retrying on transient errors.
+func (s *Service) retrieveBlobs(
+	ctx context.Context,
+	hdr *header.ExtendedHeader,
+	ns libshare.Namespace,
+) ([]*Blob, error) {
+	for {
+		blobs, err := s.getAll(ctx, hdr, []libshare.Namespace{ns})
+		if err == nil {
+			return blobs, nil
+		}
+
+		switch {
+		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+			return nil, err
+		case s.ctx.Err() != nil:
+			return nil, s.ctx.Err()
+		default:
+			log.Debugw("blobsub: retrying after error", "namespace", ns.ID(), "err", err)
+			continue
+		}
+	}
 }
