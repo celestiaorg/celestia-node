@@ -30,15 +30,38 @@ var (
 	newDataSignedBlockQuery = types.QueryForEvent(types.EventSignedBlock).String()
 )
 
+const (
+	// defaultBlockFetchTimeout is the default timeout for fetching a block
+	// when receiving new block events.
+	defaultBlockFetchTimeout = 10 * time.Second
+)
+
+// BlockFetcherOption is a functional option for configuring BlockFetcher.
+type BlockFetcherOption func(*BlockFetcher)
+
+// WithBlockFetchTimeout sets the timeout for fetching blocks when receiving
+// new block events. If not set, defaultBlockFetchTimeout is used.
+func WithBlockFetchTimeout(timeout time.Duration) BlockFetcherOption {
+	return func(f *BlockFetcher) {
+		f.blockFetchTimeout = timeout
+	}
+}
+
 type BlockFetcher struct {
-	client coregrpc.BlockAPIClient
+	client            coregrpc.BlockAPIClient
+	blockFetchTimeout time.Duration
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
-func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
-	return &BlockFetcher{
-		client: coregrpc.NewBlockAPIClient(conn),
-	}, nil
+func NewBlockFetcher(conn *grpc.ClientConn, opts ...BlockFetcherOption) (*BlockFetcher, error) {
+	f := &BlockFetcher{
+		client:            coregrpc.NewBlockAPIClient(conn),
+		blockFetchTimeout: defaultBlockFetchTimeout,
+	}
+	for _, opt := range opts {
+		opt(f)
+	}
+	return f, nil
 }
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
@@ -188,8 +211,7 @@ func (f *BlockFetcher) receive(
 			return err
 		}
 
-		// TODO(@vgonkivs): make timeout configurable
-		withTimeout, ctxCancel := context.WithTimeout(ctx, 10*time.Second)
+		withTimeout, ctxCancel := context.WithTimeout(ctx, f.blockFetchTimeout)
 		signedBlock, err := f.GetSignedBlock(withTimeout, resp.Height)
 		ctxCancel()
 		if err != nil {
