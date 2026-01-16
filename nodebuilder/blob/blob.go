@@ -44,6 +44,9 @@ type Module interface {
 	) (*blob.CommitmentProof, error)
 	// Subscribe to published blobs from the given namespace as they are included.
 	Subscribe(_ context.Context, _ libshare.Namespace) (<-chan *blob.SubscriptionResponse, error)
+	// SubscribeFrom subscribes to blobs starting from the given height, retrieving
+	// historical blobs first before continuing with live subscription.
+	SubscribeFrom(ctx context.Context, height uint64, ns libshare.Namespace) (<-chan *blob.SubscriptionResponse, error)
 }
 
 type API struct {
@@ -85,6 +88,11 @@ type API struct {
 		) (*blob.CommitmentProof, error) `perm:"read"`
 		Subscribe func(
 			context.Context,
+			libshare.Namespace,
+		) (<-chan *blob.SubscriptionResponse, error) `perm:"read"`
+		SubscribeFrom func(
+			context.Context,
+			uint64,
 			libshare.Namespace,
 		) (<-chan *blob.SubscriptionResponse, error) `perm:"read"`
 	}
@@ -140,4 +148,12 @@ func (api *API) Subscribe(
 	namespace libshare.Namespace,
 ) (<-chan *blob.SubscriptionResponse, error) {
 	return api.Internal.Subscribe(ctx, namespace)
+}
+
+func (api *API) SubscribeFrom(
+	ctx context.Context,
+	height uint64,
+	namespace libshare.Namespace,
+) (<-chan *blob.SubscriptionResponse, error) {
+	return api.Internal.SubscribeFrom(ctx, height, namespace)
 }
