@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
@@ -177,6 +178,7 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 		return errIncorrectAmountOfShares
 	}
 
+	indexes := make([]int, 0) //nolint:prealoc
 	// verify that Merkle proofs correspond to particular shares.
 	shares := make([][]byte, width)
 	for index, shr := range p.Shares {
@@ -189,6 +191,14 @@ func (p *BadEncodingProof) Validate(hdr *header.ExtendedHeader) error {
 			return errIncorrectShare
 		}
 		shares[index] = shr.ToBytes()
+		indexes = append(indexes, shr.Proof.Start())
+	}
+
+	isSorted := slices.IsSorted(indexes)
+	if !isSorted {
+		err := errors.New("provided share list is not sorted")
+		log.Debugf("%v", err)
+		return err
 	}
 
 	codec := share.DefaultRSMT2DCodec()
