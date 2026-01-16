@@ -95,6 +95,10 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return server.Stop(ctx)
 			}),
 		)),
+		fx.Provide(newP2PExchange[H]),
+		fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+			return pidstore.NewPeerIDStore(ctx, ds)
+		}),
 	)
 
 	switch tp {
@@ -102,9 +106,8 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(newP2PExchange[H]),
-			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
-				return pidstore.NewPeerIDStore(ctx, ds)
+			fx.Provide(func(ex *p2p.Exchange[H]) libhead.Exchange[H] {
+				return ex
 			}),
 		)
 	case node.Bridge:
