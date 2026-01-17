@@ -221,9 +221,8 @@ openrpc-gen:
 lint-imports:
 # flag -set-exit-status doesn't exit with code 1 as it should, so we use find until it is fixed by goimports-reviser
 	@echo "--> Running imports linter"
-	@for file in `find . -type f -name '*.go'`; \
-		do goimports-reviser -list-diff -set-exit-status -company-prefixes "github.com/celestiaorg" -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file \
-		 || exit 1;  \
+	@for file in `find . -type f -name '*.go' -not -name '*.pb.go'`; \
+		do goimports-reviser -list-diff -company-prefixes "github.com/celestiaorg" -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file | grep -q . && (echo "Import issues found in $$file:"; goimports-reviser -list-diff -company-prefixes "github.com/celestiaorg" -project-name "github.com/celestiaorg/celestia-node" -output stdout $$file; exit 1) || true; \
     done;
 .PHONY: lint-imports
 
