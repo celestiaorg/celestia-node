@@ -72,6 +72,9 @@ func NewDASer(
 	}
 
 	d.sampler = newSamplingCoordinator(d.params, getter, d.sample, shrexBroadcast)
+
+	getter.OnDelete(d.sampler.onHeaderPrune)
+
 	return d, nil
 }
 
