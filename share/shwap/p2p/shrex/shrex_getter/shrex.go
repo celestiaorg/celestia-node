@@ -5,14 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
 	libpeer "github.com/libp2p/go-libp2p/core/peer"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -41,55 +43,6 @@ const (
 	defaultMinRequestTimeout = time.Minute // should be >= shrexeds server write timeout
 	defaultMinAttemptsCount  = 3
 )
-
-type metrics struct {
-	edsAttempts metric.Int64Histogram
-	ndAttempts  metric.Int64Histogram
-}
-
-func (m *metrics) recordEDSAttempt(ctx context.Context, attemptCount int, success bool) {
-	if m == nil {
-		return
-	}
-	ctx = utils.ResetContextOnError(ctx)
-	m.edsAttempts.Record(ctx, int64(attemptCount),
-		metric.WithAttributes(
-			attribute.Bool("success", success)))
-}
-
-func (m *metrics) recordNDAttempt(ctx context.Context, attemptCount int, success bool) {
-	if m == nil {
-		return
-	}
-	ctx = utils.ResetContextOnError(ctx)
-	m.ndAttempts.Record(ctx, int64(attemptCount),
-		metric.WithAttributes(
-			attribute.Bool("success", success)))
-}
-
-func (sg *Getter) WithMetrics() error {
-	edsAttemptHistogram, err := meter.Int64Histogram(
-		"getters_shrex_eds_attempts_per_request",
-		metric.WithDescription("Number of attempts per shrex/eds request"),
-	)
-	if err != nil {
-		return err
-	}
-
-	ndAttemptHistogram, err := meter.Int64Histogram(
-		"getters_shrex_attempts_per_request",
-		metric.WithDescription("Number of attempts per shrex request"),
-	)
-	if err != nil {
-		return err
-	}
-
-	sg.metrics = &metrics{
-		edsAttempts: edsAttemptHistogram,
-		ndAttempts:  ndAttemptHistogram,
-	}
-	return nil
-}
 
 // Getter is a share.Getter that uses the shrex protocol to retrieve shares.
 type Getter struct {
@@ -143,91 +96,159 @@ func (sg *Getter) Stop(ctx context.Context) error {
 	return sg.archivalPeerManager.Stop(ctx)
 }
 
-func (sg *Getter) GetSamples(context.Context, *header.ExtendedHeader, []shwap.SampleCoords) ([]shwap.Sample, error) {
-	return nil, fmt.Errorf("getter/shrex: GetShare %w", shwap.ErrOperationNotSupported)
+func (sg *Getter) GetSamples(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	coords []shwap.SampleCoords,
+) (_ []shwap.Sample, err error) {
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		return []shwap.Sample{}, nil
+	}
+
+	ctx, span := tracer.Start(ctx, "shrex/get-samples")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	requests := make([]shwap.SampleID, len(coords))
+	for i, coord := range coords {
+		sID, err := shwap.NewSampleID(header.Height(), coord, len(header.DAH.RowRoots))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create a sampleID from the coordinates: %w", err)
+		}
+		requests[i] = sID
+	}
+
+	samples := make([]shwap.Sample, len(requests))
+	errGroup, ctx := errgroup.WithContext(ctx)
+	errGroup.SetLimit(len(requests))
+
+	for i, request := range requests {
+		logger := log.With(
+			"source", "shrex_getter",
+			"request_type", request.Name(),
+			"hash", header.DAH.String(),
+			"rowIndex", request.RowIndex,
+			"colIndex", request.ShareIndex,
+		)
+		errGroup.Go(func() error {
+			req := func(ctx context.Context, peer libpeer.ID) error {
+				return sg.client.Get(ctx, &request, &samples[i], peer)
+			}
+			verify := func() error {
+				if samples[i].IsEmpty() {
+					return errors.New("nil response")
+				}
+				return samples[i].Verify(header.DAH, request.RowIndex, request.ShareIndex)
+			}
+			return sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+		})
+	}
+
+	// Wait for all sample requests to complete. On partial failures, we return
+	// whatever samples were successfully retrieved along with the error.
+	// Callers should check both the returned samples slice and error - a non-nil
+	// error with non-empty samples indicates partial success.
+	err = errGroup.Wait()
+	// Delete empty entries if samples were not found or any other error occurred and return partial response
+	samples = slices.DeleteFunc(samples, func(sample shwap.Sample) bool {
+		return sample.IsEmpty()
+	})
+	return samples, err
 }
 
-func (sg *Getter) GetRow(_ context.Context, _ *header.ExtendedHeader, _ int) (shwap.Row, error) {
-	return shwap.Row{}, fmt.Errorf("getter/shrex: GetRow %w", shwap.ErrOperationNotSupported)
+func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		return shwap.Row{}, nil
+	}
+
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/get-row")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	request, err := shwap.NewRowID(header.Height(), rowIndex, len(header.DAH.RowRoots))
+	if err != nil {
+		return shwap.Row{}, err
+	}
+
+	response := shwap.Row{}
+
+	logger := log.With(
+		"source", "shrex_getter",
+		"request_type", request.Name(),
+		"hash", header.DAH.String(),
+		"rowIndex", rowIndex,
+	)
+
+	req := func(ctx context.Context, peer libpeer.ID) error {
+		return sg.client.Get(ctx, &request, &response, peer)
+	}
+
+	verify := func() error {
+		if response.IsEmpty() {
+			return errors.New("nil response")
+		}
+		return response.Verify(header.DAH, rowIndex)
+	}
+
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+	if err != nil {
+		return shwap.Row{}, err
+	}
+
+	return response, nil
 }
 
 func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		return share.EmptyEDS(), nil
+	}
+
 	var err error
 	ctx, span := tracer.Start(ctx, "shrex/get-eds")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 	}()
 
-	// short circuit if the data root is empty
-	if header.DAH.Equals(share.EmptyEDSRoots()) {
-		return share.EmptyEDS(), nil
-	}
-
 	request, err := shwap.NewEdsID(header.Height())
 	if err != nil {
 		return nil, err
 	}
 
-	response := bytes.NewBuffer(make([]byte, 0))
+	var (
+		buff     = bytes.NewBuffer(make([]byte, 0))
+		response = &eds.Rsmt2D{}
+	)
 
-	var attempt int
-	for {
-		if ctx.Err() != nil {
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return nil, errors.Join(err, ctx.Err())
-		}
-		attempt++
-		start := time.Now()
+	logger := log.With(
+		"source", "shrex_getter",
+		"request_type", request.Name(),
+		"hash", header.DAH.String(),
+	)
 
-		peer, setStatus, getErr := sg.getPeer(ctx, header)
-		if getErr != nil {
-			log.Debugw("eds: couldn't find peer",
-				"hash", header.DAH.String(),
-				"err", getErr,
-				"finished (s)", time.Since(start))
-			sg.metrics.recordEDSAttempt(ctx, attempt, false)
-			return nil, errors.Join(err, getErr)
-		}
-
-		reqStart := time.Now()
-		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		getErr = sg.client.Get(reqCtx, &request, response, peer)
-		cancel()
-		switch {
-		case getErr == nil:
-			setStatus(peers.ResultNoop)
-			sg.metrics.recordEDSAttempt(ctx, attempt, true)
-			eds, buildErr := eds.ReadAccessor(ctx, response, header.DAH)
-			if buildErr != nil {
-				getErr = buildErr
-				setStatus(peers.ResultBlacklistPeer)
-				break
-			}
-
-			setStatus(peers.ResultNoop)
-			return eds.ExtendedDataSquare, nil
-		case errors.Is(getErr, context.DeadlineExceeded),
-			errors.Is(getErr, context.Canceled):
-			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(getErr, shrex.ErrNotFound):
-			getErr = shwap.ErrNotFound
-			setStatus(peers.ResultCooldownPeer)
-		case errors.Is(getErr, shrex.ErrInvalidResponse):
-			setStatus(peers.ResultBlacklistPeer)
-		default:
-			setStatus(peers.ResultCooldownPeer)
-		}
-
-		if !shrex.ErrorContains(err, getErr) {
-			err = errors.Join(err, getErr)
-		}
-		log.Debugw("eds: request failed",
-			"hash", header.DAH.String(),
-			"peer", peer.String(),
-			"attempt", attempt,
-			"err", getErr,
-			"finished (s)", time.Since(reqStart))
+	req := func(ctx context.Context, peer libpeer.ID) error {
+		buff.Reset()
+		return sg.client.Get(ctx, &request, buff, peer)
 	}
+
+	build := func() error {
+		if buff.Len() == 0 {
+			return errors.New("nil response")
+		}
+		response, err = eds.ReadAccessor(ctx, buff, header.DAH)
+		return err
+	}
+
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, build)
+	if err != nil {
+		return nil, err
+	}
+	return response.ExtendedDataSquare, err
 }
 
 func (sg *Getter) GetNamespaceData(
@@ -235,13 +256,11 @@ func (sg *Getter) GetNamespaceData(
 	header *header.ExtendedHeader,
 	namespace libshare.Namespace,
 ) (shwap.NamespaceData, error) {
-	if err := namespace.ValidateForData(); err != nil {
+	err := namespace.ValidateForData()
+	if err != nil {
 		return nil, err
 	}
-	var (
-		attempt int
-		err     error
-	)
+
 	ctx, span := tracer.Start(ctx, "shrex/get-shares-by-namespace", trace.WithAttributes(
 		attribute.String("namespace", namespace.String()),
 	))
@@ -265,40 +284,178 @@ func (sg *Getter) GetNamespaceData(
 	}
 	response := shwap.NamespaceData{}
 
+	logger := log.With(
+		"source", "shrex_getter",
+		"request_type", request.Name(),
+		"hash", dah.String(),
+		"namespace", namespace.String(),
+	)
+
+	req := func(ctx context.Context, peer libpeer.ID) error {
+		return sg.client.Get(ctx, &request, &response, peer)
+	}
+
+	verify := func() error {
+		if response.IsEmpty() {
+			return errors.New("nil response")
+		}
+		return response.Verify(dah, namespace)
+	}
+
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (sg *Getter) GetRangeNamespaceData(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	from, to int,
+) (shwap.RangeNamespaceData, error) {
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/get-range-namespace-data", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.Int("from", from),
+		attribute.Int("to", to),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		return shwap.RangeNamespaceData{}, nil
+	}
+
+	edsID, err := shwap.NewEdsID(header.Height())
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	request, err := shwap.NewRangeNamespaceDataID(edsID, from, to, len(header.DAH.RowRoots)/2)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	response := shwap.RangeNamespaceData{}
+
+	logger := log.With(
+		"source", "shrex_getter",
+		"request_type", request.Name(),
+		"hash", header.DAH.String(),
+		"from", from,
+		"to", to,
+	)
+
+	req := func(ctx context.Context, peer libpeer.ID) error {
+		return sg.client.Get(ctx, &request, &response, peer)
+	}
+
+	verify := func() error {
+		if response.IsEmpty() {
+			return errors.New("nil response")
+		}
+
+		fromCoords, err := shwap.SampleCoordsFrom1DIndex(from, len(header.DAH.RowRoots)/2)
+		if err != nil {
+			return err
+		}
+		// `to-1` to make an inclusive coordinate of the range
+		toCoords, err := shwap.SampleCoordsFrom1DIndex(to-1, len(header.DAH.RowRoots)/2)
+		if err != nil {
+			return err
+		}
+
+		return response.VerifyInclusion(
+			fromCoords,
+			toCoords,
+			len(header.DAH.RowRoots)/2,
+			header.DAH.RowRoots[fromCoords.Row:toCoords.Row+1])
+	}
+
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
+	}
+
+	return response, nil
+}
+
+func (sg *Getter) getPeer(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+) (libpeer.ID, peers.DoneFunc, error) {
+	if !availability.IsWithinWindow(header.Time(), sg.availabilityWindow) {
+		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+		return p, df, err
+	}
+	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
+}
+
+// requestFn defines a function type that wraps the actual request logic as a closure.
+// The closure captures additional request parameters and then executes
+// the request with the provided context and peer ID.
+type requestFn func(context.Context, libpeer.ID) error
+
+// handleFn defines a function type that wraps response handling logic as a closure.
+// The closure captures the response data and validation parameters performing the verification.
+type handleFn func() error
+
+// executeRequest performs a request operation with automatic peer management
+// and retry logic. It orchestrates the complete request lifecycle including peer selection,
+// request execution, response handling, and peer scoring management.
+//
+// The method continuously attempts to find suitable peers and execute requests until
+// successful or context cancellation.
+func (sg *Getter) executeRequest(
+	ctx context.Context,
+	logger *zap.SugaredLogger,
+	extHeader *header.ExtendedHeader,
+	reqType string,
+	req requestFn,
+	handle handleFn,
+) error {
+	var (
+		attempt int
+		err     error
+	)
+
 	for {
 		if ctx.Err() != nil {
-			sg.metrics.recordNDAttempt(ctx, attempt, false)
-			return nil, errors.Join(err, ctx.Err())
+			sg.metrics.recordAttempts(ctx, reqType, attempt, false)
+			return errors.Join(err, ctx.Err())
 		}
 		attempt++
 		start := time.Now()
 
-		peer, setStatus, getErr := sg.getPeer(ctx, header)
+		peer, setStatus, getErr := sg.getPeer(ctx, extHeader)
 		if getErr != nil {
-			log.Debugw("nd: couldn't find peer",
-				"hash", dah.String(),
-				"namespace", namespace.String(),
+			logger.Debugw("couldn't find peer",
 				"err", getErr,
 				"finished (s)", time.Since(start))
-			sg.metrics.recordNDAttempt(ctx, attempt, false)
-			return nil, errors.Join(err, getErr)
+			sg.metrics.recordAttempts(ctx, reqType, attempt, false)
+			return errors.Join(err, getErr)
 		}
 
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
-		getErr = sg.client.Get(reqCtx, &request, &response, peer)
+
+		getErr = req(reqCtx, peer)
 		cancel()
 		switch {
 		case getErr == nil:
-			// both inclusion and non-inclusion cases needs verification
-			if verErr := response.Verify(dah, namespace); verErr != nil {
-				getErr = verErr
+			setStatus(peers.ResultNoop)
+			verifyErr := handle()
+			if verifyErr != nil {
+				getErr = verifyErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
-			setStatus(peers.ResultNoop)
-			sg.metrics.recordNDAttempt(ctx, attempt, true)
-			return response, nil
+			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
+			return nil
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)
@@ -314,31 +471,11 @@ func (sg *Getter) GetNamespaceData(
 		if !shrex.ErrorContains(err, getErr) {
 			err = errors.Join(err, getErr)
 		}
-		log.Debugw("nd: request failed",
-			"hash", dah.String(),
-			"namespace", namespace.String(),
+		logger.Debugw("request failed",
 			"peer", peer.String(),
 			"attempt", attempt,
 			"err", getErr,
-			"finished (s)", time.Since(reqStart))
+			"finished (s)", time.Since(reqStart),
+		)
 	}
-}
-
-func (sg *Getter) GetRangeNamespaceData(
-	_ context.Context,
-	_ *header.ExtendedHeader,
-	_, _ int,
-) (shwap.RangeNamespaceData, error) {
-	return shwap.RangeNamespaceData{}, shwap.ErrOperationNotSupported
-}
-
-func (sg *Getter) getPeer(
-	ctx context.Context,
-	header *header.ExtendedHeader,
-) (libpeer.ID, peers.DoneFunc, error) {
-	if !availability.IsWithinWindow(header.Time(), sg.availabilityWindow) {
-		p, df, err := sg.archivalPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
-		return p, df, err
-	}
-	return sg.fullPeerManager.Peer(ctx, header.DAH.Hash(), header.Height())
 }

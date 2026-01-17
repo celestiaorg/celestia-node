@@ -27,7 +27,7 @@ type Server struct {
 
 	host host.Host
 
-	store *store.Store
+	store store.AccessorGetter
 
 	params  *ServerParams
 	metrics *Metrics
@@ -39,7 +39,7 @@ type Server struct {
 func NewServer(
 	params *ServerParams,
 	host host.Host,
-	store *store.Store,
+	store store.AccessorGetter,
 ) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)

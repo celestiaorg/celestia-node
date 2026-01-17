@@ -103,7 +103,6 @@ func InitClientMetrics() (*Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Metrics{
 		requestDuration:     requestDuration,
 		totalRequestCounter: totalRequestCounter,

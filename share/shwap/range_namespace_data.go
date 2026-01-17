@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v3/share"
@@ -470,4 +471,44 @@ func GenerateSharesProofs(
 		return nil, fmt.Errorf("failed to generate proof for row %d, range %d-%d: %w", row, fromCol, toCol, err)
 	}
 	return &proof, nil
+}
+
+func (rngdata *RangeNamespaceData) WriteTo(writer io.Writer) (int64, error) {
+	length := int64(0)
+	for i, shr := range rngdata.Shares {
+		rowData := RowNamespaceData{Shares: shr}
+		if i == 0 {
+			rowData.Proof = rngdata.FirstIncompleteRowProof
+		} else if i == len(rngdata.Shares)-1 {
+			rowData.Proof = rngdata.LastIncompleteRowProof
+		}
+
+		n, err := rowData.WriteTo(writer)
+		if err != nil {
+			return 0, fmt.Errorf("failed to write data: %w", err)
+		}
+		length += n
+	}
+	return length, nil
+}
+
+// ReadFrom reads length-delimited protobuf representation of RangeNamespaceData
+// implementing io.ReaderFrom.
+func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
+	nd := NamespaceData{}
+	n, err := nd.ReadFrom(reader)
+	if err != nil {
+		return n, fmt.Errorf("failed to read data: %w", err)
+	}
+
+	rngdata.Shares = make([][]libshare.Share, len(nd))
+	for i, row := range nd {
+		rngdata.Shares[i] = row.Shares
+		if i == 0 {
+			rngdata.FirstIncompleteRowProof = row.Proof
+		} else {
+			rngdata.LastIncompleteRowProof = row.Proof
+		}
+	}
+	return n, nil
 }
