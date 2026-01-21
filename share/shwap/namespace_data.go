@@ -92,3 +92,7 @@ func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 	}
 	return n, nil
 }
+
+func (nd NamespaceData) IsEmpty() bool {
+	return len(nd) == 0
+}
