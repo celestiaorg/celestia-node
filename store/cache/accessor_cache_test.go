@@ -334,6 +334,14 @@ func (m *mockAccessor) RangeNamespaceData(
 	panic("implement me")
 }
 
+func (m *mockAccessor) Blob(context.Context, libshare.Namespace, []byte) (*shwap.Blob, error) {
+	panic("implement me")
+}
+
+func (m *mockAccessor) Blobs(context.Context, libshare.Namespace) ([]*shwap.Blob, error) {
+	panic("implement me")
+}
+
 func (m *mockAccessor) Shares(context.Context) ([]libshare.Share, error) {
 	panic("implement me")
 }

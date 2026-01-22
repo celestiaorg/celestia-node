@@ -38,77 +38,107 @@ func (m *MockGetter) EXPECT() *MockGetterMockRecorder {
 	return m.recorder
 }
 
-// GetEDS mocks base method.
-func (m *MockGetter) GetEDS(arg0 context.Context, arg1 *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+// GetBlob mocks base method.
+func (m *MockGetter) GetBlob(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace, commitment []byte) (*shwap.Blob, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEDS", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetBlob", arg0, arg1, arg2, commitment)
+	ret0, _ := ret[0].(*shwap.Blob)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlob indicates an expected call of GetBlob.
+func (mr *MockGetterMockRecorder) GetBlob(arg0, arg1, arg2, commitment any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlob", reflect.TypeOf((*MockGetter)(nil).GetBlob), arg0, arg1, arg2, commitment)
+}
+
+// GetBlobs mocks base method.
+func (m *MockGetter) GetBlobs(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) ([]*shwap.Blob, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlobs", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*shwap.Blob)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlobs indicates an expected call of GetBlobs.
+func (mr *MockGetterMockRecorder) GetBlobs(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlobs", reflect.TypeOf((*MockGetter)(nil).GetBlobs), arg0, arg1, arg2)
+}
+
+// GetEDS mocks base method.
+func (m *MockGetter) GetEDS(ctx context.Context, arg1 *header.ExtendedHeader) (*rsmt2d.ExtendedDataSquare, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEDS", ctx, arg1)
 	ret0, _ := ret[0].(*rsmt2d.ExtendedDataSquare)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetEDS indicates an expected call of GetEDS.
-func (mr *MockGetterMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetEDS(ctx, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockGetter)(nil).GetEDS), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockGetter)(nil).GetEDS), ctx, arg1)
 }
 
 // GetNamespaceData mocks base method.
-func (m *MockGetter) GetNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 share.Namespace) (shwap.NamespaceData, error) {
+func (m *MockGetter) GetNamespaceData(ctx context.Context, arg1 *header.ExtendedHeader, namespace share.Namespace) (shwap.NamespaceData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNamespaceData", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetNamespaceData", ctx, arg1, namespace)
 	ret0, _ := ret[0].(shwap.NamespaceData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetNamespaceData indicates an expected call of GetNamespaceData.
-func (mr *MockGetterMockRecorder) GetNamespaceData(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetNamespaceData(ctx, arg1, namespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetNamespaceData), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetNamespaceData), ctx, arg1, namespace)
 }
 
 // GetRangeNamespaceData mocks base method.
-func (m *MockGetter) GetRangeNamespaceData(arg0 context.Context, arg1 *header.ExtendedHeader, arg2, arg3 int) (shwap.RangeNamespaceData, error) {
+func (m *MockGetter) GetRangeNamespaceData(ctx context.Context, arg1 *header.ExtendedHeader, from, to int) (shwap.RangeNamespaceData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRangeNamespaceData", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "GetRangeNamespaceData", ctx, arg1, from, to)
 	ret0, _ := ret[0].(shwap.RangeNamespaceData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRangeNamespaceData indicates an expected call of GetRangeNamespaceData.
-func (mr *MockGetterMockRecorder) GetRangeNamespaceData(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetRangeNamespaceData(ctx, arg1, from, to any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRangeNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetRangeNamespaceData), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRangeNamespaceData", reflect.TypeOf((*MockGetter)(nil).GetRangeNamespaceData), ctx, arg1, from, to)
 }
 
 // GetRow mocks base method.
-func (m *MockGetter) GetRow(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 int) (shwap.Row, error) {
+func (m *MockGetter) GetRow(ctx context.Context, arg1 *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRow", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetRow", ctx, arg1, rowIdx)
 	ret0, _ := ret[0].(shwap.Row)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRow indicates an expected call of GetRow.
-func (mr *MockGetterMockRecorder) GetRow(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetRow(ctx, arg1, rowIdx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRow", reflect.TypeOf((*MockGetter)(nil).GetRow), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRow", reflect.TypeOf((*MockGetter)(nil).GetRow), ctx, arg1, rowIdx)
 }
 
 // GetSamples mocks base method.
-func (m *MockGetter) GetSamples(arg0 context.Context, arg1 *header.ExtendedHeader, arg2 []shwap.SampleCoords) ([]shwap.Sample, error) {
+func (m *MockGetter) GetSamples(ctx context.Context, arg1 *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSamples", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetSamples", ctx, arg1, indices)
 	ret0, _ := ret[0].([]shwap.Sample)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetSamples indicates an expected call of GetSamples.
-func (mr *MockGetterMockRecorder) GetSamples(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockGetterMockRecorder) GetSamples(ctx, arg1, indices any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSamples", reflect.TypeOf((*MockGetter)(nil).GetSamples), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSamples", reflect.TypeOf((*MockGetter)(nil).GetSamples), ctx, arg1, indices)
 }

@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/go-square/merkle"
@@ -25,6 +28,36 @@ var subtreeRootThreshold = appconsts.SubtreeRootThreshold
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
+
+func (p Proof) verify(blob *Blob, header *header.ExtendedHeader) error {
+	shrs, err := BlobsToShares(blob)
+	if err != nil {
+		return err
+	}
+
+	fromCoords, err := shwap.SampleCoordsFrom1DIndex(blob.Index(), len(header.DAH.RowRoots)) // pass eds size
+	toCoords, err := shwap.SampleCoordsFrom1DIndex(blob.Index()+len(shrs)-1, len(header.DAH.RowRoots))
+	if err != nil {
+		return err
+	}
+
+	hasher := share.NewSHA256Hasher()
+	for from, i := fromCoords.Row, 0; from <= toCoords.Row; from++ {
+		hasher.Reset()
+		sharesPerRow := p[i].End() - p[i].Start()
+		valid := p[i].VerifyInclusion(
+			hasher,
+			blob.Namespace().Bytes(),
+			libshare.ToBytes(shrs[i:sharesPerRow]),
+			header.DAH.RowRoots[from],
+		)
+		if !valid {
+			return errors.New("invalid share proof")
+		}
+		i += sharesPerRow
+	}
+	return nil
+}
 
 // equal is a temporary method that compares two proofs.
 // should be removed in BlobService V1.

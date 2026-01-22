@@ -21,4 +21,6 @@ type Accessor interface {
 		ctx context.Context,
 		from, to int,
 	) (RangeNamespaceData, error)
+	Blob(context.Context, libshare.Namespace, []byte) (*Blob, error)
+	Blobs(context.Context, libshare.Namespace) ([]*Blob, error)
 }

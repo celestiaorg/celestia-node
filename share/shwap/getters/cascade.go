@@ -145,6 +145,49 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	return cascadeGetters(ctx, cg.getters, get)
 }
 
+func (cg *CascadeGetter) GetBlob(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+	commitment []byte,
+) (*shwap.Blob, error) {
+	ctx, span := tracer.Start(
+		ctx,
+		"cascade/get-blob",
+		trace.WithAttributes(
+			attribute.Int64("height", int64(header.Height())),
+			attribute.String("namespace", ns.String()),
+		))
+	defer span.End()
+
+	get := func(ctx context.Context, get shwap.Getter) (*shwap.Blob, error) {
+		return get.GetBlob(ctx, header, ns, commitment)
+	}
+
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
+func (cg *CascadeGetter) GetBlobs(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+) ([]*shwap.Blob, error) {
+	ctx, span := tracer.Start(
+		ctx,
+		"cascade/get-blobs",
+		trace.WithAttributes(
+			attribute.Int64("height", int64(header.Height())),
+			attribute.String("namespace", ns.String()),
+		))
+	defer span.End()
+
+	get := func(ctx context.Context, get shwap.Getter) ([]*shwap.Blob, error) {
+		return get.GetBlobs(ctx, header, ns)
+	}
+
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
 // cascade implements a cascading retry algorithm for getting a value from multiple sources.
 // Cascading implies trying the sources one-by-one in the given order with the
 // given interval until either:

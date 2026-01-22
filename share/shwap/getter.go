@@ -81,4 +81,8 @@ type Getter interface {
 		header *header.ExtendedHeader,
 		from, to int,
 	) (RangeNamespaceData, error)
+
+	GetBlob(_ context.Context, _ *header.ExtendedHeader, _ libshare.Namespace, commitment []byte) (*Blob, error)
+
+	GetBlobs(_ context.Context, _ *header.ExtendedHeader, _ libshare.Namespace) ([]*Blob, error)
 }

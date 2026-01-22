@@ -103,6 +103,20 @@ func (c *closeOnce) RangeNamespaceData(
 	return c.f.RangeNamespaceData(ctx, from, to)
 }
 
+func (c *closeOnce) Blob(ctx context.Context, namespace libshare.Namespace, commitment []byte) (*shwap.Blob, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.Blob(ctx, namespace, commitment)
+}
+
+func (c *closeOnce) Blobs(ctx context.Context, namespace libshare.Namespace) ([]*shwap.Blob, error) {
+	if c.closed.Load() {
+		return nil, errAccessorClosed
+	}
+	return c.f.Blobs(ctx, namespace)
+}
+
 func (c *closeOnce) Reader() (io.Reader, error) {
 	if c.closed.Load() {
 		return nil, errAccessorClosed

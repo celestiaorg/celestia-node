@@ -238,13 +238,16 @@ func (s *Service) Get(
 		"namespace", namespace.String(),
 		"commitment", commitment.String(),
 	)
+	header, err := s.headerGetter(ctx, height)
+	if err != nil {
+		return nil, err
+	}
 
-	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
-		return blob.compareCommitments(commitment)
-	}}
-
-	blob, _, err = s.retrieve(ctx, height, namespace, sharesParser)
-	return blob, err
+	shwapBlob, err := s.shareGetter.GetBlob(ctx, header, namespace, commitment)
+	if err != nil {
+		return nil, err
+	}
+	return fromShwapBlob(shwapBlob, len(header.DAH.RowRoots)/2)
 }
 
 // GetProof returns an NMT inclusion proof for a specified namespace to the respective row roots
@@ -280,12 +283,15 @@ func (s *Service) GetProof(
 		"commitment", commitment.String(),
 	)
 
-	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
-		return blob.compareCommitments(commitment)
-	}}
-
-	_, proof, err = s.retrieve(ctx, height, namespace, sharesParser)
-	return proof, err
+	header, err := s.headerGetter(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	shBlob, err := s.shareGetter.GetBlob(ctx, header, namespace, commitment)
+	if err != nil {
+		return nil, err
+	}
+	return buildProof(shBlob, len(header.DAH.RowRoots)/2)
 }
 
 // GetAll returns all blobs under the given namespaces at the given height.
@@ -333,7 +339,7 @@ func (s *Service) getAll(
 	var (
 		span             = trace.SpanFromContext(ctx)
 		namespaceStrings = make([]string, len(namespaces))
-		resultBlobs      = make([][]*Blob, len(namespaces))
+		resultBlobs      = make([][]*shwap.Blob, len(namespaces))
 		resultErr        = make([]error, len(namespaces))
 		wg               = sync.WaitGroup{}
 	)
@@ -342,7 +348,7 @@ func (s *Service) getAll(
 		wg.Add(1)
 		go func(i int, namespace libshare.Namespace) {
 			defer wg.Done()
-			resultBlobs[i], resultErr[i] = s.getBlobs(ctx, namespace, header)
+			resultBlobs[i], resultErr[i] = s.shareGetter.GetBlobs(ctx, header, namespace)
 		}(i, namespace)
 
 		namespaceStrings[i] = namespace.String()
@@ -350,9 +356,18 @@ func (s *Service) getAll(
 	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
 	wg.Wait()
 
-	blobs := slices.Concat(resultBlobs...)
-	err := errors.Join(resultErr...)
-	return blobs, err
+	blbs := slices.Concat(resultBlobs...)
+	errs := errors.Join(resultErr...)
+
+	blobs := make([]*Blob, len(blbs))
+	for i, blb := range blbs {
+		blob, err := fromShwapBlob(blb, len(header.DAH.RowRoots)/2)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+		blobs[i] = blob
+	}
+	return blobs, errs
 }
 
 // Included verifies that the blob was included in a specific height.
@@ -391,18 +406,21 @@ func (s *Service) Included(
 
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
 	// TODO(@vgonkivs): rework the implementation to perform all verification without network requests.
-	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
-		return blob.compareCommitments(commitment)
-	}}
-	_, resProof, err := s.retrieve(ctx, height, namespace, sharesParser)
-	switch {
-	case err == nil:
-	case errors.Is(err, ErrBlobNotFound):
-		return false, nil
-	default:
+	header, err := s.headerGetter(ctx, height)
+	if err != nil {
 		return false, err
 	}
-	return true, resProof.equal(*proof)
+
+	shwapBlob, err := s.shareGetter.GetBlob(ctx, header, namespace, commitment)
+	if err != nil {
+		return false, err
+	}
+
+	blob, err := fromShwapBlob(shwapBlob, len(header.DAH.RowRoots)/2)
+	if err != nil {
+		return true, err // blob was found but we could not manipulate it
+	}
+	return true, proof.verify(blob, header)
 }
 
 // retrieve retrieves blobs and their proofs by requesting the whole namespace and

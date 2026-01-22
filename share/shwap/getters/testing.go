@@ -111,3 +111,20 @@ func (seg *SingleEDSGetter) checkRoots(roots *share.AxisRoots) error {
 	}
 	return nil
 }
+
+func (seg *SingleEDSGetter) GetBlob(
+	context.Context,
+	*header.ExtendedHeader,
+	libshare.Namespace,
+	[]byte,
+) (*shwap.Blob, error) {
+	panic("SingleEDSGetter: GetBlob is not implemented")
+}
+
+func (seg *SingleEDSGetter) GetBlobs(
+	context.Context,
+	*header.ExtendedHeader,
+	libshare.Namespace,
+) ([]*shwap.Blob, error) {
+	panic("SingleEDSGetter: GetBlobs is not implemented")
+}
