@@ -39,6 +39,9 @@ type Accessor interface {
 		ctx context.Context,
 		from, to int,
 	) (shwap.RangeNamespaceData, error)
+
+	Blob(context.Context, libshare.Namespace, []byte) (*shwap.Blob, error)
+	Blobs(context.Context, libshare.Namespace) ([]*shwap.Blob, error)
 }
 
 // AccessorStreamer is an interface that groups Accessor and Streamer interfaces.

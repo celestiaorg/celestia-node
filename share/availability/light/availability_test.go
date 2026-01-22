@@ -329,6 +329,23 @@ func (g successGetter) GetRangeNamespaceData(
 	panic("not implemented")
 }
 
+func (g successGetter) GetBlob(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ libshare.Namespace,
+	_ []byte,
+) (*shwap.Blob, error) {
+	panic("not implemented")
+}
+
+func (g successGetter) GetBlobs(
+	_ context.Context,
+	_ *header.ExtendedHeader,
+	_ libshare.Namespace,
+) ([]*shwap.Blob, error) {
+	panic("not implemented")
+}
+
 func TestPruneAll(t *testing.T) {
 	const size = 8
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
