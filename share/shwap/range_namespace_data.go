@@ -122,12 +122,12 @@ func RangeNamespaceDataFromShares(
 		extendedRowShares[len(extendedRowShares)-1] = extendedRowShares[len(extendedRowShares)-1][:to.Col+1]
 	}
 
-	for row, rowShares := range extendedRowShares {
-		if len(rowShares) >= odsSize {
+	for row := range extendedRowShares {
+		if len(extendedRowShares[row]) >= odsSize {
 			// keep only original data
-			extendedRowShares[row] = rowShares[:odsSize]
+			extendedRowShares[row] = extendedRowShares[row][:odsSize]
 		}
-		for col, shr := range rowShares {
+		for col, shr := range extendedRowShares[row] {
 			if !namespace.Equals(shr.Namespace()) {
 				return RangeNamespaceData{}, fmt.Errorf("mismatched namespace for share at: row %d, col: %d", row, col)
 			}
