@@ -2,13 +2,14 @@ package blob
 
 import (
 	"fmt"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 	"sort"
 
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.

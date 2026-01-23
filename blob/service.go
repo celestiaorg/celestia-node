@@ -14,7 +14,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -421,173 +419,6 @@ func (s *Service) Included(
 		return true, err // blob was found but we could not manipulate it
 	}
 	return true, proof.verify(blob, header)
-}
-
-// retrieve retrieves blobs and their proofs by requesting the whole namespace and
-// comparing Commitments.
-// Retrieving is stopped once the `verify` condition in shareParser is met.
-func (s *Service) retrieve(
-	ctx context.Context,
-	height uint64,
-	namespace libshare.Namespace,
-	sharesParser *parser,
-) (_ *Blob, _ *Proof, err error) {
-	log.Infow("retrieving blob",
-		"height", height,
-		"namespace", namespace.String(),
-	)
-
-	span := trace.SpanFromContext(ctx)
-	header, err := s.headerGetter(ctx, height)
-	if err != nil {
-		return nil, nil, err
-	}
-	span.SetAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
-	)
-
-	rowIndex := -1
-	for i, row := range header.DAH.RowRoots {
-		outside, err := share.IsOutsideRange(namespace, row, row)
-		if err != nil {
-			return nil, nil, err
-		}
-		if !outside {
-			rowIndex = i
-			break
-		}
-	}
-	// collect shares for the requested namespace
-	namespacedShares, err := s.shareGetter.GetNamespaceData(ctx, header, namespace)
-	if err != nil {
-		if errors.Is(err, shwap.ErrNotFound) {
-			err = ErrBlobNotFound
-		}
-		return nil, nil, err
-	}
-
-	span.AddEvent("received-shares", trace.WithAttributes(
-		attribute.Int("amount", namespacedShares.Length()),
-	))
-
-	var (
-		appShares = make([]libshare.Share, 0)
-		proofs    = make(Proof, 0)
-	)
-
-	for _, row := range namespacedShares {
-		if len(row.Shares) == 0 {
-			// the above condition means that we've faced with an Absence Proof.
-			// This Proof proves that the namespace was not found in the DAH, so
-			// we can return `ErrBlobNotFound`.
-			return nil, nil, ErrBlobNotFound
-		}
-
-		appShares = row.Shares
-		proofs = append(proofs, row.Proof)
-		index := row.Proof.Start()
-
-		for {
-			var (
-				isComplete bool
-				shrs       []libshare.Share
-				wasEmpty   = sharesParser.isEmpty()
-			)
-
-			if wasEmpty {
-				// create a parser if it is empty
-				shrs, err = sharesParser.set(rowIndex*len(header.DAH.RowRoots)+index, appShares)
-				if err != nil {
-					if errors.Is(err, errEmptyShares) {
-						// reset parser as `skipPadding` can update next blob's index
-						sharesParser.reset()
-						appShares = nil
-						break
-					}
-					return nil, nil, err
-				}
-
-				// update index and shares if padding shares were detected.
-				if len(appShares) != len(shrs) {
-					index += len(appShares) - len(shrs)
-					appShares = shrs
-				}
-			}
-
-			shrs, isComplete = sharesParser.addShares(appShares)
-			// move to the next row if the blob is incomplete
-			if !isComplete {
-				appShares = nil
-				break
-			}
-			// otherwise construct blob
-			blob, err := sharesParser.parse()
-			if err != nil {
-				return nil, nil, err
-			}
-
-			if sharesParser.verify(blob) {
-				return blob, &proofs, nil
-			}
-
-			index += len(appShares) - len(shrs)
-			appShares = shrs
-			sharesParser.reset()
-
-			if !wasEmpty {
-				// remove proofs for prev rows if verified blob spans multiple rows
-				proofs = proofs[len(proofs)-1:]
-			}
-		}
-
-		rowIndex++
-		if sharesParser.isEmpty() {
-			proofs = nil
-		}
-	}
-
-	err = ErrBlobNotFound
-	for _, sh := range appShares {
-		if !sh.IsPadding() {
-			err = fmt.Errorf("incomplete blob with the "+
-				"namespace: %s detected at %d: %w", namespace.String(), height, err)
-			log.Error(err)
-		}
-	}
-	return nil, nil, err
-}
-
-// getBlobs retrieves the DAH and fetches all shares from the requested Namespace and converts
-// them to Blobs.
-func (s *Service) getBlobs(
-	ctx context.Context,
-	namespace libshare.Namespace,
-	header *header.ExtendedHeader,
-) (_ []*Blob, err error) {
-	ctx, span := tracer.Start(ctx, "blob/get-blobs-namespace")
-	defer utils.SetStatusAndEnd(span, err)
-	span.SetAttributes(attribute.String("namespace", namespace.String()))
-	log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", header.Height())
-
-	blobs := make([]*Blob, 0)
-	verifyFn := func(blob *Blob) bool {
-		blobs = append(blobs, blob)
-		return false
-	}
-	sharesParser := &parser{verifyFn: verifyFn}
-
-	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
-	if err != nil && !errors.Is(err, ErrBlobNotFound) {
-		log.Errorf("retrieving blobs for the namespace (%s): %v", namespace.String(), err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "retrieving blobs for the namespace")
-		return nil, err
-	}
-
-	log.Infow("retrieved blobs", "namespace", namespace.String(), "height", header.Height(), "total", len(blobs))
-	span.SetStatus(codes.Ok, "")
-	span.SetAttributes(attribute.Int("total", len(blobs)))
-	return blobs, nil
 }
 
 func (s *Service) GetCommitmentProof(

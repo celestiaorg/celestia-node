@@ -5,26 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
-)
 
-var errEmptyShares = errors.New("empty shares")
+	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
+)
 
 var subtreeRootThreshold = appconsts.SubtreeRootThreshold
 
-// The Proof is a set of nmt proofs that can be verified only through
-// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
-// Proof proves the WHOLE namespaced data to the row roots.
-// TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
-// https://github.com/celestiaorg/celestia-node/issues/2303
+// The Proof is a set of nmt proofs that can verify the inclusion of the blob
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
@@ -36,6 +31,9 @@ func (p Proof) verify(blob *Blob, header *header.ExtendedHeader) error {
 	}
 
 	fromCoords, err := shwap.SampleCoordsFrom1DIndex(blob.Index(), len(header.DAH.RowRoots)) // pass eds size
+	if err != nil {
+		return err
+	}
 	toCoords, err := shwap.SampleCoordsFrom1DIndex(blob.Index()+len(shrs)-1, len(header.DAH.RowRoots))
 	if err != nil {
 		return err

@@ -60,17 +60,6 @@ func TestBlob(t *testing.T) {
 			},
 		},
 		{
-			name: "shares to blobs",
-			expectedRes: func(t *testing.T) {
-				shares, err := BlobsToShares(blob...)
-				require.NoError(t, err)
-				p := &parser{length: len(shares), shares: shares}
-				b, err := p.parse()
-				require.NoError(t, err)
-				assert.Equal(t, blob[0].Commitment, b.Commitment)
-			},
-		},
-		{
 			name: "blob marshaling",
 			expectedRes: func(t *testing.T) {
 				data, err := blob[0].MarshalJSON()
