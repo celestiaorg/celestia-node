@@ -34,25 +34,22 @@ func (p Proof) verify(blob *Blob, header *header.ExtendedHeader) error {
 	if err != nil {
 		return err
 	}
-	toCoords, err := shwap.SampleCoordsFrom1DIndex(blob.Index()+len(shrs)-1, len(header.DAH.RowRoots))
-	if err != nil {
-		return err
-	}
 
 	hasher := share.NewSHA256Hasher()
-	for from, i := fromCoords.Row, 0; from <= toCoords.Row; from++ {
+	shareOffset := 0
+	for proofIdx := 0; proofIdx < len(p); proofIdx++ {
 		hasher.Reset()
-		sharesPerRow := p[i].End() - p[i].Start()
-		valid := p[i].VerifyInclusion(
+		sharesInProof := p[proofIdx].End() - p[proofIdx].Start()
+		valid := p[proofIdx].VerifyInclusion(
 			hasher,
 			blob.Namespace().Bytes(),
-			libshare.ToBytes(shrs[i:sharesPerRow]),
-			header.DAH.RowRoots[from],
+			libshare.ToBytes(shrs[shareOffset:shareOffset+sharesInProof]),
+			header.DAH.RowRoots[fromCoords.Row+proofIdx],
 		)
 		if !valid {
-			return errors.New("invalid share proof")
+			return ErrInvalidProof
 		}
-		i += sharesPerRow
+		shareOffset += sharesInProof
 	}
 	return nil
 }

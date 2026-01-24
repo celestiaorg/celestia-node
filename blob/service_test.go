@@ -409,15 +409,15 @@ func TestBlobService_Get(t *testing.T) {
 				innerGetter := service.shareGetter
 				getterWrapper := mock.NewMockGetter(ctrl)
 				getterWrapper.EXPECT().
-					GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).
+					GetBlobs(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
 							ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace,
-						) (shwap.NamespaceData, error) {
+						) ([]*shwap.Blob, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
-							return innerGetter.GetNamespaceData(ctx, h, ns)
+							return innerGetter.GetBlobs(ctx, h, ns)
 						}).AnyTimes()
 
 				service.shareGetter = getterWrapper
@@ -889,6 +889,27 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
+	shareGetter.EXPECT().GetBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(
+			func(ctx context.Context,
+				h *header.ExtendedHeader,
+				ns libshare.Namespace,
+				com []byte,
+			) (*shwap.Blob, error) {
+				idx := int(h.Height()) - 1
+				accessor := &eds.Rsmt2D{ExtendedDataSquare: edsses[idx]}
+				return accessor.Blob(ctx, ns, com)
+			})
+	shareGetter.EXPECT().GetBlobs(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(
+			func(ctx context.Context,
+				h *header.ExtendedHeader,
+				ns libshare.Namespace,
+			) ([]*shwap.Blob, error) {
+				idx := int(h.Height()) - 1
+				accessor := &eds.Rsmt2D{ExtendedDataSquare: edsses[idx]}
+				return accessor.Blobs(ctx, ns)
+			})
 	return NewService(nil, shareGetter, fn, fn2)
 }
 
@@ -929,7 +950,6 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 			func(ctx context.Context,
 				h *header.ExtendedHeader,
 				ns libshare.Namespace,
-				com []byte,
 			) ([]*shwap.Blob, error) {
 				return accessor.Blobs(ctx, ns)
 			})

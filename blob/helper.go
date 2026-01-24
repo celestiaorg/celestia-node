@@ -75,7 +75,7 @@ func fromShwapBlob(shBlob *shwap.Blob, odsSize int) (*Blob, error) {
 		return nil, err
 	}
 
-	edsIndex, err := shwap.SampleCoordsAs1DIndex(coords, odsIndex*2)
+	edsIndex, err := shwap.SampleCoordsAs1DIndex(coords, odsSize*2)
 	if err != nil {
 		return nil, err
 	}
