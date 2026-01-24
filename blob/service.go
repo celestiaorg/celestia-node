@@ -30,7 +30,6 @@ import (
 )
 
 var (
-	ErrBlobNotFound = errors.New("blob: not found")
 	ErrInvalidProof = errors.New("blob: invalid proof")
 
 	log    = logging.Logger("blob")
@@ -301,7 +300,11 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
-func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) (_ []*Blob, err error) {
+func (s *Service) GetAll(
+	ctx context.Context,
+	height uint64,
+	namespaces []libshare.Namespace,
+) (blobs []*Blob, err error) {
 	ctx, span := tracer.Start(ctx, "blob/get-all")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -323,49 +326,62 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libsha
 
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("err getting header: %w", err)
 	}
 
-	return s.getAll(ctx, header, namespaces)
+	blobs, err = s.getAll(ctx, header, namespaces)
+	if err != nil {
+		return blobs, fmt.Errorf("err getting blobs: %w", err)
+	}
+
+	namespaceStrings := make([]string, len(namespaces))
+	for i := range namespaces {
+		namespaceStrings[i] = namespaces[i].String()
+	}
+	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
+	span.SetAttributes(attribute.Int("total", len(blobs)))
+	return blobs, nil
 }
 
 func (s *Service) getAll(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespaces []libshare.Namespace,
-) ([]*Blob, error) {
+) (_ []*Blob, err error) {
 	var (
-		span             = trace.SpanFromContext(ctx)
-		namespaceStrings = make([]string, len(namespaces))
-		resultBlobs      = make([][]*shwap.Blob, len(namespaces))
-		resultErr        = make([]error, len(namespaces))
-		wg               = sync.WaitGroup{}
+		resultBlobs = make([][]*shwap.Blob, len(namespaces))
+		resultErr   = make([]error, len(namespaces))
+		wg          = sync.WaitGroup{}
 	)
 
 	for i, namespace := range namespaces {
 		wg.Add(1)
 		go func(i int, namespace libshare.Namespace) {
 			defer wg.Done()
+			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", header.Height())
 			resultBlobs[i], resultErr[i] = s.shareGetter.GetBlobs(ctx, header, namespace)
+			if errors.Is(resultErr[i], shwap.ErrNotFound) {
+				resultErr[i] = nil
+			}
 		}(i, namespace)
-
-		namespaceStrings[i] = namespace.String()
 	}
-	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
 	wg.Wait()
 
 	blbs := slices.Concat(resultBlobs...)
-	errs := errors.Join(resultErr...)
+	err = errors.Join(resultErr...)
+	if len(blbs) == 0 {
+		return nil, err
+	}
 
 	blobs := make([]*Blob, len(blbs))
 	for i, blb := range blbs {
-		blob, err := fromShwapBlob(blb, len(header.DAH.RowRoots)/2)
+		blob, convertErr := fromShwapBlob(blb, len(header.DAH.RowRoots)/2)
 		if err != nil {
-			errs = errors.Join(errs, err)
+			err = errors.Join(err, convertErr)
 		}
 		blobs[i] = blob
 	}
-	return blobs, errs
+	return blobs, err
 }
 
 // Included verifies that the blob was included in a specific height.
@@ -411,6 +427,9 @@ func (s *Service) Included(
 
 	shwapBlob, err := s.shareGetter.GetBlob(ctx, header, namespace, commitment)
 	if err != nil {
+		if errors.Is(err, shwap.ErrBlobNotFound) {
+			err = nil
+		}
 		return false, err
 	}
 

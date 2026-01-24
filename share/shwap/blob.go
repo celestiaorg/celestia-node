@@ -19,6 +19,8 @@ const blobName = "blob_v0"
 
 var subtreeRootThreshold = appconsts.SubtreeRootThreshold
 
+var ErrBlobNotFound = errors.New("blob: not found")
+
 // Blob represents a retrieved blob from the data square containing
 // the blob data along with proofs for the verification and blob's index(position inside the ODS).
 type Blob struct {
@@ -50,7 +52,7 @@ func BlobFromShares(
 	colStart := 0
 	for rowStart := 0; rowStart < len(libShares); {
 		shr := libShares[rowStart][colStart]
-		if !shr.Namespace().Equals(namespace) || !shr.IsSequenceStart() {
+		if !shr.Namespace().Equals(namespace) || !shr.IsSequenceStart() || shr.IsPadding() {
 			colStart++
 			if colStart >= odsSize {
 				colStart = 0
@@ -75,11 +77,15 @@ func BlobFromShares(
 		rngShares := libShares[rowStart : to.Row+1]
 		shrs := make([]libshare.Share, 0, sharesAmount)
 		for i := range rngShares {
-			col := odsSize
-			if i == len(rngShares)-1 {
-				col = to.Col + 1
+			startCol := 0
+			endCol := odsSize
+			if i == 0 {
+				startCol = from.Col // account for starting column on first row
 			}
-			shrs = append(shrs, rngShares[i][:col]...)
+			if i == len(rngShares)-1 {
+				endCol = to.Col + 1
+			}
+			shrs = append(shrs, rngShares[i][startCol:endCol]...)
 		}
 
 		blobs, err := libshare.ParseBlobs(shrs)
@@ -113,7 +119,7 @@ func BlobFromShares(
 			StartIndex:         fromIndex,
 		}, err
 	}
-	return nil, errors.New("blob not found")
+	return nil, ErrBlobNotFound
 }
 
 func (b *Blob) VerifyInclusion(roots [][]byte) error {
@@ -228,7 +234,7 @@ func BlobsFromShares(
 	colStart := 0
 	for rowStart := 0; rowStart < len(libShares); {
 		shr := libShares[rowStart][colStart]
-		if !shr.Namespace().Equals(namespace) || !shr.IsSequenceStart() {
+		if !shr.Namespace().Equals(namespace) || !shr.IsSequenceStart() || shr.IsPadding() {
 			colStart++
 			if colStart >= odsSize {
 				colStart = 0
@@ -265,7 +271,7 @@ func BlobsFromShares(
 	}
 
 	if len(blobs) == 0 {
-		return nil, errors.New("blobs were empty")
+		return nil, ErrNotFound
 	}
 	return blobs, nil
 }

@@ -68,7 +68,12 @@ func RangeNamespaceDataFromShares(
 	}
 
 	namespace := extendedRowShares[0][from.Col].Namespace()
-	odsSize := len(extendedRowShares[0]) / 2
+
+	// Make a copy of the outer slice to avoid modifying the caller's slice
+	// when we reassign row elements below.
+	shares := make([][]libshare.Share, len(extendedRowShares))
+	copy(shares, extendedRowShares)
+	odsSize := len(shares[0]) / 2
 	isMultiRow := numRows > 1
 	startsMidRow := from.Col != 0
 	endsMidRow := to.Col != odsSize-1
@@ -99,12 +104,12 @@ func RangeNamespaceDataFromShares(
 			from.Col,
 			endCol,
 			odsSize,
-			extendedRowShares[0],
+			shares[0],
 		)
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)
 		}
-		extendedRowShares[0] = extendedRowShares[0][from.Col:endCol]
+		shares[0] = shares[0][from.Col:endCol]
 	}
 
 	// incomplete to.Col needs a proof for the last row to be computed
@@ -114,27 +119,27 @@ func RangeNamespaceDataFromShares(
 			0,
 			to.Col+1,
 			odsSize,
-			extendedRowShares[len(extendedRowShares)-1],
+			shares[len(shares)-1],
 		)
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", to.Row, err)
 		}
-		extendedRowShares[len(extendedRowShares)-1] = extendedRowShares[len(extendedRowShares)-1][:to.Col+1]
+		shares[len(shares)-1] = shares[len(shares)-1][:to.Col+1]
 	}
 
-	for row := range extendedRowShares {
-		if len(extendedRowShares[row]) >= odsSize {
+	for row := range shares {
+		if len(shares[row]) >= odsSize {
 			// keep only original data
-			extendedRowShares[row] = extendedRowShares[row][:odsSize]
+			shares[row] = shares[row][:odsSize]
 		}
-		for col, shr := range extendedRowShares[row] {
+		for col, shr := range shares[row] {
 			if !namespace.Equals(shr.Namespace()) {
 				return RangeNamespaceData{}, fmt.Errorf("mismatched namespace for share at: row %d, col: %d", row, col)
 			}
 		}
 	}
 	return RangeNamespaceData{
-		Shares:                  extendedRowShares,
+		Shares:                  shares,
 		FirstIncompleteRowProof: firstIncompleteRowProof,
 		LastIncompleteRowProof:  lastIncompleteRowProof,
 	}, nil

@@ -409,15 +409,15 @@ func TestBlobService_Get(t *testing.T) {
 				innerGetter := service.shareGetter
 				getterWrapper := mock.NewMockGetter(ctrl)
 				getterWrapper.EXPECT().
-					GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).
+					GetBlobs(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
 							ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace,
-						) (shwap.NamespaceData, error) {
+						) ([]*shwap.Blob, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
-							return innerGetter.GetNamespaceData(ctx, h, ns)
+							return innerGetter.GetBlobs(ctx, h, ns)
 						}).AnyTimes()
 
 				service.shareGetter = getterWrapper
@@ -932,7 +932,6 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 			func(ctx context.Context,
 				h *header.ExtendedHeader,
 				ns libshare.Namespace,
-				com []byte,
 			) ([]*shwap.Blob, error) {
 				return accessor.Blobs(ctx, ns)
 			})
