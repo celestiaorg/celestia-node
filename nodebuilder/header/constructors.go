@@ -72,18 +72,37 @@ func newSyncer[H libhead.Header[H]](
 	store libhead.Store[H],
 	sub libhead.Subscriber[H],
 	cfg Config,
+	isArchival node.ArchivalMode,
 ) (*sync.Syncer[H], error) {
-	if ndtp == node.Full || ndtp == node.Bridge {
+	switch ndtp {
+	case node.Full:
+		// Full nodes always sync from genesis
 		genesis, err := modp2p.GenesisFor(net)
 		if err != nil {
 			return nil, err
 		}
-
 		cfg.Syncer.SyncFromHash = genesis
 		if genesis == "" {
-			// set by height if hash is not available
 			cfg.Syncer.SyncFromHeight = 1
 		}
+	case node.Bridge:
+		// Bridge nodes: check if archival mode is enabled via --archival flag
+		if isArchival {
+			// Archival mode: disable header pruning and sync from genesis
+			genesis, err := modp2p.GenesisFor(net)
+			if err != nil {
+				return nil, err
+			}
+			cfg.Syncer.PruningWindow = 0
+			cfg.Syncer.SyncFromHash = genesis
+			if genesis == "" {
+				cfg.Syncer.SyncFromHeight = 1
+			}
+		}
+	case node.Light:
+	default:
+		panic("invalid node type")
+
 	}
 
 	opts := []sync.Option{

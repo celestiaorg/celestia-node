@@ -39,6 +39,9 @@ func ConstructModule(tp node.Type) fx.Option {
 		// supply the default config, which can only be overridden by
 		// passing the `--archival` flag
 		fx.Supply(DefaultConfig()),
+		fx.Provide(func(cfg *Config) node.ArchivalMode {
+			return node.ArchivalMode(!cfg.EnableService)
+		}),
 		// TODO @renaynay: move this to share module construction
 		advertiseArchival(),
 		prunerService,
