@@ -102,7 +102,6 @@ func newSyncer[H libhead.Header[H]](
 	case node.Light:
 	default:
 		panic("invalid node type")
-
 	}
 
 	opts := []sync.Option{
