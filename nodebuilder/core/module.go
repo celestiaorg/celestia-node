@@ -59,8 +59,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				return core.NewRoutingExchange(
 					coreEx,
 					p2pEx,
-					core.WithStorageWindow(window.Duration()),
-					core.WithBlockTime(p2p.BlockTime),
+					window.Duration(),
+					p2p.BlockTime,
 				)
 			},
 				new(libhead.Exchange[*header.ExtendedHeader])),

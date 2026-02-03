@@ -15,131 +15,26 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 )
 
-func TestRoutingExchange_GetByHeight_RoutesToCore(t *testing.T) {
+func TestRoutingExchange_GetByHeight_AlwaysUsesCore(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	// Create test headers
 	suite := headertest.NewTestSuiteDefaults(t)
 	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
 		p2pEx.addHeader(h)
 	}
-	coreEx.head = headers[9] // head at height 10
 
-	// Configure window to produce cutoff = 5
-	// With head=10 we want 10 - (window/blockTime) = 5
-	// So blocksInWindow = 5 meaning window/blockTime = 5
-	blockTime := time.Second
-	window := 5 * blockTime
-
+	// GetByHeight always routes to core regardless of window settings
 	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
+		time.Hour,
+		time.Second,
 	)
 
 	ctx := context.Background()
 
-	// Call Head first to initialize the cutoff
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0 // Reset call count after Head
-
-	// Height 7 > cutoff 5 should use core
-	_, err = routingEx.GetByHeight(ctx, 7)
-	require.NoError(t, err)
-	assert.Equal(t, 1, coreEx.calls)
-	assert.Equal(t, 0, p2pEx.calls)
-}
-
-func TestRoutingExchange_GetByHeight_RoutesToP2P(t *testing.T) {
-	coreEx := newMockExchange()
-	p2pEx := newMockExchange()
-
-	suite := headertest.NewTestSuiteDefaults(t)
-	headers := suite.GenExtendedHeaders(10)
-	for _, h := range headers {
-		coreEx.addHeader(h)
-		p2pEx.addHeader(h)
-	}
-	coreEx.head = headers[9] // head at height 10
-
-	blockTime := time.Second
-	window := 5 * blockTime // cutoff = 10 - 5 = 5
-
-	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
-	)
-
-	ctx := context.Background()
-
-	// Call Head first to initialize the cutoff
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0
-	p2pEx.calls = 0
-
-	// Height 3 <= cutoff 5, should use P2P
-	_, err = routingEx.GetByHeight(ctx, 3)
-	require.NoError(t, err)
-	assert.Equal(t, 0, coreEx.calls)
-	assert.Equal(t, 1, p2pEx.calls)
-}
-
-func TestRoutingExchange_GetByHeight_NoCutoffBeforeHead(t *testing.T) {
-	coreEx := newMockExchange()
-	p2pEx := newMockExchange()
-
-	suite := headertest.NewTestSuiteDefaults(t)
-	headers := suite.GenExtendedHeaders(10)
-	for _, h := range headers {
-		coreEx.addHeader(h)
-		p2pEx.addHeader(h)
-	}
-
-	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(time.Hour),
-		WithBlockTime(time.Second),
-	)
-
-	ctx := context.Background()
-
-	// Without calling Head first cutoff is 0, so all heights > 0 go to core
-	_, err := routingEx.GetByHeight(ctx, 3)
-	require.NoError(t, err)
-	assert.Equal(t, 1, coreEx.calls)
-	assert.Equal(t, 0, p2pEx.calls)
-}
-
-func TestRoutingExchange_GetByHeight_NoWindow(t *testing.T) {
-	coreEx := newMockExchange()
-	p2pEx := newMockExchange()
-
-	suite := headertest.NewTestSuiteDefaults(t)
-	headers := suite.GenExtendedHeaders(10)
-	for _, h := range headers {
-		coreEx.addHeader(h)
-		p2pEx.addHeader(h)
-	}
-	coreEx.head = headers[9]
-
-	routingEx := NewRoutingExchange(coreEx, p2pEx)
-	// No window/blockTime set - cutoff will remain 0
-
-	ctx := context.Background()
-
-	// Even after Head cutoff stays 0 because window is not configured
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0
-
-	// With cutoff=0 and height 3 > 0 we should use core
-	_, err = routingEx.GetByHeight(ctx, 3)
+	_, err := routingEx.GetByHeight(ctx, 7)
 	require.NoError(t, err)
 	assert.Equal(t, 1, coreEx.calls)
 	assert.Equal(t, 0, p2pEx.calls)
@@ -155,26 +50,18 @@ func TestRoutingExchange_GetRangeByHeight_AllInWindow(t *testing.T) {
 		coreEx.addHeader(h)
 		p2pEx.addHeader(h)
 	}
-	coreEx.head = headers[9] // head at height 10
 
 	blockTime := time.Second
-	window := 8 * blockTime // cutoff = 10 - 8 = 2
+	window := time.Hour
 
 	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
+		window,
+		blockTime,
 	)
 
 	ctx := context.Background()
 
-	// Call Head first to initialize the cutoff
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0
-
-	// Request range 5-8, cutoff is 2 and all heights > 2 so all in window
-	_, err = routingEx.GetRangeByHeight(ctx, headers[4], 8)
+	_, err := routingEx.GetRangeByHeight(ctx, headers[4], 8)
 	require.NoError(t, err)
 	assert.Equal(t, 1, coreEx.calls)
 	assert.Equal(t, 0, p2pEx.calls)
@@ -190,26 +77,16 @@ func TestRoutingExchange_GetRangeByHeight_AllOutsideWindow(t *testing.T) {
 		coreEx.addHeader(h)
 		p2pEx.addHeader(h)
 	}
-	coreEx.head = headers[9] // head at height 10
 
-	blockTime := time.Second
-	window := 2 * blockTime // cutoff = 10 - 2 = 8
+	blockTime := time.Nanosecond
+	window := time.Nanosecond
 
 	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
+		window,
+		blockTime,
 	)
 
-	ctx := context.Background()
-
-	// Call Head first to initialize the cutoff
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0
-
-	// Request range 2-5, cutoff is 8, all heights <= 8 so all outside window
-	_, err = routingEx.GetRangeByHeight(ctx, headers[1], 5)
+	_, err := routingEx.GetRangeByHeight(context.Background(), headers[1], 5)
 	require.NoError(t, err)
 	assert.Equal(t, 0, coreEx.calls)
 	assert.Equal(t, 1, p2pEx.calls)
@@ -225,28 +102,22 @@ func TestRoutingExchange_GetRangeByHeight_Split(t *testing.T) {
 		coreEx.addHeader(h)
 		p2pEx.addHeader(h)
 	}
-	coreEx.head = headers[9] // head at height 10
 
 	blockTime := time.Second
-	window := 5 * blockTime // cutoff = 10 - 5 = 5
+	window := 5 * time.Second
+
+	fromHeader := headers[2] // height 3
+	oldTime := time.Now().Add(-window - 2*blockTime)
+	fromHeader.RawHeader.Time = oldTime
 
 	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
+		window,
+		blockTime,
 	)
 
 	ctx := context.Background()
 
-	// Call Head first to initialize the cutoff
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0
-
-	// Request range 3-8, cutoff is 5
-	// Heights 3-5 should come from P2P (outside window)
-	// Heights 6-8 should come from core (inside window)
-	result, err := routingEx.GetRangeByHeight(ctx, headers[2], 8)
+	result, err := routingEx.GetRangeByHeight(ctx, fromHeader, 8)
 	require.NoError(t, err)
 	assert.Len(t, result, 5) // heights 4,5,6,7,8
 	assert.Equal(t, 1, coreEx.calls)
@@ -266,8 +137,8 @@ func TestRoutingExchange_Head_AlwaysUsesCore(t *testing.T) {
 	window := 100 * blockTime // high cutoff
 
 	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
+		window,
+		blockTime,
 	)
 
 	ctx := context.Background()
@@ -279,54 +150,54 @@ func TestRoutingExchange_Head_AlwaysUsesCore(t *testing.T) {
 	assert.Equal(t, 0, p2pEx.calls)
 }
 
-func TestRoutingExchange_Head_UpdatesCutoff(t *testing.T) {
+func TestRoutingExchange_CalculateCutoffHeight(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
 	suite := headertest.NewTestSuiteDefaults(t)
-	headers := suite.GenExtendedHeaders(20)
+	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
-		p2pEx.addHeader(h)
 	}
 
 	blockTime := time.Second
-	window := 5 * blockTime
+	window := 5 * time.Second
 
 	routingEx := NewRoutingExchange(coreEx, p2pEx,
-		WithStorageWindow(window),
-		WithBlockTime(blockTime),
+		window,
+		blockTime,
 	)
 
-	ctx := context.Background()
+	t.Run("from inside window returns zero cutoff", func(t *testing.T) {
+		// Header generated just now is inside a 5-second window
+		fromHeader := headers[4] // height 5
+		cutoff, err := routingEx.calculateCutoffHeight(fromHeader)
+		require.NoError(t, err)
+		assert.Equal(t, uint64(0), cutoff)
+	})
 
-	// First head at height 10, cutoff = 10 - 5 = 5
-	coreEx.head = headers[9]
-	_, err := routingEx.Head(ctx)
-	require.NoError(t, err)
+	t.Run("from outside window calculates cutoff based on time", func(t *testing.T) {
+		// Set header time to be outside the window
+		fromHeader := headers[2] // height 3
+		oldTime := time.Now().Add(-window - 3*blockTime)
+		fromHeader.RawHeader.Time = oldTime
 
-	coreEx.calls = 0
-	p2pEx.calls = 0
+		cutoff, err := routingEx.calculateCutoffHeight(fromHeader)
+		require.NoError(t, err)
+		assert.Equal(t, uint64(6), cutoff)
+	})
 
-	// Height 7 > cutoff 5, should use core
-	_, err = routingEx.GetByHeight(ctx, 7)
-	require.NoError(t, err)
-	assert.Equal(t, 1, coreEx.calls)
-	assert.Equal(t, 0, p2pEx.calls)
+	t.Run("zero window returns error", func(t *testing.T) {
+		zeroWindowEx := NewRoutingExchange(coreEx, p2pEx, 0, blockTime)
+		_, err := zeroWindowEx.calculateCutoffHeight(headers[0])
+		require.Error(t, err)
+	})
 
-	// Now head advances to height 20, cutoff = 20 - 5 = 15
-	coreEx.head = headers[19]
-	_, err = routingEx.Head(ctx)
-	require.NoError(t, err)
-
-	coreEx.calls = 0
-	p2pEx.calls = 0
-
-	// Height 7 <= new cutoff 15, should now use P2P
-	_, err = routingEx.GetByHeight(ctx, 7)
-	require.NoError(t, err)
-	assert.Equal(t, 0, coreEx.calls)
-	assert.Equal(t, 1, p2pEx.calls)
+	t.Run("zero blockTime returns error", func(t *testing.T) {
+		zeroBlockTimeEx := NewRoutingExchange(coreEx, p2pEx, window, 0)
+		_, err := zeroBlockTimeEx.calculateCutoffHeight(headers[0])
+		require.Error(t, err)
+	})
 }
 
 func TestRoutingExchange_Get_TriesCoreFirst(t *testing.T) {
@@ -340,7 +211,7 @@ func TestRoutingExchange_Get_TriesCoreFirst(t *testing.T) {
 		p2pEx.addHeader(h)
 	}
 
-	routingEx := NewRoutingExchange(coreEx, p2pEx)
+	routingEx := NewRoutingExchange(coreEx, p2pEx, 0, 0)
 
 	ctx := context.Background()
 
@@ -362,7 +233,7 @@ func TestRoutingExchange_Get_FallsBackToP2P(t *testing.T) {
 		p2pEx.addHeader(h)
 	}
 
-	routingEx := NewRoutingExchange(coreEx, p2pEx)
+	routingEx := NewRoutingExchange(coreEx, p2pEx, 0, 0)
 
 	ctx := context.Background()
 
