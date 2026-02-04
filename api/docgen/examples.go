@@ -2,7 +2,6 @@ package docgen
 
 import (
 	_ "embed"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -165,7 +164,7 @@ func init() {
 	}
 	add(addrInfo)
 
-	commitment := must(base64.StdEncoding.DecodeString("aHlbp+J9yub6hw/uhK6dP8hBLR2mFy78XNRRdLf2794="))
+	commitment := must(hex.DecodeString("68795BA7E27DCAE6FA870FEE84AE9D3FC8412D1DA6172EFC5CD45174B7F6EFDE"))
 	add(blob.Commitment(commitment))
 
 	// randomly generated namespace that's used in the blob example above

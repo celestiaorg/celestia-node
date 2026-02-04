@@ -52,11 +52,11 @@ var sharesAvailableCmd = &cobra.Command{
 
 			return struct {
 				Available bool   `json:"available"`
-				Hash      []byte `json:"dah_hash"`
+				Hash      string `json:"dah_hash"`
 				Reason    error  `json:"reason,omitempty"`
 			}{
 				Available: available,
-				Hash:      []byte(args[0]),
+				Hash:      args[0],
 				Reason:    err,
 			}
 		}
@@ -124,14 +124,12 @@ var getShare = &cobra.Command{
 				return data
 			}
 
-			ns := hex.EncodeToString(sh.Namespace().Bytes())
-
 			return struct {
 				Namespace string `json:"namespace"`
-				Data      []byte `json:"data"`
+				Data      string `json:"data"`
 			}{
-				Namespace: ns,
-				Data:      sh.RawData(),
+				Namespace: hex.EncodeToString(sh.Namespace().Bytes()),
+				Data:      hex.EncodeToString(sh.RawData()),
 			}
 		}
 		return cmdnode.PrintOutput(s, err, formatter)
