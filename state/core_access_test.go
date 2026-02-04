@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
@@ -472,7 +472,7 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(time.Millisecond * 1)
+		WithDelayedPrecommitTimeout(time.Millisecond * 1)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 

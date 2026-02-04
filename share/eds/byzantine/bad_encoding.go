@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/rsmt2d"
 
