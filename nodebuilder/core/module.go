@@ -55,7 +55,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				coreEx *core.Exchange,
 				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
 				window modshare.Window,
-			) *core.RoutingExchange {
+			) (*core.RoutingExchange, error) {
 				return core.NewRoutingExchange(
 					coreEx,
 					p2pEx,

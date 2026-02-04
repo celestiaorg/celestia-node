@@ -31,14 +31,18 @@ func NewRoutingExchange(
 	p2pEx libhead.Exchange[*header.ExtendedHeader],
 	window time.Duration,
 	blockTime time.Duration,
-) *RoutingExchange {
+) (*RoutingExchange, error) {
+	if window == 0 || blockTime == 0 {
+		return nil, errors.New("window and blockTime can't be 0")
+	}
+
 	h := &RoutingExchange{
 		core:      coreEx,
 		p2p:       p2pEx,
 		window:    window,
 		blockTime: blockTime,
 	}
-	return h
+	return h, nil
 }
 
 // Head returns the latest header from the core exchange.
@@ -91,10 +95,7 @@ func (h *RoutingExchange) GetRangeByHeight(
 		return nil, nil
 	}
 
-	cutoff, err := h.calculateCutoffHeight(from)
-	if err != nil {
-		return nil, err
-	}
+	cutoff := h.calculateCutoffHeight(from)
 
 	// All headers are within window - use core
 	if startHeight > cutoff {
@@ -142,21 +143,17 @@ func (h *RoutingExchange) GetRangeByHeight(
 	return headers, nil
 }
 
-func (h *RoutingExchange) calculateCutoffHeight(from *header.ExtendedHeader) (uint64, error) {
-	if h.window == 0 || h.blockTime == 0 {
-		return 0, errors.New("window and blockTime can't be 0")
-	}
-
+func (h *RoutingExchange) calculateCutoffHeight(from *header.ExtendedHeader) uint64 {
 	// Cutoff time: headers with time >= cutoffTime are inside window
-	cutoffTime := time.Now().Add(-h.window)
+	cutoffTime := time.Now().UTC().Add(-h.window)
 
 	// If from is already inside window, all subsequent headers are too
 	if !from.Time().Before(cutoffTime) {
-		return 0, nil
+		return 0
 	}
 
 	// Estimate blocks from 'from' until cutoffTime
-	timeToCutoff := cutoffTime.Sub(from.Time())
+	timeToCutoff := cutoffTime.Sub(from.Time().UTC())
 	blocksToCutoff := uint64(timeToCutoff / h.blockTime)
-	return from.Height() + blocksToCutoff, nil
+	return from.Height() + blocksToCutoff
 }
