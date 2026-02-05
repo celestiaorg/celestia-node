@@ -8,8 +8,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-
-	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 var meter = otel.Meter("blob")
@@ -93,7 +91,7 @@ func (m *metrics) observeRetrieval(ctx context.Context, duration time.Duration, 
 	if err != nil {
 		errorType := errorTypeUnknown
 		switch {
-		case errors.Is(err, shwap.ErrBlobNotFound):
+		case errors.Is(err, ErrBlobNotFound):
 			errorType = errorTypeNotFound
 		case errors.Is(err, context.DeadlineExceeded):
 			errorType = errorTypeTimeout
