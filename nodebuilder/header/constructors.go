@@ -2,7 +2,6 @@ package header
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -97,7 +96,7 @@ func newSyncer[H libhead.Header[H]](
 			cfg.Syncer.PruningWindow = 0
 			cfg.Syncer.SyncFromHash = genesis
 			if genesis == "" {
-				return nil, errors.New("no genesis hash found")
+				cfg.Syncer.SyncFromHeight = 1
 			}
 		}
 	case node.Light:
