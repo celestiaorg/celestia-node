@@ -409,15 +409,15 @@ func TestBlobService_Get(t *testing.T) {
 				innerGetter := service.shareGetter
 				getterWrapper := mock.NewMockGetter(ctrl)
 				getterWrapper.EXPECT().
-					GetBlobs(gomock.Any(), gomock.Any(), gomock.Any()).
+					GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(
 						func(
 							ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace,
-						) ([]*shwap.Blob, error) {
+						) (shwap.NamespaceData, error) {
 							if ns.Equals(blobsWithDiffNamespaces[0].Namespace()) {
 								return nil, errors.New("internal error")
 							}
-							return innerGetter.GetBlobs(ctx, h, ns)
+							return innerGetter.GetNamespaceData(ctx, h, ns)
 						}).AnyTimes()
 
 				service.shareGetter = getterWrapper
@@ -826,7 +826,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	assert.Empty(t, emptyBlobResponse.Blobs)
 }
 
-// BenchmarkGetByCommitment-14    	    5754	    205912 ns/op	 1203683 B/op	    2731 allocs/op
+// BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	b.Cleanup(cancel)
@@ -839,11 +839,18 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	shares, err := BlobsToShares(blobs...)
 	require.NoError(b, err)
 	service := createService(ctx, b, shares)
+	indexer := &parser{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.ReportAllocs()
-		_, err := service.Get(ctx, 1, blobs[0].Namespace(), blobs[1].Commitment)
+		indexer.reset()
+		indexer.verifyFn = func(blob *Blob) bool {
+			return blob.compareCommitments(blobs[1].Commitment)
+		}
 
+		_, _, err = service.retrieve(
+			ctx, 1, blobs[1].Namespace(), indexer,
+		)
 		require.NoError(b, err)
 	}
 }
@@ -918,23 +925,7 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 			smpl, err := accessor.Sample(ctx, indices[0])
 			return []shwap.Sample{smpl}, err
 		})
-	shareGetter.EXPECT().GetBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(
-			func(ctx context.Context,
-				h *header.ExtendedHeader,
-				ns libshare.Namespace,
-				com []byte,
-			) (*shwap.Blob, error) {
-				return accessor.Blob(ctx, ns, com)
-			})
-	shareGetter.EXPECT().GetBlobs(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(
-			func(ctx context.Context,
-				h *header.ExtendedHeader,
-				ns libshare.Namespace,
-			) ([]*shwap.Blob, error) {
-				return accessor.Blobs(ctx, ns)
-			})
+
 	// create header and put it into the store
 	h := headertest.ExtendedHeaderFromEDS(t, 1, square)
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())

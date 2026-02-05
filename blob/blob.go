@@ -11,48 +11,20 @@ import (
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
-
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap"
 )
+
+var errEmptyShares = errors.New("empty shares")
 
 var subtreeRootThreshold = appconsts.SubtreeRootThreshold
 
-// The Proof is a set of nmt proofs that can verify the inclusion of the blob
+// The Proof is a set of nmt proofs that can be verified only through
+// the included method (due to limitation of the nmt https://github.com/celestiaorg/nmt/issues/218).
+// Proof proves the WHOLE namespaced data to the row roots.
+// TODO (@vgonkivs): rework `Proof` in order to prove a particular blob.
+// https://github.com/celestiaorg/celestia-node/issues/2303
 type Proof []*nmt.Proof
 
 func (p Proof) Len() int { return len(p) }
-
-func (p Proof) verify(blob *Blob, header *header.ExtendedHeader) error {
-	shrs, err := BlobsToShares(blob)
-	if err != nil {
-		return err
-	}
-
-	fromCoords, err := shwap.SampleCoordsFrom1DIndex(blob.Index(), len(header.DAH.RowRoots)) // pass eds size
-	if err != nil {
-		return err
-	}
-
-	hasher := share.NewSHA256Hasher()
-	shareOffset := 0
-	for proofIdx := 0; proofIdx < len(p); proofIdx++ {
-		hasher.Reset()
-		sharesInProof := p[proofIdx].End() - p[proofIdx].Start()
-		valid := p[proofIdx].VerifyInclusion(
-			hasher,
-			blob.Namespace().Bytes(),
-			libshare.ToBytes(shrs[shareOffset:shareOffset+sharesInProof]),
-			header.DAH.RowRoots[fromCoords.Row+proofIdx],
-		)
-		if !valid {
-			return ErrInvalidProof
-		}
-		shareOffset += sharesInProof
-	}
-	return nil
-}
 
 // equal is a temporary method that compares two proofs.
 // should be removed in BlobService V1.
