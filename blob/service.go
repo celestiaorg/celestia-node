@@ -116,7 +116,7 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 		return nil, err
 	}
 
-	blobCh := make(chan *SubscriptionResponse, 16)
+	blobCh := make(chan *SubscriptionResponse, 32)
 	go s.handleSubscription(ctx, headerCh, blobCh, ns)
 	return blobCh, nil
 }
@@ -144,12 +144,12 @@ func (s *Service) SubscribeFrom(
 	// wait for current network head
 	var hdr *header.ExtendedHeader
 	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	case hdr = <-headerCh:
 		if hdr.Height() < height {
 			return nil, fmt.Errorf("network height %d is less than requested height %d", hdr.Height(), height)
 		}
-	case <-ctx.Done():
-		return nil, ctx.Err()
 	}
 
 	hdrs, err := s.fetchHistoricalHeaders(ctx, height, hdr)
@@ -157,7 +157,7 @@ func (s *Service) SubscribeFrom(
 		return nil, err
 	}
 
-	blobCh := make(chan *SubscriptionResponse, 16)
+	blobCh := make(chan *SubscriptionResponse, 32)
 
 	// Send historical blobs before starting live subscription
 	for _, h := range hdrs {
@@ -167,9 +167,10 @@ func (s *Service) SubscribeFrom(
 			continue
 		}
 		select {
-		case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: h.Height()}:
 		case <-ctx.Done():
 			return nil, ctx.Err()
+
+		case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: h.Height()}:
 		}
 	}
 
