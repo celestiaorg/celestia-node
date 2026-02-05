@@ -323,7 +323,7 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 
 	// Setup node with authenticated RPC
 	addAuth, adminToken := addAuth(t)
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, addAuth)
+	nd := nodebuilder.TestNode(t, node.Bridge, invokeRPC, addAuth)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)

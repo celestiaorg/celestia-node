@@ -45,7 +45,7 @@ func DefaultConfig(tp node.Type) Config {
 	}
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		cfg.Store.StoreCacheSize = 2048
 		cfg.Store.IndexCacheSize = 4096
 
@@ -85,11 +85,11 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate(tp node.Type) error {
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 || cfg.Syncer.PruningWindow != 0 {
 			return fmt.Errorf(
-				"module/header: Syncer.SyncFromHash/Syncer.SyncFromHeight/Syncer.PruningWindow must not be set for FN/BN nodes" +
-					"until https://github.com/celestiaorg/go-header/issues/333 is completed. Full and Bridge must sync all the headers until then",
+				"module/header: Syncer.SyncFromHash/Syncer.SyncFromHeight/Syncer.PruningWindow must not be set for BN nodes" +
+					"until https://github.com/celestiaorg/go-header/issues/333 is completed. Bridge must sync all the headers until then",
 			)
 		}
 	case node.Light:

@@ -73,7 +73,7 @@ func newSyncer[H libhead.Header[H]](
 	sub libhead.Subscriber[H],
 	cfg Config,
 ) (*sync.Syncer[H], error) {
-	if ndtp == node.Full || ndtp == node.Bridge {
+	if ndtp == node.Bridge {
 		genesis, err := modp2p.GenesisFor(net)
 		if err != nil {
 			return nil, err

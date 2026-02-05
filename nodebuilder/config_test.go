@@ -14,7 +14,6 @@ import (
 // TestConfigWriteRead tests that the configs for all node types can be encoded to and from TOML.
 func TestConfigWriteRead(t *testing.T) {
 	tests := []node.Type{
-		node.Full,
 		node.Light,
 		node.Bridge,
 	}
