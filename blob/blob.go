@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+
 	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v3/inclusion"
@@ -129,12 +131,12 @@ func (b *Blob) compareCommitments(com Commitment) bool {
 }
 
 type jsonBlob struct {
-	Namespace    []byte     `json:"namespace"`
-	Data         []byte     `json:"data"`
-	ShareVersion uint8      `json:"share_version"`
-	Commitment   Commitment `json:"commitment"`
-	Signer       []byte     `json:"signer,omitempty"`
-	Index        int        `json:"index"`
+	Namespace    tmbytes.HexBytes `json:"namespace"`
+	Data         tmbytes.HexBytes `json:"data"`
+	ShareVersion uint8            `json:"share_version"`
+	Commitment   Commitment       `json:"commitment"`
+	Signer       tmbytes.HexBytes `json:"signer,omitempty"`
+	Index        int              `json:"index"`
 }
 
 func (b *Blob) MarshalJSON() ([]byte, error) {

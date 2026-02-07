@@ -293,7 +293,7 @@ func formatData(ns string) func(any) any {
 			for i, b := range blobs {
 				result[i] = tempBlob{
 					Namespace:    ns,
-					Data:         string(b.Data()),
+					Data:         "0x" + hex.EncodeToString(b.Data()),
 					ShareVersion: uint32(b.ShareVersion()),
 					Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 					Index:        b.Index(),
@@ -305,7 +305,7 @@ func formatData(ns string) func(any) any {
 		b := data.(*blob.Blob)
 		return tempBlob{
 			Namespace:    ns,
-			Data:         string(b.Data()),
+			Data:         "0x" + hex.EncodeToString(b.Data()),
 			ShareVersion: uint32(b.ShareVersion()),
 			Commitment:   "0x" + hex.EncodeToString(b.Commitment),
 			Index:        b.Index(),

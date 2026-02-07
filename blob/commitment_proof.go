@@ -2,6 +2,8 @@ package blob
 
 import (
 	"bytes"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -40,7 +42,26 @@ type CommitmentProof struct {
 }
 
 func (com Commitment) String() string {
-	return string(com)
+	return hex.EncodeToString(com)
+}
+
+// MarshalJSON encodes Commitment to hex string for JSON.
+func (com Commitment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(com))
+}
+
+// UnmarshalJSON decodes Commitment from hex string in JSON.
+func (com *Commitment) UnmarshalJSON(data []byte) error {
+	var hexStr string
+	if err := json.Unmarshal(data, &hexStr); err != nil {
+		return err
+	}
+	decoded, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return fmt.Errorf("invalid hex string: %w", err)
+	}
+	*com = decoded
+	return nil
 }
 
 // Equal ensures that commitments are the same
