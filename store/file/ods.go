@@ -358,6 +358,50 @@ func (o *ODS) RangeNamespaceData(
 	return shwap.RangeNamespaceDataFromShares(shares, fromCoords, toCoords)
 }
 
+func (o *ODS) Blob(ctx context.Context, namespace libshare.Namespace, commitment []byte) (*shwap.Blob, error) {
+	size, err := o.Size(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	odsSize := size / 2
+	extendedRowShares := make([][]libshare.Share, odsSize)
+	for index := 0; index < odsSize; index++ {
+		half, err := o.AxisHalf(ctx, rsmt2d.Row, index)
+		if err != nil {
+			return nil, err
+		}
+		extendedRow, err := half.Extended()
+		if err != nil {
+			return nil, err
+		}
+		extendedRowShares[index] = extendedRow
+	}
+	return shwap.BlobFromShares(extendedRowShares, namespace, commitment, odsSize)
+}
+
+func (o *ODS) Blobs(ctx context.Context, namespace libshare.Namespace) ([]*shwap.Blob, error) {
+	size, err := o.Size(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	odsSize := size / 2
+	extendedRowShares := make([][]libshare.Share, odsSize)
+	for index := 0; index < odsSize; index++ {
+		half, err := o.AxisHalf(ctx, rsmt2d.Row, index)
+		if err != nil {
+			return nil, err
+		}
+		extendedRow, err := half.Extended()
+		if err != nil {
+			return nil, err
+		}
+		extendedRowShares[index] = extendedRow
+	}
+	return shwap.BlobsFromShares(extendedRowShares, namespace, odsSize)
+}
+
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	half, err := o.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {

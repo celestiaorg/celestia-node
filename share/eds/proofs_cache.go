@@ -284,6 +284,14 @@ func (c *proofsCache) RangeNamespaceData(
 	return c.inner.RangeNamespaceData(ctx, from, to)
 }
 
+func (c *proofsCache) Blob(ctx context.Context, namespace libshare.Namespace, commitment []byte) (*shwap.Blob, error) {
+	return c.inner.Blob(ctx, namespace, commitment)
+}
+
+func (c *proofsCache) Blobs(ctx context.Context, namespace libshare.Namespace) ([]*shwap.Blob, error) {
+	return c.inner.Blobs(ctx, namespace)
+}
+
 func (c *proofsCache) Reader() (io.Reader, error) {
 	size, err := c.Size(context.TODO())
 	if err != nil {

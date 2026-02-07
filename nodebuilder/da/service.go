@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -120,7 +121,7 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 	blobs, err := s.blobServ.GetAll(ctx, height, []libshare.Namespace{ns})
 	log.Debugw("got ids", "height", height, "namespace", ns)
 	if err != nil {
-		if strings.Contains(err.Error(), blob.ErrBlobNotFound.Error()) {
+		if strings.Contains(err.Error(), shwap.ErrBlobNotFound.Error()) {
 			return nil, nil //nolint:nilnil
 		}
 		return nil, err
