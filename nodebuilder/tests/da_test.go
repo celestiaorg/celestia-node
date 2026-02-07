@@ -55,7 +55,7 @@ func TestDaModule(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	sw.SetBootstrapper(t, bridge)
 
-	fullNode := sw.NewFullNode()
+	fullNode := sw.NewBridgeNode()
 	require.NoError(t, fullNode.Start(ctx))
 	addrFn := host.InfoFromHost(fullNode.Host)
 

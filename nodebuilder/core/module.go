@@ -34,7 +34,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module("core", baseComponents)
 	case node.Bridge:
 		return fx.Module("core",

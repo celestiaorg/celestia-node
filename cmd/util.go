@@ -141,7 +141,7 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 	}
 
 	switch nodeType {
-	case node.Light, node.Full:
+	case node.Light:
 		err = header.ParseFlags(cmd, &cfg.Header)
 		if err != nil {
 			return err

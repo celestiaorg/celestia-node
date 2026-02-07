@@ -102,7 +102,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module(
 			"header",
 			baseComponents,
