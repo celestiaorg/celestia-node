@@ -53,6 +53,15 @@ type Store struct {
 	// stripedLocks is used to synchronize parallel operations
 	stripLock *striplock
 	metrics   *metrics
+
+	// ---- Pin Node fields (optional, nil/empty for standard nodes) ----
+
+	// params stores configuration, needed for Pin node namespace tracking
+	params *Parameters
+	// nsStore is used to cache namespace-specific data for Pin nodes
+	nsStore *namespaceStore
+	// writeOpts are options passed to ODS file creation (e.g., namespace filter for Pin nodes)
+	writeOpts []file.WriteOption
 }
 
 // NewStore creates a new EDS Store under the given basepath and datastore.
@@ -86,6 +95,18 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 		basepath:  basePath,
 		cache:     recentCache,
 		stripLock: newStripLock(1024),
+		params:    params,
+	}
+
+	// Initialize namespace tracking for Pin nodes (if configured)
+	if params.IsNamespaceTrackingEnabled() {
+		store.nsStore = newNamespaceStore(params.NamespaceDatastore)
+		store.writeOpts = []file.WriteOption{
+			file.WithFilter(NewNamespaceFilter(params.TrackedNamespace)),
+		}
+		log.Infow("namespace tracking enabled",
+			"namespace", params.TrackedNamespace.String(),
+		)
 	}
 
 	if err := store.populateEmptyFile(); err != nil {
@@ -137,6 +158,16 @@ func (s *Store) put(
 		return err
 	}
 
+	// Pin Node: If tracking a specific namespace, cache its data for fast retrieval
+	if s.nsStore != nil {
+		nd, err := eds.NamespaceData(ctx, &eds.Rsmt2D{ExtendedDataSquare: square}, s.params.TrackedNamespace)
+		if err == nil && len(nd.Flatten()) > 0 {
+			if err := s.nsStore.put(ctx, height, nd); err != nil {
+				log.Warnw("failed to cache namespace data", "height", height, "err", err)
+			}
+		}
+	}
+
 	// put to cache before writing to make it accessible while write is happening
 	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
 	acc, err := s.cache.GetOrLoad(ctx, height, accessorLoader(accessor))
@@ -180,7 +211,7 @@ func (s *Store) createODSQ4File(
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
 	pathQ4 := s.hashToPath(roots.Hash(), q4FileExt)
 
-	err := file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	err := file.CreateODSQ4(pathODS, pathQ4, roots, square, s.writeOpts...)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODSQ4(height, roots.Hash())
@@ -231,7 +262,7 @@ func (s *Store) validateAndRecoverODSQ4(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODSQ4 file: %w", err)
 	}
-	err = file.CreateODSQ4(pathODS, pathQ4, roots, square)
+	err = file.CreateODSQ4(pathODS, pathQ4, roots, square, s.writeOpts...)
 	if err != nil {
 		return fmt.Errorf("recreating ODSQ4 file: %w", err)
 	}
@@ -244,7 +275,7 @@ func (s *Store) createODSFile(
 	height uint64,
 ) (bool, error) {
 	pathODS := s.hashToPath(roots.Hash(), odsFileExt)
-	err := file.CreateODS(pathODS, roots, square)
+	err := file.CreateODS(pathODS, roots, square, s.writeOpts...)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		// ensure we don't have partial writes if any operation fails
 		removeErr := s.removeODS(height, roots.Hash())
@@ -296,7 +327,7 @@ func (s *Store) validateAndRecoverODS(
 	if err != nil {
 		return fmt.Errorf("removing corrupted ODS file: %w", err)
 	}
-	err = file.CreateODS(pathODS, roots, square)
+	err = file.CreateODS(pathODS, roots, square, s.writeOpts...)
 	if err != nil {
 		return fmt.Errorf("recreating ODS file: %w", err)
 	}
@@ -472,22 +503,25 @@ func (s *Store) removeODSQ4(height uint64, datahash share.DataHash) error {
 }
 
 func (s *Store) removeODS(height uint64, datahash share.DataHash) error {
+	// Pin Node: clean up cached namespace data
+	if s.nsStore != nil {
+		if err := s.nsStore.delete(context.TODO(), height); err != nil {
+			log.Warnw("failed to remove namespace data", "height", height, "err", err)
+		}
+	}
+
 	if err := s.cache.Remove(height); err != nil {
 		return fmt.Errorf("removing from cache: %w", err)
 	}
 
-	pathLink := s.heightToPath(height, odsFileExt)
-	if err := remove(pathLink); err != nil {
-		return fmt.Errorf("removing hardlink: %w", err)
-	}
-
-	// if datahash is empty, we don't need to remove the ODS file, only the hardlink
-	if datahash.IsEmptyEDS() {
-		return nil
-	}
-
-	pathODS := s.hashToPath(datahash, odsFileExt)
+	pathODS := s.heightToPath(height, odsFileExt)
 	if err := remove(pathODS); err != nil {
+		return fmt.Errorf("removing ODS file by height: %w", err)
+	}
+
+	// we don't return error if the file doesn't exist, as it may have been already removed
+	pathODSFile := s.hashToPath(datahash, odsFileExt)
+	if err := remove(pathODSFile); err != nil {
 		return fmt.Errorf("removing ODS file: %w", err)
 	}
 	return nil

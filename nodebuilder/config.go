@@ -49,7 +49,7 @@ func DefaultConfig(tp node.Type) *Config {
 	}
 
 	switch tp {
-	case node.Bridge:
+	case node.Bridge, node.Pin:
 		return commonConfig
 	case node.Light, node.Full:
 		commonConfig.DASer = das.DefaultConfig(tp)

@@ -26,14 +26,20 @@ func storeEDS(
 	}
 
 	var err error
+	var storedQ4 bool
 	// archival nodes should not store Q4 outside the availability window.
 	if availability.IsWithinWindow(eh.Time(), window) {
 		err = store.PutODSQ4(ctx, eh.DAH, eh.Height(), eds)
+		storedQ4 = true
 	} else {
 		err = store.PutODS(ctx, eh.DAH, eh.Height(), eds)
 	}
+
 	if err == nil {
-		log.Debugw("stored EDS for height", "height", eh.Height(), "EDS size", len(eh.DAH.RowRoots))
+		log.Debugw("stored EDS for height",
+			"height", eh.Height(),
+			"EDS size", len(eh.DAH.RowRoots),
+			"storedQ4", storedQ4)
 	}
 	return err
 }

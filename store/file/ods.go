@@ -41,6 +41,27 @@ type ODS struct {
 	disableCache bool
 }
 
+// NamespaceFilter is a predicate for filtering shares by namespace.
+// Used by Pin nodes to selectively store only relevant data.
+type NamespaceFilter func(libshare.Namespace) bool
+
+// WriteOptions configures ODS/Q4 file creation.
+type WriteOptions struct {
+	// Filter, if set, zeros out shares that don't match the predicate.
+	// Used by Pin nodes to store only data for tracked namespaces.
+	Filter NamespaceFilter
+}
+
+// WriteOption is a functional option for WriteOptions.
+type WriteOption func(*WriteOptions)
+
+// WithFilter sets a namespace filter for ODS file creation.
+func WithFilter(filter NamespaceFilter) WriteOption {
+	return func(opts *WriteOptions) {
+		opts.Filter = filter
+	}
+}
+
 // CreateODS creates a new file under given FS path and
 // writes the ODS into it out of given EDS.
 // It may leave partially written file if any of the writes fail.
@@ -48,7 +69,13 @@ func CreateODS(
 	path string,
 	roots *share.AxisRoots,
 	eds *rsmt2d.ExtendedDataSquare,
+	options ...WriteOption,
 ) error {
+	var opts WriteOptions
+	for _, opt := range options {
+		opt(&opts)
+	}
+
 	mod := os.O_RDWR | os.O_CREATE | os.O_EXCL // ensure we fail if already exist
 	f, err := os.OpenFile(path, mod, filePermissions)
 	if err != nil {
@@ -63,7 +90,7 @@ func CreateODS(
 		datahash:    roots.Hash(),
 	}
 
-	err = writeODSFile(f, roots, eds, hdr)
+	err = writeODSFile(f, roots, eds, hdr, opts.Filter)
 	if errClose := f.Close(); errClose != nil {
 		err = errors.Join(err, fmt.Errorf("closing created ODS file: %w", errClose))
 	}
@@ -71,8 +98,8 @@ func CreateODS(
 	return err
 }
 
-// writeQ4File full ODS content into OS File.
-func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0) error {
+// writeODSFile writes full ODS content into OS File.
+func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDataSquare, hdr *headerV0, filter NamespaceFilter) error {
 	// buffering gives us ~4x speed up
 	buf := bufio.NewWriterSize(f, writeBufferSize)
 
@@ -84,7 +111,7 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 		return fmt.Errorf("writing axis roots: %w", err)
 	}
 
-	if err := writeODS(buf, eds); err != nil {
+	if err := writeODS(buf, eds, filter); err != nil {
 		return fmt.Errorf("writing ODS: %w", err)
 	}
 
@@ -98,7 +125,8 @@ func writeODSFile(f *os.File, axisRoots *share.AxisRoots, eds *rsmt2d.ExtendedDa
 // writeODS writes the first quadrant(ODS) of the square to the writer. It writes the quadrant in
 // row-major order. Write finishes once all the shares are written or on the first instance of tail
 // padding share. Tail padding share are constant and aren't stored.
-func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
+// If filter is provided, shares not matching the filter are zeroed out (for Pin nodes).
+func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare, filter NamespaceFilter) error {
 	for i := range eds.Width() / 2 {
 		for j := range eds.Width() / 2 {
 			shr := eds.GetCell(i, j) // TODO: Avoid copying inside GetCell
@@ -108,6 +136,11 @@ func writeODS(w io.Writer, eds *rsmt2d.ExtendedDataSquare) error {
 			}
 			if ns.Equals(libshare.TailPaddingNamespace) {
 				return nil
+			}
+
+			// If filter is set and share doesn't match, zero it out
+			if filter != nil && !filter(ns) {
+				shr = make([]byte, len(shr))
 			}
 
 			_, err = w.Write(shr)
