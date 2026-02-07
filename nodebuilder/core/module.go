@@ -6,12 +6,14 @@ import (
 	"go.uber.org/fx"
 
 	libhead "github.com/celestiaorg/go-header"
+	headp2p "github.com/celestiaorg/go-header/p2p"
 
 	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -38,19 +40,29 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module("core",
 			baseComponents,
 			fx.Provide(core.NewBlockFetcher),
-			fxutil.ProvideAs(
-				func(
-					fetcher *core.BlockFetcher,
-					store *store.Store,
-					construct header.ConstructFn,
-					opts []core.Option,
-				) (*core.Exchange, error) {
-					if MetricsEnabled {
-						opts = append(opts, core.WithMetrics())
-					}
-
-					return core.NewExchange(fetcher, store, construct, opts...)
-				},
+			fx.Provide(func(
+				fetcher *core.BlockFetcher,
+				store *store.Store,
+				construct header.ConstructFn,
+				opts []core.Option,
+			) (*core.Exchange, error) {
+				if MetricsEnabled {
+					opts = append(opts, core.WithMetrics())
+				}
+				return core.NewExchange(fetcher, store, construct, opts...)
+			}),
+			fxutil.ProvideAs(func(
+				coreEx *core.Exchange,
+				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
+				window modshare.Window,
+			) (*core.RoutingExchange, error) {
+				return core.NewRoutingExchange(
+					coreEx,
+					p2pEx,
+					window.Duration(),
+					p2p.BlockTime,
+				)
+			},
 				new(libhead.Exchange[*header.ExtendedHeader])),
 			fx.Invoke(fx.Annotate(
 				func(

@@ -28,7 +28,7 @@ func newP2PExchange[H libhead.Header[H]](
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
 	pidstore p2p.PeerIDStore,
-) (libhead.Exchange[H], error) {
+) (*p2p.Exchange[H], error) {
 	peers, err := cfg.trustedPeers(bpeers)
 	if err != nil {
 		return nil, err
