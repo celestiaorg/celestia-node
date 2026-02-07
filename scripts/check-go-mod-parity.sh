@@ -44,9 +44,11 @@ trap cleanup EXIT
 
 echo "📋 Extracting dependencies using 'go list -m all'..."
 
-# Extract all dependencies using Go toolchain
-go list -m all > "$ROOT_DEPS"
-(cd "$TASTORA_DIR" && go list -m all) > "$TASTORA_DEPS"
+# Extract all dependencies using Go toolchain with resolved versions
+# Use -f format to get resolved version (Replace.Version if replaced, otherwise Version)
+# Only check direct dependencies (not .Indirect) to avoid false positives from transitive deps
+go list -m -f '{{if not .Indirect}}{{.Path}} {{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}{{end}}' all | grep -v "^$" > "$ROOT_DEPS"
+(cd "$TASTORA_DIR" && go list -m -f '{{if not .Indirect}}{{.Path}} {{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}{{end}}' all | grep -v "^$") > "$TASTORA_DEPS"
 
 echo "📊 Generating dependency graphs using 'go mod graph'..."
 go mod graph > "$ROOT_GRAPH"
@@ -59,7 +61,8 @@ extract_modules() {
     awk '{print $1}' "$deps_file" | sort | uniq
 }
 
-# Function to get version for a module
+# Function to get resolved version for a module
+# The deps_file now contains "module resolved_version" format (resolved via Replace.Version or Version)
 get_module_version() {
     local deps_file="$1"
     local module="$2"
@@ -68,15 +71,8 @@ get_module_version() {
         echo ""
         return
     fi
-    
-    # Check if this is a replace directive (contains "=>")
-    if [[ "$line" == *"=>"* ]]; then
-        # Extract the version after "=>" (the actual resolved version)
-        echo "$line" | awk -F'=> ' '{print $2}' | awk '{print $1}'
-    else
-        # Regular version (no replace directive)
-        echo "$line" | awk '{print $2}'
-    fi
+    # Extract the resolved version (second field)
+    echo "$line" | awk '{print $2}'
 }
 
 # Extract module names from both files

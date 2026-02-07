@@ -1,0 +1,69 @@
+name: Build Compat-Test Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version/tag to build compat-test image for'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-compat-test-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435  # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef  # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building compat-test image for version: $VERSION"
+
+      - name: Checkout specific version
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            git checkout "$VERSION"
+          else
+            echo "Warning: Version $VERSION not found. Building from current commit."
+          fi
+
+      - name: Build compat-test Docker image
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          IMAGE_NAME="ghcr.io/celestiaorg/celestia-node-compat-test:${VERSION}"
+          docker build -f cmd/compat-test/Dockerfile -t "$IMAGE_NAME" .
+          echo "Built image: $IMAGE_NAME"
+
+      - name: Push Docker image
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          IMAGE_NAME="ghcr.io/celestiaorg/celestia-node-compat-test:${VERSION}"
+          docker push "$IMAGE_NAME"
+          echo "Pushed image: $IMAGE_NAME"
