@@ -27,8 +27,7 @@ func DefaultConfig(tp node.Type) Config {
 		Parameters: das.DefaultParameters(),
 		Enabled:    true, // Enabled by default
 	}
-	switch tp {
-	case node.Light:
+	if tp == node.Light {
 		cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
 	}
 	return cfg

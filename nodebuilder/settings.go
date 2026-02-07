@@ -124,7 +124,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
 			fx.Invoke(share.WithShrexServerMetrics),
-			samplingMetrics,
 		)
 	case node.Light:
 		opts = fx.Options(
