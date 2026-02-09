@@ -20,6 +20,7 @@ import (
 var log = logging.Logger("module/pruner")
 
 func ConstructModule(tp node.Type) fx.Option {
+	cfg := DefaultConfig()
 	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
@@ -38,7 +39,10 @@ func ConstructModule(tp node.Type) fx.Option {
 	baseComponents := fx.Options(
 		// supply the default config, which can only be overridden by
 		// passing the `--archival` flag
-		fx.Supply(DefaultConfig()),
+		fx.Supply(cfg),
+		fx.Provide(func(cfg *Config) node.ArchivalMode {
+			return node.ArchivalMode(!cfg.EnableService)
+		}),
 		// TODO @renaynay: move this to share module construction
 		advertiseArchival(),
 		prunerService,

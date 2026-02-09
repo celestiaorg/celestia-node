@@ -48,8 +48,7 @@ func DefaultConfig(tp node.Type) Config {
 	case node.Bridge:
 		cfg.Store.StoreCacheSize = 2048
 		cfg.Store.IndexCacheSize = 4096
-
-		cfg.Syncer.PruningWindow = 0 // reset pruning window to zero
+		cfg.Syncer.PruningWindow = availability.StorageWindow
 		return cfg
 	case node.Light:
 		cfg.Store.WriteBatchSize = 16
@@ -86,17 +85,16 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 func (cfg *Config) Validate(tp node.Type) error {
 	switch tp {
 	case node.Bridge:
-		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 || cfg.Syncer.PruningWindow != 0 {
-			return fmt.Errorf(
-				"module/header: Syncer.SyncFromHash/Syncer.SyncFromHeight/Syncer.PruningWindow must not be set for BN nodes" +
-					"until https://github.com/celestiaorg/go-header/issues/333 is completed. Bridge must sync all the headers until then",
-			)
+		// Bridge nodes can prune headers but must have a valid pruning window
+		if cfg.Syncer.PruningWindow != 0 && cfg.Syncer.PruningWindow < availability.StorageWindow {
+			return fmt.Errorf("module/header: Syncer.PruningWindow must not be less than storage window (%s)",
+				availability.StorageWindow)
 		}
 	case node.Light:
 		if cfg.Syncer.PruningWindow < availability.StorageWindow {
 			// TODO(@Wondertan): Technically, a LN may break this restriction by setting SyncFromHeight/Hash to a header
 			//  that is closer to Head than StorageWindow. Consider putting efforts into catching this too.
-			return fmt.Errorf("module/header: Syncer.PruningWindow must not be less then sampling storage window (%s)",
+			return fmt.Errorf("module/header: Syncer.PruningWindow must not be less than sampling storage window (%s)",
 				availability.StorageWindow)
 		}
 	default:

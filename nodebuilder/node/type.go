@@ -13,6 +13,9 @@ type Type uint8
 // modules.
 type StorePath string
 
+// ArchivalMode is an alias in order to pass whether the node is running in archival mode (no pruning).
+type ArchivalMode bool
+
 const (
 	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability
 	// network. It maintains a trusted channel/connection to a Celestia Core node via the core.Client
