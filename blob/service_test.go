@@ -670,7 +670,7 @@ func TestService_Subscribe(t *testing.T) {
 		for i := uint64(0); i < uint64(len(blobs)); i++ {
 			select {
 			case resp := <-subCh:
-				assert.Equal(t, headers[i], resp.Header)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
 				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for subscription response %d", i)
@@ -690,7 +690,7 @@ func TestService_Subscribe(t *testing.T) {
 			select {
 			case resp := <-subCh:
 				assert.Empty(t, resp.Blobs)
-				assert.Equal(t, headers[i], resp.Header)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for empty subscription response %d", i)
 			}
@@ -736,7 +736,7 @@ func TestService_Subscribe(t *testing.T) {
 		for range blobs {
 			select {
 			case val := <-subCh:
-				if val.Header.Height() == uint64(len(blobs)) {
+				if uint64(val.Header.Height) == uint64(len(blobs)) {
 					err = service.Stop(context.Background())
 					require.NoError(t, err)
 				}
@@ -791,7 +791,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs1); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, uint64(i+1), resp.Header.Height())
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns1, b.Namespace())
@@ -804,7 +804,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs2); i++ {
 		select {
 		case resp := <-subCh2:
-			assert.Equal(t, uint64(i+1), resp.Header.Height())
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns2, b.Namespace())
