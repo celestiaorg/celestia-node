@@ -41,7 +41,7 @@ func TestBridgeNodeAsBootstrapper(t *testing.T) {
 
 	addr := host.InfoFromHost(bridge.Host)
 
-	full := sw.NewFullNode()
+	full := sw.NewBridgeNode()
 	light := sw.NewLightNode()
 
 	for _, nd := range []*nodebuilder.Node{full, light} {
@@ -85,9 +85,9 @@ func TestFullDiscoveryViaBootstrapper(t *testing.T) {
 	sw.SetBootstrapper(t, bridge)
 
 	// create FN with BN as bootstrapper
-	cfg = sw.DefaultTestConfig(node.Full)
+	cfg = sw.DefaultTestConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
-	full := sw.NewNodeWithConfig(node.Full, cfg)
+	full := sw.NewNodeWithConfig(node.Bridge, cfg)
 
 	// create LN with BN as bootstrapper
 	cfg = sw.DefaultTestConfig(node.Light)
@@ -150,14 +150,14 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, bridge)
 
-	fullCfg = sw.DefaultTestConfig(node.Full)
+	fullCfg = sw.DefaultTestConfig(node.Bridge)
 	setTimeInterval(fullCfg, defaultTimeInterval)
 
 	// create two FNs and start them, ensuring they are connected to BN as
 	// bootstrapper
 	nodes := make([]*nodebuilder.Node, numFulls)
 	for index := 0; index < numFulls; index++ {
-		nodes[index] = sw.NewNodeWithConfig(node.Full, fullCfg)
+		nodes[index] = sw.NewNodeWithConfig(node.Bridge, fullCfg)
 		require.NoError(t, nodes[index].Start(ctx))
 		client := getAdminClient(ctx, nodes[index], t)
 		connectedness, err := client.P2P.Connectedness(ctx, bridge.Host.ID())
@@ -177,7 +177,7 @@ func TestRestartNodeDiscovery(t *testing.T) {
 	sw.Disconnect(t, nodes[0], nodes[1])
 
 	// create and start one more FN with disabled discovery
-	disabledDiscoveryFN := sw.NewNodeWithConfig(node.Full, fullCfg)
+	disabledDiscoveryFN := sw.NewNodeWithConfig(node.Bridge, fullCfg)
 	require.NoError(t, err)
 	err = disabledDiscoveryFN.Start(ctx)
 	require.NoError(t, err)

@@ -45,11 +45,6 @@ func DefaultConfig(tp node.Type) Config {
 	}
 
 	switch tp {
-	case node.Full:
-		cfg.Store.StoreCacheSize = 2048
-		cfg.Store.IndexCacheSize = 4096
-		cfg.Syncer.PruningWindow = 0 // Full nodes must sync all headers
-		return cfg
 	case node.Bridge:
 		cfg.Store.StoreCacheSize = 2048
 		cfg.Store.IndexCacheSize = 4096
@@ -89,14 +84,6 @@ func (cfg *Config) trustedPeers(bpeers p2p.Bootstrappers) (infos []peer.AddrInfo
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate(tp node.Type) error {
 	switch tp {
-	case node.Full:
-		// Full nodes must sync all headers from genesis
-		if cfg.Syncer.SyncFromHash != "" || cfg.Syncer.SyncFromHeight != 0 || cfg.Syncer.PruningWindow != 0 {
-			return fmt.Errorf(
-				"module/header: Syncer.SyncFromHash/Syncer.SyncFromHeight/Syncer.PruningWindow must not be set for FN nodes " +
-					"until https://github.com/celestiaorg/go-header/issues/333 is completed. Full nodes must sync all the headers until then",
-			)
-		}
 	case node.Bridge:
 		// Bridge nodes can prune headers but must have a valid pruning window
 		if cfg.Syncer.PruningWindow != 0 && cfg.Syncer.PruningWindow < availability.StorageWindow {
