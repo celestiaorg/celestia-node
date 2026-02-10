@@ -472,7 +472,7 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(time.Millisecond * 1)
+		WithDelayedPrecommitTimeout(time.Millisecond * 50)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 

@@ -362,7 +362,6 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...string) testn
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(1 * time.Millisecond).
 		WithDelayedPrecommitTimeout(50 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, config)
