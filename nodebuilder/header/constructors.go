@@ -75,16 +75,6 @@ func newSyncer[H libhead.Header[H]](
 	isArchival node.ArchivalMode,
 ) (*sync.Syncer[H], error) {
 	switch ndtp {
-	case node.Full:
-		// Full nodes always sync from genesis
-		genesis, err := modp2p.GenesisFor(net)
-		if err != nil {
-			return nil, err
-		}
-		cfg.Syncer.SyncFromHash = genesis
-		if genesis == "" {
-			cfg.Syncer.SyncFromHeight = 1
-		}
 	case node.Bridge:
 		// Bridge nodes: check if archival mode is enabled via --archival flag
 		if isArchival {

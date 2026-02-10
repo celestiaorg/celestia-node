@@ -38,7 +38,7 @@ const DefaultTestTimeout = time.Minute * 10
 // Swamp represents the main functionality that is needed for the test-case:
 // - Network to link the nodes
 // - CoreClient to share between Bridge nodes
-// - Slices of created Bridge/Full/Light Nodes
+// - Slices of created Bridge/Light Nodes
 // - trustedHash taken from the CoreClient and shared between nodes
 type Swamp struct {
 	t   *testing.T
@@ -181,13 +181,6 @@ func (s *Swamp) DefaultTestConfig(tp node.Type) *nodebuilder.Config {
 func (s *Swamp) NewBridgeNode(options ...fx.Option) *nodebuilder.Node {
 	cfg := s.DefaultTestConfig(node.Bridge)
 	return s.NewNodeWithConfig(node.Bridge, cfg, options...)
-}
-
-// NewFullNode creates a new instance of a FullNode providing a default config
-// and a mockstore to the MustNewNodeWithStore method
-func (s *Swamp) NewFullNode(options ...fx.Option) *nodebuilder.Node {
-	cfg := s.DefaultTestConfig(node.Full)
-	return s.NewNodeWithConfig(node.Full, cfg, options...)
 }
 
 // NewLightNode creates a new instance of a LightNode providing a default config

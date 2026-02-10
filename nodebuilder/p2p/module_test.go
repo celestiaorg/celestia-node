@@ -35,7 +35,6 @@ func TestModuleBuild(t *testing.T) {
 		tp node.Type
 	}{
 		{tp: node.Bridge},
-		{tp: node.Full},
 		{tp: node.Light},
 	}
 
@@ -52,7 +51,6 @@ func TestModuleBuild_WithMetrics(t *testing.T) {
 	test := []struct {
 		tp node.Type
 	}{
-		{tp: node.Full},
 		{tp: node.Bridge},
 		{tp: node.Light},
 	}
