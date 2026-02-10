@@ -24,8 +24,6 @@ const (
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving the highest
 	// possible security guarantees.
 	Light
-	// Full is a Celestia Node that stores blocks in their entirety.
-	Full
 )
 
 // String converts Type to its string representation.
@@ -56,18 +54,16 @@ func ParseType(str string) Type {
 var typeToString = map[Type]string{
 	Bridge: "Bridge",
 	Light:  "Light",
-	Full:   "Full",
 }
 
 // typeToString maps strings representations of all valid Types.
 var stringToType = map[string]Type{
 	"bridge": Bridge,
 	"light":  Light,
-	"full":   Full,
 }
 
 // orderedTypes is a slice of all valid types in order of priority.
-var orderedTypes = []Type{Bridge, Full, Light}
+var orderedTypes = []Type{Bridge, Light}
 
 // GetTypes returns a list of all known types in order of priority.
 func GetTypes() []Type {

@@ -36,7 +36,7 @@ func TestShareModule(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	sw.SetBootstrapper(t, bridge)
 
-	fullNode := sw.NewFullNode()
+	fullNode := sw.NewBridgeNode()
 	require.NoError(t, fullNode.Start(ctx))
 
 	lightNode := sw.NewLightNode()
