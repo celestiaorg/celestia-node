@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -469,7 +469,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	rawShares1, err := BlobsToShares(blobs[1])
 	require.NoError(t, err)
 
-	rawShares := make([]libshare.Share, 0)
+	rawShares := make([]libshare.Share, 0) //nolint:prealloc
 	rawShares = append(rawShares, append(rawShares0, padding0)...)
 	rawShares = append(rawShares, append(rawShares1, padding1)...)
 	service := createService(ctx, t, rawShares)
@@ -544,7 +544,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
 
-	rawShares := make([]libshare.Share, 0)
+	rawShares := make([]libshare.Share, 0) //nolint:prealloc
 
 	require.NoError(t, err)
 	padding, err := libshare.NamespacePaddingShare(blobs[0].Namespace(), libshare.ShareVersionZero)

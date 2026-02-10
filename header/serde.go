@@ -5,7 +5,7 @@ import (
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/da"
+	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 
 	header_pb "github.com/celestiaorg/celestia-node/header/pb"
 )

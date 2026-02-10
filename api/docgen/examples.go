@@ -76,7 +76,7 @@ func init() {
 	add(true)
 	add([]byte("byte array"))
 	add(time.Second)
-	add(node.Full)
+	add(node.Bridge)
 	add(auth.Permission("admin"))
 	add(byzantine.BadEncoding)
 

@@ -7,8 +7,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/v6/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 )
 
 const (

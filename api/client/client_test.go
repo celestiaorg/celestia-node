@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
@@ -323,7 +323,7 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 
 	// Setup node with authenticated RPC
 	addAuth, adminToken := addAuth(t)
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, addAuth)
+	nd := nodebuilder.TestNode(t, node.Bridge, invokeRPC, addAuth)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
@@ -362,7 +362,6 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...string) testn
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(1 * time.Millisecond).
 		WithDelayedPrecommitTimeout(50 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, config)
