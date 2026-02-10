@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
