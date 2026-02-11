@@ -1,6 +1,4 @@
 // Package rpc provides RPC module for nodebuilder
-//
-//nolint:revive // rpc is a common package name in this codebase
 package rpc
 
 import (

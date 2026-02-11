@@ -1,6 +1,4 @@
 // Package rpc provides RPC configuration defaults
-//
-//nolint:revive // rpc is a common package name in this codebase
 package rpc
 
 const (
