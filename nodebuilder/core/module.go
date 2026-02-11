@@ -44,11 +44,15 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				fetcher *core.BlockFetcher,
 				store *store.Store,
 				construct header.ConstructFn,
+				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
 				opts []core.Option,
 			) (*core.Exchange, error) {
 				if MetricsEnabled {
 					opts = append(opts, core.WithMetrics())
 				}
+				// Add P2P exchange fallback for when core doesn't have blocks
+				// Only headers will be fetched; EDS downloading is handled by DASer
+				opts = append(opts, core.WithP2PExchange(p2pEx))
 				return core.NewExchange(fetcher, store, construct, opts...)
 			}),
 			fxutil.ProvideAs(func(
