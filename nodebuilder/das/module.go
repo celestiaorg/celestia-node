@@ -17,7 +17,8 @@ func ConstructModule(cfg *Config) fx.Option {
 		)
 	}
 
-	baseComponents := fx.Options(
+	return fx.Module(
+		"das",
 		fx.Supply(*cfg),
 		fx.Error(cfg.Validate()),
 		fx.Provide(
@@ -30,11 +31,6 @@ func ConstructModule(cfg *Config) fx.Option {
 				}
 			},
 		),
-	)
-
-	return fx.Module(
-		"das",
-		baseComponents,
 		fx.Provide(fx.Annotate(
 			newDASer,
 			fx.OnStart(func(ctx context.Context, daser *das.DASer) error {
