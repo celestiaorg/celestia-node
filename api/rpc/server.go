@@ -1,4 +1,3 @@
-// Package rpc provides RPC server implementation
 package rpc
 
 import (

@@ -1,4 +1,3 @@
-// Package rpc provides RPC configuration defaults
 package rpc
 
 const (

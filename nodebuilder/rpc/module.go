@@ -1,4 +1,3 @@
-// Package rpc provides RPC module for nodebuilder
 package rpc
 
 import (
