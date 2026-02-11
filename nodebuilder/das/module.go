@@ -6,20 +6,19 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(cfg *Config) fx.Option {
 	// If DASer is disabled, provide the stub implementation for any node type
-	// Also provide the stub implementation for bridge nodes as they do not need DASer
-	if !cfg.Enabled || tp == node.Bridge {
+	if !cfg.Enabled {
 		return fx.Module(
 			"das",
 			fx.Provide(newDaserStub),
 		)
 	}
 
-	baseComponents := fx.Options(
+	return fx.Module(
+		"das",
 		fx.Supply(*cfg),
 		fx.Error(cfg.Validate()),
 		fx.Provide(
@@ -32,11 +31,6 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				}
 			},
 		),
-	)
-
-	return fx.Module(
-		"das",
-		baseComponents,
 		fx.Provide(fx.Annotate(
 			newDASer,
 			fx.OnStart(func(ctx context.Context, daser *das.DASer) error {
