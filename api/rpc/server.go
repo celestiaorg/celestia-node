@@ -1,3 +1,6 @@
+// Package rpc provides RPC server implementation
+//
+//nolint:revive // rpc is a common package name in this codebase
 package rpc
 
 import (
