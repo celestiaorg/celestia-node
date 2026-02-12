@@ -97,6 +97,7 @@ func (s *Service) Stop(context.Context) error {
 // If the Blobs slice is empty, it means that no blobs were included at the given height.
 type SubscriptionResponse struct {
 	Blobs  []*Blob
+	Height uint64 // Deprecated: use Header.Height() instead. Kept for backwards compatibility.
 	Header *header.RawHeader
 }
 
@@ -157,7 +158,11 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 				case <-ctx.Done():
 					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
 					return
-				case blobCh <- &SubscriptionResponse{Blobs: blobs, Header: &header.RawHeader}:
+				case blobCh <- &SubscriptionResponse{
+					Blobs:  blobs,
+					Height: header.Height(),
+					Header: &header.RawHeader,
+				}:
 				}
 			case <-ctx.Done():
 				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())

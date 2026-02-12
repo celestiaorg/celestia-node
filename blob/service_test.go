@@ -691,6 +691,9 @@ func TestService_Subscribe(t *testing.T) {
 			case resp := <-subCh:
 				assert.Empty(t, resp.Blobs)
 				assert.Equal(t, &headers[i].RawHeader, resp.Header)
+				// Verify backwards compatibility: Height field should still be populated even with no blobs
+				assert.Equal(t, headers[i].Height(), resp.Height, "Height should match Header.Height for backwards compatibility")
+				assert.Equal(t, uint64(resp.Header.Height), resp.Height, "resp.Height should equal resp.Header.Height")
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for empty subscription response %d", i)
 			}
