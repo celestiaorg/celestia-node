@@ -28,7 +28,7 @@ func init() {
 
 var odsVerifyCmd = &cobra.Command{
 	Use:   "ods-verify <node_store_path>",
-	Short: "Verifies ODS files against header store. Reads files by both height and datahash, validates metadata consistency.",
+	Short: "Verifies ODS files against header store. Reads by height and datahash, validates metadata.",
 	Long: `Loops over header store and for each header:
 - Reads ODS file by height
 - Reads ODS file by datahash
@@ -290,28 +290,34 @@ func verifyODSForHeader(
 	}
 
 	// Verify calculated datahash from axis roots matches block header (by height)
-	if accessorByHeight != nil && len(calculatedDatahashByHeight) > 0 && !bytes.Equal(calculatedDatahashByHeight, expectedDatahash) {
+	if accessorByHeight != nil && len(calculatedDatahashByHeight) > 0 &&
+		!bytes.Equal(calculatedDatahashByHeight, expectedDatahash) {
 		verifyErrs = append(verifyErrs, fmt.Errorf(
 			"calculated datahash mismatch (by height): calculated=%X, header=%X",
 			calculatedDatahashByHeight, expectedDatahash))
 	}
 
 	// Verify calculated datahash from axis roots matches block header (by datahash)
-	if accessorByHash != nil && len(calculatedDatahashByHash) > 0 && !bytes.Equal(calculatedDatahashByHash, expectedDatahash) {
+	if accessorByHash != nil && len(calculatedDatahashByHash) > 0 &&
+		!bytes.Equal(calculatedDatahashByHash, expectedDatahash) {
 		verifyErrs = append(verifyErrs, fmt.Errorf(
 			"calculated datahash mismatch (by datahash): calculated=%X, header=%X",
 			calculatedDatahashByHash, expectedDatahash))
 	}
 
 	// Verify calculated datahash matches file header datahash (by height)
-	if accessorByHeight != nil && len(calculatedDatahashByHeight) > 0 && len(datahashByHeight) > 0 && !bytes.Equal(calculatedDatahashByHeight, datahashByHeight) {
+	if accessorByHeight != nil &&
+		len(calculatedDatahashByHeight) > 0 && len(datahashByHeight) > 0 &&
+		!bytes.Equal(calculatedDatahashByHeight, datahashByHeight) {
 		verifyErrs = append(verifyErrs, fmt.Errorf(
 			"calculated datahash doesn't match file header (by height): calculated=%X, file=%X",
 			calculatedDatahashByHeight, datahashByHeight))
 	}
 
 	// Verify calculated datahash matches file header datahash (by datahash)
-	if accessorByHash != nil && len(calculatedDatahashByHash) > 0 && len(datahashByHash) > 0 && !bytes.Equal(calculatedDatahashByHash, datahashByHash) {
+	if accessorByHash != nil &&
+		len(calculatedDatahashByHash) > 0 && len(datahashByHash) > 0 &&
+		!bytes.Equal(calculatedDatahashByHash, datahashByHash) {
 		verifyErrs = append(verifyErrs, fmt.Errorf(
 			"calculated datahash doesn't match file header (by datahash): calculated=%X, file=%X",
 			calculatedDatahashByHash, datahashByHash))
@@ -363,7 +369,7 @@ func verifyODSForHeader(
 			verifyErrs = append(verifyErrs, fmt.Errorf(
 				"⚠️  HEIGHT INDEX CORRUPTION: All errors are from height access only. "+
 					"File accessed by datahash is correct. This indicates corrupted height-to-file mapping (hard links).%s",
-					actualHeightInfo))
+				actualHeightInfo))
 		}
 	}
 
