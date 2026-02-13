@@ -92,10 +92,12 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, "wrong-chain-rpc")
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-	require.NoError(t, err)
 
-	assert.Panics(t, func() { cl.listen(ctx, sub) })
+	// Start should fail because the core endpoint chain ID ("private") doesn't match
+	// the expected chain ID ("wrong-chain-rpc")
+	err = cl.Start(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "network mismatch")
 }
 
 // TestListener_DoesNotStoreHistoric tests the (unlikely) case that

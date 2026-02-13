@@ -86,9 +86,13 @@ func NewListener(
 }
 
 // Start kicks off the Listener listener loop.
-func (cl *Listener) Start(context.Context) error {
+func (cl *Listener) Start(ctx context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("listener: already started")
+	}
+
+	if err := cl.verifyChainID(ctx); err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -101,6 +105,29 @@ func (cl *Listener) Start(context.Context) error {
 	}
 
 	go cl.listen(ctx, subs)
+	return nil
+}
+
+// verifyChainID checks that the core endpoint is on the expected network
+// before starting the listener. This prevents connecting to a wrong network.
+func (cl *Listener) verifyChainID(ctx context.Context) error {
+	if cl.chainID == "" {
+		return nil
+	}
+
+	networkID, err := cl.fetcher.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("listener: fetching chain ID from core endpoint: %w", err)
+	}
+
+	if networkID != cl.chainID {
+		return fmt.Errorf(
+			"listener: core endpoint network mismatch: expected %q, got %q",
+			cl.chainID, networkID,
+		)
+	}
+
+	log.Infow("listener: verified core endpoint chain ID", "chain_id", networkID)
 	return nil
 }
 

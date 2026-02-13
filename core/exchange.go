@@ -34,6 +34,8 @@ type Exchange struct {
 	// fallback for when core doesn't have the block - only get headers, not EDS
 	p2pExchange libhead.Exchange[*header.ExtendedHeader]
 
+	chainID string
+
 	metrics *exchangeMetrics
 }
 
@@ -66,6 +68,7 @@ func NewExchange(
 		availabilityWindow: p.availabilityWindow,
 		archival:           p.archival,
 		p2pExchange:        p.p2pExchange,
+		chainID:            p.chainID,
 		metrics:            metrics,
 	}, nil
 }
@@ -137,6 +140,15 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 			return ce.getHeaderOnlyByHashViaFallback(ctx, hash)
 		}
 		return nil, fmt.Errorf("fetching block by hash %s: %w", hash.String(), err)
+	}
+
+	if ce.chainID != "" && block.ChainID != ce.chainID {
+		// stop node if there is a critical issue with the core endpoint chain ID mismatch
+		panic(fmt.Sprintf("exchange: received block with unexpected chain ID: expected %s,"+
+			" received %s. blockHeight: %d blockHash: %x. This indicates the core gRPC endpoint"+
+			" is connected to a different network than configured.",
+			ce.chainID, block.ChainID, block.Height, block.Hash()),
+		)
 	}
 
 	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, block.Height)
@@ -224,6 +236,15 @@ func (ce *Exchange) getExtendedHeaderByHeight(ctx context.Context, height int64)
 	}
 	span.AddEvent("fetched signed block from core")
 	log.Debugw("fetched signed block from core", "height", b.Header.Height)
+
+	if ce.chainID != "" && b.Header.ChainID != ce.chainID {
+		// stop node if there is a critical issue with the core endpoint chain ID mismatch
+		panic(fmt.Sprintf("exchange: received block with unexpected chain ID: expected %s,"+
+			" received %s. blockHeight: %d blockHash: %x. This indicates the core gRPC endpoint"+
+			" is connected to a different network than configured.",
+			ce.chainID, b.Header.ChainID, b.Header.Height, b.Header.Hash()),
+		)
+	}
 
 	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
