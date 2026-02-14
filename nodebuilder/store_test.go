@@ -19,7 +19,7 @@ func TestRepo(t *testing.T) {
 	tests := []struct {
 		tp node.Type
 	}{
-		{tp: node.Bridge}, {tp: node.Light}, {tp: node.Full},
+		{tp: node.Bridge}, {tp: node.Light},
 	}
 
 	for i, tt := range tests {
@@ -58,7 +58,7 @@ func TestRepo(t *testing.T) {
 
 func TestDiscoverOpened(t *testing.T) {
 	t.Run("single open store", func(t *testing.T) {
-		_, dir := initAndOpenStore(t, node.Full)
+		_, dir := initAndOpenStore(t, node.Bridge)
 
 		mockDefaultNodeStorePath := func(t node.Type, n p2p.Network) (string, error) {
 			return dir, nil
@@ -72,7 +72,7 @@ func TestDiscoverOpened(t *testing.T) {
 
 	t.Run("multiple open nodes by preference order", func(t *testing.T) {
 		networks := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
-		nodeTypes := []node.Type{node.Bridge, node.Full, node.Light}
+		nodeTypes := []node.Type{node.Bridge, node.Light}
 
 		// Store opened stores in a map (network + node -> dir/store)
 		dirMap := make(map[string]string)
@@ -131,7 +131,7 @@ func TestIsOpened(t *testing.T) {
 	require.False(t, ok)
 
 	// Case 2: initialized node store, not locked
-	err = Init(*DefaultConfig(node.Full), dir, node.Full)
+	err = Init(*DefaultConfig(node.Bridge), dir, node.Bridge)
 	require.NoError(t, err)
 	ok, err = IsOpened(dir)
 	require.NoError(t, err)

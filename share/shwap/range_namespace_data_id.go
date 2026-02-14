@@ -1,6 +1,8 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -9,7 +11,9 @@ import (
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
 // combining EdsIDSize size and 4 additional bytes
 // for the start and end ODS indexes of share of the range.
-const RangeNamespaceDataIDSize = EdsIDSize + 4
+const RangeNamespaceDataIDSize = EdsIDSize + 8
+
+const rangeNamespaceDataName = "rangeNamespaceData_v0"
 
 // RangeNamespaceDataID uniquely identifies a continuous range of shares within an Original DataSquare (ODS)
 // The range is defined by the indexes of the first (`From`)
@@ -53,24 +57,19 @@ func NewRangeNamespaceDataID(
 	return rngid, nil
 }
 
+func (rngid RangeNamespaceDataID) Name() string {
+	return rangeNamespaceDataName
+}
+
 // Verify validates the RangeNamespaceDataID fields and verifies that number of the requested shares
 // does not exceed the number of shares inside the ODS.
 func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
-	err := rngid.EdsID.Validate()
+	err := rngid.Validate()
 	if err != nil {
-		return fmt.Errorf("invalid EdsID: %w", err)
+		return err
 	}
 
 	sharesAmount := odsSize * odsSize
-	if rngid.From < 0 {
-		return fmt.Errorf("from must be greater than or equal to 0: %d", rngid.From)
-	}
-	if rngid.To <= 0 {
-		return fmt.Errorf("to must be greater than 0: %d", rngid.To)
-	}
-	if rngid.From >= rngid.To {
-		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
-	}
 	if rngid.From >= sharesAmount {
 		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, odsSize)
 	}
@@ -82,6 +81,19 @@ func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
 
 // Validate performs basic fields validation.
 func (rngid RangeNamespaceDataID) Validate() error {
+	err := rngid.EdsID.Validate()
+	if err != nil {
+		return fmt.Errorf("invalid EdsID: %w", err)
+	}
+	if rngid.From < 0 {
+		return fmt.Errorf("%w: From: %d < 0", ErrInvalidID, rngid.From)
+	}
+	if rngid.To <= 0 {
+		return fmt.Errorf("%w: To: %d <= 0", ErrInvalidID, rngid.To)
+	}
+	if rngid.From >= rngid.To {
+		return fmt.Errorf("invalid range: from %d to %d", rngid.From, rngid.To)
+	}
 	return nil
 }
 
@@ -103,6 +115,10 @@ func (rngid *RangeNamespaceDataID) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo writes the binary form of RangeNamespaceDataID to the provided writer.
 func (rngid RangeNamespaceDataID) WriteTo(w io.Writer) (int64, error) {
+	if err := rngid.Validate(); err != nil {
+		return int64(0), err
+	}
+
 	data, err := rngid.MarshalBinary()
 	if err != nil {
 		return 0, err
@@ -132,8 +148,8 @@ func RangeNamespaceDataIDFromBinary(data []byte) (RangeNamespaceDataID, error) {
 
 	rngID := RangeNamespaceDataID{
 		EdsID: edsID,
-		From:  int(binary.BigEndian.Uint16(data[EdsIDSize : EdsIDSize+2])),
-		To:    int(binary.BigEndian.Uint16(data[EdsIDSize+2 : EdsIDSize+4])),
+		From:  int(binary.BigEndian.Uint32(data[EdsIDSize : EdsIDSize+4])),
+		To:    int(binary.BigEndian.Uint32(data[EdsIDSize+4 : EdsIDSize+8])),
 	}
 	return rngID, rngID.Validate()
 }
@@ -151,7 +167,21 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("appending EdsID: %w", err)
 	}
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.From))
-	data = binary.BigEndian.AppendUint16(data, uint16(rngid.To))
+	data = binary.BigEndian.AppendUint32(data, uint32(rngid.From))
+	data = binary.BigEndian.AppendUint32(data, uint32(rngid.To))
 	return data, nil
+}
+
+func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	rngdata, err := acc.RangeNamespaceData(ctx, rngid.From, rngid.To)
+	if err != nil {
+		return nil, fmt.Errorf("getting rngdata from accessor: %w", err)
+	}
+
+	buf := &bytes.Buffer{}
+	_, err = rngdata.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing rngData: %w", err)
+	}
+	return buf, nil
 }

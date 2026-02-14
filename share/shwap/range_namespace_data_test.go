@@ -139,6 +139,78 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 	assert.Equal(t, rngdata, rangeNsData)
 }
 
+func FuzzRangeNamespaceDataFromShares(f *testing.F) {
+	if testing.Short() {
+		f.Skip()
+	}
+
+	const odsSize = 8
+	ns := libshare.RandomNamespace()
+	square, root := edstest.RandEDSWithNamespace(f, ns, odsSize*odsSize, odsSize)
+
+	// Add seed corpus with various coordinate combinations
+	f.Add(0, 0, 0, 0)                                 // single share at start
+	f.Add(0, 0, 0, odsSize-1)                         // first row complete
+	f.Add(0, 0, odsSize-1, odsSize-1)                 // full ODS
+	f.Add(0, 2, 0, odsSize-1)                         // first row partial start
+	f.Add(0, 0, 0, odsSize-2)                         // first row partial end
+	f.Add(0, 2, 0, odsSize-2)                         // first row partial both ends
+	f.Add(1, 0, 2, odsSize-1)                         // multiple rows, complete
+	f.Add(1, 3, 3, 5)                                 // multiple rows, incomplete both ends
+	f.Add(odsSize-1, 0, odsSize-1, odsSize-1)         // last row complete
+	f.Add(odsSize-1, odsSize-1, odsSize-1, odsSize-1) // single share at end
+
+	f.Fuzz(func(t *testing.T, fromRow, fromCol, toRow, toCol int) {
+		// Skip invalid coordinate ranges
+		if fromRow < 0 || fromCol < 0 || toRow < 0 || toCol < 0 {
+			return
+		}
+		if fromRow >= odsSize || fromCol >= odsSize || toRow >= odsSize || toCol >= odsSize {
+			return
+		}
+		if toRow < fromRow {
+			return
+		}
+		if toRow == fromRow && toCol < fromCol {
+			return
+		}
+
+		from := shwap.SampleCoords{Row: fromRow, Col: fromCol}
+		to := shwap.SampleCoords{Row: toRow, Col: toCol}
+		numRows := toRow - fromRow + 1
+		extendedRowShares := make([][]libshare.Share, numRows)
+
+		for i := range numRows {
+			rowIdx := fromRow + i
+			row := square.Row(uint(rowIdx))
+			shares, err := libshare.FromBytes(row)
+			if err != nil {
+				t.Fatalf("failed to convert row to shares: %v", err)
+			}
+			extendedRowShares[i] = shares
+		}
+		rngdata, err := shwap.RangeNamespaceDataFromShares(extendedRowShares, from, to)
+		require.NoError(t, err)
+
+		// Verify the result can be validated
+		err = rngdata.VerifyInclusion(
+			from, to,
+			odsSize,
+			root.RowRoots[fromRow:toRow+1],
+		)
+		require.NoError(t, err)
+
+		// Verify the flattened shares count
+		flattened := rngdata.Flatten()
+		fromIndex, err := shwap.SampleCoordsAs1DIndex(from, odsSize)
+		require.NoError(t, err)
+		toIndex, err := shwap.SampleCoordsAs1DIndex(to, odsSize)
+		require.NoError(t, err)
+		expectedCount := toIndex - fromIndex + 1
+		assert.Len(t, flattened, expectedCount)
+	})
+}
+
 func FuzzRangeCoordsFromIdx(f *testing.F) {
 	if testing.Short() {
 		f.Skip()

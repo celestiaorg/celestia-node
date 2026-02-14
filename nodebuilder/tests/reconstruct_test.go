@@ -59,9 +59,9 @@ func TestFullReconstructFromBridge(t *testing.T) {
 	_, err = bridgeClient.Header.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
-	cfg := sw.DefaultTestConfig(node.Full)
+	cfg := sw.DefaultTestConfig(node.Bridge)
 	cfg.Share.UseShareExchange = false
-	full := sw.NewNodeWithConfig(node.Full, cfg)
+	full := sw.NewNodeWithConfig(node.Bridge, cfg)
 	err = full.Start(ctx)
 	require.NoError(t, err)
 	fullClient := getAdminClient(ctx, full, t)
@@ -169,14 +169,14 @@ func TestFullReconstructFromFulls(t *testing.T) {
 	lnBootstrapper2, err := peer.AddrInfoToP2pAddrs(host.InfoFromHost(lights2[0].Host))
 	require.NoError(t, err)
 
-	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Share.UseShareExchange = false
 	cfg.Share.Discovery.PeersLimit = 0
 	cfg.Header.TrustedPeers = []string{lnBootstrapper1[0].String()}
-	full1 := sw.NewNodeWithConfig(node.Full, cfg)
+	full1 := sw.NewNodeWithConfig(node.Bridge, cfg)
 	cfg.Header.TrustedPeers = []string{lnBootstrapper2[0].String()}
-	full2 := sw.NewNodeWithConfig(node.Full, cfg)
+	full2 := sw.NewNodeWithConfig(node.Bridge, cfg)
 	require.NoError(t, full1.Start(ctx))
 	require.NoError(t, full2.Start(ctx))
 
@@ -278,7 +278,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, blocks)
 
 	const defaultTimeInterval = time.Second * 5
-	cfg := nodebuilder.DefaultConfig(node.Full)
+	cfg := nodebuilder.DefaultConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
 
 	bridge := sw.NewBridgeNode()
@@ -289,7 +289,7 @@ func TestFullReconstructFromLights(t *testing.T) {
 	cfg.Header.TrustedPeers = []string{
 		"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p",
 	}
-	bootstrapper := sw.NewNodeWithConfig(node.Full, cfg)
+	bootstrapper := sw.NewNodeWithConfig(node.Bridge, cfg)
 	require.NoError(t, bootstrapper.Start(ctx))
 	bootstrapperAddr := host.InfoFromHost(bootstrapper.Host)
 
@@ -301,12 +301,12 @@ func TestFullReconstructFromLights(t *testing.T) {
 	_, err = bridgeClient.Header.WaitForHeight(ctx, uint64(blocks))
 	require.NoError(t, err)
 
-	cfg = nodebuilder.DefaultConfig(node.Full)
+	cfg = nodebuilder.DefaultConfig(node.Bridge)
 	setTimeInterval(cfg, defaultTimeInterval)
 	cfg.Share.UseShareExchange = false
 	cfg.Header.TrustedPeers = append(cfg.Header.TrustedPeers, addrsBridge[0].String())
 	nodesConfig := nodebuilder.WithBootstrappers([]peer.AddrInfo{*bootstrapperAddr})
-	full := sw.NewNodeWithConfig(node.Full, cfg, nodesConfig)
+	full := sw.NewNodeWithConfig(node.Bridge, cfg, nodesConfig)
 	os.Setenv(p2p.EnvKeyCelestiaBootstrapper, "false")
 
 	lights := make([]*nodebuilder.Node, lnodes)

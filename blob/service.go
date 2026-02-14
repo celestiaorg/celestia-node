@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
@@ -93,11 +93,12 @@ func (s *Service) Stop(context.Context) error {
 }
 
 // SubscriptionResponse is the response type for the Subscribe method.
-// It contains the blobs and the height at which they were included.
+// It contains the blobs and the header at which they were included.
 // If the Blobs slice is empty, it means that no blobs were included at the given height.
 type SubscriptionResponse struct {
 	Blobs  []*Blob
-	Height uint64
+	Height uint64 // Deprecated: use Header.Height() instead. Kept for backwards compatibility.
+	Header *header.RawHeader
 }
 
 // Subscribe returns a channel that will receive SubscriptionResponse objects.
@@ -109,6 +110,9 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 		return nil, fmt.Errorf("service has not been started")
 	}
 
+	log.Infow("subscribing for blobs",
+		"namespaces", ns.String(),
+	)
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
 		return nil, err
@@ -154,7 +158,11 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 				case <-ctx.Done():
 					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
 					return
-				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
+				case blobCh <- &SubscriptionResponse{
+					Blobs:  blobs,
+					Height: header.Height(),
+					Header: &header.RawHeader,
+				}:
 				}
 			case <-ctx.Done():
 				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
@@ -172,22 +180,28 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
-	log.Debugw("submitting blobs", "amount", len(blobs))
+func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (_ uint64, err error) {
+	ctx, span := tracer.Start(ctx, "blob/submit")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("submitting blobs failed", "err", err,
+				"err", err,
+			)
+		}
+	}()
 
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
-		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
-			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
-		}
-
 		libBlobs[i] = blobs[i].Blob
 	}
 
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
+	spanCtx := trace.ContextWithSpan(ctx, span)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(spanCtx, libBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
+
 	return uint64(resp.Height), nil
 }
 
@@ -202,14 +216,27 @@ func (s *Service) Get(
 	commitment Commitment,
 ) (blob *Blob, err error) {
 	start := time.Now()
-	ctx, span := tracer.Start(ctx, "get")
+	ctx, span := tracer.Start(ctx, "blob/get")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		s.metrics.observeRetrieval(ctx, time.Since(start), err)
+		if err != nil {
+			log.Errorw("getting blob",
+				"err", err,
+				"height", height,
+				"namespace", namespace.String(),
+				"commitment", commitment.String(),
+			)
+		}
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
 		attribute.String("namespace", namespace.String()),
+	)
+	log.Infow("getting blob",
+		"height", height,
+		"namespace", namespace.String(),
+		"commitment", commitment.String(),
 	)
 
 	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
@@ -230,14 +257,27 @@ func (s *Service) GetProof(
 	commitment Commitment,
 ) (proof *Proof, err error) {
 	start := time.Now()
-	ctx, span := tracer.Start(ctx, "get-proof")
+	ctx, span := tracer.Start(ctx, "blob/get-proof")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		s.metrics.observeProof(ctx, time.Since(start), err)
+		if err != nil {
+			log.Errorw("getting proof",
+				"err", err,
+				"height", height,
+				"namespace", namespace.String(),
+				"commitment", commitment.String(),
+			)
+		}
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
 		attribute.String("namespace", namespace.String()),
+	)
+	log.Infow("getting proof",
+		"height", height,
+		"namespace", namespace.String(),
+		"commitment", commitment.String(),
 	)
 
 	sharesParser := &parser{verifyFn: func(blob *Blob) bool {
@@ -257,7 +297,26 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
-func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) ([]*Blob, error) {
+func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) (_ []*Blob, err error) {
+	ctx, span := tracer.Start(ctx, "blob/get-all")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("getting all blobs",
+				"err", err,
+				"height", height,
+				"namespaces", namespaces,
+			)
+		}
+	}()
+	span.SetAttributes(
+		attribute.Int64("height", int64(height)),
+	)
+	log.Infow("getting all blobs",
+		"height", height,
+		"namespaces", namespaces,
+	)
+
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
@@ -271,29 +330,24 @@ func (s *Service) getAll(
 	header *header.ExtendedHeader,
 	namespaces []libshare.Namespace,
 ) ([]*Blob, error) {
-	height := header.Height()
 	var (
-		resultBlobs = make([][]*Blob, len(namespaces))
-		resultErr   = make([]error, len(namespaces))
-		wg          = sync.WaitGroup{}
+		span             = trace.SpanFromContext(ctx)
+		namespaceStrings = make([]string, len(namespaces))
+		resultBlobs      = make([][]*Blob, len(namespaces))
+		resultErr        = make([]error, len(namespaces))
+		wg               = sync.WaitGroup{}
 	)
+
 	for i, namespace := range namespaces {
 		wg.Add(1)
 		go func(i int, namespace libshare.Namespace) {
-			log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", height)
 			defer wg.Done()
-
-			blobs, err := s.getBlobs(ctx, namespace, header)
-			if err != nil && !errors.Is(err, ErrBlobNotFound) {
-				log.Errorf("getting blobs for namespaceID(%s): %v", hex.EncodeToString(namespace.ID()), err)
-				resultErr[i] = err
-			}
-			if len(blobs) > 0 {
-				log.Infow("retrieved blobs", "height", height, "total", len(blobs))
-				resultBlobs[i] = blobs
-			}
+			resultBlobs[i], resultErr[i] = s.getBlobs(ctx, namespace, header)
 		}(i, namespace)
+
+		namespaceStrings[i] = namespace.String()
 	}
+	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
 	wg.Wait()
 
 	blobs := slices.Concat(resultBlobs...)
@@ -312,13 +366,27 @@ func (s *Service) Included(
 	proof *Proof,
 	commitment Commitment,
 ) (_ bool, err error) {
-	ctx, span := tracer.Start(ctx, "included")
+	ctx, span := tracer.Start(ctx, "blob/included")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("checking inclusion",
+				"err", err,
+				"height", height,
+				"namespace", namespace.String(),
+				"commitment", commitment.String(),
+			)
+		}
 	}()
 	span.SetAttributes(
 		attribute.Int64("height", int64(height)),
 		attribute.String("namespace", namespace.String()),
+	)
+	log.Infow("included",
+		"height", height,
+		"namespace", namespace.String(),
+		"commitment", commitment.String(),
+		"proof-len", proof.Len(),
 	)
 
 	// In the current implementation, LNs will have to download all shares to recompute the commitment.
@@ -346,21 +414,19 @@ func (s *Service) retrieve(
 	namespace libshare.Namespace,
 	sharesParser *parser,
 ) (_ *Blob, _ *Proof, err error) {
-	log.Infow("requesting blob",
+	log.Infow("retrieving blob",
 		"height", height,
-		"namespace", namespace.String())
+		"namespace", namespace.String(),
+	)
 
-	getCtx, headerGetterSpan := tracer.Start(ctx, "header-getter")
-
-	header, err := s.headerGetter(getCtx, height)
+	span := trace.SpanFromContext(ctx)
+	header, err := s.headerGetter(ctx, height)
 	if err != nil {
-		headerGetterSpan.SetStatus(codes.Error, err.Error())
 		return nil, nil, err
 	}
-
-	headerGetterSpan.SetStatus(codes.Ok, "")
-	headerGetterSpan.AddEvent("received eds", trace.WithAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+	span.SetAttributes(
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
+	)
 
 	rowIndex := -1
 	for i, row := range header.DAH.RowRoots {
@@ -373,22 +439,18 @@ func (s *Service) retrieve(
 			break
 		}
 	}
-
-	getCtx, getSharesSpan := tracer.Start(ctx, "get-shares-by-namespace")
-
 	// collect shares for the requested namespace
-	namespacedShares, err := s.shareGetter.GetNamespaceData(getCtx, header, namespace)
+	namespacedShares, err := s.shareGetter.GetNamespaceData(ctx, header, namespace)
 	if err != nil {
 		if errors.Is(err, shwap.ErrNotFound) {
 			err = ErrBlobNotFound
 		}
-		getSharesSpan.SetStatus(codes.Error, err.Error())
 		return nil, nil, err
 	}
 
-	getSharesSpan.SetStatus(codes.Ok, "")
-	getSharesSpan.AddEvent("received shares", trace.WithAttributes(
-		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots)))))
+	span.AddEvent("received-shares", trace.WithAttributes(
+		attribute.Int("amount", namespacedShares.Length()),
+	))
 
 	var (
 		appShares = make([]libshare.Share, 0)
@@ -484,14 +546,10 @@ func (s *Service) getBlobs(
 	namespace libshare.Namespace,
 	header *header.ExtendedHeader,
 ) (_ []*Blob, err error) {
-	ctx, span := tracer.Start(ctx, "get-blobs")
-	span.SetAttributes(
-		attribute.Int64("height", int64(header.Height())),
-		attribute.String("namespace", namespace.String()),
-	)
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
+	ctx, span := tracer.Start(ctx, "blob/get-blobs-namespace")
+	defer utils.SetStatusAndEnd(span, err)
+	span.SetAttributes(attribute.String("namespace", namespace.String()))
+	log.Debugw("retrieving all blobs from", "namespace", namespace.String(), "height", header.Height())
 
 	blobs := make([]*Blob, 0)
 	verifyFn := func(blob *Blob) bool {
@@ -501,7 +559,17 @@ func (s *Service) getBlobs(
 	sharesParser := &parser{verifyFn: verifyFn}
 
 	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
-	return blobs, err
+	if err != nil && !errors.Is(err, ErrBlobNotFound) {
+		log.Errorf("retrieving blobs for the namespace (%s): %v", namespace.String(), err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "retrieving blobs for the namespace")
+		return nil, err
+	}
+
+	log.Infow("retrieved blobs", "namespace", namespace.String(), "height", header.Height(), "total", len(blobs))
+	span.SetStatus(codes.Ok, "")
+	span.SetAttributes(attribute.Int("total", len(blobs)))
+	return blobs, nil
 }
 
 func (s *Service) GetCommitmentProof(
@@ -509,21 +577,37 @@ func (s *Service) GetCommitmentProof(
 	height uint64,
 	namespace libshare.Namespace,
 	shareCommitment []byte,
-) (*CommitmentProof, error) {
-	log.Debugw("proving share commitment", "height", height, "commitment", shareCommitment, "namespace", namespace)
+) (_ *CommitmentProof, err error) {
+	ctx, span := tracer.Start(ctx, "blob/get-commitment-proof")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("getting commitment proof",
+				"err", err,
+				"height", height,
+				"namespace", namespace.String(),
+				"commitment", hex.EncodeToString(shareCommitment),
+			)
+		}
+	}()
+
 	if height == 0 {
-		return nil, fmt.Errorf("height cannot be equal to 0")
+		err = fmt.Errorf("height cannot be equal to 0")
+		return nil, err
 	}
+
+	log.Infow("getting commitment proof",
+		"height", height,
+		"commitment", hex.EncodeToString(shareCommitment),
+		"namespace", namespace,
+	)
 
 	// get the blob to compute the subtree roots
 	log.Debugw(
-		"getting the blob",
-		"height",
-		height,
-		"commitment",
-		shareCommitment,
-		"namespace",
-		namespace,
+		"getting blob",
+		"height", height,
+		"commitment", hex.EncodeToString(shareCommitment),
+		"namespace", namespace,
 	)
 	blb, err := s.Get(ctx, height, namespace, shareCommitment)
 	if err != nil {
@@ -532,12 +616,9 @@ func (s *Service) GetCommitmentProof(
 
 	log.Debugw(
 		"converting the blob to shares",
-		"height",
-		height,
-		"commitment",
-		shareCommitment,
-		"namespace",
-		namespace,
+		"height", height,
+		"commitment", hex.EncodeToString(shareCommitment),
+		"namespace", namespace,
 	)
 	blobShares, err := BlobsToShares(blb)
 	if err != nil {
@@ -550,16 +631,20 @@ func (s *Service) GetCommitmentProof(
 	// get the extended header
 	log.Debugw(
 		"getting the extended header",
-		"height",
-		height,
+		"height", height,
 	)
-	extendedHeader, err := s.headerGetter(ctx, height)
+	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, err
 	}
+	span.SetAttributes(
+		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
+	)
 
-	log.Debugw("getting eds", "height", height)
-	eds, err := s.shareGetter.GetEDS(ctx, extendedHeader)
+	log.Debugw("getting eds",
+		"height", height,
+	)
+	eds, err := s.shareGetter.GetEDS(ctx, header)
 	if err != nil {
 		return nil, err
 	}
@@ -571,7 +656,18 @@ func ProveCommitment(
 	eds *rsmt2d.ExtendedDataSquare,
 	namespace libshare.Namespace,
 	blobShares []libshare.Share,
-) (*CommitmentProof, error) {
+) (_ *CommitmentProof, err error) {
+	_, span := tracer.Start(context.Background(), "blob/prove-commitment-proof")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("proving commitment proof",
+				"err", err,
+				"namespace", namespace.String(),
+			)
+		}
+	}()
+
 	// find the blob shares in the EDS
 	blobSharesStartIndex := -1
 	for index, share := range eds.FlattenedODS() {
