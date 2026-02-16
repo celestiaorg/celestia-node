@@ -158,10 +158,7 @@ func cascadeGetters[V any](
 	getters []shwap.Getter,
 	get func(context.Context, shwap.Getter) (V, error),
 ) (V, error) {
-	var (
-		zero V
-		err  error
-	)
+	var zero V
 
 	if len(getters) == 0 {
 		return zero, errors.New("no getters provided")
@@ -170,11 +167,6 @@ func cascadeGetters[V any](
 	ctx, span := tracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.Int("total-getters", len(getters)),
 	))
-	defer func() {
-		if err != nil {
-			utils.SetStatusAndEnd(span, errors.New("all getters failed"))
-		}
-	}()
 
 	minTimeout := time.Duration(0)
 	_, ok := ctx.Deadline()
@@ -184,6 +176,8 @@ func cascadeGetters[V any](
 		minTimeout = time.Minute
 	}
 
+	// will compile errors from getters in the case they all fail
+	var gettersErr error
 	for i, getter := range getters {
 		log.Debugf("cascade: launching getter #%d", i)
 		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_idx", i)))
@@ -191,28 +185,35 @@ func cascadeGetters[V any](
 		// we split the timeout between left getters
 		// once async cascadegetter is implemented, we can remove this
 		getCtx, cancel := utils.CtxWithSplitTimeout(ctx, len(getters)-i, minTimeout)
-		val, getErr := get(getCtx, getter)
+		val, err := get(getCtx, getter)
 		cancel()
-		if getErr == nil {
+		if err == nil {
+			utils.SetStatusAndEnd(span, nil)
 			return val, nil
 		}
-
-		if errors.Is(getErr, shwap.ErrOperationNotSupported) {
+		if errors.Is(err, shwap.ErrOperationNotSupported) {
 			continue
 		}
+		gettersErr = errors.Join(gettersErr, err)
 
-		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		log.Debugw("cascade: getter failed", "getter_idx", i, "error", err)
+		span.RecordError(err, trace.WithAttributes(attribute.Int("getter_idx", i)))
+
 		var byzantineErr *byzantine.ErrByzantine
-		if errors.As(getErr, &byzantineErr) {
+		if errors.As(err, &byzantineErr) {
 			// short circuit if byzantine error was detected (to be able to handle it correctly
 			// and create the BEFP)
+			utils.SetStatusAndEnd(span, byzantineErr)
 			return zero, byzantineErr
 		}
 
-		err = errors.Join(err, getErr)
 		if ctx.Err() != nil {
-			return zero, err
+			utils.SetStatusAndEnd(span, ctx.Err())
+			return zero, ctx.Err()
 		}
 	}
+
+	err := fmt.Errorf("all getters failed: %w", gettersErr)
+	utils.SetStatusAndEnd(span, err)
 	return zero, err
 }
