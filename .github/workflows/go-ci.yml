@@ -133,7 +133,7 @@ jobs:
           retention-days: 5
 
       - name: upload coverage
-        uses: codecov/codecov-action@v5.5.1
+        uses: codecov/codecov-action@v5.5.2
         with:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
