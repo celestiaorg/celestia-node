@@ -112,13 +112,20 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 	switch {
 	case err != nil:
 		return nil, fmt.Errorf("store tail: %w", err)
+	case height == tail.Height():
+		return tail, nil
 	case height < tail.Height():
+		// Try to get the header from store first, as it might still be available
+		// even if it's below the current tail due to pruning race conditions
+		header, err := s.store.GetByHeight(ctx, height)
+		if err == nil {
+			return header, nil
+		}
+		// If not found in store, then it's truly below the tail
 		log.Warnf(`requested header (%d) is below Tail (%d)
 		 	lazy fetching (https://github.com/celestiaorg/go-header/issues/334) is not currently supported
 			make sure to set SyncFromHeight value in config covering desired header height`, height, tail.Height())
 		return nil, fmt.Errorf("requested header (%d) is below Tail (%d)", height, tail.Height())
-	case height == tail.Height():
-		return tail, nil
 	}
 
 	head, err = s.store.Head(ctx)
