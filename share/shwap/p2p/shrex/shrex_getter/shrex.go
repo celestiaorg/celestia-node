@@ -405,7 +405,7 @@ func (sg *Getter) GetBlob(
 	if err != nil {
 		return nil, err
 	}
-	response := shwap.Blob{}
+	response := shwap.BlobSlice{}
 
 	logger := log.With(
 		"source", "shrex_getter",
@@ -420,18 +420,17 @@ func (sg *Getter) GetBlob(
 	}
 
 	verify := func() error {
-		if response.IsEmpty() {
-			return errors.New("nil response")
+		if len(response) == 0 {
+			return errors.New("empty response")
 		}
-
-		return response.Verify(header.DAH.RowRoots, commitment)
+		return response[0].Verify(header.DAH.RowRoots, commitment)
 	}
 
 	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
 	if err != nil {
 		return nil, err
 	}
-	return &response, nil
+	return response[0], nil
 }
 
 func (sg *Getter) GetBlobs(

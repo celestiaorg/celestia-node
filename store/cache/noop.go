@@ -79,11 +79,7 @@ func (n NoopFile) RangeNamespaceData(
 	return shwap.RangeNamespaceData{}, nil
 }
 
-func (n NoopFile) Blob(context.Context, libshare.Namespace, []byte) (*shwap.Blob, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (n NoopFile) Blobs(context.Context, libshare.Namespace) ([]*shwap.Blob, error) {
+func (n NoopFile) Blobs(context.Context, libshare.Namespace, ...[]byte) ([]*shwap.Blob, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

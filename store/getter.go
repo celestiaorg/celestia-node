@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -156,10 +155,16 @@ func (g *Getter) GetBlob(
 	logger := log.With(
 		"height", h.Height(),
 		"namespace", namespace.String(),
-		"commitment", hex.EncodeToString(commitment),
 	)
 	defer utils.CloseAndLog(logger, "getter/blob", acc)
-	return acc.Blob(ctx, namespace, commitment)
+	blobs, err := acc.Blobs(ctx, namespace, commitment)
+	if err != nil {
+		return nil, err
+	}
+	if len(blobs) == 0 {
+		return nil, shwap.ErrBlobNotFound
+	}
+	return blobs[0], nil
 }
 
 func (g *Getter) GetBlobs(

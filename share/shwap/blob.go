@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v3/inclusion"
@@ -33,22 +34,23 @@ type Blob struct {
 	StartIndex int
 }
 
-// BlobFromShares reconstructs a Blob from a slice of row shares by finding the blob
-// that matches the given namespace and commitment within the provided shares.
+// BlobsFromShares reconstructs Blobs from a slice of row shares by finding blobs
+// that match the given namespace within the provided shares.
 //
-// The function searches for the start shares in the specified namespace, collects
-// the required shares for each potential blob, verifies the commitment, and constructs
-// a Blob container.
-func BlobFromShares(
+// When commitments are provided, only blobs matching those commitments are returned.
+// When no commitments are provided, all blobs in the namespace are returned.
+func BlobsFromShares(
 	libShares [][]libshare.Share,
 	namespace libshare.Namespace,
-	commitment []byte,
 	odsSize int,
-) (*Blob, error) {
+	commitments ...[]byte,
+) ([]*Blob, error) {
 	if libShares == nil || libShares[0] == nil {
 		return nil, errors.New("empty share list")
 	}
 
+	filtering := len(commitments) > 0
+	var blobs []*Blob
 	colStart := 0
 	for rowStart := 0; rowStart < len(libShares); {
 		shr := libShares[rowStart][colStart]
@@ -74,52 +76,86 @@ func BlobFromShares(
 			return nil, err
 		}
 
-		rngShares := libShares[rowStart : to.Row+1]
-		shrs := make([]libshare.Share, 0, sharesAmount)
-		for i := range rngShares {
-			startCol := 0
-			endCol := odsSize
-			if i == 0 {
-				startCol = from.Col // account for starting column on first row
+		if filtering {
+			// compute commitment to check against requested commitments
+			rngShares := libShares[rowStart : to.Row+1]
+			shrs := make([]libshare.Share, 0, sharesAmount)
+			for i := range rngShares {
+				startCol := 0
+				endCol := odsSize
+				if i == 0 {
+					startCol = from.Col
+				}
+				if i == len(rngShares)-1 {
+					endCol = to.Col + 1
+				}
+				shrs = append(shrs, rngShares[i][startCol:endCol]...)
 			}
-			if i == len(rngShares)-1 {
-				endCol = to.Col + 1
+
+			parsed, err := libshare.ParseBlobs(shrs)
+			if err != nil {
+				return nil, err
 			}
-			shrs = append(shrs, rngShares[i][startCol:endCol]...)
+			if len(parsed) != 1 {
+				return nil, fmt.Errorf("expected exactly one blob, got %d", len(parsed))
+			}
+			com, err := inclusion.CreateCommitment(parsed[0], merkle.HashFromByteSlices, subtreeRootThreshold)
+			if err != nil {
+				return nil, err
+			}
+
+			if !matchesCommitment(com, commitments) {
+				// advance past the current blob
+				nextIndex := endIndex + 1
+				if nextIndex >= odsSize*odsSize {
+					break
+				}
+				coords, err := SampleCoordsFrom1DIndex(nextIndex, odsSize)
+				if err != nil {
+					return nil, err
+				}
+				rowStart = coords.Row
+				colStart = coords.Col
+				continue
+			}
 		}
 
-		blobs, err := libshare.ParseBlobs(shrs)
-		if err != nil {
-			return nil, err
-		}
-		if len(blobs) != 1 {
-			return nil, fmt.Errorf("expected exactly one blob, got %d", len(blobs))
-		}
-		com, err := inclusion.CreateCommitment(blobs[0], merkle.HashFromByteSlices, subtreeRootThreshold)
-		if err != nil {
-			return nil, err
-		}
-
-		if !bytes.Equal(com, commitment) {
-			rowStart = to.Row
-			colStart = to.Col + 1
-			if colStart >= odsSize {
-				rowStart++
-				colStart = 0
-			}
-			continue
-		}
 		rngData, err := RangeNamespaceDataFromShares(libShares[rowStart:to.Row+1], from, to)
 		if err != nil {
 			return nil, err
 		}
 
-		return &Blob{
-			RangeNamespaceData: &rngData,
-			StartIndex:         fromIndex,
-		}, err
+		blobs = append(blobs, &Blob{RangeNamespaceData: &rngData, StartIndex: fromIndex})
+
+		// advance past the current blob
+		nextIndex := endIndex + 1
+		if nextIndex >= odsSize*odsSize {
+			break
+		}
+		coords, err := SampleCoordsFrom1DIndex(nextIndex, odsSize)
+		if err != nil {
+			return nil, err
+		}
+		rowStart = coords.Row
+		colStart = coords.Col
 	}
-	return nil, ErrBlobNotFound
+
+	if len(blobs) == 0 {
+		if filtering {
+			return nil, ErrBlobNotFound
+		}
+		return nil, ErrNotFound
+	}
+	return blobs, nil
+}
+
+func matchesCommitment(com []byte, commitments [][]byte) bool {
+	for _, c := range commitments {
+		if bytes.Equal(com, c) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *Blob) VerifyInclusion(roots [][]byte) error {
@@ -211,6 +247,9 @@ func (b *Blob) ToProto() *pb.Blob {
 }
 
 func BlobFromProto(pbBlob *pb.Blob) (Blob, error) {
+	if pbBlob.StartIndex > math.MaxInt {
+		return Blob{}, fmt.Errorf("start index overflows int: %d", pbBlob.StartIndex)
+	}
 	rngData, err := RangeNamespaceDataFromProto(pbBlob.RngData)
 	if err != nil {
 		return Blob{}, err
@@ -219,61 +258,6 @@ func BlobFromProto(pbBlob *pb.Blob) (Blob, error) {
 		RangeNamespaceData: &rngData,
 		StartIndex:         int(pbBlob.StartIndex),
 	}, nil
-}
-
-func BlobsFromShares(
-	libShares [][]libshare.Share,
-	namespace libshare.Namespace,
-	odsSize int,
-) ([]*Blob, error) {
-	if libShares == nil || libShares[0] == nil {
-		return nil, errors.New("namespace was not found in axisRoot")
-	}
-
-	blobs := make([]*Blob, 0)
-	colStart := 0
-	for rowStart := 0; rowStart < len(libShares); {
-		shr := libShares[rowStart][colStart]
-		if !shr.Namespace().Equals(namespace) || !shr.IsSequenceStart() || shr.IsPadding() {
-			colStart++
-			if colStart >= odsSize {
-				colStart = 0
-				rowStart++
-			}
-			continue
-		}
-
-		sharesAmount := libshare.SparseSharesNeeded(shr.SequenceLen(), shr.ContainsSigner())
-
-		from := SampleCoords{Row: rowStart, Col: colStart}
-		fromIndex, err := SampleCoordsAs1DIndex(from, odsSize)
-		if err != nil {
-			return nil, err
-		}
-		endIndex := fromIndex + sharesAmount - 1
-		to, err := SampleCoordsFrom1DIndex(endIndex, odsSize)
-		if err != nil {
-			return nil, err
-		}
-
-		rngData, err := RangeNamespaceDataFromShares(libShares[rowStart:to.Row+1], from, to)
-		if err != nil {
-			return nil, err
-		}
-
-		blobs = append(blobs, &Blob{RangeNamespaceData: &rngData, StartIndex: fromIndex})
-		coords, err := SampleCoordsFrom1DIndex(endIndex+1, odsSize)
-		if err != nil {
-			return nil, err
-		}
-		rowStart = coords.Row
-		colStart = coords.Col
-	}
-
-	if len(blobs) == 0 {
-		return nil, ErrNotFound
-	}
-	return blobs, nil
 }
 
 func (b *Blob) WriteTo(w io.Writer) (int64, error) {

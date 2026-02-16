@@ -67,12 +67,11 @@ func RangeNamespaceDataFromShares(
 		return RangeNamespaceData{}, fmt.Errorf("mismatched rows: expected %d vs got %d", numRows, len(extendedRowShares))
 	}
 
-	namespace := extendedRowShares[0][from.Col].Namespace()
-
 	// Make a copy of the outer slice to avoid modifying the caller's slice
 	// when we reassign row elements below.
 	shares := make([][]libshare.Share, len(extendedRowShares))
 	copy(shares, extendedRowShares)
+	namespace := extendedRowShares[0][from.Col].Namespace()
 	odsSize := len(shares[0]) / 2
 	isMultiRow := numRows > 1
 	startsMidRow := from.Col != 0
@@ -104,7 +103,7 @@ func RangeNamespaceDataFromShares(
 			from.Col,
 			endCol,
 			odsSize,
-			shares[0],
+			extendedRowShares[0],
 		)
 		if err != nil {
 			return RangeNamespaceData{}, fmt.Errorf("failed to generate proof for row %d: %w", from.Row, err)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-func FuzzBlobFromShares(f *testing.F) {
+func FuzzBlobsFromSharesWithCommitment(f *testing.F) {
 	if testing.Short() {
 		f.Skip("in -short mode")
 	}
@@ -86,21 +86,21 @@ func FuzzBlobFromShares(f *testing.F) {
 			extendedRowShares[index] = sh
 		}
 
-		// Test BlobFromShares with first blob
+		// Test BlobsFromShares with commitment filter
 		com0, err := inclusion.CreateCommitment(libBlobs[0], merkle.HashFromByteSlices, subtreeRootThreshold)
 		if err != nil {
 			return
 		}
 
-		blobContainer, err := BlobFromShares(extendedRowShares, libBlobs[0].Namespace(), com0, odsSize)
+		blobContainers, err := BlobsFromShares(extendedRowShares, libBlobs[0].Namespace(), odsSize, com0)
 		require.NoError(t, err)
-		require.NotNil(t, blobContainer)
+		require.Len(t, blobContainers, 1)
 
-		err = blobContainer.Verify(roots, com0)
+		err = blobContainers[0].Verify(roots, com0)
 		require.NoError(t, err)
 
 		// Verify the reconstructed blob matches the original
-		reconstructed, err := blobContainer.Blob()
+		reconstructed, err := blobContainers[0].Blob()
 		require.NoError(t, err)
 		require.Equal(t, libBlobs[0].Data(), reconstructed.Data())
 	})
@@ -187,7 +187,7 @@ func FuzzBlobsFromShares(f *testing.F) {
 	})
 }
 
-func FuzzBlobFromSharesWithSameNamespace(f *testing.F) {
+func FuzzBlobsFromSharesWithSameNamespace(f *testing.F) {
 	if testing.Short() {
 		f.Skip("in -short mode")
 	}
@@ -260,20 +260,20 @@ func FuzzBlobFromSharesWithSameNamespace(f *testing.F) {
 		require.NoError(t, err)
 		require.Equal(t, len(libBlobs), len(result))
 
-		// Test BlobFromShares can find each blob by commitment
+		// Test BlobsFromShares can find each blob by commitment
 		for i, libBlob := range libBlobs {
 			com, err := inclusion.CreateCommitment(libBlob, merkle.HashFromByteSlices, subtreeRootThreshold)
 			require.NoError(t, err)
 
-			blobContainer, err := BlobFromShares(extendedRowShares, ns, com, odsSize)
+			blobContainers, err := BlobsFromShares(extendedRowShares, ns, odsSize, com)
 			require.NoError(t, err, "failed to find blob %d", i)
-			require.NotNil(t, blobContainer)
+			require.Len(t, blobContainers, 1)
 
-			err = blobContainer.Verify(roots, com)
+			err = blobContainers[0].Verify(roots, com)
 			require.NoError(t, err)
 
 			// Verify data matches
-			reconstructed, err := blobContainer.Blob()
+			reconstructed, err := blobContainers[0].Blob()
 			require.NoError(t, err)
 			require.Equal(t, libBlob.Data(), reconstructed.Data())
 		}

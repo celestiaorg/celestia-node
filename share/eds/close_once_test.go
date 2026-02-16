@@ -83,11 +83,7 @@ func (s *stubEdsAccessorCloser) RangeNamespaceData(
 	return shwap.RangeNamespaceData{}, nil
 }
 
-func (s *stubEdsAccessorCloser) Blob(context.Context, libshare.Namespace, []byte) (*shwap.Blob, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (s *stubEdsAccessorCloser) Blobs(context.Context, libshare.Namespace) ([]*shwap.Blob, error) {
+func (s *stubEdsAccessorCloser) Blobs(context.Context, libshare.Namespace, ...[]byte) ([]*shwap.Blob, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

@@ -67,7 +67,7 @@ func BlobIDFromBinary(data []byte) (*BlobID, error) {
 		return nil, fmt.Errorf("error unmarshaling EDSID: %w", err)
 	}
 
-	ns, err := libshare.NewNamespaceFromBytes(data[EdsIDSize:])
+	ns, err := libshare.NewNamespaceFromBytes(data[EdsIDSize : EdsIDSize+libshare.NamespaceSize])
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling namespace: %w", err)
 	}
@@ -139,28 +139,17 @@ func (blbID *BlobID) appendBinary(data []byte) ([]byte, error) {
 func (blbID *BlobID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	buf := &bytes.Buffer{}
 
+	var commitments [][]byte
 	if !bytes.Equal(blbID.Commitment, emptyCommitment) {
-		blob, err := acc.Blob(ctx, blbID.DataNamespace, blbID.Commitment)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = blob.WriteTo(buf)
-		if err != nil {
-			return nil, fmt.Errorf("writing blob's: %w", err)
-		}
-		return buf, nil
+		commitments = append(commitments, blbID.Commitment)
 	}
 
-	var (
-		blobSlice BlobSlice
-		err       error
-	)
-	blobSlice, err = acc.Blobs(ctx, blbID.DataNamespace)
+	blobs, err := acc.Blobs(ctx, blbID.DataNamespace, commitments...)
 	if err != nil {
 		return nil, fmt.Errorf("getting blobs from accessor: %w", err)
 	}
 
+	blobSlice := BlobSlice(blobs)
 	_, err = blobSlice.WriteTo(buf)
 	if err != nil {
 		return nil, fmt.Errorf("writing blobs data: %w", err)

@@ -177,42 +177,35 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
-func (eds *Rsmt2D) Blob(ctx context.Context, namespace libshare.Namespace, commitment []byte) (*shwap.Blob, error) {
-	size, err := eds.Size(ctx)
+func (eds *Rsmt2D) Blobs(
+	ctx context.Context,
+	namespace libshare.Namespace,
+	commitments ...[]byte,
+) ([]*shwap.Blob, error) {
+	shares, odsSize, err := eds.extendedRowShares(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	odsSize := size / 2
-	extendedRowShares := make([][]libshare.Share, odsSize)
-	for index := 0; index < odsSize; index++ {
-		rawShare := eds.Row(uint(index))
-		sh, err := libshare.FromBytes(rawShare)
-		if err != nil {
-			return nil, err
-		}
-		extendedRowShares[index] = sh
-	}
-	return shwap.BlobFromShares(extendedRowShares, namespace, commitment, odsSize)
+	return shwap.BlobsFromShares(shares, namespace, odsSize, commitments...)
 }
 
-func (eds *Rsmt2D) Blobs(ctx context.Context, namespace libshare.Namespace) ([]*shwap.Blob, error) {
+func (eds *Rsmt2D) extendedRowShares(ctx context.Context) ([][]libshare.Share, int, error) {
 	size, err := eds.Size(ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	odsSize := size / 2
-	extendedRowShares := make([][]libshare.Share, odsSize)
+	shares := make([][]libshare.Share, odsSize)
 	for index := 0; index < odsSize; index++ {
 		rawShare := eds.Row(uint(index))
 		sh, err := libshare.FromBytes(rawShare)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		extendedRowShares[index] = sh
+		shares[index] = sh
 	}
-	return shwap.BlobsFromShares(extendedRowShares, namespace, odsSize)
+	return shares, odsSize, nil
 }
 
 // Rsmt2DFromShares constructs an Extended Data Square from shares.

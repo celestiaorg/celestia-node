@@ -40,8 +40,10 @@ type Accessor interface {
 		from, to int,
 	) (shwap.RangeNamespaceData, error)
 
-	Blob(context.Context, libshare.Namespace, []byte) (*shwap.Blob, error)
-	Blobs(context.Context, libshare.Namespace) ([]*shwap.Blob, error)
+	// Blobs retrieves blobs belonging to the given namespace from the data square.
+	// When commitments are provided, only blobs matching those commitments are returned.
+	// When no commitments are provided, all blobs in the namespace are returned.
+	Blobs(context.Context, libshare.Namespace, ...[]byte) ([]*shwap.Blob, error)
 }
 
 // AccessorStreamer is an interface that groups Accessor and Streamer interfaces.
