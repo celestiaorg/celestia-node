@@ -127,7 +127,6 @@ func (cl *Listener) verifyChainID(ctx context.Context) error {
 		)
 	}
 
-	log.Infow("listener: verified core endpoint chain ID", "chain_id", networkID)
 	return nil
 }
 
