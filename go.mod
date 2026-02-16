@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.25.7
+go 1.26
 
 require (
 	cosmossdk.io/log v1.6.0
