@@ -79,6 +79,8 @@ func (g *Getter) GetRow(ctx context.Context, h *header.ExtendedHeader, rowIdx in
 		}
 		return shwap.Row{}, fmt.Errorf("getting accessor from store: %w", err)
 	}
+	logger := log.With("height", h.Height())
+	defer utils.CloseAndLog(logger, "getter/row", acc)
 	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return shwap.Row{}, fmt.Errorf("getting axis half from accessor: %w", err)
