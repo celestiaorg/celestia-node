@@ -7,6 +7,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	node "github.com/celestiaorg/celestia-node/nodebuilder/node"
 	auth "github.com/filecoin-project/go-jsonrpc/auth"
@@ -49,6 +50,21 @@ func (m *MockModule) AuthNew(arg0 context.Context, arg1 []auth.Permission) (stri
 func (mr *MockModuleMockRecorder) AuthNew(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthNew", reflect.TypeOf((*MockModule)(nil).AuthNew), arg0, arg1)
+}
+
+// AuthNewWithExpiry mocks base method.
+func (m *MockModule) AuthNewWithExpiry(arg0 context.Context, arg1 []auth.Permission, arg2 time.Duration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthNewWithExpiry", arg0, arg1, arg2)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthNewWithExpiry indicates an expected call of AuthNewWithExpiry.
+func (mr *MockModuleMockRecorder) AuthNewWithExpiry(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthNewWithExpiry", reflect.TypeOf((*MockModule)(nil).AuthNewWithExpiry), arg0, arg1, arg2)
 }
 
 // AuthVerify mocks base method.
