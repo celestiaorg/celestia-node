@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -157,6 +158,7 @@ func (cg *CascadeGetter) GetBlob(
 		trace.WithAttributes(
 			attribute.Int64("height", int64(header.Height())),
 			attribute.String("namespace", ns.String()),
+			attribute.String("commitment", hex.EncodeToString(commitment)),
 		))
 	defer span.End()
 
