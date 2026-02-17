@@ -406,3 +406,5 @@ replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0
 replace github.com/celestiaorg/celestia-node => ../../..
 
 replace github.com/moby/term => github.com/moby/term v0.5.2
+
+replace nhooyr.io/websocket => github.com/coder/websocket v1.8.6
