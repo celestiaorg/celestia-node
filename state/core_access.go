@@ -753,8 +753,17 @@ func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool)
 	}
 
 	conn.Connect()
-	if !conn.WaitForStateChange(ctx, connectivity.Ready) {
-		return nil, errors.New("couldn't connect to core endpoint")
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			break
+		}
+		if state == connectivity.Shutdown {
+			return nil, errors.New("couldn't connect to core endpoint")
+		}
+		if !conn.WaitForStateChange(ctx, state) {
+			return nil, errors.New("couldn't connect to core endpoint")
+		}
 	}
 	return conn, nil
 }
