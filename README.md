@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/celestiaorg/celestia-node/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/celestia-node)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/celestiaorg/celestia-node)
 
-Golang implementation of Celestia's data availability node types (`light` | `full` | `bridge`).
+Golang implementation of Celestia's data availability node types (`light` | `bridge`).
 
 The celestia-node types described above comprise the celestia data availability (DA) network.
 
@@ -70,14 +70,13 @@ The celestia-node public API is documented [here](https://node-rpc-docs.celestia
 ## Node types
 
 - **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
-- **Full** nodes - fully reconstruct and store blocks by sampling the DA network for shares
 - **Light** nodes - verify the availability of block data by sampling the DA network for shares
 
 More information can be found [here](https://github.com/celestiaorg/celestia-node/blob/main/docs/adr/adr-003-march2022-testnet.md#legend).
 
 ## Run a node
 
-`<node_type>` can be: `bridge`, `full` or `light`.
+`<node_type>` can be: `bridge` or `light`.
 
 ```sh
 celestia <node_type> init

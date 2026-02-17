@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
@@ -93,11 +93,12 @@ func (s *Service) Stop(context.Context) error {
 }
 
 // SubscriptionResponse is the response type for the Subscribe method.
-// It contains the blobs and the height at which they were included.
+// It contains the blobs and the header at which they were included.
 // If the Blobs slice is empty, it means that no blobs were included at the given height.
 type SubscriptionResponse struct {
 	Blobs  []*Blob
-	Height uint64
+	Height uint64 // Deprecated: use Header.Height() instead. Kept for backwards compatibility.
+	Header *header.RawHeader
 }
 
 // Subscribe returns a channel that will receive SubscriptionResponse objects.
@@ -157,7 +158,11 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 				case <-ctx.Done():
 					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
 					return
-				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height()}:
+				case blobCh <- &SubscriptionResponse{
+					Blobs:  blobs,
+					Height: header.Height(),
+					Header: &header.RawHeader,
+				}:
 				}
 			case <-ctx.Done():
 				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
