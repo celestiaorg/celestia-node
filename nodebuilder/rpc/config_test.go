@@ -40,7 +40,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "invalid address",
 			cfg: Config{
-				Address: "invalid",
+				Address: "999.999.999.999",
 				Port:    "8080",
 			},
 			err: true,

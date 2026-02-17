@@ -60,7 +60,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	err := archivalBN.Start(ctx)
 	require.NoError(t, err)
 
-	archivalFN := sw.NewFullNode()
+	archivalFN := sw.NewBridgeNode()
 	err = archivalFN.Start(ctx)
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, archivalFN)
@@ -101,8 +101,8 @@ func TestArchivalBlobSync(t *testing.T) {
 
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
 	for range 3 {
-		cfg := sw.DefaultTestConfig(node.Full)
-		pruningFN := sw.NewNodeWithConfig(node.Full, cfg, prunerOpts)
+		cfg := sw.DefaultTestConfig(node.Bridge)
+		pruningFN := sw.NewNodeWithConfig(node.Bridge, cfg, prunerOpts)
 		err = pruningFN.Start(ctx)
 		require.NoError(t, err)
 
@@ -183,7 +183,7 @@ func TestDisallowConvertFromPrunedToArchival(t *testing.T) {
 	sw.SetBootstrapper(t, bootstrapper)
 
 	// Light nodes have pruning enabled by default
-	for _, nt := range []node.Type{node.Bridge, node.Full} {
+	for _, nt := range []node.Type{node.Bridge, node.Bridge} {
 		store := nodebuilder.MockStore(t, sw.DefaultTestConfig(nt))
 		pruningNode := sw.MustNewNodeWithStore(nt, store)
 		err := pruningNode.Start(ctx)
@@ -218,7 +218,7 @@ func TestDisallowConvertToArchivalViaLastPrunedCheck(t *testing.T) {
 		FailedHeaders    map[uint64]struct{} `json:"failed"`
 	}
 
-	for _, nt := range []node.Type{node.Bridge, node.Full} {
+	for _, nt := range []node.Type{node.Bridge, node.Bridge} {
 		store := nodebuilder.MockStore(t, sw.DefaultTestConfig(nt))
 		ds, err := store.Datastore()
 		require.NoError(t, err)
@@ -259,7 +259,7 @@ func TestConvertFromArchivalToPruned(t *testing.T) {
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, bootstrapper)
 
-	for _, nt := range []node.Type{node.Bridge, node.Full} {
+	for _, nt := range []node.Type{node.Bridge, node.Bridge} {
 		archivalCfg := sw.DefaultTestConfig(nt)
 
 		store := nodebuilder.MockStore(t, archivalCfg)
