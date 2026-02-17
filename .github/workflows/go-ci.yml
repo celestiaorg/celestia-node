@@ -123,7 +123,7 @@ jobs:
         run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
       - name: Upload unit test output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always() && needs.setup.outputs.debug == 'true'
         with:
           name: unit-test-output-${{ matrix.os }}
