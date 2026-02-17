@@ -542,3 +542,59 @@ func (f *Framework) getOrCreateFundingWallet(ctx context.Context) *types.Wallet 
 	}
 	return f.fundingWallet
 }
+
+// Cleanup performs cleanup of all Docker resources created by the framework.
+// This includes stopping containers and removing the Docker network.
+func (f *Framework) Cleanup() {
+	if f.client == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	f.logger.Info("Starting framework cleanup", zap.String("network", f.network))
+
+	// Stop all bridge nodes
+	for i, bridgeNode := range f.bridgeNodes {
+		if bridgeNode != nil {
+			f.logger.Info("Stopping bridge node", zap.Int("index", i))
+			if err := bridgeNode.Stop(ctx); err != nil {
+				f.t.Logf("Failed to stop bridge node %d: %v", i, err)
+			}
+		}
+	}
+
+	// Stop all light nodes
+	for i, lightNode := range f.lightNodes {
+		if lightNode != nil {
+			f.logger.Info("Stopping light node", zap.Int("index", i))
+			if err := lightNode.Stop(ctx); err != nil {
+				f.t.Logf("Failed to stop light node %d: %v", i, err)
+			}
+		}
+	}
+
+	// Stop the Celestia chain
+	if f.celestia != nil {
+		f.logger.Info("Stopping Celestia chain")
+		if err := f.celestia.Stop(ctx); err != nil {
+			f.t.Logf("Failed to stop Celestia chain: %v", err)
+		}
+	}
+
+	// Note: DA network cleanup is handled by stopping individual nodes above
+	// The tastora framework doesn't provide a direct Stop method for the network
+
+	// Remove the Docker network
+	if f.network != "" {
+		f.logger.Info("Removing Docker network", zap.String("network", f.network))
+		if err := f.client.NetworkRemove(ctx, f.network); err != nil {
+			f.t.Logf("Failed to remove Docker network %s: %v", f.network, err)
+		} else {
+			f.logger.Info("Successfully removed Docker network", zap.String("network", f.network))
+		}
+	}
+
+	f.logger.Info("Framework cleanup completed")
+}
