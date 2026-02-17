@@ -658,7 +658,7 @@ func TestService_Subscribe(t *testing.T) {
 	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
-	service := createServiceWithSub(ctx, t, blobs)
+	service, headers := createServiceWithSub(ctx, t, blobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -670,7 +670,7 @@ func TestService_Subscribe(t *testing.T) {
 		for i := uint64(0); i < uint64(len(blobs)); i++ {
 			select {
 			case resp := <-subCh:
-				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
 				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for subscription response %d", i)
@@ -690,7 +690,10 @@ func TestService_Subscribe(t *testing.T) {
 			select {
 			case resp := <-subCh:
 				assert.Empty(t, resp.Blobs)
-				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
+				// Verify backwards compatibility: Height field should still be populated even with no blobs
+				assert.Equal(t, headers[i].Height(), resp.Height, "Height should match Header.Height for backwards compatibility")
+				assert.Equal(t, uint64(resp.Header.Height), resp.Height, "resp.Height should equal resp.Header.Height")
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for empty subscription response %d", i)
 			}
@@ -736,7 +739,7 @@ func TestService_Subscribe(t *testing.T) {
 		for range blobs {
 			select {
 			case val := <-subCh:
-				if val.Height == uint64(len(blobs)) {
+				if uint64(val.Header.Height) == uint64(len(blobs)) {
 					err = service.Stop(context.Background())
 					require.NoError(t, err)
 				}
@@ -775,7 +778,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	//nolint: gocritic
 	allBlobs := append(blobs1, blobs2...)
 
-	service := createServiceWithSub(ctx, t, allBlobs)
+	service, _ := createServiceWithSub(ctx, t, allBlobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -791,7 +794,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs1); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns1, b.Namespace())
@@ -804,7 +807,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs2); i++ {
 		select {
 		case resp := <-subCh2:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns2, b.Namespace())
@@ -852,7 +855,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
-func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Service, []*header.ExtendedHeader) {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
@@ -896,7 +899,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
