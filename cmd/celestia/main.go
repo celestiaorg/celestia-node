@@ -26,11 +26,9 @@ func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
 func init() {
 	bridgeCmd := cmdnode.NewBridge(WithSubcommands())
 	lightCmd := cmdnode.NewLight(WithSubcommands())
-	fullCmd := cmdnode.NewFull(WithSubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
-		fullCmd,
 		docgenCmd,
 		versionCmd,
 	)
@@ -49,7 +47,7 @@ func run() error {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
+	Use: "celestia [  bridge  ||  light  ] [subcommand]",
 	Short: `
 	    ____      __          __  _
 	  / ____/__  / /__  _____/ /_(_)___ _

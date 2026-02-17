@@ -7,7 +7,7 @@ import (
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 

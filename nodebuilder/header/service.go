@@ -13,7 +13,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 )
 
 var tracer = otel.Tracer("header/service")
@@ -41,14 +40,13 @@ type syncer interface {
 
 // newHeaderService creates a new instance of header Service.
 func newHeaderService(
-	// getting Syncer wrapped in ServiceBreaker so we ensure service breaker is constructed
-	syncer *modfraud.ServiceBreaker[*sync.Syncer[*header.ExtendedHeader], *header.ExtendedHeader],
+	syncer *sync.Syncer[*header.ExtendedHeader],
 	sub libhead.Subscriber[*header.ExtendedHeader],
 	p2pServer *p2p.ExchangeServer[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 ) Module {
 	return &Service{
-		syncer:    syncer.Service,
+		syncer:    syncer,
 		sub:       sub,
 		p2pServer: p2pServer,
 		store:     store,
