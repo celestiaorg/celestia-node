@@ -20,19 +20,21 @@ import (
 )
 
 var (
-	LogLevelFlag        = "log.level"
-	LogLevelModuleFlag  = "log.level.module"
-	pprofFlag           = "pprof"
-	tracingFlag         = "tracing"
-	tracingEndpointFlag = "tracing.endpoint"
-	tracingTlS          = "tracing.tls"
-	metricsFlag         = "metrics"
-	metricsEndpointFlag = "metrics.endpoint"
-	metricsTlS          = "metrics.tls"
-	p2pMetrics          = "p2p.metrics"
-	pyroscopeFlag       = "pyroscope"
-	pyroscopeTracing    = "pyroscope.tracing"
-	pyroscopeEndpoint   = "pyroscope.endpoint"
+	LogLevelFlag               = "log.level"
+	LogLevelModuleFlag         = "log.level.module"
+	pprofFlag                  = "pprof"
+	tracingFlag                = "tracing"
+	tracingEndpointFlag        = "tracing.endpoint"
+	tracingTlS                 = "tracing.tls"
+	metricsFlag                = "metrics"
+	metricsEndpointFlag        = "metrics.endpoint"
+	metricsTlS                 = "metrics.tls"
+	p2pMetrics                 = "p2p.metrics"
+	pyroscopeFlag              = "pyroscope"
+	pyroscopeTracing           = "pyroscope.tracing"
+	pyroscopeEndpoint          = "pyroscope.endpoint"
+	pyroscopeBasicAuthUser     = "pyroscope.basic-auth.user"
+	pyroscopeBasicAuthPassword = "pyroscope.basic-auth.password" //nolint:gosec
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -118,6 +120,18 @@ and their lower-case forms`,
 		"Sets HTTP endpoint for Pyroscope profiles to be exported to. Depends on '--pyroscope'",
 	)
 
+	flags.String(
+		pyroscopeBasicAuthUser,
+		"",
+		"Sets basic auth user for Pyroscope. Depends on '--pyroscope'",
+	)
+
+	flags.String(
+		pyroscopeBasicAuthPassword,
+		"",
+		"Sets basic auth password for Pyroscope. Depends on '--pyroscope'",
+	)
+
 	return flags
 }
 
@@ -183,6 +197,8 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		ctx = WithNodeOptions(ctx,
 			nodebuilder.WithPyroscope(
 				cmd.Flag(pyroscopeEndpoint).Value.String(),
+				cmd.Flag(pyroscopeBasicAuthUser).Value.String(),
+				cmd.Flag(pyroscopeBasicAuthPassword).Value.String(),
 				NodeType(ctx),
 			),
 		)
