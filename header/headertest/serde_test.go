@@ -66,7 +66,7 @@ func TestMsgIDEquivalency(t *testing.T) {
 // BenchmarkMsgID-8   	   23559	     48399 ns/op	  226858 B/op	    1282 allocs/op
 func BenchmarkMsgID(b *testing.B) {
 	eds := edstest.RandomAxisRoots(b, 256)
-	randHeader := RandExtendedHeaderWithRoot(b, eds)
+	randHeader := RandExtendedHeader(b, WithDAH(eds))
 	bin, err := randHeader.MarshalBinary()
 	require.NoError(b, err)
 	msg := &pubsub_pb.Message{Data: bin}
