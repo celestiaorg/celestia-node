@@ -166,7 +166,7 @@ func initRoot(path string) error {
 		return err
 	}
 
-	return os.Remove(filepath.Join(path, ".check")) //nolint:gosec // path is not user-controlled
+	return os.Remove(filepath.Join(path, ".check"))
 }
 
 // resetDir removes all files from the given directory and reinitializes it
