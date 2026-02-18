@@ -103,7 +103,7 @@ func (sg *Getter) GetSamples(
 ) (_ []shwap.Sample, err error) {
 	// short circuit if the data root is empty
 	if header.DAH.Equals(share.EmptyEDSRoots()) {
-		return []shwap.Sample{}, nil
+		return emptySamples(coords)
 	}
 
 	ctx, span := tracer.Start(ctx, "shrex/get-samples")
@@ -478,4 +478,24 @@ func (sg *Getter) executeRequest(
 			"finished (s)", time.Since(reqStart),
 		)
 	}
+}
+
+// emptySamples returns samples from the pregenerated empty EDS for the given coordinates.
+func emptySamples(coords []shwap.SampleCoords) ([]shwap.Sample, error) {
+	const emptyEDSSize = 2 // empty EDS is 2x2 (1x1 ODS extended)
+	for _, coord := range coords {
+		if coord.Row >= emptyEDSSize || coord.Col >= emptyEDSSize {
+			return nil, fmt.Errorf("row=%d col=%d >= %d: %w", coord.Row, coord.Col, emptyEDSSize, shwap.ErrOutOfBounds)
+		}
+	}
+
+	samples := make([]shwap.Sample, len(coords))
+	for i, coord := range coords {
+		smpl, err := eds.EmptyAccessor.Sample(context.Background(), coord)
+		if err != nil {
+			return nil, fmt.Errorf("getting sample from empty EDS: %w", err)
+		}
+		samples[i] = smpl
+	}
+	return samples, nil
 }
