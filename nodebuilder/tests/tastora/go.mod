@@ -385,6 +385,7 @@ require (
 )
 
 replace (
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	//github.com/celestiaorg/tastora => ../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.24
