@@ -44,7 +44,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9.2.0
         with:
           args: --timeout 10m
-          version: latest
+          version: v2.10.0
 
   lint-imports:
     needs: [setup]
