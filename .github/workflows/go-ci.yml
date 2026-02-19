@@ -119,8 +119,26 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
+      - name: Compute packages to test
+        id: pkgs
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "Running affected packages only"
+            ./scripts/affected-packages.sh origin/${{ github.base_ref }} > /tmp/test-pkgs.txt
+          else
+            go list ./... | grep -v nodebuilder/tests > /tmp/test-pkgs.txt
+          fi
+          echo "$(cat /tmp/test-pkgs.txt | wc -l | tr -d ' ') packages selected" >&2
+          cat /tmp/test-pkgs.txt
+
       - name: run unit tests
-        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+        run: |
+          PKGS=$(cat /tmp/test-pkgs.txt | tr '\n' ' ')
+          if [[ "${{ needs.setup.outputs.debug }}" == "true" ]]; then
+            go test -v -covermode=atomic -coverprofile=coverage.txt $PKGS | tee debug.log
+          else
+            go test -covermode=atomic -coverprofile=coverage.txt $PKGS
+          fi
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v4
