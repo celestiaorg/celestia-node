@@ -462,7 +462,7 @@ func BenchGetHalfAxisFromAccessor(
 					require.NoError(b, err)
 
 					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
+					for b.Loop() {
 						size, err := acc.Size(ctx)
 						require.NoError(b, err)
 						_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
@@ -498,7 +498,7 @@ func BenchGetSampleFromAccessor(
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					_, err := acc.Sample(ctx, idx)
 					require.NoError(b, err)
 				}

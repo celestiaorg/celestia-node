@@ -112,7 +112,7 @@ func BenchmarkSampleValidate(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = sample.Verify(root, 0, 0)
 	}
 }

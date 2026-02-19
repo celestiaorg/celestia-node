@@ -24,7 +24,7 @@ func BenchmarkCodec(b *testing.B) {
 			shards := newShards(b, size, true)
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				err = enc.Encode(shards)
 				require.NoError(b, err)
 			}
@@ -40,7 +40,7 @@ func BenchmarkCodec(b *testing.B) {
 			shards := newShards(b, size, true)
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				err = enc.Encode(shards)
 				require.NoError(b, err)
 			}
@@ -59,7 +59,7 @@ func BenchmarkCodec(b *testing.B) {
 			targets[target] = true
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				err = enc.ReconstructSome(shards, targets)
 				require.NoError(b, err)
 				shards[target] = nil
