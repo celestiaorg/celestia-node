@@ -114,10 +114,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-
+            go-${{ runner.os }}-
+
       - name: set up go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
+          cache: false
 
       - name: run unit tests
         run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
