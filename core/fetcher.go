@@ -221,6 +221,19 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	return resp.SyncInfo.CatchingUp, nil
 }
 
+// ChainID returns the chain ID (network name) that the Core node is connected to.
+// This can be used to validate that the node is connected to the correct network.
+func (f *BlockFetcher) ChainID(ctx context.Context) (string, error) {
+	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	if err != nil {
+		return "", err
+	}
+	if resp.NodeInfo == nil {
+		return "", fmt.Errorf("core/fetcher: node info not available in status response")
+	}
+	return resp.NodeInfo.Network, nil
+}
+
 func (f *BlockFetcher) receiveBlockByHeight(ctx context.Context, streamer coregrpc.BlockAPI_BlockByHeightClient) (
 	*SignedBlock,
 	error,
