@@ -56,7 +56,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, block.Block.Height, int64(i))
 		case <-ctx.Done():
-			require.NoError(t, ctx.Err())
+			t.Fatal("timeout waiting for block event")
 		}
 	}
 	require.NoError(t, wsClient.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery))
