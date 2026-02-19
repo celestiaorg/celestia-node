@@ -81,4 +81,12 @@ type Getter interface {
 		header *header.ExtendedHeader,
 		from, to int,
 	) (RangeNamespaceData, error)
+
+	// GetBlob retrieves a single blob identified by its namespace and commitment
+	// from the Extended Data Square (EDS) referenced by the given header.
+	GetBlob(_ context.Context, _ *header.ExtendedHeader, _ libshare.Namespace, commitment []byte) (*Blob, error)
+
+	// GetBlobs retrieves all blobs belonging to the given namespace from the
+	// Extended Data Square (EDS) referenced by the given header.
+	GetBlobs(_ context.Context, _ *header.ExtendedHeader, _ libshare.Namespace) ([]*Blob, error)
 }

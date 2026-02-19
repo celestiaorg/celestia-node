@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	libshare "github.com/celestiaorg/go-square/v3/share"
@@ -76,6 +77,10 @@ func (n NoopFile) RangeNamespaceData(
 	_, _ int,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, nil
+}
+
+func (n NoopFile) Blobs(context.Context, libshare.Namespace, ...[]byte) ([]*shwap.Blob, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (n NoopFile) Shares(context.Context) ([]libshare.Share, error) {

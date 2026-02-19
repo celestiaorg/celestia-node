@@ -132,10 +132,57 @@ func (g *Getter) GetRangeNamespaceData(
 		"to", to,
 	)
 	defer utils.CloseAndLog(logger, "getter/rng", acc)
-
 	rngData, err := acc.RangeNamespaceData(ctx, from, to)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, fmt.Errorf("getting range from accessor:%w", err)
 	}
 	return rngData, nil
+}
+
+func (g *Getter) GetBlob(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	namespace libshare.Namespace,
+	commitment []byte,
+) (*shwap.Blob, error) {
+	acc, err := g.store.GetByHeight(ctx, h.Height())
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, shwap.ErrNotFound
+		}
+		return nil, fmt.Errorf("getting accessor from store:%w", err)
+	}
+	logger := log.With(
+		"height", h.Height(),
+		"namespace", namespace.String(),
+	)
+	defer utils.CloseAndLog(logger, "getter/blob", acc)
+	blobs, err := acc.Blobs(ctx, namespace, commitment)
+	if err != nil {
+		return nil, err
+	}
+	if len(blobs) == 0 {
+		return nil, shwap.ErrBlobNotFound
+	}
+	return blobs[0], nil
+}
+
+func (g *Getter) GetBlobs(
+	ctx context.Context,
+	h *header.ExtendedHeader,
+	namespace libshare.Namespace,
+) ([]*shwap.Blob, error) {
+	acc, err := g.store.GetByHeight(ctx, h.Height())
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, shwap.ErrNotFound
+		}
+		return nil, fmt.Errorf("getting accessor from store:%w", err)
+	}
+	logger := log.With(
+		"height", h.Height(),
+		"namespace", namespace.String(),
+	)
+	defer utils.CloseAndLog(logger, "getter/blobs", acc)
+	return acc.Blobs(ctx, namespace)
 }
