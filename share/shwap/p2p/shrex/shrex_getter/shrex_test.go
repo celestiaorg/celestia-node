@@ -339,6 +339,42 @@ func TestShrexGetter(t *testing.T) {
 		assert.Len(t, samples, 3)
 	})
 
+	t.Run("Samples_EmptyBlock", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 0},
+			{Row: 0, Col: 1},
+			{Row: 1, Col: 0},
+		}
+
+		got, err := getter.GetSamples(ctx, eh, coords)
+		require.NoError(t, err)
+		require.Len(t, got, len(coords))
+		for _, smpl := range got {
+			require.False(t, smpl.IsEmpty(), "sample should not be empty for empty block")
+			require.NotNil(t, smpl.Proof, "sample proof should not be nil for empty block")
+		}
+	})
+
+	t.Run("Samples_EmptyBlock_OutOfBounds", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 5},
+		}
+
+		_, err := getter.GetSamples(ctx, eh, coords)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
+	})
+
 	t.Run("Row_Available", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
