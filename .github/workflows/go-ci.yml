@@ -13,23 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup:
-    name: Setup
-    runs-on: ubuntu-latest
-    outputs:
-      debug: ${{ steps.debug.outputs.debug }}
-    steps:
-      - name: Set debug output
-        id: debug
-        run: |
-          if [[ "${{ runner.debug }}" == "true" ]]; then
-            echo "debug=true" >> $GITHUB_ENV
-          else
-            echo "debug=false" >> $GITHUB_ENV
-          fi
-
   lint:
-    needs: [setup]
     name: Lint
     runs-on: ubuntu-latest
 
@@ -47,7 +31,6 @@ jobs:
           version: latest
 
   lint-imports:
-    needs: [setup]
     name: Lint Imports
     runs-on: ubuntu-latest
 
@@ -65,7 +48,6 @@ jobs:
         run: make lint-imports
 
   go_mod_tidy_check:
-    needs: [setup]
     name: Go Mod Tidy Check
     runs-on: ubuntu-latest
 
@@ -86,7 +68,6 @@ jobs:
         run: git diff --exit-code
 
   go_mod_parity_check:
-    needs: [setup]
     name: Go Mod Parity Check
     runs-on: ubuntu-latest
 
@@ -101,7 +82,6 @@ jobs:
         run: ./scripts/check-go-mod-parity.sh
 
   test_coverage:
-    needs: [setup]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
@@ -120,11 +100,11 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
-        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+        run: make test-unit ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v4
-        if: always() && needs.setup.outputs.debug == 'true'
+        if: always() && runner.debug == '1'
         with:
           name: unit-test-output-${{ matrix.os }}
           path: |
@@ -160,7 +140,7 @@ jobs:
   #         go-version: ${{ inputs.go-version }}
 
   #     - name: execute test run
-  #       run: make test-unit-race ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+  #       run: make test-unit-race ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
   integration_test:
     name: Integration Tests
