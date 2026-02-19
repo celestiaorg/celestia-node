@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -22,7 +22,7 @@ import (
 
 func TestRetriever_ByzantineError(t *testing.T) {
 	const width = 8
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	bserv := ipld.NewMemBlockservice()

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -24,12 +25,12 @@ type CoreGRPCConfig struct {
 	// AuthToken is the authentication token to be used for gRPC authentication.
 	// If left empty, the client will not include the authentication token in its requests.
 	// Note: AuthToken is insecure without TLS
-	AuthToken string
+	AuthToken string //nolint:gosec // not a hardcoded credential, user-provided config
 }
 
-// Validate performs basic validation of the config.
 func (cfg *CoreGRPCConfig) Validate() error {
-	_, err := utils.SanitizeAddr(cfg.Addr)
+	normalized := utils.NormalizeGRPCAddress(cfg.Addr)
+	_, _, err := net.SplitHostPort(normalized)
 	return err
 }
 
@@ -76,7 +77,8 @@ func grpcClient(cfg CoreGRPCConfig) (*grpc.ClientConn, error) {
 			grpc.WithChainStreamInterceptor(authStreamInterceptor(cfg.AuthToken), retryStreamInterceptor),
 		)
 	}
-	return grpc.NewClient(cfg.Addr, opts...)
+	normalizedAddr := utils.NormalizeGRPCAddress(cfg.Addr)
+	return grpc.NewClient(normalizedAddr, opts...)
 }
 
 func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {

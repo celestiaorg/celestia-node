@@ -28,7 +28,8 @@ type EndpointConfig struct {
 	// Must be set to true if XTokenPath is provided.
 	TLSEnabled bool
 	// XTokenPath specifies the path to the directory that contains a JSON file with the X-Token for gRPC authentication.
-	// The JSON file must contain a key "x-token" with the authentication token.
+	// The JSON file can be named either "xtoken.json" or "x-token.json".
+	// The JSON file must contain a key "x-token" (preferred) or "xtoken" with the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
 	XTokenPath string
 }

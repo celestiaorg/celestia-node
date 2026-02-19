@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.24-alpine3.22 AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.26-alpine3.22 AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -27,7 +27,7 @@ RUN uname -a && \
     make cel-key && \
     make cel-shed
 
-FROM docker.io/alpine:3.20.2
+FROM docker.io/alpine:3.23.3
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001

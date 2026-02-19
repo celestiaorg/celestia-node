@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -54,7 +54,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.network.Keyring, accountName, localHeader{s.network.Client}, nil, "")
+	accessor, err := NewCoreAccessor(s.network.Keyring, accountName, localHeader{s.network.Client}, nil, "", nil)
 	require.NoError(s.T(), err)
 	ctx, cancel := context.WithCancel(context.Background())
 	accessor.ctx = ctx

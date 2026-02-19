@@ -79,6 +79,8 @@ func (g *Getter) GetRow(ctx context.Context, h *header.ExtendedHeader, rowIdx in
 		}
 		return shwap.Row{}, fmt.Errorf("getting accessor from store: %w", err)
 	}
+	logger := log.With("height", h.Height())
+	defer utils.CloseAndLog(logger, "getter/row", acc)
 	axisHalf, err := acc.AxisHalf(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return shwap.Row{}, fmt.Errorf("getting axis half from accessor: %w", err)
@@ -123,6 +125,14 @@ func (g *Getter) GetRangeNamespaceData(
 		}
 		return shwap.RangeNamespaceData{}, fmt.Errorf("getting accessor from store:%w", err)
 	}
+
+	logger := log.With(
+		"height", h.Height(),
+		"from", from,
+		"to", to,
+	)
+	defer utils.CloseAndLog(logger, "getter/rng", acc)
+
 	rngData, err := acc.RangeNamespaceData(ctx, from, to)
 	if err != nil {
 		return shwap.RangeNamespaceData{}, fmt.Errorf("getting range from accessor:%w", err)

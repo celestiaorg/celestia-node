@@ -10,8 +10,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofrs/flock"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -166,7 +166,7 @@ func initRoot(path string) error {
 		return err
 	}
 
-	return os.Remove(f.Name())
+	return os.Remove(filepath.Join(path, ".check"))
 }
 
 // resetDir removes all files from the given directory and reinitializes it

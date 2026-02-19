@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
@@ -257,7 +257,7 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(workerAccounts))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(workerAccounts))
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
@@ -337,7 +337,7 @@ func TestTxWorkerSetup(t *testing.T) {
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, WithTxWorkerAccounts(8))
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(8))
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
@@ -345,6 +345,122 @@ func TestTxWorkerSetup(t *testing.T) {
 	// exist in keyring already (unfunded) and some are funded
 	err = ca.setupTxClient(ctx)
 	require.NoError(t, err)
+}
+
+// TestSubmitFromDefaultAccountWithoutTxWorkers ensures users can submit transactions
+// bypassing the queue from the default account
+func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
+	}
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond)
+
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	// configured without txworkers
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID, nil)
+	require.NoError(t, err)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+
+	randBlob, err := libshare.GenerateV0Blobs([]int{8}, false)
+	require.NoError(t, err)
+
+	nonDefaultAcct, err := cctx.Keyring.Key(accounts[3])
+	require.NoError(t, err)
+	addr, err := nonDefaultAcct.GetAddress()
+	require.NoError(t, err)
+
+	// check bals of accounts before tx (TODO @renaynay: hack til we get signer in txresp)
+	sdkAddress, err := sdktypes.AccAddressFromHexUnsafe(fmt.Sprintf("%X", addr.Bytes()))
+	require.NoError(t, err)
+	balNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	balDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+
+	// default tx config (submit from default acct)
+	_, err = ca.SubmitPayForBlob(ctx, randBlob, NewTxConfig())
+	require.NoError(t, err)
+
+	// ensure balance has remained the same for non-default account
+	updatedBalNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	require.True(t, updatedBalNonDefault.Amount.Equal(balNonDefault.Amount))
+
+	// ensure balance decreased for default account
+	updatedBalDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+	require.True(t, updatedBalDefault.Amount.LT(balDefault.Amount))
+
+	// TODO @renaynay: once tx response contains signer, check signer here
+}
+
+// TestSubmitFromCustomAccount ensures users can submit transactions
+// from a non-default account
+func TestSubmitFromCustomAccount(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	t.Cleanup(cancel)
+
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
+	}
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond)
+
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID, nil,
+		WithTxWorkerAccounts(8))
+	require.NoError(t, err)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+
+	randBlob, err := libshare.GenerateV0Blobs([]int{8}, false)
+	require.NoError(t, err)
+
+	nonDefaultAcct, err := cctx.Keyring.Key(accounts[3])
+	require.NoError(t, err)
+	addr, err := nonDefaultAcct.GetAddress()
+	require.NoError(t, err)
+
+	// check bals of accounts before tx (TODO @renaynay: hack til we get signer in txresp)
+	sdkAddress, err := sdktypes.AccAddressFromHexUnsafe(fmt.Sprintf("%X", addr.Bytes()))
+	require.NoError(t, err)
+	balNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	balDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+
+	txConf := NewTxConfig(WithSignerAddress(addr.String()))
+	_, err = ca.SubmitPayForBlob(ctx, randBlob, txConf)
+	require.NoError(t, err)
+
+	// ensure balance has decreased for non-default account
+	updatedBalNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
+	require.NoError(t, err)
+	require.True(t, updatedBalNonDefault.Amount.LT(balNonDefault.Amount))
+
+	// ensure balance remained same for default account
+	updatedBalDefault, err := ca.Balance(ctx)
+	require.NoError(t, err)
+	require.True(t, updatedBalDefault.Equal(balDefault))
+
+	// TODO @renaynay: once tx response contains signer, check signer here
 }
 
 func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
@@ -356,13 +472,16 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(time.Millisecond * 1)
+		WithDelayedPrecommitTimeout(time.Millisecond * 50)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 
+	_, err := cctx.WaitForHeight(int64(2))
+	require.NoError(t, err)
+
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, opts...)
+	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, opts...)
 	require.NoError(t, err)
 	return ca, accounts
 }

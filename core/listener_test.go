@@ -81,7 +81,10 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
 	cfg.Genesis.ChainID = testChainID
-	fetcher, _ := createCoreFetcher(t, cfg)
+	fetcher, network := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 	eds := createEdsPubSub(ctx, t)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())

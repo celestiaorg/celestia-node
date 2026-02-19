@@ -24,7 +24,7 @@ type fsKeystore struct {
 // NewFSKeystore creates a new Keystore over OS filesystem.
 // The path must point to a directory. It is created automatically if necessary.
 func NewFSKeystore(path string, ring keyring.Keyring) (Keystore, error) {
-	err := os.Mkdir(path, 0o755)
+	err := os.Mkdir(path, 0o700)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("keystore: failed to make a dir: %w", err)
 	}
@@ -88,18 +88,16 @@ func (f *fsKeystore) Get(n KeyName) (PrivKey, error) {
 func (f *fsKeystore) Delete(n KeyName) error {
 	path := f.pathTo(n.Base32())
 
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("keystore: key '%s' not found", n)
-	} else if err != nil {
-		return fmt.Errorf("keystore: check before reading key '%s' failed: %w", n, err)
+	err := os.Remove(path)
+	if err == nil {
+		return nil
 	}
 
-	err = os.Remove(path)
-	if err != nil {
-		return fmt.Errorf("keystore: failed to delete key '%s': %w", n, err)
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("keystore: key '%s' not found", n)
 	}
-	return nil
+
+	return fmt.Errorf("keystore: failed to delete key '%s': %w", n, err)
 }
 
 func (f *fsKeystore) List() ([]KeyName, error) {
@@ -115,7 +113,11 @@ func (f *fsKeystore) List() ([]KeyName, error) {
 			return nil, err
 		}
 
-		if err := checkPerms(e.Type()); err != nil {
+		info, err := e.Info()
+		if err != nil {
+			return nil, err
+		}
+		if err := checkPerms(info.Mode()); err != nil {
 			return nil, fmt.Errorf("keystore: permissions of key '%s' are too relaxed: %w", kn, err)
 		}
 
