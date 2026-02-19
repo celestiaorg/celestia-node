@@ -100,16 +100,14 @@ jobs:
       - name: Check go.mod parity between root and tastora
         run: ./scripts/check-go-mod-parity.sh
 
-  test_coverage:
+  unit_tests:
     needs: [setup]
-    name: Unit Tests Coverage
+    name: Unit Tests
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-14]
     runs-on: ${{ matrix.os }}
-    env:
-      OS: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -120,13 +118,31 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: run unit tests
+        run: make test-unit-fast ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+
+  coverage:
+    needs: [setup]
+    name: Coverage
+    runs-on: ubuntu-latest
+    env:
+      OS: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run unit tests with coverage
         run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v4
         if: always() && needs.setup.outputs.debug == 'true'
         with:
-          name: unit-test-output-${{ matrix.os }}
+          name: unit-test-output-ubuntu-latest
           path: |
             debug.log
             coverage.txt
@@ -138,7 +154,7 @@ jobs:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
-          name: coverage-${{ matrix.os }}
+          name: coverage-ubuntu-latest
 
   # @ramin - Temporarily removed while we figure out getting
   # these unit tests consistently running on ubuntu-latest
@@ -164,7 +180,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, test_coverage]
+    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, unit_tests]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}

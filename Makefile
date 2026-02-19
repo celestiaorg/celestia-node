@@ -155,6 +155,12 @@ test-unit:
 	@go test $(VERBOSE) -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
+## test-unit-fast: Run unit tests without coverage instrumentation.
+test-unit-fast:
+	@echo "--> Running unit tests"
+	@go test $(VERBOSE) `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+.PHONY: test-unit-fast
+
 ## test-unit-race: Run unit tests with data race detector.
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
