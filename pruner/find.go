@@ -60,27 +60,29 @@ func (s *Service) findPruneableHeaders(
 	}
 
 	// if our estimated range didn't cover enough headers, we need to fetch more
-	// TODO: This is really inefficient in the case that lastPruned is the default value, or if the
-	// node has been offline for a long time. Instead of increasing the boundary by one in the for
-	// loop we could increase by a range every iteration
 	headerCount := len(headers)
-	for {
-		if headerCount > maxHeadersPerLoop {
-			headers = headers[:maxHeadersPerLoop]
-			break
-		}
+	if headerCount < maxHeadersPerLoop {
 		lastHeader := headers[len(headers)-1]
-		if lastHeader.Time().After(pruneCutoff) {
-			break
+		if !lastHeader.Time().After(pruneCutoff) {
+			remaining := maxHeadersPerLoop - headerCount
+			maxToHeight := lastHeader.Height() + uint64(remaining) + 1
+			headHeightPlusOne := head.Height() + 1
+			if maxToHeight > headHeightPlusOne {
+				maxToHeight = headHeightPlusOne
+			}
+			if maxToHeight > lastHeader.Height()+1 {
+				moreHeaders, err := s.hstore.GetRangeByHeight(ctx, lastHeader, maxToHeight)
+				if err != nil {
+					log.Errorw("failed to get additional range from header store", "from", lastHeader.Height(),
+						"to", maxToHeight-1, "error", err)
+					return nil, err
+				}
+				headers = append(headers, moreHeaders...)
+			}
 		}
-
-		nextHeader, err := s.hstore.GetByHeight(ctx, lastHeader.Height()+1)
-		if err != nil {
-			log.Errorw("failed to get header by height", "height", lastHeader.Height()+1, "error", err)
-			return nil, err
-		}
-		headers = append(headers, nextHeader)
-		headerCount++
+	}
+	if len(headers) > maxHeadersPerLoop {
+		headers = headers[:maxHeadersPerLoop]
 	}
 
 	for i, h := range headers {
