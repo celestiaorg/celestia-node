@@ -187,6 +187,48 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	}
 }
 
+// TestExchange_ReturnsPartialRange tests that the Exchange
+// is able to return a partial range of headers if a routine fails
+// in the err group.
+func TestExchange_ReturnsPartialRange(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	cfg := DefaultTestConfig()
+	fetcher, cctx := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	generated := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
+	require.GreaterOrEqual(t, len(generated), 20)
+
+	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
+
+	ce, err := NewExchange(fetcher, store, header.MakeExtendedHeader)
+	require.NoError(t, err)
+
+	// initialize store with genesis block
+	genHeight := int64(1)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
+	require.NoError(t, err)
+	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
+	require.NoError(t, err)
+
+	to := generated[len(generated)-1].height
+	_, err = cctx.WaitForHeight(int64(to))
+	require.NoError(t, err)
+
+	shortCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+	t.Cleanup(cancel)
+
+	headers, err := ce.GetRangeByHeight(shortCtx, genHeader, to+20) // attempt to fetch non-existent blocks
+
+	require.NoError(t, err)
+	unexpectedAmount := (to + 20) - genHeader.Height() + 1
+	assert.Less(t, uint64(len(headers)), unexpectedAmount)
+}
+
 func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {
 	t.Helper()
 
