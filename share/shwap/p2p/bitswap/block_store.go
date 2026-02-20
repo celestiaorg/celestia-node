@@ -77,11 +77,11 @@ func (b *Blockstore) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 		return false, err
 	}
 
-	_, err = b.Getter.HasByHeight(ctx, blk.Height())
+	has, err := b.Getter.HasByHeight(ctx, blk.Height())
 	if err != nil {
 		return false, fmt.Errorf("checking EDS Accessor for height %v: %w", blk.Height(), err)
 	}
-	return true, nil
+	return has, nil
 }
 
 func (b *Blockstore) Put(context.Context, blocks.Block) error {
