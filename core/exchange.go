@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -19,7 +20,11 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-const concurrencyLimit = 16
+// concurrencyLimit returns the number of concurrent goroutines to use for fetching headers.
+// It is calculated as 2x the number of CPU cores available at runtime.
+func concurrencyLimit() int {
+	return runtime.NumCPU() * 2
+}
 
 var tracer = otel.Tracer("core")
 
@@ -121,7 +126,7 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 
 	start := time.Now()
 	errGroup, ctx := errgroup.WithContext(ctx)
-	errGroup.SetLimit(concurrencyLimit)
+	errGroup.SetLimit(concurrencyLimit())
 	for i := range headers {
 		errGroup.Go(func() error {
 			extHeader, err := ce.GetByHeight(ctx, from+uint64(i))
