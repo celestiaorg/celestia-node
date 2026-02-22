@@ -24,6 +24,11 @@ type samplingCoordinator struct {
 
 	// resultCh fans-in sampling results from worker to coordinator
 	resultCh chan result
+	// cleanupCh tells coordinator to delete failed heights at or
+	// below the height coming through the channel. This channel
+	// is only to be used by the header pruner to update the coordinator
+	// about newly pruned headers.
+	cleanupCh chan uint64
 	// updHeadCh signals to update network head header height
 	updHeadCh chan *header.ExtendedHeader
 	// waitCh signals to block coordinator for external access to state
@@ -55,9 +60,11 @@ func newSamplingCoordinator(
 		broadcastFn:      broadcast,
 		state:            newCoordinatorState(params),
 		resultCh:         make(chan result),
-		updHeadCh:        make(chan *header.ExtendedHeader),
-		waitCh:           make(chan *sync.WaitGroup),
-		done:             newDone("sampling coordinator"),
+		// allows 1 minute of headers to be deleted without blocking
+		cleanupCh: make(chan uint64, 10),
+		updHeadCh: make(chan *header.ExtendedHeader),
+		waitCh:    make(chan *sync.WaitGroup),
+		done:      newDone("sampling coordinator"),
 	}
 }
 
@@ -90,6 +97,8 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 			}
 		case res := <-sc.resultCh:
 			sc.state.handleResult(res)
+		case height := <-sc.cleanupCh:
+			sc.state.cleanupFailed(height)
 		case wg := <-sc.waitCh:
 			wg.Wait()
 		case <-ctx.Done():
@@ -152,4 +161,13 @@ func (sc *samplingCoordinator) concurrencyLimitReached() bool {
 // recentJobsLimitReached indicates whether concurrency limit for recent jobs has been reached
 func (sc *samplingCoordinator) recentJobsLimitReached() bool {
 	return len(sc.state.inProgress) >= 2*sc.concurrencyLimit
+}
+
+func (sc *samplingCoordinator) onHeaderPrune(ctx context.Context, height uint64) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case sc.cleanupCh <- height:
+		return nil
+	}
 }

@@ -311,3 +311,11 @@ func (s *coordinatorState) waitCatchUp(ctx context.Context) error {
 func (r retryAttempt) canRetry() bool {
 	return r.after.Before(time.Now())
 }
+
+func (s *coordinatorState) cleanupFailed(height uint64) {
+	for failedHeight := range s.failed {
+		if failedHeight <= height {
+			delete(s.failed, failedHeight)
+		}
+	}
+}
