@@ -143,8 +143,7 @@ func BenchmarkRowValidate(b *testing.B) {
 	row, err := RowFromEDS(eds, 0, Left)
 	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = row.Verify(root, 0)
 	}
 }
