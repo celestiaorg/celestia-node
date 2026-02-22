@@ -89,7 +89,8 @@ func (fa *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 		}
 		log.Errorw("availability validation failed", "root", dah.String(), "err", err.Error())
 		var byzantineErr *byzantine.ErrByzantine
-		if errors.Is(err, shwap.ErrNotFound) || errors.Is(err, context.DeadlineExceeded) && !errors.As(err, &byzantineErr) {
+		if (errors.Is(err, shwap.ErrNotFound) || errors.Is(err, context.DeadlineExceeded)) &&
+			!errors.As(err, &byzantineErr) {
 			return share.ErrNotAvailable
 		}
 		return err
