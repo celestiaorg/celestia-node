@@ -258,7 +258,8 @@ func TestFindPruneableHeaders(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = serv.Start(ctx)
+			serv.ctx = ctx
+			err = serv.loadCheckpoint(ctx)
 			require.NoError(t, err)
 
 			lastPruned, err := serv.lastPruned(ctx)
