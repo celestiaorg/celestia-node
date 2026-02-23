@@ -23,7 +23,7 @@ require (
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
-	github.com/filecoin-project/go-jsonrpc v0.6.0
+	github.com/filecoin-project/go-jsonrpc v0.10.1
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gofrs/flock v0.13.0
 	github.com/gogo/protobuf v1.3.3
