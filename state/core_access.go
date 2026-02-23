@@ -77,7 +77,7 @@ type CoreAccessor struct {
 	stakingCli      stakingtypes.QueryClient
 	distributionCli distributiontypes.QueryClient
 	feeGrantCli     feegrant.QueryClient
-	abciQueryCli tmservice.ServiceClient
+	abciQueryCli    tmservice.ServiceClient
 
 	prt *merkle.ProofRuntime
 
