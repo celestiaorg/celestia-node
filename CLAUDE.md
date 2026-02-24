@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Celestia-node is the Go implementation of Celestia's data availability (DA) node. It implements three node types:
+
 - **Bridge**: Bridges the Celestia consensus network to the DA network by connecting to a celestia-core node, listening for blocks, and broadcasting ExtendedHeaders
 - **Full**: Stores blocks in their entirety and can fully reconstruct data
 - **Light**: Lightweight node that verifies data availability by sampling 16 random shares per block
@@ -12,6 +13,7 @@ Celestia-node is the Go implementation of Celestia's data availability (DA) node
 ## Common Commands
 
 ### Build & Install
+
 ```bash
 make build              # Build celestia binary to build/
 make install            # Install celestia binary
@@ -20,6 +22,7 @@ make cel-key            # Build cel-key utility
 ```
 
 ### Testing
+
 ```bash
 make test-unit                           # Run unit tests with coverage
 make test-unit-race                      # Run unit tests with race detector
@@ -40,6 +43,7 @@ make test-tastora                        # All Tastora tests
 ```
 
 ### Code Quality
+
 ```bash
 make lint               # Run golangci-lint + markdownlint + cfmt
 make fmt                # Format code (gofmt, goimports, cfmt, gofumpt, markdownlint)
@@ -48,6 +52,7 @@ make lint-imports       # Lint Go import ordering
 ```
 
 ### Code Generation
+
 ```bash
 make pb-gen             # Regenerate protobuf files (requires protoc)
 make openrpc-gen        # Generate OpenRPC spec
@@ -57,10 +62,13 @@ go generate ./...       # Regenerate mocks (mockgen)
 ## Architecture
 
 ### Dependency Injection
+
 The project uses **go.uber.org/fx** for dependency injection. Each module in `nodebuilder/` has a `module.go` that provides its fx dependencies. The `nodebuilder/module.go` composes all modules together, with different configurations per node type.
 
 ### nodebuilder/ — Node Construction
+
 Each subdirectory is a module providing a specific capability:
+
 - `blob/` — Blob submission and retrieval
 - `core/` — Connection to celestia-core consensus node
 - `da/` — Data availability interface
@@ -77,6 +85,7 @@ Each subdirectory is a module providing a specific capability:
 Each module typically has: `config.go` (configuration), `module.go` (fx providers), interface definitions, and `mocks/` directory with mockgen-generated mocks.
 
 ### Core Domain Packages (top-level)
+
 - `header/` — ExtendedHeader type (block header + DAH + validator set + commit), syncer, store, P2P exchange
 - `share/` — Share types, namespace retrieval, availability interface with light/full implementations
 - `share/shwap/` — Share exchange protocol (Shwap) with sub-protocols: shrex (share exchange over libp2p streams), bitswap
@@ -87,18 +96,22 @@ Each module typically has: `config.go` (configuration), `module.go` (fx provider
 - `store/` — EDS (Extended Data Square) persistent storage
 
 ### Key Interfaces
+
 - `share.Availability` — Verifies data availability (light vs full implementations)
 - `share/shwap.Getter` — Retrieves shares/EDS/namespace data from the network
 - Each `nodebuilder/*/` module defines a `Module` interface that is the RPC API surface
 
 ### Networking
+
 Built on **libp2p** with:
+
 - PubSub (gossipsub) for header propagation (HeaderSub) and share notifications (ShrexSub)
 - Streams for direct share exchange (Shrex)
 - Bitswap for share retrieval
 - Kademlia DHT for peer discovery
 
 ### Testing Infrastructure
+
 - **Swamp** (`nodebuilder/tests/swamp/`): In-process mock network for integration tests. Creates mock networks with bridge/full/light nodes for testing inter-node communication.
 - **Tastora** (`nodebuilder/tests/tastora/`): Docker-based E2E framework using real containers.
 - Integration tests use build tags (see TAGS above) and live in `nodebuilder/tests/`.
@@ -106,17 +119,22 @@ Built on **libp2p** with:
 ## Code Conventions
 
 ### PR & Commit Style
+
 - PR titles: `pkg: Concise title` (e.g., `service/header: Remove race in core_listener`)
 - Commit messages: conventional commits recommended (e.g., `feat(service/header): Title`)
 
 ### Import Ordering
+
 Imports are enforced by `goimports-reviser` with three groups:
+
 1. Standard library
 2. Third-party packages
 3. `github.com/celestiaorg` packages (company prefix), with `github.com/celestiaorg/celestia-node` as the project
 
 ### Proto Changes
+
 Any changes to `*.proto` files require running `make pb-gen` and committing the generated `*.pb.go` files.
 
 ### Config Changes
+
 Changes to `nodebuilder/**/config.go` struct fields or `.proto` files are treated as potentially breaking and flagged by CI via `make detect-breaking`.
