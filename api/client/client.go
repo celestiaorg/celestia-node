@@ -27,6 +27,15 @@ type SubmitConfig struct {
 	DefaultKeyName string
 	Network        p2p.Network
 	CoreGRPCConfig CoreGRPCConfig
+	// TxWorkerAccounts is used for queued submission. It defines how many accounts the
+	// TxClient uses for PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	TxWorkerAccounts int
 }
 
 func (cfg Config) Validate() error {
@@ -40,6 +49,11 @@ func (cfg SubmitConfig) Validate() error {
 	if cfg.DefaultKeyName == "" {
 		return errors.New("default key name should not be empty")
 	}
+
+	if cfg.TxWorkerAccounts < 0 {
+		return fmt.Errorf("worker accounts must be non-negative")
+	}
+
 	return cfg.CoreGRPCConfig.Validate()
 }
 
@@ -90,6 +104,11 @@ func (c *Client) initTxClient(
 	conn *grpc.ClientConn,
 	kr keyring.Keyring,
 ) error {
+	var opts []state.Option
+	if submitCfg.TxWorkerAccounts > 0 {
+		opts = append(opts, state.WithTxWorkerAccounts(submitCfg.TxWorkerAccounts))
+	}
+
 	// key is specified. Set up core accessor and txClient
 	core, err := state.NewCoreAccessor(
 		kr,
@@ -97,6 +116,8 @@ func (c *Client) initTxClient(
 		trustedHeadGetter{remote: c.Header},
 		conn,
 		submitCfg.Network.String(),
+		nil,
+		opts...,
 	)
 	if err != nil {
 		return err

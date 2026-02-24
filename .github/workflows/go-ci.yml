@@ -41,10 +41,10 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8.0.0
+        uses: golangci/golangci-lint-action@v9.2.0
         with:
           args: --timeout 10m
-          version: latest
+          version: v2.10.1
 
   lint-imports:
     needs: [setup]
@@ -85,6 +85,21 @@ jobs:
       - name: Check for diff
         run: git diff --exit-code
 
+  go_mod_parity_check:
+    needs: [setup]
+    name: Go Mod Parity Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Check go.mod parity between root and tastora
+        run: ./scripts/check-go-mod-parity.sh
+
   test_coverage:
     needs: [setup]
     name: Unit Tests Coverage
@@ -108,7 +123,7 @@ jobs:
         run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
 
       - name: Upload unit test output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always() && needs.setup.outputs.debug == 'true'
         with:
           name: unit-test-output-${{ matrix.os }}
@@ -149,7 +164,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [go_mod_tidy_check, lint, lint-imports, test_coverage]
+    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, test_coverage]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}

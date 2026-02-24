@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -39,7 +39,7 @@ func TestBlobModule(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	sw.SetBootstrapper(t, bridge)
 
-	fullNode := sw.NewFullNode()
+	fullNode := sw.NewBridgeNode()
 	require.NoError(t, fullNode.Start(ctx))
 	addrFn := host.InfoFromHost(fullNode.Host)
 

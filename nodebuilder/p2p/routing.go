@@ -26,7 +26,7 @@ func newDHT(
 	switch tp {
 	case node.Light:
 		mode = dht.ModeClient
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		mode = dht.ModeServer
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", tp)

@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"

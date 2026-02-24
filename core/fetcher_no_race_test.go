@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +42,7 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
-	var nextBlock types.EventDataSignedBlock
+	var nextBlock SignedBlock
 	select {
 	case nextBlock = <-newBlockChan:
 	case <-ctx.Done():

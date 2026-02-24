@@ -24,7 +24,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -76,7 +76,7 @@ func init() {
 	add(true)
 	add([]byte("byte array"))
 	add(time.Second)
-	add(node.Full)
+	add(node.Bridge)
 	add(auth.Permission("admin"))
 	add(byzantine.BadEncoding)
 
