@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Celestia-node is the Go implementation of Celestia's data availability (DA) node. It implements three node types:
 
 - **Bridge**: Bridges the Celestia consensus network to the DA network by connecting to a celestia-core node, listening for blocks, and broadcasting ExtendedHeaders
-- **Full**: Stores blocks in their entirety and can fully reconstruct data
 - **Light**: Lightweight node that verifies data availability by sampling 16 random shares per block
 
 ## Common Commands
