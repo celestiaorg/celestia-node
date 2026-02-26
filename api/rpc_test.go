@@ -368,7 +368,7 @@ func setupNodeWithAuthedRPC(t *testing.T,
 		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
+	nd := nodebuilder.TestNode(t, node.Bridge, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
 		return jwtSigner, jwtVerifier, nil
 	}))
 	// start node

@@ -7,11 +7,9 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -31,15 +29,11 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		}),
 		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
 			coreAccessor,
-			fx.OnStart(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
-			) error {
-				return breaker.Start(ctx)
+			fx.OnStart(func(ctx context.Context, state *state.CoreAccessor) error {
+				return state.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
-			) error {
-				return breaker.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, state *state.CoreAccessor) error {
+				return state.Stop(ctx)
 			}),
 		)),
 		fxutil.ProvideIf(!coreCfg.IsEndpointConfigured(), func() (*state.CoreAccessor, Module) {
@@ -48,7 +42,7 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 	)
 
 	switch tp {
-	case node.Light, node.Full, node.Bridge:
+	case node.Light, node.Bridge:
 		return fx.Module(
 			"state",
 			baseComponents,

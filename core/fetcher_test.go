@@ -32,10 +32,10 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 			h := newBlockFromChan.Header.Height
 			block, err := fetcher.GetSignedBlock(ctx, h)
 			require.NoError(t, err)
-			assert.Equal(t, newBlockFromChan.Data, *block.Data)
-			assert.Equal(t, newBlockFromChan.Header, *block.Header)
-			assert.Equal(t, newBlockFromChan.Commit, *block.Commit)
-			assert.Equal(t, newBlockFromChan.ValidatorSet, *block.ValidatorSet)
+			assert.Equal(t, newBlockFromChan.Data, block.Data)
+			assert.Equal(t, newBlockFromChan.Header, block.Header)
+			assert.Equal(t, newBlockFromChan.Commit, block.Commit)
+			assert.Equal(t, newBlockFromChan.ValidatorSet, block.ValidatorSet)
 			require.GreaterOrEqual(t, newBlockFromChan.Header.Height, int64(i))
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())

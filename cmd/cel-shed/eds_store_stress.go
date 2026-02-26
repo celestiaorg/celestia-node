@@ -134,7 +134,7 @@ var edsStoreStress = &cobra.Command{
 			OpTimeout:   time.Duration(putTimeout) * time.Second,
 		}
 
-		err = nodebuilder.Init(*nodebuilder.DefaultConfig(node.Full), path, node.Full)
+		err = nodebuilder.Init(*nodebuilder.DefaultConfig(node.Bridge), path, node.Bridge)
 		if err != nil {
 			return err
 		}

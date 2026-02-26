@@ -8,7 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 )
 
 // FillBlocks produces the given amount of contiguous blocks with customizable size.
