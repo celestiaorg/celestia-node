@@ -2,6 +2,8 @@ package shrex_getter //nolint:stylecheck // underscore in pkg name will be fixed
 
 import (
 	"context"
+	"fmt"
+	"math/rand/v2"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -23,11 +25,11 @@ import (
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -42,11 +44,11 @@ func TestShrexGetter(t *testing.T) {
 	clHost, srvHost := net.Hosts()[0], net.Hosts()[1]
 
 	// launch eds store and put test data into it
-	edsStore, err := newStore(t)
-	require.NoError(t, err)
 
-	ndClient, _ := newNDClientServer(ctx, t, edsStore, srvHost, clHost)
-	edsClient, _ := newEDSClientServer(ctx, t, edsStore, srvHost, clHost)
+	st, err := newStore(t)
+	require.NoError(t, err)
+	edsStore := newWrappedStore(st)
+	client, _ := newShrexClientServer(ctx, t, edsStore, srvHost, clHost)
 
 	// create shrex Getter
 	sub := new(headertest.Subscriber)
@@ -56,7 +58,7 @@ func TestShrexGetter(t *testing.T) {
 	archivalPeerManager, err := testManager(ctx, clHost, sub)
 	require.NoError(t, err)
 
-	getter := NewGetter(edsClient, ndClient, fullPeerManager, archivalPeerManager, availability.RequestWindow)
+	getter := NewGetter(client, fullPeerManager, archivalPeerManager, availability.RequestWindow)
 	require.NoError(t, getter.Start(ctx))
 
 	height := atomic.Uint64{}
@@ -242,6 +244,189 @@ func TestShrexGetter(t *testing.T) {
 		require.ErrorIs(t, err, shwap.ErrNotFound)
 	})
 
+	t.Run("Samples_Available", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		odsSize := len(eh.DAH.RowRoots) / 2
+		coords := make([]shwap.SampleCoords, odsSize*odsSize)
+		total := 0
+		for i := 0; i < odsSize; i++ {
+			for j := 0; j < odsSize; j++ {
+				coords[total] = shwap.SampleCoords{Row: i, Col: j}
+				total++
+			}
+		}
+
+		got, err := getter.GetSamples(ctx, eh, coords)
+		require.NoError(t, err)
+		assert.Len(t, got, len(coords))
+
+		odsShares := randEDS.FlattenedODS()
+		require.NoError(t, err)
+		for i, samples := range got {
+			assert.Equal(t, odsShares[i], samples.ToBytes(), fmt.Sprintf("sample %d", i))
+		}
+	})
+
+	t.Run("Samples_Failed_coords_out_of_bound", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 10},
+		}
+
+		_, err := getter.GetSamples(ctx, eh, coords)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
+	})
+
+	t.Run("Samples_partial_response", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+		edsStore.targetHeight = int64(height)
+		edsStore.targetCoords = shwap.SampleCoords{Row: 0, Col: 5}
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 1},
+			{Row: 0, Col: 2},
+			{Row: 0, Col: 5},
+			{Row: 1, Col: 0},
+		}
+
+		samples, err := getter.GetSamples(ctx, eh, coords)
+		require.Error(t, err)
+		assert.NotNil(t, samples)
+		assert.Len(t, samples, 3)
+	})
+
+	t.Run("Samples_EmptyBlock", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 0},
+			{Row: 0, Col: 1},
+			{Row: 1, Col: 0},
+		}
+
+		got, err := getter.GetSamples(ctx, eh, coords)
+		require.NoError(t, err)
+		require.Len(t, got, len(coords))
+		for _, smpl := range got {
+			require.False(t, smpl.IsEmpty(), "sample should not be empty for empty block")
+			require.NotNil(t, smpl.Proof, "sample proof should not be nil for empty block")
+		}
+	})
+
+	t.Run("Samples_EmptyBlock_OutOfBounds", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		coords := []shwap.SampleCoords{
+			{Row: 0, Col: 5},
+		}
+
+		_, err := getter.GetSamples(ctx, eh, coords)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
+	})
+
+	t.Run("Row_Available", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		odsSize := len(roots.RowRoots)
+		for i := 0; i < odsSize; i++ {
+			row, err := getter.GetRow(ctx, eh, i)
+			require.NoError(t, err)
+			shrs, err := row.Shares()
+			require.NoError(t, err)
+			edsRow := randEDS.Row(uint(i))
+			for j, shr := range shrs {
+				require.Equal(t, edsRow[j], shr.ToBytes())
+			}
+		}
+	})
+
+	t.Run("Row_Failed_row_index_out_of_bound", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		// generate test data
+		randEDS, roots, _ := generateTestEDS(t)
+		height := height.Add(1)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+
+		_, err := getter.GetRow(ctx, eh, 20)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
+	})
+
 	// tests getPeer's ability to route requests based on whether
 	// they are historical or not
 	t.Run("routing_historical_requests", func(t *testing.T) {
@@ -271,6 +456,48 @@ func TestShrexGetter(t *testing.T) {
 		id, _, err = getter.getPeer(ctx, eh)
 		require.NoError(t, err)
 		assert.Equal(t, fullPeer.ID(), id)
+	})
+
+	t.Run("GetRangeNamespaceData", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+		t.Cleanup(cancel)
+
+		// generate test data
+		size := 64
+		namespace := libshare.RandomNamespace()
+		height := height.Add(1)
+		randEDS, roots := edstest.RandEDSWithNamespace(t, namespace, size*size, size)
+		eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+		eh.RawHeader.Height = int64(height)
+
+		err = edsStore.PutODSQ4(ctx, roots, height, randEDS)
+		require.NoError(t, err)
+		fullPeerManager.Validate(ctx, srvHost.ID(), shrexsub.Notification{
+			DataHash: roots.Hash(),
+			Height:   height,
+		})
+		_, err = getter.GetNamespaceData(ctx, eh, namespace)
+		require.NoError(t, err)
+
+		odsSize := len(roots.RowRoots) / 2
+
+		sharesAmount := odsSize * odsSize
+		fromIndex := rand.IntN(odsSize)
+		inclusiveToIndex := sharesAmount - fromIndex
+
+		from, err := shwap.SampleCoordsFrom1DIndex(fromIndex, odsSize)
+		require.NoError(t, err)
+		to, err := shwap.SampleCoordsFrom1DIndex(inclusiveToIndex, odsSize)
+		require.NoError(t, err)
+		rngdata, err := getter.GetRangeNamespaceData(context.Background(), eh, fromIndex, inclusiveToIndex+1)
+		require.NoError(t, err)
+		err = rngdata.VerifyInclusion(
+			from, to,
+			len(eh.DAH.RowRoots)/2,
+			eh.DAH.RowRoots[from.Row:to.Row+1],
+		)
+		require.NoError(t, err)
+		t.Logf("range of %d shares", inclusiveToIndex-fromIndex+1)
 	})
 }
 
@@ -312,42 +539,60 @@ func testManager(
 	return manager, err
 }
 
-func newNDClientServer(
-	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
-) (*shrexnd.Client, *shrexnd.Server) {
-	params := shrexnd.DefaultParameters()
-
+func newShrexClientServer(
+	ctx context.Context, t *testing.T, edsStore store.AccessorGetter, srvHost, clHost host.Host,
+) (*shrex.Client, *shrex.Server) {
 	// create server and register handler
-	server, err := shrexnd.NewServer(params, srvHost, edsStore)
+	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore)
 	require.NoError(t, err)
+	require.NoError(t, server.WithMetrics())
 	require.NoError(t, server.Start(ctx))
-
 	t.Cleanup(func() {
 		_ = server.Stop(ctx)
 	})
 
 	// create client and connect it to server
-	client, err := shrexnd.NewClient(params, clHost)
+	client, err := shrex.NewClient(shrex.DefaultClientParameters(), clHost)
 	require.NoError(t, err)
+	require.NoError(t, client.WithMetrics())
 	return client, server
 }
 
-func newEDSClientServer(
-	ctx context.Context, t *testing.T, edsStore *store.Store, srvHost, clHost host.Host,
-) (*shrexeds.Client, *shrexeds.Server) {
-	params := shrexeds.DefaultParameters()
+type wrappedStore struct {
+	*store.Store
 
-	// create server and register handler
-	server, err := shrexeds.NewServer(params, srvHost, edsStore)
-	require.NoError(t, err)
-	require.NoError(t, server.Start(ctx))
+	targetCoords shwap.SampleCoords
+	targetHeight int64
+}
 
-	t.Cleanup(func() {
-		_ = server.Stop(ctx)
-	})
+func newWrappedStore(store *store.Store) *wrappedStore {
+	return &wrappedStore{
+		Store:        store,
+		targetHeight: -1,
+	}
+}
 
-	// create client and connect it to server
-	client, err := shrexeds.NewClient(params, clHost)
-	require.NoError(t, err)
-	return client, server
+func (w *wrappedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
+	accessorStreamer, err := w.Store.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	if int64(height) != w.targetHeight {
+		return accessorStreamer, nil
+	}
+	return wrappedAccessorStreamer{AccessorStreamer: accessorStreamer, targetCoords: w.targetCoords}, nil
+}
+
+type wrappedAccessorStreamer struct {
+	eds.AccessorStreamer
+
+	targetCoords shwap.SampleCoords
+}
+
+func (w wrappedAccessorStreamer) Sample(ctx context.Context, coords shwap.SampleCoords) (shwap.Sample, error) {
+	if w.targetCoords.Row == coords.Row && w.targetCoords.Col == coords.Col {
+		return shwap.Sample{}, shwap.ErrNotFound
+	}
+
+	return w.AccessorStreamer.Sample(ctx, coords)
 }

@@ -1,6 +1,7 @@
 package nodebuilder
 
 import (
+	"net"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -16,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/state"
+	stateModule "github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
 const (
@@ -49,6 +50,15 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	cfg.RPC.Port = "0"
 	cfg.Header.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 
+	// Bridge node requires a core endpoint. Set config IP/Port so the
+	// production grpcClient provider creates a properly configured connection.
+	if tp == node.Bridge && cfg.Core.IP == "" {
+		tn := core.StartTestNode(t)
+		var err error
+		cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(tn.GRPCClient.Target())
+		require.NoError(t, err)
+	}
+
 	store := MockStore(t, cfg)
 	ks, err := store.Keystore()
 	require.NoError(t, err)
@@ -58,7 +68,7 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	_, _, err = kr.NewMnemonic(TestKeyringName, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	cfg.State.DefaultKeyName = TestKeyringName
-	_, accName, err := state.Keyring(cfg.State, ks)
+	_, accName, err := stateModule.Keyring(cfg.State, ks)
 	require.NoError(t, err)
 	require.Equal(t, TestKeyringName, string(accName))
 
@@ -68,15 +78,6 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		// avoid requesting trustedPeer during initialization
 		fxutil.ReplaceAs(headertest.NewStore(t), new(libhead.Store[*header.ExtendedHeader])),
 	)
-
-	// in fact, we don't need core.Client in tests, but Bridge requires is a valid one
-	// or fails otherwise with failed attempt to connect with custom build client
-	if tp == node.Bridge {
-		cctx := core.StartTestNode(t)
-		opts = append(opts,
-			fxutil.ReplaceAs(cctx.Client, new(core.Client)),
-		)
-	}
 
 	nd, err := New(tp, p2p.Private, store, opts...)
 	require.NoError(t, err)

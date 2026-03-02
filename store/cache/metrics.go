@@ -20,7 +20,7 @@ type metrics struct {
 }
 
 func newMetrics(bc *AccessorCache) (*metrics, error) {
-	metricsPrefix := fmt.Sprintf("eds_cache_%p_", bc)
+	metricsPrefix := fmt.Sprintf("eds_cache_%s_", bc.name)
 
 	evictedCounter, err := meter.Int64Counter(metricsPrefix+"evicted_counter",
 		metric.WithDescription("eds cache evicted event counter"))

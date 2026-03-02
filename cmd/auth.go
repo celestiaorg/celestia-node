@@ -29,6 +29,11 @@ func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 		Long: "Signs and outputs a hex-encoded JWT token with the given permissions. NOTE: only use this command when " +
 			"the node has already been initialized and started.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			err := ParseStoreDeterminationFlags(cmd, NodeType(cmd.Context()), args)
+			if err != nil {
+				return err
+			}
+
 			if len(args) != 1 {
 				return errors.New("must specify permissions")
 			}

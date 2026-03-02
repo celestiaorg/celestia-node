@@ -156,6 +156,21 @@ func (mr *MockModuleMockRecorder) SyncWait(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncWait", reflect.TypeOf((*MockModule)(nil).SyncWait), arg0)
 }
 
+// Tail mocks base method.
+func (m *MockModule) Tail(arg0 context.Context) (*header.ExtendedHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Tail", arg0)
+	ret0, _ := ret[0].(*header.ExtendedHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Tail indicates an expected call of Tail.
+func (mr *MockModuleMockRecorder) Tail(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tail", reflect.TypeOf((*MockModule)(nil).Tail), arg0)
+}
+
 // WaitForHeight mocks base method.
 func (m *MockModule) WaitForHeight(arg0 context.Context, arg1 uint64) (*header.ExtendedHeader, error) {
 	m.ctrl.T.Helper()

@@ -2,18 +2,15 @@ package pruner
 
 import (
 	"context"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/core"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/pruner"
-	"github.com/celestiaorg/celestia-node/pruner/full"
 	"github.com/celestiaorg/celestia-node/share/availability"
 	fullavail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
@@ -22,13 +19,8 @@ import (
 
 var log = logging.Logger("module/pruner")
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
-	baseComponents := fx.Options(
-		fx.Supply(cfg),
-		availWindow(tp, cfg.EnableService),
-		advertiseArchival(tp, cfg),
-	)
-
+func ConstructModule(tp node.Type) fx.Option {
+	cfg := DefaultConfig()
 	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
@@ -44,82 +36,92 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Invoke(func(_ *pruner.Service) {}),
 	)
 
+	baseComponents := fx.Options(
+		// supply the default config, which can only be overridden by
+		// passing the `--archival` flag
+		fx.Supply(cfg),
+		fx.Provide(func(cfg *Config) node.ArchivalMode {
+			return node.ArchivalMode(!cfg.EnableService)
+		}),
+		// TODO @renaynay: move this to share module construction
+		advertiseArchival(),
+		prunerService,
+	)
+
 	switch tp {
 	case node.Light:
 		// LNs enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
-			prunerService,
+			fx.Supply(modshare.Window(availability.SamplingWindow)),
 			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 			//  note this provide exists in pruner module to avoid cyclical imports
 			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
 		)
-	case node.Full:
-		if cfg.EnableService {
-			return fx.Module("prune",
-				baseComponents,
-				prunerService,
-				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
-				fx.Supply([]fullavail.Option{}),
-			)
-		}
-		return fx.Module("prune",
-			baseComponents,
-			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
-				return pruner.DetectPreviousRun(ctx, ds)
-			}),
-			fx.Supply([]fullavail.Option{fullavail.WithArchivalMode()}),
-		)
 	case node.Bridge:
-		if cfg.EnableService {
-			return fx.Module("prune",
-				baseComponents,
-				prunerService,
-				fxutil.ProvideAs(full.NewPruner, new(pruner.Pruner)),
-				fx.Supply([]fullavail.Option{}),
-				fx.Supply([]core.Option{}),
-			)
-		}
 		return fx.Module("prune",
 			baseComponents,
-			fx.Invoke(func(ctx context.Context, ds datastore.Batching) error {
-				return pruner.DetectPreviousRun(ctx, ds)
+			fx.Provide(func(cfg *Config) ([]core.Option, []fullavail.Option) {
+				if cfg.EnableService {
+					return make([]core.Option, 0), make([]fullavail.Option, 0)
+				}
+				return []core.Option{core.WithArchivalMode()}, []fullavail.Option{fullavail.WithArchivalMode()}
 			}),
-			fx.Supply([]fullavail.Option{fullavail.WithArchivalMode()}),
-			fx.Supply([]core.Option{core.WithArchivalMode()}),
+			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
+			fx.Supply(modshare.Window(availability.StorageWindow)),
+			fx.Invoke(convertToPruned),
 		)
 	default:
 		panic("unknown node type")
 	}
 }
 
-func advertiseArchival(tp node.Type, pruneCfg *Config) fx.Option {
-	if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
-		return fx.Supply(discovery.WithAdvertise())
-	}
-	return fx.Provide(func() discovery.Option {
+func advertiseArchival() fx.Option {
+	return fx.Provide(func(tp node.Type, pruneCfg *Config) discovery.Option {
+		if tp == node.Bridge && !pruneCfg.EnableService {
+			return discovery.WithAdvertise()
+		}
 		var opt discovery.Option
 		return opt
 	})
 }
 
-func availWindow(tp node.Type, pruneEnabled bool) fx.Option {
-	switch tp {
-	case node.Light:
-		// light nodes are still subject to sampling within window
-		// even if pruning is not enabled.
-		return fx.Provide(func() modshare.Window {
-			return modshare.Window(availability.StorageWindow)
-		})
-	case node.Full, node.Bridge:
-		return fx.Provide(func() modshare.Window {
-			if pruneEnabled {
-				return modshare.Window(availability.StorageWindow)
-			}
-			// implicitly disable pruning by setting the window to 0
-			return modshare.Window(time.Duration(0))
-		})
-	default:
-		panic("unknown node type")
+// convertToPruned checks if the node is being converted to an archival node
+// to a pruned node.
+func convertToPruned(
+	lc fx.Lifecycle,
+	cfg *Config,
+	ds datastore.Batching,
+	p *pruner.Service,
+) error {
+	convertFn := func(ctx context.Context) error {
+		lastPrunedHeight, err := p.LastPruned(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = detectFirstRun(ctx, cfg, ds, lastPrunedHeight)
+		if err != nil {
+			return err
+		}
+
+		isArchival := !cfg.EnableService
+		convert, err := fullavail.ConvertFromArchivalToPruned(ctx, ds, isArchival)
+		if err != nil {
+			return err
+		}
+
+		// if we convert the node from archival to pruned, we need to reset the checkpoint
+		// to ensure the node goes back and deletes *all* blocks older than the
+		// availability window, as archival "pruning" only trims the .q4 file,
+		// but retains the ODS.
+		if convert {
+			return p.ResetCheckpoint(ctx)
+		}
+
+		return nil
 	}
+
+	lc.Append(fx.StartHook(convertFn))
+	return nil
 }

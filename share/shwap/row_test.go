@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -16,7 +16,7 @@ func TestRowShares(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
 
-	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
+	for rowIdx := range odsSize * 2 {
 		for _, side := range []RowSide{Left, Right, Both} {
 			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)
@@ -33,7 +33,7 @@ func TestRowShares(t *testing.T) {
 func TestRowMarshal(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
-	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
+	for rowIdx := range odsSize * 2 {
 		for _, side := range []RowSide{Left, Right, Both} {
 			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestRowValidate(t *testing.T) {
 	root, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 
-	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
+	for rowIdx := range odsSize * 2 {
 		for _, side := range []RowSide{Left, Right, Both} {
 			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestRowProtoEncoding(t *testing.T) {
 	const odsSize = 8
 	eds := edstest.RandEDS(t, odsSize)
 
-	for rowIdx := 0; rowIdx < odsSize*2; rowIdx++ {
+	for rowIdx := range odsSize * 2 {
 		for _, side := range []RowSide{Left, Right, Both} {
 			row, err := RowFromEDS(eds, rowIdx, side)
 			require.NoError(t, err)

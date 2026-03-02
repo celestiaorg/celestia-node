@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	coreFlag     = "core.ip"
-	coreRPCFlag  = "core.rpc.port"
-	coreGRPCFlag = "core.grpc.port"
+	coreIPFlag         = "core.ip"
+	corePortFlag       = "core.port"
+	coreTLS            = "core.tls"
+	coreXTokenPathFlag = "core.xtoken.path" //nolint:gosec
 )
 
 // Flags gives a set of hardcoded Core flags.
@@ -18,21 +19,31 @@ func Flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 
 	flags.String(
-		coreFlag,
+		coreIPFlag,
 		"",
 		"Indicates node to connect to the given core node. "+
 			"Example: <ip>, 127.0.0.1. <dns>, subdomain.domain.tld "+
-			"Assumes RPC port 26657 and gRPC port 9090 as default unless otherwise specified.",
+			"Assumes gRPC port 9090 as default unless otherwise specified.",
 	)
 	flags.String(
-		coreRPCFlag,
-		DefaultRPCPort,
-		"Set a custom RPC port for the core node connection. The --core.ip flag must also be provided.",
-	)
-	flags.String(
-		coreGRPCFlag,
-		DefaultGRPCPort,
+		corePortFlag,
+		DefaultPort,
 		"Set a custom gRPC port for the core node connection. The --core.ip flag must also be provided.",
+	)
+	flags.Bool(
+		coreTLS,
+		false,
+		"Specifies whether TLS is enabled or not. Default: false",
+	)
+	flags.String(
+		coreXTokenPathFlag,
+		"",
+		"specifies the directory path containing the JSON file with the X-Token for gRPC authentication. "+
+			"The JSON file can be named either 'xtoken.json' or 'x-token.json'. "+
+			"The JSON file should have a key-value pair where the key is 'x-token' (preferred) or 'xtoken', "+
+			"and the value is the authentication token. "+
+			"NOTE: the path is parsed only if core.tls enabled. "+
+			"If left empty, the client will not include the X-Token in its requests.",
 	)
 	return flags
 }
@@ -42,24 +53,36 @@ func ParseFlags(
 	cmd *cobra.Command,
 	cfg *Config,
 ) error {
-	coreIP := cmd.Flag(coreFlag).Value.String()
+	coreIP := cmd.Flag(coreIPFlag).Value.String()
 	if coreIP == "" {
-		if cmd.Flag(coreGRPCFlag).Changed || cmd.Flag(coreRPCFlag).Changed {
-			return fmt.Errorf("cannot specify RPC/gRPC ports without specifying an IP address for --core.ip")
+		if cmd.Flag(corePortFlag).Changed {
+			return fmt.Errorf("cannot specify gRPC port without specifying an IP address for --core.ip")
 		}
 		return nil
 	}
 
-	if cmd.Flag(coreRPCFlag).Changed {
-		rpc := cmd.Flag(coreRPCFlag).Value.String()
-		cfg.RPCPort = rpc
+	// Set port from flag if explicitly changed, otherwise preserve config value or use default
+	if cmd.Flag(corePortFlag).Changed {
+		grpc := cmd.Flag(corePortFlag).Value.String()
+		cfg.Port = grpc
+	} else if cfg.Port == "" {
+		// If no config value and flag not changed, use default
+		cfg.Port = DefaultPort
 	}
 
-	if cmd.Flag(coreGRPCFlag).Changed {
-		grpc := cmd.Flag(coreGRPCFlag).Value.String()
-		cfg.GRPCPort = grpc
+	enabled, err := cmd.Flags().GetBool(coreTLS)
+	if err != nil {
+		return err
 	}
 
+	if enabled {
+		cfg.TLSEnabled = true
+		if cmd.Flag(coreXTokenPathFlag).Changed {
+			path := cmd.Flag(coreXTokenPathFlag).Value.String()
+			cfg.XTokenPath = path
+		}
+	}
 	cfg.IP = coreIP
+
 	return cfg.Validate()
 }

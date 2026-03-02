@@ -15,9 +15,10 @@ func TestValidate(t *testing.T) {
 		{
 			name: "valid config",
 			cfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
 			},
 			expectErr: false,
 		},
@@ -29,52 +30,79 @@ func TestValidate(t *testing.T) {
 		{
 			name: "hostname preserved",
 			cfg: Config{
-				IP:       "celestia.org",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "celestia.org",
+					Port: DefaultPort,
+				},
 			},
 			expectErr: false,
 		},
 		{
-			name: "missing RPC port",
-			cfg: Config{
-				IP:       "127.0.0.1",
-				GRPCPort: DefaultGRPCPort,
-			},
-			expectErr: true,
-		},
-		{
 			name: "missing GRPC port",
 			cfg: Config{
-				IP:      "127.0.0.1",
-				RPCPort: DefaultRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP: "127.0.0.1",
+				},
 			},
 			expectErr: true,
 		},
 		{
 			name: "invalid IP, but will be accepted as host and not raise an error",
 			cfg: Config{
-				IP:       "invalid-ip",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "invalid-ip",
+					Port: DefaultPort,
+				},
 			},
 			expectErr: false,
 		},
 		{
-			name: "invalid RPC port",
+			name: "invalid port",
 			cfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  "invalid-port",
-				GRPCPort: DefaultGRPCPort,
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: "invalid-port",
+				},
 			},
 			expectErr: true,
 		},
 		{
-			name: "invalid GRPC port",
+			name: "valid additional endpoints",
 			cfg: Config{
-				IP:       "127.0.0.1",
-				RPCPort:  DefaultRPCPort,
-				GRPCPort: "invalid-port",
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
+				AdditionalCoreEndpoints: []EndpointConfig{
+					{
+						IP:   "248.249.255.138",
+						Port: "4040",
+					},
+					{
+						IP:   "101.255.7.172",
+						Port: DefaultPort,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "invalid additional endpoints",
+			cfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
+				AdditionalCoreEndpoints: []EndpointConfig{
+					{
+						IP:   "248.249.255.138",
+						Port: "invalid-port",
+					},
+					{
+						IP:   "101.255.7.172",
+						Port: DefaultPort,
+					},
+				},
 			},
 			expectErr: true,
 		},

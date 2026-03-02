@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // parser helps to collect shares and transform them into a blob.
@@ -40,7 +40,8 @@ func (p *parser) set(index int, shrs []libshare.Share) ([]libshare.Share, error)
 	// `+=` as index could be updated in `skipPadding`
 	p.index += index
 	length := shrs[0].SequenceLen()
-	p.length = libshare.SparseSharesNeeded(length)
+	containsSigner := shrs[0].Version() == libshare.ShareVersionOne
+	p.length = libshare.SparseSharesNeeded(length, containsSigner)
 	return shrs, nil
 }
 
@@ -59,7 +60,7 @@ func (p *parser) addShares(shares []libshare.Share) (shrs []libshare.Share, isCo
 	}
 
 	if index == -1 {
-		return
+		return shrs, isComplete
 	}
 
 	if index+1 >= len(shares) {

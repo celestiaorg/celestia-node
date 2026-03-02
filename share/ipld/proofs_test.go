@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -37,9 +37,9 @@ func TestGetProof(t *testing.T) {
 		case rsmt2d.Col:
 			roots = axisRoots.ColumnRoots
 		}
-		for axisIdx := 0; axisIdx < width*2; axisIdx++ {
+		for axisIdx := range width * 2 {
 			root := roots[axisIdx]
-			for shrIdx := 0; shrIdx < width*2; shrIdx++ {
+			for shrIdx := range width * 2 {
 				proof, err := GetProof(ctx, bServ, root, shrIdx, int(in.Width()))
 				require.NoError(t, err)
 				rootCid := MustCidFromNamespacedSha256(root)

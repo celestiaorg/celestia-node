@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -34,13 +34,13 @@ func TestStoreGetter(t *testing.T) {
 		require.NoError(t, err)
 
 		squareSize := int(eds.Width())
-		for i := 0; i < squareSize; i++ {
-			for j := 0; j < squareSize; j++ {
+		for i := range squareSize {
+			for j := range squareSize {
 				idx := shwap.SampleCoords{Row: i, Col: j}
 
 				smpls, err := sg.GetSamples(ctx, eh, []shwap.SampleCoords{idx})
 				require.NoError(t, err)
-				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].Share.ToBytes())
+				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].ToBytes())
 			}
 		}
 
@@ -78,7 +78,7 @@ func TestStoreGetter(t *testing.T) {
 		err := edsStore.PutODSQ4(ctx, eh.DAH, height, eds)
 		require.NoError(t, err)
 
-		for i := 0; i < len(eh.DAH.RowRoots); i++ {
+		for i := range eh.DAH.RowRoots {
 			row, err := sg.GetRow(ctx, eh, i)
 			require.NoError(t, err)
 			retreivedShrs, err := row.Shares()

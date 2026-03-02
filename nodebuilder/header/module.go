@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/pidstore"
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -30,24 +30,30 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Supply(*cfg),
 		fx.Error(cfgErr),
 		fx.Provide(newHeaderService),
-		fx.Provide(newInitStore[H]),
+		fx.Provide(newStore[H]),
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
 		}),
-		fx.Provide(newSyncer[H]),
 		fx.Provide(fx.Annotate(
-			newFraudedSyncer[H],
+			newSyncer[H],
 			fx.OnStart(func(
 				ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
+				syncer *sync.Syncer[H],
 			) error {
-				return breaker.Start(ctx)
+				// TODO(@Wondertan): This fix flakes in e2e tests
+				//  This is coming from the store asynchronity.
+				//  Previously, we would request genesis during initialization
+				//  but now we request it during Syncer start and given to the Store.
+				//  However, the Store doesn't makes it immediately available causing flakes
+				//  The proper fix will be in a follow up release after pruning.
+				defer time.Sleep(time.Millisecond * 100)
+				return syncer.Start(ctx)
 			}),
 			fx.OnStop(func(
 				ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
+				syncer *sync.Syncer[H],
 			) error {
-				return breaker.Stop(ctx)
+				return syncer.Stop(ctx)
 			}),
 		)),
 		fx.Provide(fx.Annotate(
@@ -89,16 +95,19 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return server.Stop(ctx)
 			}),
 		)),
+		fx.Provide(newP2PExchange[H]),
+		fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+			return pidstore.NewPeerIDStore(ctx, ds)
+		}),
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(newP2PExchange[H]),
-			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
-				return pidstore.NewPeerIDStore(ctx, ds)
+			fx.Provide(func(ex *p2p.Exchange[H]) libhead.Exchange[H] {
+				return ex
 			}),
 		)
 	case node.Bridge:

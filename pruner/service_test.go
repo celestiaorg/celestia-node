@@ -54,9 +54,9 @@ func TestService(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 2)
 
+	serv.prune(ctx)
 	lastPruned, err := serv.lastPruned(ctx)
 	require.NoError(t, err)
-	lastPruned = serv.prune(ctx, lastPruned)
 
 	assert.Greater(t, lastPruned.Height(), uint64(2))
 	assert.Greater(t, serv.checkpoint.LastPrunedHeight, uint64(2))
@@ -98,9 +98,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 	time.Sleep(time.Millisecond * 50)
 
 	// trigger a prune job
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
-	_ = serv.prune(ctx, lastPruned)
+	serv.prune(ctx)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 3)
 	for expectedFail := range mp.failHeight {
@@ -110,9 +108,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 
 	// trigger another prune job, which will prioritize retrying
 	// failed blocks
-	lastPruned, err = serv.lastPruned(ctx)
-	require.NoError(t, err)
-	_ = serv.prune(ctx, lastPruned)
+	serv.prune(ctx)
 
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
@@ -190,9 +186,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	time.Sleep(availabilityWindow + time.Millisecond*100)
 
 	// trigger a prune job
-	lastPruned, err := serv.lastPruned(ctx)
-	require.NoError(t, err)
-	_ = serv.prune(ctx, lastPruned)
+	serv.prune(ctx)
 
 	// ensure all headers have been pruned
 	assert.Equal(t, uint64(maxHeadersPerLoop*5), serv.checkpoint.LastPrunedHeight)
@@ -200,6 +194,8 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 }
 
 func TestFindPruneableHeaders(t *testing.T) {
+	now := time.Now()
+
 	testCases := []struct {
 		name           string
 		availWindow    time.Duration
@@ -215,9 +211,9 @@ func TestFindPruneableHeaders(t *testing.T) {
 			blockTime:   time.Hour,
 			// Make two weeks of headers
 			headerAmount: 2 * (24 * 7),
-			startTime:    time.Now().Add(-2 * time.Hour * 24 * 7),
+			startTime:    now.Add(-2 * time.Hour * 24 * 7),
 			// One week of headers are pruneable
-			expectedLength: (24 * 7) + 1,
+			expectedLength: (24 * 7),
 		},
 		{
 			name: "Estimated range not sufficient but finds the correct tail",
@@ -226,9 +222,9 @@ func TestFindPruneableHeaders(t *testing.T) {
 			blockTime:   time.Hour,
 			// Make three weeks of headers
 			headerAmount: 3 * (24 * 7),
-			startTime:    time.Now().Add(-3 * time.Hour * 24 * 7),
+			startTime:    now.Add(-3 * time.Hour * 24 * 7),
 			// Two weeks of headers are pruneable
-			expectedLength: (2 * 24 * 7) + 1,
+			expectedLength: (2 * 24 * 7),
 		},
 		{
 			name: "No pruneable headers",
@@ -237,7 +233,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			blockTime:   time.Hour,
 			// Make one week of headers
 			headerAmount: 24 * 7,
-			startTime:    time.Now().Add(-time.Hour * 24 * 7),
+			startTime:    now.Add(-time.Hour * 24 * 7),
 			// No headers are pruneable
 			expectedLength: 0,
 		},
@@ -262,7 +258,8 @@ func TestFindPruneableHeaders(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = serv.Start(ctx)
+			serv.ctx = ctx
+			err = serv.loadCheckpoint(ctx)
 			require.NoError(t, err)
 
 			lastPruned, err := serv.lastPruned(ctx)
@@ -272,7 +269,9 @@ func TestFindPruneableHeaders(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, pruneable, tc.expectedLength)
 
-			pruneableCutoff := time.Now().Add(-tc.availWindow)
+			head, err := store.Head(ctx)
+			require.NoError(t, err)
+			pruneableCutoff := head.Time().Add(-tc.availWindow)
 			// All returned headers are older than the availability window
 			for _, h := range pruneable {
 				require.WithinRange(t, h.Time(), tc.startTime, pruneableCutoff)
@@ -284,11 +283,45 @@ func TestFindPruneableHeaders(t *testing.T) {
 				if lastPruneable.Height() != store.Height() {
 					firstUnpruneable, err := store.GetByHeight(ctx, lastPruneable.Height()+1)
 					require.NoError(t, err)
-					require.WithinRange(t, firstUnpruneable.Time(), pruneableCutoff, time.Now())
+					require.WithinRange(t, firstUnpruneable.Time().UTC(), pruneableCutoff, head.Time().UTC())
 				}
 			}
 		})
 	}
+}
+
+func TestService_ClearCheckpoint(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	hstore := headertest.NewStore(t)
+	serv, err := NewService(
+		&mockPruner{},
+		time.Second, // doesn't matter
+		hstore,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		time.Second, // doesn't matter
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+
+	oldCp := &checkpoint{LastPrunedHeight: 500, FailedHeaders: map[uint64]struct{}{4: {}}}
+	err = storeCheckpoint(ctx, serv.ds, oldCp)
+	require.NoError(t, err)
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, oldCp, serv.checkpoint)
+
+	err = serv.ResetCheckpoint(ctx)
+	require.NoError(t, err)
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	tail, err := hstore.Tail(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, newCheckpoint(tail.Height()), serv.checkpoint)
 }
 
 type mockPruner struct {

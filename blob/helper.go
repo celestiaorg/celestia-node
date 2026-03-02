@@ -3,7 +3,9 @@ package blob
 import (
 	"sort"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // BlobsToShares accepts blobs and convert them to the Shares.
@@ -32,8 +34,22 @@ func ToLibBlobs(blobs ...*Blob) []*libshare.Blob {
 	return libBlobs
 }
 
+// ToNodeBlobs converts libshare blob type to the node's specific blob type.
+func ToNodeBlobs(blobs ...*libshare.Blob) ([]*Blob, error) {
+	nodeBlobs := make([]*Blob, len(blobs))
+	hashFromByteSlices := merkle.HashFromByteSlices
+	for i, blob := range blobs {
+		com, err := inclusion.CreateCommitment(blob, hashFromByteSlices, subtreeRootThreshold)
+		if err != nil {
+			return nil, err
+		}
+		nodeBlobs[i] = &Blob{Blob: blob, Commitment: com, index: -1}
+	}
+	return nodeBlobs, nil
+}
+
 func calculateIndex(rowLength, blobIndex int) (row, col int) {
 	row = blobIndex / rowLength
 	col = blobIndex - (row * rowLength)
-	return
+	return row, col
 }

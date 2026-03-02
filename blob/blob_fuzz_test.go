@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
-func FuzzProofEqual(f *testing.F) {
+func FuzzBlobUnmarshal(f *testing.F) {
 	if testing.Short() {
 		f.Skip("in -short mode")
 	}
@@ -43,7 +43,7 @@ func FuzzProofEqual(f *testing.F) {
 type verifyCorpus struct {
 	CP         *CommitmentProof `json:"commitment_proof"`
 	Root       []byte           `json:"root"`
-	SThreshold int              `json:"sub_threshold"`
+	Commitment Commitment       `json:"commitment"`
 }
 
 func FuzzCommitmentProofVerify(f *testing.F) {
@@ -87,6 +87,6 @@ func FuzzCommitmentProofVerify(f *testing.F) {
 		if commitProof == nil {
 			return
 		}
-		_, _ = commitProof.Verify(val.Root, val.SThreshold)
+		_ = commitProof.Verify(val.Root, val.Commitment)
 	})
 }

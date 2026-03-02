@@ -38,14 +38,16 @@ func lightGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, bitswapGetter)
+	if cfg.UseBitswap {
+		cascade = append(cascade, bitswapGetter)
+	}
 	return getters.NewCascadeGetter(cascade)
 }
 
 // Getter is added to bridge nodes for the case where Bridge nodes are
 // running in a pruned mode. This ensures the block can be retrieved from
 // the network if it was pruned from the local store.
-func bridgeAndFullGetter(
+func bridgeGetter(
 	storeGetter *store.Getter,
 	shrexGetter *shrex_getter.Getter,
 	bitswapGetter *bitswap.Getter,
@@ -56,6 +58,8 @@ func bridgeAndFullGetter(
 	if cfg.UseShareExchange {
 		cascade = append(cascade, shrexGetter)
 	}
-	cascade = append(cascade, bitswapGetter)
+	if cfg.UseBitswap {
+		cascade = append(cascade, bitswapGetter)
+	}
 	return getters.NewCascadeGetter(cascade)
 }

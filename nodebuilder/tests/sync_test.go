@@ -44,12 +44,14 @@ Full node:
 8. Wait for FN DASer to catch up to network head
 */
 func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(sbtime))
 	// wait for core network to fill 20 blocks
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create a bridge node and set it as the bootstrapper for the suite
@@ -87,7 +89,7 @@ func TestSyncAgainstBridge_NonEmptyChain(t *testing.T) {
 
 	t.Run("full sync against bridge", func(t *testing.T) {
 		// create a full node with bridge node as its bootstrapper
-		full := sw.NewFullNode()
+		full := sw.NewBridgeNode()
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
@@ -177,7 +179,7 @@ func TestSyncAgainstBridge_EmptyChain(t *testing.T) {
 
 	t.Run("full sync against bridge", func(t *testing.T) {
 		// create a full node with bridge node as its bootstrapper
-		full := sw.NewFullNode()
+		full := sw.NewBridgeNode()
 		// let full node sync 20 blocks
 		err = full.Start(ctx)
 		require.NoError(t, err)
@@ -222,7 +224,7 @@ func TestSyncStartStopLightWithBridge(t *testing.T) {
 
 	sw := swamp.NewSwamp(t)
 	// wait for core network to fill 20 blocks
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create bridge and set it as a bootstrapper
@@ -290,7 +292,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 
 	sw := swamp.NewSwamp(t)
 	// wait for the core network to fill up 20 blocks
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create bridge and set it as a bootstrapper
@@ -305,7 +307,7 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	assert.EqualValues(t, h.Commit.BlockID.Hash, sw.GetCoreBlockHashByHeight(ctx, numBlocks))
 
 	// create a FN with BN as a trusted peer
-	full := sw.NewFullNode()
+	full := sw.NewBridgeNode()
 	// start FN and wait for it to sync up to head of BN
 	err = full.Start(ctx)
 	require.NoError(t, err)
@@ -368,7 +370,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t)
-	fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
+	_, fillDn := swamp.FillBlocks(ctx, sw.ClientContext, sw.Accounts[0], bsize, numBlocks)
 	sw.WaitTillHeight(ctx, numBlocks)
 
 	// create a BN and set as a bootstrapper
@@ -382,7 +384,7 @@ func TestSyncLightWithTrustedPeers(t *testing.T) {
 	require.NoError(t, err)
 
 	// create a FN with BN as trusted peer
-	full := sw.NewFullNode()
+	full := sw.NewBridgeNode()
 
 	// let FN sync to network head
 	err = full.Start(ctx)

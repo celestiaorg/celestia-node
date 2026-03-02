@@ -10,14 +10,28 @@ import (
 
 var ErrInvalidIP = errors.New("invalid IP address or hostname given")
 
-// SanitizeAddr trims leading protocol scheme and port from the given
-// IP address or hostname if present.
-func SanitizeAddr(addr string) (string, error) {
-	original := addr
+// NormalizeAddress extracts the host and port, removing unsupported schemes.
+func NormalizeAddress(addr string) string {
 	addr = strings.TrimPrefix(addr, "http://")
 	addr = strings.TrimPrefix(addr, "https://")
 	addr = strings.TrimPrefix(addr, "tcp://")
 	addr = strings.TrimSuffix(addr, "/")
+	return addr
+}
+
+func NormalizeGRPCAddress(addr string) string {
+	addr = NormalizeAddress(addr)
+	if idx := strings.Index(addr, "/"); idx != -1 {
+		addr = addr[:idx]
+	}
+	return addr
+}
+
+// SanitizeAddr trims leading protocol scheme and port from the given
+// IP address or hostname if present.
+func SanitizeAddr(addr string) (string, error) {
+	original := addr
+	addr = NormalizeAddress(addr)
 	addr = strings.Split(addr, ":")[0]
 	if addr == "" {
 		return "", fmt.Errorf("%w: %s", ErrInvalidIP, original)

@@ -3,6 +3,8 @@ package core
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -23,8 +25,10 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-
-	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -34,17 +38,21 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	to := uint64(30)
+	to := nonEmptyBlocks[len(nonEmptyBlocks)-1].height
 	expectedFirstHeightInRange := genHeader.Height() + 1
 	expectedLastHeightInRange := to - 1
 	expectedLenHeaders := to - expectedFirstHeightInRange
 
 	// request headers from height 1 to 20 [2:30)
+	_, err = cctx.WaitForHeightWithTimeout(int64(to), 10*time.Second)
+	require.NoError(t, err)
+
+	// request headers from height 1 to last non-empty block height [2:to)
 	headers, err := ce.GetRangeByHeight(context.Background(), genHeader, to)
 	require.NoError(t, err)
 
@@ -71,8 +79,10 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-
-	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -87,12 +97,17 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
+	to := nonEmptyBlocks[len(nonEmptyBlocks)-1].height
+
+	err = cctx.WaitForBlocks(int64(to))
+	require.NoError(t, err)
+
+	headers, err := ce.GetRangeByHeight(ctx, genHeader, to)
 	require.NoError(t, err)
 
 	// ensure none of the "historic" EDSs were stored
@@ -119,8 +134,10 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-
-	generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -136,15 +153,20 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	// initialize store with genesis block
 	genHeight := int64(1)
-	genBlock, err := fetcher.GetBlock(ctx, &genHeight)
+	genBlock, err := fetcher.GetBlock(ctx, genHeight)
 	require.NoError(t, err)
 	genHeader, err := ce.Get(ctx, genBlock.Header.Hash().Bytes())
 	require.NoError(t, err)
 
-	headers, err := ce.GetRangeByHeight(ctx, genHeader, 30)
+	to := nonEmptyBlocks[len(nonEmptyBlocks)-1].height
+
+	_, err = cctx.WaitForHeight(int64(to))
 	require.NoError(t, err)
 
-	// ensure all "historic" EDSs were stored
+	headers, err := ce.GetRangeByHeight(ctx, genHeader, to)
+	require.NoError(t, err)
+
+	// ensure all "historic" EDSs were stored but not the .q4 files
 	for _, h := range headers {
 		has, err := store.HasByHeight(ctx, h.Height())
 		require.NoError(t, err)
@@ -157,16 +179,63 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 		has, err = store.HasByHash(ctx, h.DAH.Hash())
 		require.NoError(t, err)
 		assert.True(t, has)
+
+		// ensure .q4 file was not stored
+		has, err = store.HasQ4ByHash(ctx, h.DAH.Hash())
+		require.NoError(t, err)
+		assert.False(t, has)
 	}
 }
 
-func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testnode.Context) {
-	cctx := StartTestNodeWithConfig(t, cfg)
+func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {
+	t.Helper()
+
+	// Retry up to 3 times to handle transient "address already in use" failures.
+	// These occur because MustGetFreePort uses UDP probing, but the actual listeners
+	// bind TCP — another process can grab the port in the window between the two.
+	const maxRetries = 3
+	var network *Network
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			reallocateTestNodePorts(cfg)
+		}
+		network = NewNetwork(t, cfg)
+		if err := network.Start(); err != nil {
+			if attempt < maxRetries-1 && isAddressInUseError(err) {
+				t.Logf("port conflict on attempt %d, retrying with new ports", attempt+1)
+				_ = network.Stop()
+				continue
+			}
+			require.NoError(t, err)
+		}
+		break
+	}
+
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 	// wait for height 2 in order to be able to start submitting txs (this prevents
 	// flakiness with accessing account state)
-	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
+	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	return NewBlockFetcher(cctx.Client), cctx
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
+	require.NoError(t, err)
+	return fetcher, network
+}
+
+// isAddressInUseError reports whether the error is a "bind: address already in use" error.
+func isAddressInUseError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "address already in use")
+}
+
+// reallocateTestNodePorts assigns fresh free ports to all network addresses in cfg,
+// replacing the ones allocated at config-creation time that may now be taken.
+func reallocateTestNodePorts(cfg *testnode.Config) {
+	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
 }
 
 // fillBlocks fills blocks until the context is canceled.
@@ -188,6 +257,11 @@ func fillBlocks(
 	}
 }
 
+type testBlocks struct {
+	height   uint64
+	datahash share.DataHash
+}
+
 // generateNonEmptyBlocks generates at least 20 non-empty blocks
 func generateNonEmptyBlocks(
 	t *testing.T,
@@ -195,20 +269,16 @@ func generateNonEmptyBlocks(
 	fetcher *BlockFetcher,
 	cfg *testnode.Config,
 	cctx testnode.Context,
-) []share.DataHash {
+) []testBlocks {
 	// generate several non-empty blocks
 	generateCtx, generateCtxCancel := context.WithCancel(context.Background())
 
-	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
+	sub, err := fetcher.SubscribeNewBlockEvent(generateCtx)
 	require.NoError(t, err)
-	defer func() {
-		err = fetcher.UnsubscribeNewBlockEvent(ctx)
-		require.NoError(t, err)
-	}()
 
 	go fillBlocks(t, generateCtx, cfg, cctx)
 
-	hashes := make([]share.DataHash, 0, 20)
+	filledBlocks := make([]testBlocks, 0, 20)
 
 	i := 0
 	for i < 20 {
@@ -219,7 +289,10 @@ func generateNonEmptyBlocks(
 			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
 				continue
 			}
-			hashes = append(hashes, share.DataHash(b.Data.Hash()))
+			filledBlocks = append(filledBlocks, testBlocks{
+				height:   uint64(b.Header.Height),
+				datahash: share.DataHash(b.Data.Hash()),
+			})
 			i++
 		case <-ctx.Done():
 			t.Fatal("failed to fill blocks within timeout")
@@ -227,5 +300,5 @@ func generateNonEmptyBlocks(
 	}
 	generateCtxCancel()
 
-	return hashes
+	return filledBlocks
 }

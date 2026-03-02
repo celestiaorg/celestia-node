@@ -35,7 +35,7 @@ func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	}
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		bs := bitswap.New(params.Ctx, net, params.Bs)
 		net.Start(bs.Client, bs.Server)
 		params.Lifecycle.Append(fx.Hook{
@@ -60,21 +60,23 @@ func dataExchange(tp node.Type, params bitSwapParams) exchange.SessionExchange {
 	}
 }
 
-func blockstoreFromDatastore(ds datastore.Batching) (blockstore.Blockstore, error) {
-	return blockstore.NewBlockstore(ds), nil
+func blockstoreFromDatastore(ds datastore.Batching) (*bitswap.BlockstoreWithMetrics, error) {
+	bs := blockstore.NewBlockstore(ds)
+	return bitswap.NewBlockstoreWithMetrics(bs)
 }
 
-func blockstoreFromEDSStore(store *store.Store, blockStoreCacheSize int) (blockstore.Blockstore, error) {
+func blockstoreFromEDSStore(store *store.Store, blockStoreCacheSize int) (*bitswap.BlockstoreWithMetrics, error) {
 	if blockStoreCacheSize == 0 {
 		// no cache, return plain blockstore
-		return &bitswap.Blockstore{Getter: store}, nil
+		bs := &bitswap.Blockstore{Getter: store}
+		return bitswap.NewBlockstoreWithMetrics(bs)
 	}
 	withCache, err := store.WithCache("blockstore", blockStoreCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("create cached store for blockstore:%w", err)
 	}
 	bs := &bitswap.Blockstore{Getter: withCache}
-	return bs, nil
+	return bitswap.NewBlockstoreWithMetrics(bs)
 }
 
 type bitSwapParams struct {

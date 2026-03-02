@@ -14,7 +14,6 @@ import (
 // TestConfigWriteRead tests that the configs for all node types can be encoded to and from TOML.
 func TestConfigWriteRead(t *testing.T) {
 	tests := []node.Type{
-		node.Full,
 		node.Light,
 		node.Bridge,
 	}
@@ -30,7 +29,7 @@ func TestConfigWriteRead(t *testing.T) {
 			var out Config
 			err = out.Decode(buf)
 			require.NoError(t, err)
-			assert.EqualValues(t, in, &out)
+			assert.EqualExportedValues(t, in, &out)
 		})
 	}
 }
@@ -54,15 +53,13 @@ func TestUpdateConfig(t *testing.T) {
 	// ensure old custom values were not changed
 	require.Equal(t, "thisshouldnthavechanged", cfg.State.DefaultKeyName)
 	require.Equal(t, "7979", cfg.RPC.Port)
-	require.True(t, cfg.Gateway.Enabled)
 }
 
 // outdatedConfig is an outdated config from a light node
 var outdatedConfig = `
 [Core]
   IP = "0.0.0.0"
-  RPCPort = "0"
-  GRPCPort = "0"
+  Port = "0"
 
 [State]
   DefaultKeyName = "thisshouldnthavechanged"
@@ -88,25 +85,18 @@ var outdatedConfig = `
   Address = "0.0.0.0"
   Port = "7979"
 
-[Gateway]
-  Address = "0.0.0.0"
-  Port = "26659"
-  Enabled = true
-
 [Share]
   PeersLimit = 5
   DiscoveryInterval = "30s"
   AdvertiseInterval = "30s"
   UseShareExchange = true
-  [Share.ShrExEDSParams]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "1m0s"
-    HandleRequestTimeout = "1m0s"
-    ConcurrencyLimit = 10
-    BufferSize = 32768
-  [Share.ShrExNDParams]
-    ServerReadTimeout = "5s"
-    ServerWriteTimeout = "2m35s"
+  UseBitswap = true  
+  [Share.ShrexClient]
+    ReadTimeout = "2m0s"
+    WriteTimeout = "5s"
+  [Share.ShrexServer]   
+    ReadTimeout = "5s"
+    WriteTimeout = "1m0s"
     HandleRequestTimeout = "1m0s"
     ConcurrencyLimit = 10
 

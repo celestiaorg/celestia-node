@@ -29,14 +29,15 @@ func RPCFlags() *flag.FlagSet {
 		&requestURL,
 		"url",
 		"", // will try to load value from Config, which defines its own default url
-		"Request URL",
+		"External RPC endpoint URL. If not specified, uses the local node address loaded from the config file.",
 	)
 
 	fset.StringVar(
 		&authTokenFlag,
 		"token",
 		"",
-		"Authorization token",
+		"Authorization token that is used to access the RPC endpoint. If not specified, it will be loaded and built "+
+			"from the root folder of the node",
 	)
 
 	fset.DurationVar(

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -130,16 +130,31 @@ jobs:
         run: make test-integration SHORT=true TAGS=sync
 
   pruning_tests:
-    name: Integration Tests Sync
+    name: Integration Tests Pruning
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
 
       - name: run sync tests
         run: make test-integration SHORT=true TAGS=pruning
+
+  share_tests:
+    name: Integration Tests Share
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: run share tests
+        run: make test-integration SHORT=true TAGS=share

@@ -7,22 +7,16 @@ import (
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/tendermint/tendermint/types"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
-)
-
-var (
-	tracer                 = otel.Tracer("core/listener")
-	retrySubscriptionDelay = 5 * time.Second
-
-	errInvalidSubscription = errors.New("invalid subscription")
 )
 
 // Listener is responsible for listening to Core for
@@ -92,30 +86,52 @@ func NewListener(
 }
 
 // Start kicks off the Listener listener loop.
-func (cl *Listener) Start(context.Context) error {
+func (cl *Listener) Start(ctx context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("listener: already started")
+	}
+
+	if err := cl.verifyChainID(ctx); err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cl.cancel = cancel
 	cl.closed = make(chan struct{})
 
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
+	subs, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
 		return err
 	}
-	go cl.runSubscriber(ctx, sub)
+
+	go cl.listen(ctx, subs)
+	return nil
+}
+
+// verifyChainID checks that the core endpoint is on the expected network
+// before starting the listener. This prevents connecting to a wrong network.
+func (cl *Listener) verifyChainID(ctx context.Context) error {
+	if cl.chainID == "" {
+		return nil
+	}
+
+	networkID, err := cl.fetcher.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("listener: fetching chain ID from core endpoint: %w", err)
+	}
+
+	if networkID != cl.chainID {
+		return fmt.Errorf(
+			"listener: core endpoint network mismatch: expected %q, got %q",
+			cl.chainID, networkID,
+		)
+	}
+
 	return nil
 }
 
 // Stop stops the listener loop.
 func (cl *Listener) Stop(ctx context.Context) error {
-	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
-	if err != nil {
-		log.Warnw("listener: unsubscribing from new block event", "err", err)
-	}
-
 	cl.cancel()
 	select {
 	case <-cl.closed:
@@ -125,63 +141,18 @@ func (cl *Listener) Stop(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	err = cl.metrics.Close()
+	err := cl.metrics.Close()
 	if err != nil {
 		log.Warnw("listener: closing metrics", "err", err)
 	}
 	return nil
 }
 
-// runSubscriber runs a subscriber to receive event data of new signed blocks. It will attempt to
-// resubscribe in case error happens during listening of subscription
-func (cl *Listener) runSubscriber(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
-	defer close(cl.closed)
-	for {
-		err := cl.listen(ctx, sub)
-		if ctx.Err() != nil {
-			// listener stopped because external context was canceled
-			return
-		}
-		if errors.Is(err, errInvalidSubscription) {
-			// stop node if there is a critical issue with the block subscription
-			log.Fatalf("listener: %v", err) //nolint:gocritic
-		}
-
-		log.Warnw("listener: subscriber error, resubscribing...", "err", err)
-		sub = cl.resubscribe(ctx)
-		if sub == nil {
-			return
-		}
-	}
-}
-
-func (cl *Listener) resubscribe(ctx context.Context) <-chan types.EventDataSignedBlock {
-	err := cl.fetcher.UnsubscribeNewBlockEvent(ctx)
-	if err != nil {
-		log.Warnw("listener: unsubscribe", "err", err)
-	}
-
-	ticker := time.NewTicker(retrySubscriptionDelay)
-	defer ticker.Stop()
-	for {
-		sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-		if err == nil {
-			return sub
-		}
-		log.Errorw("listener: resubscribe", "err", err)
-
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-	}
-}
-
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) error {
+func (cl *Listener) listen(ctx context.Context, sub <-chan SignedBlock) {
+	defer close(cl.closed)
 	defer log.Info("listener: listening stopped")
 	timeout := time.NewTimer(cl.listenerTimeout)
 	defer timeout.Stop()
@@ -189,13 +160,16 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 		select {
 		case b, ok := <-sub:
 			if !ok {
-				return errors.New("underlying subscription was closed")
+				log.Error("underlying subscription was closed")
+				return
 			}
 
 			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
-				log.Errorf("listener: received block with unexpected chain ID: expected %s,"+
-					" received %s", cl.chainID, b.Header.ChainID)
-				return errInvalidSubscription
+				// stop node if there is a critical issue with the block subscription
+				panic(fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
+					" received %s. blockHeight: %d blockHash: %x.",
+					cl.chainID, b.Header.ChainID, b.Header.Height, b.Header.Hash()),
+				)
 			}
 
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
@@ -207,47 +181,52 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 					"hash", b.Header.Hash().String(),
 					"err", err)
 			}
-
-			if !timeout.Stop() {
-				<-timeout.C
-			}
-			timeout.Reset(cl.listenerTimeout)
 		case <-timeout.C:
 			cl.metrics.subscriptionStuck(ctx)
-			return errors.New("underlying subscription is stuck")
+			log.Error("underlying subscription is stuck")
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		}
+		timeout.Reset(cl.listenerTimeout)
 	}
 }
 
-func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
-	ctx, span := tracer.Start(ctx, "handle-new-signed-block")
-	defer span.End()
+func (cl *Listener) handleNewSignedBlock(ctx context.Context, b SignedBlock) error {
+	var err error
+
+	ctx, span := tracer.Start(ctx, "listener/handleNewSignedBlock")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
 
-	eds, err := extendBlock(b.Data, b.Header.Version.App)
+	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
 
 	// generate extended header
-	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := cl.construct(b.Header, b.Commit, b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
+	span.AddEvent("listener: constructed extended header",
+		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
+	)
 
 	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
+	span.AddEvent("listener: stored square")
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
 	if err != nil {
 		return fmt.Errorf("getting sync state: %w", err)
 	}
+	span.AddEvent("listener: fetched sync state")
 
 	// notify network of new EDS hash only if core is already synced
 	if !syncing {
@@ -258,7 +237,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
-				"hash", b.Header.Hash(), "err", err) // TODO: hash or datahash?
+				"datahash", eh.DAH.String(), "err", err)
 		}
 	}
 

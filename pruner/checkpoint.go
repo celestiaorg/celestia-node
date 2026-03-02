@@ -7,18 +7,11 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
 
 var (
-	// ErrDisallowRevertToArchival is returned when a node has been run with pruner enabled before and
-	// launching it with archival mode.
-	ErrDisallowRevertToArchival = errors.New(
-		"node has been run with pruner enabled before, it is not safe to convert to an archival" +
-			"Run with --experimental-pruning enabled or consider re-initializing the store")
-
 	storePrefix           = datastore.NewKey("pruner")
 	checkpointKey         = datastore.NewKey("checkpoint")
 	errCheckpointNotFound = errors.New("checkpoint not found")
@@ -31,17 +24,11 @@ type checkpoint struct {
 	FailedHeaders    map[uint64]struct{} `json:"failed"`
 }
 
-// DetectPreviousRun checks if the pruner has run before by checking for the existence of a
-// checkpoint.
-func DetectPreviousRun(ctx context.Context, ds datastore.Datastore) error {
-	_, err := getCheckpoint(ctx, namespace.Wrap(ds, storePrefix))
-	if errors.Is(err, errCheckpointNotFound) {
-		return nil
+func newCheckpoint(lastPruned uint64) *checkpoint {
+	return &checkpoint{
+		LastPrunedHeight: lastPruned,
+		FailedHeaders:    map[uint64]struct{}{},
 	}
-	if err != nil {
-		return fmt.Errorf("failed to load checkpoint: %w", err)
-	}
-	return ErrDisallowRevertToArchival
 }
 
 // storeCheckpoint persists the checkpoint to disk.
@@ -75,20 +62,33 @@ func getCheckpoint(ctx context.Context, ds datastore.Datastore) (*checkpoint, er
 
 // loadCheckpoint loads the last checkpoint from disk, initializing it if it does not already exist.
 func (s *Service) loadCheckpoint(ctx context.Context) error {
+	if s.checkpoint != nil {
+		return nil
+	}
+
 	cp, err := getCheckpoint(ctx, s.ds)
+	if errors.Is(err, errCheckpointNotFound) {
+		return s.resetCheckpoint(ctx)
+	}
 	if err != nil {
-		if errors.Is(err, errCheckpointNotFound) {
-			s.checkpoint = &checkpoint{
-				LastPrunedHeight: 1,
-				FailedHeaders:    map[uint64]struct{}{},
-			}
-			return storeCheckpoint(ctx, s.ds, s.checkpoint)
-		}
 		return err
 	}
 
 	s.checkpoint = cp
+	log.Infow("loaded checkpoint", "last_pruned_height", cp.LastPrunedHeight, "failed_headers", len(cp.FailedHeaders))
 	return nil
+}
+
+func (s *Service) resetCheckpoint(ctx context.Context) error {
+	tail, err := s.hstore.Tail(ctx)
+	if err != nil {
+		return err
+	}
+
+	cp := newCheckpoint(tail.Height())
+	s.checkpoint = cp
+	log.Infow("reset checkpoint", "last_pruned_height", cp.LastPrunedHeight)
+	return storeCheckpoint(ctx, s.ds, s.checkpoint)
 }
 
 // updateCheckpoint updates the checkpoint with the last pruned header height
@@ -107,5 +107,23 @@ func (s *Service) updateCheckpoint(
 }
 
 func (s *Service) lastPruned(ctx context.Context) (*header.ExtendedHeader, error) {
-	return s.getter.GetByHeight(ctx, s.checkpoint.LastPrunedHeight)
+	tail, err := s.hstore.Tail(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	lastPruned := s.checkpoint.LastPrunedHeight
+	if tail.Height() < lastPruned {
+		return s.hstore.GetByHeight(ctx, lastPruned)
+	}
+
+	s.checkpoint.LastPrunedHeight = tail.Height()
+	for height := range s.checkpoint.FailedHeaders {
+		if height < tail.Height() {
+			delete(s.checkpoint.FailedHeaders, height)
+			log.Warnw("unfailing unavailable header; some block data may not be pruned", "height", height)
+		}
+	}
+
+	return tail, nil
 }

@@ -6,9 +6,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexeds"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexnd"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
@@ -22,10 +21,11 @@ type Config struct {
 	BlockStoreCacheSize uint
 
 	UseShareExchange bool
-	// ShrExEDSParams sets shrexeds client and server configuration parameters
-	ShrExEDSParams *shrexeds.Parameters
-	// ShrExNDParams sets shrexnd client and server configuration parameters
-	ShrExNDParams *shrexnd.Parameters
+	UseBitswap       bool
+
+	// Shrex sets client and server configuration parameters of the shrex protocol
+	ShrexClient *shrex.ClientParams
+	ShrexServer *shrex.ServerParams
 	// PeerManagerParams sets peer-manager configuration parameters
 	PeerManagerParams *peers.Parameters
 
@@ -38,9 +38,10 @@ func DefaultConfig(tp node.Type) Config {
 		EDSStoreParams:      store.DefaultParameters(),
 		BlockStoreCacheSize: defaultBlockstoreCacheSize,
 		Discovery:           discovery.DefaultParameters(),
-		ShrExEDSParams:      shrexeds.DefaultParameters(),
-		ShrExNDParams:       shrexnd.DefaultParameters(),
+		ShrexClient:         shrex.DefaultClientParameters(),
+		ShrexServer:         shrex.DefaultServerParameters(),
 		UseShareExchange:    true,
+		UseBitswap:          true,
 		PeerManagerParams:   peers.DefaultParameters(),
 	}
 
@@ -63,12 +64,12 @@ func (cfg *Config) Validate(tp node.Type) error {
 		return fmt.Errorf("discovery: %w", err)
 	}
 
-	if err := cfg.ShrExNDParams.Validate(); err != nil {
-		return fmt.Errorf("shrexnd: %w", err)
+	if err := cfg.ShrexClient.Validate(); err != nil {
+		return fmt.Errorf("shrex-client: %w", err)
 	}
 
-	if err := cfg.ShrExEDSParams.Validate(); err != nil {
-		return fmt.Errorf("shrexeds: %w", err)
+	if err := cfg.ShrexServer.Validate(); err != nil {
+		return fmt.Errorf("shrex-server: %w", err)
 	}
 
 	if err := cfg.PeerManagerParams.Validate(); err != nil {

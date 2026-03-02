@@ -26,7 +26,7 @@ func registerEndpoints(
 	p2pMod p2p.Module,
 	nodeMod node.Module,
 	blobMod blob.Module,
-	daMod da.Module,
+	daMod da.Module, //nolint: staticcheck
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
 ) {
@@ -43,5 +43,10 @@ func registerEndpoints(
 }
 
 func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
-	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, signer, verifier)
+	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, rpc.CORSConfig{
+		Enabled:        cfg.CORS.Enabled,
+		AllowedOrigins: cfg.CORS.AllowedOrigins,
+		AllowedMethods: cfg.CORS.AllowedMethods,
+		AllowedHeaders: cfg.CORS.AllowedHeaders,
+	}, signer, verifier)
 }

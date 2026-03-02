@@ -109,7 +109,7 @@ func GetLeaves(ctx context.Context,
 	wg.Add(total)
 
 	// all preparations are done, so begin processing jobs
-	for i := 0; i < total; i++ {
+	for range total {
 		select {
 		case j := <-jobs:
 			// work over each job concurrently, s.t. shares do not block

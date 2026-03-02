@@ -17,12 +17,14 @@ node-help:
 	@echo "  light-arabica-up options:"
 	@echo "    COMMAND=again    - Reset the node before starting"
 	@echo "    CORE_IP=<ip>     - Use custom IP instead of default validator"
+	@echo "    CORE_PORT=<port> - Use custom port instead of default 9090"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make light-arabica-up"
 	@echo "  make light-arabica-up COMMAND=again"
 	@echo "  make light-arabica-up CORE_IP=custom.ip.address"
-	@echo "  make light-arabica-up COMMAND=again CORE_IP=custom.ip.address"
+	@echo "  make light-arabica-up CORE_IP=custom.ip.address CORE_PORT=9091"
+	@echo "  make light-arabica-up COMMAND=again CORE_IP=custom.ip.address CORE_PORT=9091"
 
 # Install celestia node and cel-key binaries
 node-install:
@@ -89,12 +91,14 @@ light-arabica-up:
 	if [ -n "$(CORE_IP)" ]; then \
 		celestia light start \
 			--core.ip $(CORE_IP) \
+			--core.port $(if $(CORE_PORT),$(CORE_PORT),9090) \
 			--rpc.skip-auth \
 			--rpc.addr 0.0.0.0 \
 			--p2p.network arabica; \
 	else \
 		celestia light start \
 			--core.ip validator-1.celestia-arabica-11.com \
+			--core.port $(if $(CORE_PORT),$(CORE_PORT),9090) \
 			--rpc.skip-auth \
 			--rpc.addr 0.0.0.0 \
 			--p2p.network arabica; \

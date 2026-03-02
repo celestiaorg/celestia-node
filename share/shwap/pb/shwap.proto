@@ -26,6 +26,20 @@ message RowNamespaceData {
     proof.pb.Proof proof = 2;
 }
 
+message NamespaceData {
+    repeated RowNamespaceData namespaceData = 1;
+}
+
+message RowShares {
+    repeated Share shares = 1;
+}
+
+message RangeNamespaceData {
+    repeated RowShares shares = 1;
+    proof.pb.Proof firstIncompleteRowProof = 2;
+    proof.pb.Proof lastIncompleteRowProof = 3;
+}
+
 message Share {
     bytes data = 1;
 }
@@ -34,3 +48,4 @@ enum AxisType {
     ROW = 0;
     COL = 1;
 }
+

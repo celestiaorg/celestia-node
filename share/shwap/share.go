@@ -3,7 +3,7 @@ package shwap
 import (
 	"fmt"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
@@ -19,7 +19,7 @@ func ShareFromProto(s *pb.Share) (libshare.Share, error) {
 	if err != nil {
 		return libshare.Share{}, err
 	}
-	return *sh, err
+	return *sh, nil
 }
 
 // SharesToProto converts a slice of Shares from the application's internal representation to a

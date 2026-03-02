@@ -32,6 +32,15 @@ const (
 
 var ErrNotFound = errors.New("eds not found in store")
 
+// AccessorGetter abstracts storage system that indexes and manages multiple eds.AccessorGetter by
+// network height.
+type AccessorGetter interface {
+	// GetByHeight returns an Accessor by its height.
+	GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error)
+	// HasByHeight reports whether an Accessor for the height exists.
+	HasByHeight(ctx context.Context, height uint64) (bool, error)
+}
+
 // Store is a storage for EDS files. It persists EDS files on disk in form of Q1Q4 files or ODS
 // files. It provides methods to put, get and remove EDS files. It has two caches: recent eds cache
 // and availability cache. Recent eds cache is used to cache recent blocks. Availability cache is
@@ -430,6 +439,15 @@ func (s *Store) hasByHeight(height uint64) (bool, error) {
 	// For now, we assume that if ODS exists, the Q4 exists as well.
 	pathODS := s.heightToPath(height, odsFileExt)
 	return exists(pathODS)
+}
+
+func (s *Store) HasQ4ByHash(_ context.Context, datahash share.DataHash) (bool, error) {
+	lock := s.stripLock.byHash(datahash)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	pathQ4File := s.hashToPath(datahash, q4FileExt)
+	return exists(pathQ4File)
 }
 
 func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.DataHash) error {
