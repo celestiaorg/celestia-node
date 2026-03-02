@@ -483,7 +483,7 @@ func TestShrexGetter(t *testing.T) {
 
 		sharesAmount := odsSize * odsSize
 		fromIndex := rand.IntN(odsSize)
-		inclusiveToIndex := sharesAmount - fromIndex
+		inclusiveToIndex := sharesAmount - fromIndex - 1
 
 		from, err := shwap.SampleCoordsFrom1DIndex(fromIndex, odsSize)
 		require.NoError(t, err)
