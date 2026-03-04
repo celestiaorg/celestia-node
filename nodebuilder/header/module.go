@@ -59,6 +59,12 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(fx.Annotate(
 			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
 				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
+				// Bridge nodes must not receive headers via p2p gossip: a remote peer
+				// can gossip the same header before the local core.Listener finishes
+				// storing EDS, causing the DASer to access EDS prematurely.
+				if tp == node.Bridge {
+					opts = append(opts, p2p.WithTopicOpts(pubsub.FanoutOnly()))
+				}
 				if MetricsEnabled {
 					opts = append(opts, p2p.WithSubscriberMetrics())
 				}

@@ -410,3 +410,5 @@ replace github.com/celestiaorg/celestia-node => ../../..
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
 replace nhooyr.io/websocket => github.com/coder/websocket v1.8.6
+
+replace github.com/libp2p/go-libp2p-pubsub => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20260225133553-213565e2a428
