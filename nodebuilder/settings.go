@@ -50,13 +50,16 @@ func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 }
 
 // WithPyroscope enables pyroscope profiling for the node.
-func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
+// basicAuthUser and basicAuthPassword are optional; both must be non-empty to enable basic auth.
+func WithPyroscope(endpoint, basicAuthUser, basicAuthPassword string, nodeType node.Type) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(peerID peer.ID) error {
 			_, err := pyroscope.Start(pyroscope.Config{
-				UploadRate:      15 * time.Second,
-				ApplicationName: "celestia.da-node",
-				ServerAddress:   endpoint,
+				UploadRate:        15 * time.Second,
+				ApplicationName:   "celestia.da-node",
+				ServerAddress:     endpoint,
+				BasicAuthUser:     basicAuthUser,
+				BasicAuthPassword: basicAuthPassword,
 				Tags: map[string]string{
 					"type":   nodeType.String(),
 					"peerId": peerID.String(),
