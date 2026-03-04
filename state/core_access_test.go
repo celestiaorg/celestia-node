@@ -233,6 +233,40 @@ func TestDelegate(t *testing.T) {
 	}
 }
 
+func TestWithdrawDelegatorReward(t *testing.T) {
+	ctx := context.Background()
+	ca, _ := buildAccessor(t)
+	err := ca.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = ca.Stop(ctx)
+	})
+
+	valRec, err := ca.keyring.Key("validator")
+	require.NoError(t, err)
+	valAddr, err := valRec.GetAddress()
+	require.NoError(t, err)
+
+	// use default signer (accounts[0]) so QueryDelegationRewards matches
+	opts := NewTxConfig()
+
+	// delegate first so there is an active delegation
+	resp, err := ca.Delegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, resp.Code)
+
+	// query rewards — should succeed even if rewards are zero right after delegation
+	rewardsResp, err := ca.QueryDelegationRewards(ctx, ValAddress(valAddr))
+	require.NoError(t, err)
+	require.NotNil(t, rewardsResp)
+
+	// withdraw rewards — should succeed even with zero rewards
+	opts = NewTxConfig()
+	resp, err = ca.WithdrawDelegatorReward(ctx, ValAddress(valAddr), opts)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, resp.Code)
+}
+
 func TestParallelPayForBlobSubmission(t *testing.T) {
 	const (
 		workerAccounts = 4

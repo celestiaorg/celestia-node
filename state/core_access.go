@@ -18,6 +18,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	v2bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v2"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	logging "github.com/ipfs/go-log/v2"
@@ -73,9 +74,10 @@ type CoreAccessor struct {
 
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli   stakingtypes.QueryClient
-	feeGrantCli  feegrant.QueryClient
-	abciQueryCli tmservice.ServiceClient
+	stakingCli      stakingtypes.QueryClient
+	distributionCli distributiontypes.QueryClient
+	feeGrantCli     feegrant.QueryClient
+	abciQueryCli    tmservice.ServiceClient
 
 	prt *merkle.ProofRuntime
 
@@ -143,6 +145,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
 	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
+	ca.distributionCli = distributiontypes.NewQueryClient(ca.coreConns[0])
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConns[0])
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
@@ -531,6 +534,31 @@ func (ca *CoreAccessor) Delegate(
 	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
 	msg := stakingtypes.NewMsgDelegate(signer.String(), delAddr.String(), coins)
 	return ca.submitMsg(ctx, msg, cfg)
+}
+
+func (ca *CoreAccessor) WithdrawDelegatorReward(
+	ctx context.Context,
+	valAddr ValAddress,
+	cfg *TxConfig,
+) (*TxResponse, error) {
+	signer, err := ca.getTxAuthorAccAddress(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := distributiontypes.NewMsgWithdrawDelegatorReward(signer.String(), valAddr.String())
+	return ca.submitMsg(ctx, msg, cfg)
+}
+
+func (ca *CoreAccessor) QueryDelegationRewards(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*distributiontypes.QueryDelegationRewardsResponse, error) {
+	delAddr := ca.defaultSignerAddress
+	return ca.distributionCli.DelegationRewards(ctx, &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delAddr.String(),
+		ValidatorAddress: valAddr.String(),
+	})
 }
 
 func (ca *CoreAccessor) QueryDelegation(
