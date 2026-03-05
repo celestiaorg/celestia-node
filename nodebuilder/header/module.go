@@ -22,6 +22,33 @@ import (
 
 var log = logging.Logger("module/header")
 
+// newSubscriber constructs the fx.Option for the p2p.Subscriber component.
+// Bridge nodes use FanoutOnly mode to prevent receiving gossip headers before
+// the local core.Listener has finished storing the corresponding EDS.
+func newSubscriber[H libhead.Header[H]](tp node.Type) fx.Option {
+	return fx.Provide(fx.Annotate(
+		func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+			opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
+			// Bridge nodes must not receive headers via p2p gossip: a remote peer
+			// can gossip the same header before the local core.Listener finishes
+			// storing EDS, causing the DASer to access EDS prematurely.
+			if tp == node.Bridge {
+				opts = append(opts, p2p.WithTopicOpts(pubsub.FanoutOnly()))
+			}
+			if MetricsEnabled {
+				opts = append(opts, p2p.WithSubscriberMetrics())
+			}
+			return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
+		},
+		fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+			return sub.Start(ctx)
+		}),
+		fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+			return sub.Stop(ctx)
+		}),
+	))
+}
+
 func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate(tp)
@@ -56,27 +83,7 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return syncer.Stop(ctx)
 			}),
 		)),
-		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
-				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
-				// Bridge nodes must not receive headers via p2p gossip: a remote peer
-				// can gossip the same header before the local core.Listener finishes
-				// storing EDS, causing the DASer to access EDS prematurely.
-				if tp == node.Bridge {
-					opts = append(opts, p2p.WithTopicOpts(pubsub.FanoutOnly()))
-				}
-				if MetricsEnabled {
-					opts = append(opts, p2p.WithSubscriberMetrics())
-				}
-				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
-			},
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
-				return sub.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
-				return sub.Stop(ctx)
-			}),
-		)),
+		newSubscriber[H](tp),
 		fx.Provide(fx.Annotate(
 			func(
 				cfg Config,
