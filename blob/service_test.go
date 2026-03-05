@@ -840,8 +840,8 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	require.NoError(b, err)
 	service := createService(ctx, b, shares)
 	indexer := &parser{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		b.ReportAllocs()
 		indexer.reset()
 		indexer.verifyFn = func(blob *Blob) bool {
