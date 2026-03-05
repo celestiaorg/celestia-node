@@ -1,0 +1,82 @@
+version: "3.8"
+
+services:
+  celestia-validator:
+    image: ghcr.io/celestiaorg/celestia-app:latest
+    container_name: celestia-validator
+    volumes:
+      - celestia_validator_data:/home/celestia
+    ports:
+      - "9090:9090"
+      - "26657:26657"
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        HOME_DIR=/home/celestia/.celestia-app
+
+        # Initialize the chain.
+        celestia-appd init mynode --chain-id private --home $$HOME_DIR
+
+        # Replace "stake" with "utia" in genesis.
+        sed -i 's/"stake"/"utia"/g' $$HOME_DIR/config/genesis.json
+
+        # Add a validator key and genesis account.
+        celestia-appd keys add validator --coin-type 118 --keyring-backend test --home $$HOME_DIR
+        ADDR=$$(celestia-appd keys show validator --address --keyring-backend test --home $$HOME_DIR)
+        celestia-appd genesis add-genesis-account $$ADDR 10000000000000utia --home $$HOME_DIR
+
+        # Create gentx and collect.
+        celestia-appd genesis gentx validator 5000000utia \
+          --gas-prices 0.025utia \
+          --keyring-backend test \
+          --chain-id private \
+          --home $$HOME_DIR
+        celestia-appd genesis collect-gentxs --home $$HOME_DIR
+
+        # Enable gRPC in app.toml.
+        sed -i 's/enable = false/enable = true/' $$HOME_DIR/config/app.toml
+        sed -i 's|address = "localhost:9090"|address = "0.0.0.0:9090"|' $$HOME_DIR/config/app.toml
+
+        # Start the chain.
+        exec celestia-appd start \
+          --home $$HOME_DIR \
+          --force-no-bbr \
+          --grpc.enable \
+          --grpc.address 0.0.0.0:9090
+    networks:
+      - celestia-network
+
+  celestia-bridge:
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    container_name: celestia-bridge
+    environment:
+      - NODE_TYPE=bridge
+      - P2P_NETWORK=private
+    # Do NOT use restart policy — we need to observe OOM kills.
+    # The repro.sh script handles waiting for the validator to be ready.
+    # Tight memory limit to trigger OOM with a large batch request.
+    mem_limit: 512m
+    memswap_limit: 512m
+    ports:
+      - "26658:26658"
+    command: >
+      celestia bridge start
+      --p2p.network private
+      --core.ip celestia-validator
+      --rpc.skip-auth
+      --rpc.addr 0.0.0.0
+      --rpc.port 26658
+    depends_on:
+      - celestia-validator
+    networks:
+      - celestia-network
+
+volumes:
+  celestia_validator_data:
+
+networks:
+  celestia-network:
+    driver: bridge
