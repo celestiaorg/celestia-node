@@ -1,6 +1,8 @@
 package nodebuilder
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,12 +11,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofrs/flock"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/celestiaorg/celestia-app/v7/app"
 	"github.com/celestiaorg/celestia-app/v7/app/encoding"
 
+	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
@@ -70,7 +75,40 @@ func Init(cfg Config, path string, tp node.Type) error {
 		return err
 	}
 
-	log.Info("Node Store initialized")
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	ring, err := keyring.New(
+		app.Name,
+		cfg.State.DefaultBackendName,
+		filepath.Join(path, "keys"),
+		os.Stdin,
+		encCfg.Codec,
+	)
+	if err != nil {
+		return fmt.Errorf("creating keyring: %w", err)
+	}
+
+	kstore, err := keystore.NewFSKeystore(filepath.Join(path, "keys"), ring)
+	if err != nil {
+		return fmt.Errorf("creating keystore: %w", err)
+	}
+
+	privKey, err := p2p.Key(kstore)
+	if err != nil {
+		return fmt.Errorf("generating p2p key: %w", err)
+	}
+
+	peerID, err := peer.IDFromPrivateKey(privKey)
+	if err != nil {
+		return fmt.Errorf("getting peer ID: %w", err)
+	}
+
+	log.Infow("Generated Node ID", "peerID", peerID.String())
+
+	err = saveJWTSecret(path)
+	if err != nil {
+		return fmt.Errorf("generating jwt secret: %w", err)
+	}
+	log.Infow("Generated JWT secret")
 	return nil
 }
 
@@ -230,4 +268,20 @@ func generateKeys(cfg Config, ksPath string) error {
 func generateNewKey(ring keyring.Keyring) (*keyring.Record, string, error) {
 	return ring.NewMnemonic(state.DefaultKeyName, keyring.English, sdk.GetConfig().GetFullBIP44Path(),
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+}
+
+func saveJWTSecret(basePath string) error {
+	jwtPath := filepath.Join(basePath, "jwt.hex")
+	if utils.Exists(jwtPath) {
+		return nil
+	}
+
+	secret := make([]byte, 32)
+	_, err := rand.Read(secret)
+	if err != nil {
+		return fmt.Errorf("failed to generate JWT secret: %w", err)
+	}
+
+	encoded := hex.EncodeToString(secret)
+	return os.WriteFile(jwtPath, []byte(encoded), 0o600)
 }
