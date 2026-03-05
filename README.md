@@ -30,6 +30,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
   - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
   - [Code of Conduct](#code-of-conduct)
+  - [JSON-RPC server with TLS (HTTPS)](#json-rpc-server-with-tls-https)
 
 ## Minimum requirements
 
@@ -137,3 +138,30 @@ make light-arabica-up CORE_IP=<ip>     # Use custom core IP
 ## Code of Conduct
 
 See our Code of Conduct [here](https://docs.celestia.org/community/coc).
+
+## JSON-RPC server with TLS (HTTPS)
+
+Celestia node (Bridge/Full/Light) supports running the JSON-RPC server with TLS (HTTPS).
+
+### Enabling TLS
+
+To enable TLS for the JSON-RPC server, provide the following flags when starting your node:
+
+- `--rpc.tls` — Enable TLS (HTTPS) for the JSON-RPC server
+- `--rpc.tls-cert` — Path to the TLS certificate file (PEM format)
+- `--rpc.tls-key` — Path to the TLS private key file (PEM format)
+
+**Example:**
+
+```sh
+celestia bridge start \
+  --rpc.tls \
+  --rpc.tls-cert /path/to/cert.pem \
+  --rpc.tls-key /path/to/key.pem
+```
+
+When TLS is enabled, the JSON-RPC server will be available at `https://<address>:<port>`.
+
+> **Note:**
+> - The client (CLI or library) will automatically use HTTPS if the server is started with TLS.
+> - Make sure your certificate and key are valid and readable by the node process.
