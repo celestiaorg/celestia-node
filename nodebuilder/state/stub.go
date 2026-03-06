@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	libshare "github.com/celestiaorg/go-square/v3/share"
@@ -83,6 +84,21 @@ func (s stubbedStateModule) Delegate(
 	_ state.Int,
 	_ *state.TxConfig,
 ) (*state.TxResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) WithdrawDelegatorReward(
+	_ context.Context,
+	_ state.ValAddress,
+	_ *state.TxConfig,
+) (*state.TxResponse, error) {
+	return nil, ErrNoStateAccess
+}
+
+func (s stubbedStateModule) QueryDelegationRewards(
+	context.Context,
+	state.ValAddress,
+) (*distributiontypes.QueryDelegationRewardsResponse, error) {
 	return nil, ErrNoStateAccess
 }
 
