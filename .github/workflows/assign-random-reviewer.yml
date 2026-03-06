@@ -1,0 +1,113 @@
+name: Assign Random Reviewer
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review, reopened]
+
+jobs:
+  assign-reviewer:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    # Skip draft PRs
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Parse CODEOWNERS into [{pattern, owners}] entries
+            function parseCODEOWNERS(content) {
+              return content
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'))
+                .map(line => {
+                  const parts = line.split(/\s+/);
+                  return {
+                    pattern: parts[0],
+                    owners: parts.slice(1).map(o => o.replace(/^@/, '').toLowerCase())
+                  };
+                });
+            }
+
+            // Check if a file path matches a CODEOWNERS pattern
+            function matches(filePath, pattern) {
+              // Normalise — strip leading slash from pattern
+              const p = pattern.replace(/^\//, '');
+              if (p === '*') return true;
+              if (p.endsWith('/')) return filePath.startsWith(p);
+              if (p.includes('*')) {
+                const re = new RegExp('^' + p.replace(/\*/g, '.*') + '$');
+                return re.test(filePath);
+              }
+              return filePath === p || filePath.startsWith(p + '/');
+            }
+
+            // Read CODEOWNERS (try both locations)
+            let codeownersContent = '';
+            for (const path of ['.github/CODEOWNERS', 'CODEOWNERS']) {
+              if (fs.existsSync(path)) {
+                codeownersContent = fs.readFileSync(path, 'utf8');
+                console.log(`Found CODEOWNERS at ${path}`);
+                break;
+              }
+            }
+            if (!codeownersContent) {
+              console.log('No CODEOWNERS file found — skipping');
+              return;
+            }
+
+            const rules = parseCODEOWNERS(codeownersContent);
+            console.log(`Parsed ${rules.length} CODEOWNERS rules`);
+
+            // Get all files changed in this PR
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+
+            console.log(`PR has ${files.length} changed files`);
+
+            // For each changed file, find the last matching CODEOWNERS rule
+            // (GitHub uses last-match-wins semantics)
+            const ownerSet = new Set();
+            for (const file of files) {
+              for (let i = rules.length - 1; i >= 0; i--) {
+                if (matches(file.filename, rules[i].pattern)) {
+                  rules[i].owners.forEach(o => ownerSet.add(o));
+                  break;
+                }
+              }
+            }
+
+            // Remove the PR author and filter out teams (contain '/')
+            const author = context.payload.pull_request.user.login.toLowerCase();
+            const candidates = [...ownerSet]
+              .filter(o => !o.includes('/'))  // Exclude teams (e.g., celestiaorg/celestia-core)
+              .filter(o => o !== author);
+
+            console.log(`Candidates after excluding author (${author}): ${candidates.join(', ') || 'none'}`);
+
+            if (candidates.length === 0) {
+              console.log('No eligible reviewers found after excluding PR author');
+              return;
+            }
+
+            // Pick one at random
+            const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+            console.log(`Randomly chose: ${chosen}`);
+
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              reviewers: [chosen]
+            });
+
+            console.log(`Successfully assigned ${chosen} as reviewer`);
