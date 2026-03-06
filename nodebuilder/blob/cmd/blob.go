@@ -42,13 +42,28 @@ var getCmd = &cobra.Command{
 	Args: cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.\n" +
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
-	PreRunE: func(_ *cobra.Command, args []string) error {
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		path, err := cmd.Flags().GetString(flagFileInput)
+		if err != nil {
+			return err
+		}
+
+		// If using input-file mode, skip positional argument processing
+		if path != "" {
+			return nil
+		}
+
+		if len(args) < 2 {
+			return errors.New("submit requires two arguments: namespace and blobData")
+		}
+
+		if !strings.HasPrefix(args[0], "0x") {
+			args[0] = "0x" + args[0]
+		}
 		if !strings.HasPrefix(args[1], "0x") {
 			args[1] = "0x" + args[1]
 		}
-		if !strings.HasPrefix(args[2], "0x") {
-			args[2] = "0x" + args[2]
-		}
+
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
