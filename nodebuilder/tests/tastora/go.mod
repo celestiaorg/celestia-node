@@ -47,7 +47,7 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/celestiaorg/go-fraud v0.2.3 // indirect
-	github.com/celestiaorg/go-header v0.8.1 // indirect
+	github.com/celestiaorg/go-header v0.8.3-rc // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
@@ -236,10 +236,10 @@ require (
 	github.com/petermattis/goid v0.0.0-20250813065127-a731cc31b4fe // indirect
 	github.com/pion/datachannel v1.5.10 // indirect
 	github.com/pion/dtls/v2 v2.2.12 // indirect
-	github.com/pion/dtls/v3 v3.0.6 // indirect
+	github.com/pion/dtls/v3 v3.0.11 // indirect
 	github.com/pion/ice/v4 v4.0.10 // indirect
 	github.com/pion/interceptor v0.1.40 // indirect
-	github.com/pion/logging v0.2.3 // indirect
+	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/mdns/v2 v2.0.7 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/rtcp v1.2.15 // indirect
@@ -376,6 +376,7 @@ require (
 	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
 	github.com/moby/moby v27.5.1+incompatible // indirect
+	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
@@ -409,3 +410,5 @@ replace github.com/celestiaorg/celestia-node => ../../..
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
 replace nhooyr.io/websocket => github.com/coder/websocket v1.8.6
+
+replace github.com/libp2p/go-libp2p-pubsub => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20260225133553-213565e2a428
