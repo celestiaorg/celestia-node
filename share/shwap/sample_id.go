@@ -33,8 +33,11 @@ func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {
 }
 
 func SampleCoordsFrom1DIndex(idx, squareSize int) (SampleCoords, error) {
-	if idx > squareSize*squareSize {
-		return SampleCoords{}, fmt.Errorf("SampleCoords %d > %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
+	if idx < 0 {
+		return SampleCoords{}, fmt.Errorf("negative index %d: %w", idx, ErrInvalidID)
+	}
+	if idx >= squareSize*squareSize {
+		return SampleCoords{}, fmt.Errorf("SampleCoords %d >= %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
 	}
 
 	rowIdx := idx / squareSize

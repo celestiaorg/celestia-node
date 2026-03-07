@@ -1,16 +1,22 @@
 package eds
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/pkg/da"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -71,6 +77,16 @@ func TestSuiteAccessor(
 			t.Run(fmt.Sprintf("RangeNamespaceData:%s", name), func(t *testing.T) {
 				t.Parallel()
 				testRangeNamespaceData(ctx, t, createAccessor, size)
+			})
+
+			t.Run(fmt.Sprintf("Blob:%s", name), func(t *testing.T) {
+				t.Parallel()
+				testAccessorBlob(ctx, t, createAccessor, size)
+			})
+
+			t.Run(fmt.Sprintf("Blobs:%s", name), func(t *testing.T) {
+				t.Parallel()
+				testAccessorBlobs(ctx, t, createAccessor, size)
 			})
 		}
 	}
@@ -318,6 +334,129 @@ func testRangeNamespaceData(
 			)
 			require.NoError(t, err)
 		}
+	}
+}
+
+func testAccessorBlob(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	libBlobs, err := libshare.GenerateV0Blobs([]int{1, 1}, true)
+	require.NoError(t, err)
+
+	sort.Slice(libBlobs, func(i, j int) bool {
+		return bytes.Compare(libBlobs[i].Namespace().Bytes(), libBlobs[j].Namespace().Bytes()) < 0
+	})
+
+	var allShares []libshare.Share
+	for _, blob := range libBlobs {
+		shrs, err := blob.ToShares()
+		require.NoError(t, err)
+		allShares = append(allShares, shrs...)
+	}
+
+	totalShares := odsSize * odsSize
+	if len(allShares) < totalShares {
+		allShares = append(allShares, libshare.TailPaddingShares(totalShares-len(allShares))...)
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		libshare.ToBytes(allShares),
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
+	require.NoError(t, err)
+
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+
+	acc := createAccessor(t, eds)
+
+	for _, lb := range libBlobs {
+		commitment, err := inclusion.CreateCommitment(
+			lb, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold,
+		)
+		require.NoError(t, err)
+
+		blobs, err := acc.Blobs(ctx, lb.Namespace(), commitment)
+		require.NoError(t, err)
+		require.Len(t, blobs, 1)
+
+		err = blobs[0].Verify(roots.RowRoots, commitment)
+		require.NoError(t, err)
+
+		reconstructed, err := blobs[0].Blob()
+		require.NoError(t, err)
+		require.Equal(t, lb.Data(), reconstructed.Data())
+	}
+}
+
+func testAccessorBlobs(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	libBlobs, err := libshare.GenerateV0Blobs([]int{1, 1}, true)
+	require.NoError(t, err)
+
+	sort.Slice(libBlobs, func(i, j int) bool {
+		return bytes.Compare(libBlobs[i].Namespace().Bytes(), libBlobs[j].Namespace().Bytes()) < 0
+	})
+
+	ns := libBlobs[0].Namespace()
+
+	var allShares []libshare.Share
+	for _, blob := range libBlobs {
+		shrs, err := blob.ToShares()
+		require.NoError(t, err)
+		allShares = append(allShares, shrs...)
+	}
+
+	totalShares := odsSize * odsSize
+	if len(allShares) < totalShares {
+		allShares = append(allShares, libshare.TailPaddingShares(totalShares-len(allShares))...)
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		libshare.ToBytes(allShares),
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
+	require.NoError(t, err)
+
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+
+	acc := createAccessor(t, eds)
+
+	blobs, err := acc.Blobs(ctx, ns)
+	require.NoError(t, err)
+	require.Len(t, blobs, len(libBlobs))
+
+	for _, blob := range blobs {
+		reconstructed, err := blob.Blob()
+		require.NoError(t, err)
+
+		// find matching original blob
+		var matched *libshare.Blob
+		for _, lb := range libBlobs {
+			if bytes.Equal(lb.Data(), reconstructed.Data()) {
+				matched = lb
+				break
+			}
+		}
+		require.NotNil(t, matched, "retrieved blob doesn't match any expected blob")
+
+		commitment, err := inclusion.CreateCommitment(
+			matched, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold,
+		)
+		require.NoError(t, err)
+
+		err = blob.Verify(roots.RowRoots, commitment)
+		require.NoError(t, err)
 	}
 }
 

@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -275,6 +276,14 @@ func (g *Getter) GetRangeNamespaceData(
 		return shwap.RangeNamespaceData{}, fmt.Errorf("fetching blocks: %w", err)
 	}
 	return blks[0].(*RangeNamespaceDataBlock).Container, nil
+}
+
+func (g *Getter) GetBlob(context.Context, *header.ExtendedHeader, libshare.Namespace, []byte) (*shwap.Blob, error) {
+	return nil, errors.New("GetBlob: not implemented")
+}
+
+func (g *Getter) GetBlobs(context.Context, *header.ExtendedHeader, libshare.Namespace) ([]*shwap.Blob, error) {
+	return nil, errors.New("GetBlobs: not implemented")
 }
 
 // isArchival reports whether the header is for archival data

@@ -44,6 +44,11 @@ message Share {
     bytes data = 1;
 }
 
+message Blob {
+    RangeNamespaceData rngData = 1;
+    uint64 startIndex = 2;
+}
+
 enum AxisType {
     ROW = 0;
     COL = 1;

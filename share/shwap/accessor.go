@@ -21,4 +21,8 @@ type Accessor interface {
 		ctx context.Context,
 		from, to int,
 	) (RangeNamespaceData, error)
+	// Blobs retrieves blobs belonging to the given namespace from the data square.
+	// When commitments are provided, only blobs matching those commitments are returned.
+	// When no commitments are provided, all blobs in the namespace are returned.
+	Blobs(context.Context, libshare.Namespace, ...[]byte) ([]*Blob, error)
 }
