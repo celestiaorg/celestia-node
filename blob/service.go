@@ -669,10 +669,27 @@ func ProveCommitment(
 	}()
 
 	// find the blob shares in the EDS
+	odsShares := eds.FlattenedODS()
 	blobSharesStartIndex := -1
-	for index, share := range eds.FlattenedODS() {
-		if bytes.Equal(share, blobShares[0].ToBytes()) {
+	for index := range odsShares {
+		if index+len(blobShares) > len(odsShares) {
+			break
+		}
+		if !bytes.Equal(odsShares[index], blobShares[0].ToBytes()) {
+			continue
+		}
+		// First share matches; verify all shares match at this position to
+		// handle the case where multiple blobs have identical first shares.
+		allMatch := true
+		for i := 1; i < len(blobShares); i++ {
+			if !bytes.Equal(odsShares[index+i], blobShares[i].ToBytes()) {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
 			blobSharesStartIndex = index
+			break
 		}
 	}
 	if blobSharesStartIndex < 0 {
