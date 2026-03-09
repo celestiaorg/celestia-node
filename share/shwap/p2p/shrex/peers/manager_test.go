@@ -9,6 +9,7 @@ import (
 	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -321,15 +322,21 @@ func TestManager(t *testing.T) {
 
 func TestIntegration(t *testing.T) {
 	t.Run("get peer from shrexsub", func(t *testing.T) {
-		nw, err := mocknet.FullMeshLinked(2)
-		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)
 
-		bnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[0], "test")
+		bnHost, err := libp2p.New()
+		require.NoError(t, err)
+		t.Cleanup(func() { bnHost.Close() })
+
+		fnHost, err := libp2p.New()
+		require.NoError(t, err)
+		t.Cleanup(func() { fnHost.Close() })
+
+		bnPubSub, err := shrexsub.NewPubSub(ctx, bnHost, "test")
 		require.NoError(t, err)
 
-		fnPubSub, err := shrexsub.NewPubSub(ctx, nw.Hosts()[1], "test")
+		fnPubSub, err := shrexsub.NewPubSub(ctx, fnHost, "test")
 		require.NoError(t, err)
 
 		require.NoError(t, bnPubSub.Start(ctx))
@@ -337,14 +344,14 @@ func TestIntegration(t *testing.T) {
 
 		fnPeerManager, err := testManager(ctx, newSubLock())
 		require.NoError(t, err)
-		fnPeerManager.host = nw.Hosts()[1]
+		fnPeerManager.host = fnHost
 
 		require.NoError(t, fnPubSub.AddValidator(fnPeerManager.Validate))
 		_, err = fnPubSub.Subscribe()
 		require.NoError(t, err)
 
 		time.Sleep(time.Millisecond * 100)
-		require.NoError(t, nw.ConnectAllButSelf())
+		require.NoError(t, bnHost.Connect(ctx, peer.AddrInfo{ID: fnHost.ID(), Addrs: fnHost.Addrs()}))
 		time.Sleep(time.Millisecond * 100)
 
 		// broadcast from BN
@@ -359,7 +366,7 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// check that gotPeer matched bridge node
-		require.Equal(t, nw.Hosts()[0].ID(), gotPeer)
+		require.Equal(t, bnHost.ID(), gotPeer)
 	})
 
 	t.Run("get peer from discovery", func(t *testing.T) {
