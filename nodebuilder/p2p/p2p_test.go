@@ -26,7 +26,7 @@ func TestP2PModule_Host(t *testing.T) {
 	require.NoError(t, err)
 	host, peer := net.Hosts()[0], net.Hosts()[1]
 
-	mgr := newModule(host, nil, nil, nil, nil)
+	mgr := newModule(host, nil, nil, nil, nil, "")
 
 	ctx := context.Background()
 
@@ -66,7 +66,7 @@ func TestP2PModule_ConnManager(t *testing.T) {
 	peer, err := libp2p.New()
 	require.NoError(t, err)
 
-	mgr := newModule(host, nil, nil, nil, nil)
+	mgr := newModule(host, nil, nil, nil, nil, "")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -94,7 +94,7 @@ func TestP2PModule_Autonat(t *testing.T) {
 	host, err := libp2p.New(libp2p.EnableNATService())
 	require.NoError(t, err)
 
-	mgr := newModule(host, nil, nil, nil, nil)
+	mgr := newModule(host, nil, nil, nil, nil, "")
 
 	status, err := mgr.NATStatus(context.Background())
 	assert.NoError(t, err)
@@ -126,7 +126,7 @@ func TestP2PModule_Bandwidth(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	mgr := newModule(host, nil, nil, bw, nil)
+	mgr := newModule(host, nil, nil, bw, nil, "")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -190,7 +190,7 @@ func TestP2PModule_Pubsub(t *testing.T) {
 	gs, err := pubsub.NewGossipSub(ctx, host)
 	require.NoError(t, err)
 
-	mgr := newModule(host, gs, nil, nil, nil)
+	mgr := newModule(host, gs, nil, nil, nil, "")
 
 	topicStr := "test-topic"
 
@@ -230,7 +230,7 @@ func TestP2PModule_ConnGater(t *testing.T) {
 	gater, err := connectionGater(datastore.NewMapDatastore())
 	require.NoError(t, err)
 
-	mgr := newModule(host, nil, gater, nil, nil)
+	mgr := newModule(host, nil, gater, nil, nil, "")
 
 	ctx := context.Background()
 
@@ -261,7 +261,7 @@ func TestP2PModule_ResourceManager(t *testing.T) {
 	rm, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()))
 	require.NoError(t, err)
 
-	mgr := newModule(nil, nil, nil, nil, rm)
+	mgr := newModule(nil, nil, nil, nil, rm, "")
 
 	state, err := mgr.ResourceState(context.Background())
 	require.NoError(t, err)
