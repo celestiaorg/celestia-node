@@ -21,8 +21,8 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	network := NewNetwork(t, DefaultTestConfig())
-	require.NoError(t, network.Start())
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})
