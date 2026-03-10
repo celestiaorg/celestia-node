@@ -31,6 +31,8 @@ var runLatencyMonitorCmd = &cobra.Command{
 		keyPath, _ := cmd.Flags().GetString("key.path")
 		network, _ := cmd.Flags().GetString("network")
 		metricsEndpoint, _ := cmd.Flags().GetString("metrics.endpoint")
+		numBlobs, _ := cmd.Flags().GetInt("num-blobs")
+		blobSize, _ := cmd.Flags().GetInt("blob-size")
 
 		cli, signerAddr, err := buildClient(cmd.Context(), bridgeAddr, bridgeToken, coreGRPCAddr, keyName, keyPath, network)
 		if err != nil {
@@ -55,7 +57,7 @@ var runLatencyMonitorCmd = &cobra.Command{
 
 		fmt.Printf("Metrics initialized, exporting to: %s\n", metricsEndpoint)
 
-		runLatencyMonitor(cmd.Context(), cli, latencyMetrics)
+		runLatencyMonitor(cmd.Context(), cli, latencyMetrics, numBlobs, blobSize)
 		return nil
 	},
 }
@@ -69,6 +71,8 @@ func init() {
 	flags.String("key.path", "", "path to the keyring directory")
 	flags.String("network", "", "network name (e.g. arabica-11)")
 	flags.String("metrics.endpoint", "", "OTLP metrics endpoint")
+	flags.Int("num-blobs", 10, "number of blobs to pre-generate for the monitor loop")
+	flags.Int("blob-size", 16, "size of each blob in shares")
 
 	_ = runLatencyMonitorCmd.MarkFlagRequired("bridge.addr")
 	_ = runLatencyMonitorCmd.MarkFlagRequired("bridge.token")
@@ -207,13 +211,12 @@ func initializeMetrics(
 	return shutdown, metrics, nil
 }
 
-func runLatencyMonitor(ctx context.Context, cli *client.Client, metrics *latencyMetrics) {
+func runLatencyMonitor(ctx context.Context, cli *client.Client, metrics *latencyMetrics, numBlobs, blobSize int) {
 	fmt.Println("\nGenerating blobs...")
 
-	const numBlobs = 10
 	libBlobs := make([]*libshare.Blob, numBlobs)
 	for i := 0; i < numBlobs; i++ {
-		generated, err := libshare.GenerateV0Blobs([]int{16}, true) // TODO @renaynay: variable size
+		generated, err := libshare.GenerateV0Blobs([]int{blobSize}, true)
 		if err != nil {
 			panic(fmt.Sprintf("failed to generate blob %d: %v", i, err))
 		}
