@@ -58,7 +58,7 @@ func TestServer_HandlerStackSelection(t *testing.T) {
 				AllowedHeaders: []string{"Content-Type"},
 			}
 
-			server := NewServer("localhost", "0", tt.authDisabled, corsConfig, signer, verifier)
+			server := NewServer("localhost", "0", tt.authDisabled, corsConfig, TLSConfig{}, signer, verifier)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -102,7 +102,7 @@ func TestServer_AuthDisabledOverridesCORS(t *testing.T) {
 		AllowedHeaders: []string{"Content-Type"},
 	}
 
-	server := NewServer("localhost", "0", true, restrictiveCORS, signer, verifier)
+	server := NewServer("localhost", "0", true, restrictiveCORS, TLSConfig{}, signer, verifier)
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -168,7 +168,7 @@ func TestServer_CORSConfigurationPassing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", false, tt.corsConfig, signer, verifier)
+			server := NewServer("localhost", "0", false, tt.corsConfig, TLSConfig{}, signer, verifier)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -223,7 +223,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", tt.authDisabled, CORSConfig{}, signer, verifier)
+			server := NewServer("localhost", "0", tt.authDisabled, CORSConfig{}, TLSConfig{}, signer, verifier)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -279,7 +279,7 @@ func TestServer_VerifyAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", tt.authDisabled, CORSConfig{}, signer, verifier)
+			server := NewServer("localhost", "0", tt.authDisabled, CORSConfig{}, TLSConfig{}, signer, verifier)
 
 			permissions, err := server.verifyAuth(context.Background(), tt.token)
 
@@ -296,7 +296,7 @@ func TestServer_VerifyAuth(t *testing.T) {
 // TestServer_StartStop tests server lifecycle
 func TestServer_StartStop(t *testing.T) {
 	signer, verifier := createTestJWT(t)
-	server := NewServer("localhost", "0", false, CORSConfig{}, signer, verifier)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, signer, verifier)
 
 	ctx := context.Background()
 

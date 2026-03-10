@@ -18,6 +18,9 @@ var (
 	corsAllowedOriginsFlag = "rpc.cors-allowed-origins"
 	corsAllowedMethodsFlag = "rpc.cors-allowed-methods"
 	corsAllowedHeadersFlag = "rpc.cors-allowed-headers"
+	tlsEnabledFlag         = "rpc.tls"
+	tlsCertPathFlag        = "rpc.tls-cert"
+	tlsKeyPathFlag         = "rpc.tls-key"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -64,6 +67,22 @@ func Flags() *flag.FlagSet {
 			"Comma-separated list of HTTP headers allowed for CORS (cors enabled default: %s)",
 			defaultAllowedHeaders,
 		),
+	)
+
+	flags.Bool(
+		tlsEnabledFlag,
+		false,
+		"Enable TLS (HTTPS) for RPC server",
+	)
+	flags.String(
+		tlsCertPathFlag,
+		"",
+		"Path to TLS certificate file (PEM format)",
+	)
+	flags.String(
+		tlsKeyPathFlag,
+		"",
+		"Path to TLS private key file (PEM format)",
 	)
 
 	return flags
@@ -137,5 +156,23 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	if !cfg.SkipAuth && corsSettingsProvided {
 		log.Warn("CORS settings provided but authentication is enabled. CORS settings may not work as expected.")
 	}
+
+	// TLS settings
+	if val, err := cmd.Flags().GetBool(tlsEnabledFlag); err != nil {
+		return err
+	} else if val {
+		cfg.TLSEnabled = true
+	}
+	if certPath, err := cmd.Flags().GetString(tlsCertPathFlag); err != nil {
+		return err
+	} else if certPath != "" {
+		cfg.TLSCertPath = certPath
+	}
+	if keyPath, err := cmd.Flags().GetString(tlsKeyPathFlag); err != nil {
+		return err
+	} else if keyPath != "" {
+		cfg.TLSKeyPath = keyPath
+	}
+
 	return nil
 }

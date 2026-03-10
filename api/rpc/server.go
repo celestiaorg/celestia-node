@@ -36,14 +36,25 @@ type Server struct {
 	started    atomic.Bool
 	corsConfig CORSConfig
 
+	tlsEnabled  bool
+	tlsCertPath string
+	tlsKeyPath  string
+
 	signer   jwt.Signer
 	verifier jwt.Verifier
+}
+
+type TLSConfig struct {
+	Enabled  bool
+	CertPath string
+	KeyPath  string
 }
 
 func NewServer(
 	address, port string,
 	authDisabled bool,
 	corsConfig CORSConfig,
+	tlsConfig TLSConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
@@ -54,6 +65,9 @@ func NewServer(
 		verifier:     verifier,
 		authDisabled: authDisabled,
 		corsConfig:   corsConfig,
+		tlsEnabled:   tlsConfig.Enabled,
+		tlsCertPath:  tlsConfig.CertPath,
+		tlsKeyPath:   tlsConfig.KeyPath,
 	}
 
 	srv.srv = &http.Server{
@@ -142,9 +156,15 @@ func (s *Server) Start(context.Context) error {
 		return err
 	}
 	s.listener = listener
-	log.Infow("server started", "listening on", s.srv.Addr)
-	//nolint:errcheck
-	go s.srv.Serve(listener)
+	if s.tlsEnabled {
+		log.Infow("server started with TLS", "listening on", s.srv.Addr)
+		//nolint:errcheck
+		go s.srv.ServeTLS(listener, s.tlsCertPath, s.tlsKeyPath)
+	} else {
+		log.Infow("server started", "listening on", s.srv.Addr)
+		//nolint:errcheck
+		go s.srv.Serve(listener)
+	}
 	return nil
 }
 
