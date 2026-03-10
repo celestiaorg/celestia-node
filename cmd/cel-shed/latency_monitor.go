@@ -31,6 +31,7 @@ var runLatencyMonitorCmd = &cobra.Command{
 		keyPath, _ := cmd.Flags().GetString("key.path")
 		network, _ := cmd.Flags().GetString("network")
 		metricsEndpoint, _ := cmd.Flags().GetString("metrics.endpoint")
+		metricsTLS, _ := cmd.Flags().GetBool("metrics.tls")
 		numBlobs, _ := cmd.Flags().GetInt("num-blobs")
 		blobSize, _ := cmd.Flags().GetInt("blob-size")
 
@@ -50,7 +51,7 @@ var runLatencyMonitorCmd = &cobra.Command{
 		fmt.Printf("\nConnected to network: %s\n", network)
 
 		name := fmt.Sprintf("%s/%s", network, signerAddr)
-		shutdown, latencyMetrics, err := initializeMetrics(cmd.Context(), metricsEndpoint, name)
+		shutdown, latencyMetrics, err := initializeMetrics(cmd.Context(), metricsEndpoint, metricsTLS, name)
 		if err != nil {
 			return fmt.Errorf("failed to initialize metrics: %w", err)
 		}
@@ -78,6 +79,7 @@ func init() {
 	flags.String("key.path", "", "path to the keyring directory")
 	flags.String("network", "", "network name (e.g. arabica-11)")
 	flags.String("metrics.endpoint", "", "OTLP metrics endpoint")
+	flags.Bool("metrics.tls", true, "Enable TLS connection to OTLP metric backend")
 	flags.Int("num-blobs", 10, "number of blobs to pre-generate for the monitor loop")
 	flags.Int("blob-size", 16, "size of each blob in shares")
 
@@ -149,15 +151,21 @@ type latencyMetrics struct {
 // initializeMetrics sets up the OTLP metrics exporter and creates latency metrics
 func initializeMetrics(
 	ctx context.Context,
-	endpoint,
+	endpoint string,
+	tlsEnabled bool,
 	name string,
 ) (func(context.Context) error, *latencyMetrics, error) {
+	opts := []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(endpoint)}
+	if !tlsEnabled {
+		opts = append(opts, otlpmetrichttp.WithInsecure())
+	}
+
 	cfg := utils.MetricProviderConfig{
 		ServiceNamespace:  "latency-monitor",
 		ServiceName:       "cel-shed",
 		ServiceInstanceID: name,
 		Interval:          10 * time.Second,
-		OTLPOptions:       []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(endpoint)},
+		OTLPOptions:       opts,
 	}
 
 	provider, err := utils.NewMetricProvider(ctx, cfg)
