@@ -34,6 +34,13 @@ var runLatencyMonitorCmd = &cobra.Command{
 		numBlobs, _ := cmd.Flags().GetInt("num-blobs")
 		blobSize, _ := cmd.Flags().GetInt("blob-size")
 
+		if numBlobs <= 0 {
+			return fmt.Errorf("num-blobs must be a positive integer, got %d", numBlobs)
+		}
+		if blobSize <= 0 {
+			return fmt.Errorf("blob-size must be a positive integer, got %d", blobSize)
+		}
+
 		cli, signerAddr, err := buildClient(cmd.Context(), bridgeAddr, bridgeToken, coreGRPCAddr, keyName, keyPath, network)
 		if err != nil {
 			return err
