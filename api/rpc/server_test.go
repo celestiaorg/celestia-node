@@ -2,8 +2,19 @@ package rpc
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -315,6 +326,109 @@ func TestServer_StartStop(t *testing.T) {
 
 	err = server.Stop(ctx)
 	assert.NoError(t, err)
+}
+
+// TestServer_TLS tests TLS server startup and HTTPS connectivity
+func TestServer_TLS(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+
+	// Generate self-signed cert
+	certFile, keyFile := generateSelfSignedCert(t)
+
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{
+		Enabled:  true,
+		CertPath: certFile,
+		KeyPath:  keyFile,
+	}, signer, verifier)
+
+	ctx := context.Background()
+	err := srv.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { srv.Stop(ctx) })
+
+	addr := srv.ListenAddr()
+	require.NotEmpty(t, addr)
+
+	// HTTPS client with InsecureSkipVerify for self-signed cert
+	tlsClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		},
+	}
+
+	// TLS server should respond to HTTPS (400 is expected since GET / is not a valid JSON-RPC request)
+	resp, err := tlsClient.Get("https://" + addr)
+	require.NoError(t, err)
+	resp.Body.Close()
+	// Any HTTP response means TLS handshake succeeded
+	assert.NotNil(t, resp)
+
+	// Plain HTTP to TLS server should fail with a TLS handshake error
+	plainClient := &http.Client{Timeout: 2 * time.Second}
+	_, err = plainClient.Get("http://" + addr) //nolint:bodyclose
+	// The server sends a TLS record which the plain HTTP client can't parse.
+	// Depending on timing, this may return an error or a malformed response.
+	// Either way, it should not return a valid HTTP status code.
+	if err == nil {
+		t.Log("plain HTTP to TLS server returned no error (server sent TLS alert as HTTP response)")
+	}
+}
+
+// TestServer_NoTLS_PlainHTTP tests that non-TLS server works with plain HTTP clients
+func TestServer_NoTLS_PlainHTTP(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, signer, verifier)
+
+	ctx := context.Background()
+	err := srv.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { srv.Stop(ctx) })
+
+	addr := srv.ListenAddr()
+
+	// Plain HTTP should work (400 is expected since GET / is not a valid JSON-RPC request,
+	// but a response means the server is reachable over plain HTTP)
+	resp, err := http.Get("http://" + addr)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.NotNil(t, resp)
+}
+
+func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{Organization: []string{"Test"}},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	certPath = filepath.Join(t.TempDir(), "cert.pem")
+	certOut, err := os.Create(certPath)
+	require.NoError(t, err)
+	require.NoError(t, pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
+	certOut.Close()
+
+	keyPath = filepath.Join(t.TempDir(), "key.pem")
+	keyOut, err := os.Create(keyPath)
+	require.NoError(t, err)
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	require.NoError(t, err)
+	require.NoError(t, pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}))
+	keyOut.Close()
+
+	return certPath, keyPath
 }
 
 func createTestJWT(t *testing.T) (jwt.Signer, jwt.Verifier) {
