@@ -21,7 +21,7 @@ jobs:
   # variable one time and setting outputs to access passing it
   # to other jobs
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8
     env:
       # upgrade go version throughout pipeline here
       GO_VERSION: "1.26"
