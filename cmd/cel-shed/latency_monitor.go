@@ -208,9 +208,6 @@ func initializeMetrics(
 }
 
 func runLatencyMonitor(ctx context.Context, cli *client.Client, metrics *latencyMetrics) {
-	ns := libshare.RandomBlobNamespace()
-	fmt.Println("\nUsing namespace:  ", ns.String())
-
 	fmt.Println("\nGenerating blobs...")
 
 	const numBlobs = 10
@@ -222,7 +219,7 @@ func runLatencyMonitor(ctx context.Context, cli *client.Client, metrics *latency
 		}
 
 		libBlobs[i] = generated[0]
-		fmt.Printf("Generated blob %d, actual data length: %d bytes\n", i, len(generated[0].Data()))
+		fmt.Printf("Generated blob %d, namespace: %s, data length: %d bytes\n", i, generated[0].Namespace().String(), len(generated[0].Data()))
 	}
 
 	blobs, err := blob.ToNodeBlobs(libBlobs...)
