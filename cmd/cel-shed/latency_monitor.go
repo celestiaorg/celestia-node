@@ -222,7 +222,8 @@ func runLatencyMonitor(ctx context.Context, cli *client.Client, metrics *latency
 		}
 
 		libBlobs[i] = generated[0]
-		fmt.Printf("Generated blob %d, namespace: %s, data length: %d bytes\n", i, generated[0].Namespace().String(), len(generated[0].Data()))
+		fmt.Printf("Generated blob %d, namespace: %s, data length: %d bytes\n",
+			i, generated[0].Namespace().String(), len(generated[0].Data()))
 	}
 
 	blobs, err := blob.ToNodeBlobs(libBlobs...)
