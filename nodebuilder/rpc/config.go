@@ -74,11 +74,11 @@ func (cfg *Config) Validate() error {
 		if cfg.TLSCertPath == "" || cfg.TLSKeyPath == "" {
 			return fmt.Errorf("service/rpc: TLS certificate and key paths must be specified when TLS is enabled")
 		}
-		if _, err := os.Stat(cfg.TLSCertPath); os.IsNotExist(err) {
-			return fmt.Errorf("service/rpc: TLS certificate file not found: %s", cfg.TLSCertPath)
+		if _, err := os.Stat(cfg.TLSCertPath); err != nil {
+			return fmt.Errorf("service/rpc: TLS certificate file error: %w", err)
 		}
-		if _, err := os.Stat(cfg.TLSKeyPath); os.IsNotExist(err) {
-			return fmt.Errorf("service/rpc: TLS key file not found: %s", cfg.TLSKeyPath)
+		if _, err := os.Stat(cfg.TLSKeyPath); err != nil {
+			return fmt.Errorf("service/rpc: TLS key file error: %w", err)
 		}
 	}
 
