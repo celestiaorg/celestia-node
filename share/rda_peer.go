@@ -150,7 +150,7 @@ func (pm *RDAPeerManager) handlePeerConnectednessChange(peerID peer.ID, connecte
 		pm.rowPeers[position.Row][peerID] = info
 		pm.colPeers[position.Col][peerID] = info
 
-		log.Debugf("peer %s connected at position (%d, %d)",
+		log.Infof("RDA: peer %s joined grid at position (%d, %d)",
 			peerID.String()[:16], position.Row, position.Col)
 
 		select {
@@ -162,7 +162,7 @@ func (pm *RDAPeerManager) handlePeerConnectednessChange(peerID peer.ID, connecte
 		delete(pm.rowPeers[position.Row], peerID)
 		delete(pm.colPeers[position.Col], peerID)
 
-		log.Debugf("peer %s disconnected from position (%d, %d)",
+		log.Infof("RDA: peer %s left grid from position (%d, %d)",
 			peerID.String()[:16], position.Row, position.Col)
 
 		select {

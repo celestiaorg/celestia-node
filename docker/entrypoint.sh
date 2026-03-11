@@ -18,6 +18,22 @@ if [ "$1" = 'celestia' ]; then
     echo ""
 fi
 
+# Apply RDA_EXPECTED_NODES env var to config.toml before starting the node.
+# This lets operators set grid size without rebuilding the image.
+if [[ -n "$RDA_EXPECTED_NODES" && "$1" = 'celestia' ]]; then
+    CONFIG_STORE="${NODE_STORE:-$HOME/.celestia-${NODE_TYPE}-private}"
+    CONFIG_FILE="${CONFIG_STORE}/config.toml"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        if grep -q "RDAExpectedNodeCount" "$CONFIG_FILE"; then
+            sed -i "s/RDAExpectedNodeCount = [0-9]*/RDAExpectedNodeCount = ${RDA_EXPECTED_NODES}/" "$CONFIG_FILE"
+        else
+            # Field not present (e.g. legacy config) – append inside the file
+            echo "RDAExpectedNodeCount = ${RDA_EXPECTED_NODES}" >> "$CONFIG_FILE"
+        fi
+        echo "RDA: ExpectedNodeCount set to ${RDA_EXPECTED_NODES}"
+    fi
+fi
+
 echo "Starting Celestia Node with command:"
 echo "$@"
 echo ""

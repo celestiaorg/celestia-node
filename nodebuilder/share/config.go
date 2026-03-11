@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
@@ -31,18 +32,54 @@ type Config struct {
 
 	LightAvailability *light.Parameters `toml:",omitempty"`
 	Discovery         *discovery.Parameters
+
+	// RDA grid configuration
+	RDAEnabled           bool                 `toml:",omitempty"`
+	RDAGridDimensions    share.GridDimensions `toml:",omitempty"`
+	RDAExpectedNodeCount int                  `toml:",omitempty"`
+	RDAFilterPolicy      share.FilterPolicy   `toml:",omitempty"`
+	RDADetailedLogging   bool                 `toml:",omitempty"`
+
+	// RDADiscoveryEnabled controls whether DHT-based grid peer discovery is
+	// active. Set false in isolated test environments (mocknet/swamp).
+	RDADiscoveryEnabled bool `toml:",omitempty"`
+
+	// RDABootstrapPeers is a list of multiaddr strings for known stable peers
+	// (typically bridge nodes) that a new node contacts first to enter the
+	// DHT and find its grid neighbors.
+	// Example: ["/ip4/1.2.3.4/tcp/2121/p2p/12D3KooW..."]
+	RDABootstrapPeers []string `toml:",omitempty"`
+
+	// RDAUseSubnetDiscovery enables the RDA paper-based subnet discovery protocol.
+	// When true, nodes discover peers via subnet announcements/gossip instead of DHT.
+	// This is the preferred method according to the RDA paper.
+	RDAUseSubnetDiscovery bool `toml:",omitempty"`
+
+	// RDASubnetDiscoveryDelay is the delay before pulling full membership list
+	// after announcing to a subnet. Implements "delayed pull" from the paper.
+	// Default: 4 seconds (~4 rounds).
+	RDASubnetDiscoveryDelay string `toml:",omitempty"`
 }
 
 func DefaultConfig(tp node.Type) Config {
 	cfg := Config{
-		EDSStoreParams:      store.DefaultParameters(),
-		BlockStoreCacheSize: defaultBlockstoreCacheSize,
-		Discovery:           discovery.DefaultParameters(),
-		ShrexClient:         shrex.DefaultClientParameters(),
-		ShrexServer:         shrex.DefaultServerParameters(),
-		UseShareExchange:    true,
-		UseBitswap:          true,
-		PeerManagerParams:   peers.DefaultParameters(),
+		EDSStoreParams:          store.DefaultParameters(),
+		BlockStoreCacheSize:     defaultBlockstoreCacheSize,
+		Discovery:               discovery.DefaultParameters(),
+		ShrexClient:             shrex.DefaultClientParameters(),
+		ShrexServer:             shrex.DefaultServerParameters(),
+		UseShareExchange:        true,
+		UseBitswap:              true,
+		PeerManagerParams:       peers.DefaultParameters(),
+		RDAEnabled:              true,
+		RDAGridDimensions:       share.GridDimensions{Rows: 128, Cols: 128},
+		RDAExpectedNodeCount:    16384,
+		RDAFilterPolicy:         share.DefaultFilterPolicy(),
+		RDADetailedLogging:      false,
+		RDADiscoveryEnabled:     true,
+		RDABootstrapPeers:       nil,  // populated by operator / network config
+		RDAUseSubnetDiscovery:   true, // Use subnet protocol by default (per paper)
+		RDASubnetDiscoveryDelay: "4s", // 4 seconds default (~4 rounds)
 	}
 
 	if tp == node.Light {
@@ -55,6 +92,9 @@ func DefaultConfig(tp node.Type) Config {
 // Validate performs basic validation of the config.
 func (cfg *Config) Validate(tp node.Type) error {
 	if tp == node.Light {
+		if cfg.LightAvailability == nil {
+			cfg.LightAvailability = light.DefaultParameters()
+		}
 		if err := cfg.LightAvailability.Validate(); err != nil {
 			return fmt.Errorf("nodebuilder/share: %w", err)
 		}

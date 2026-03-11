@@ -170,9 +170,9 @@ func CalculateOptimalGridSize(numNodes uint32) GridDimensions {
 	// Tính toán căn bậc 2 của số nodes
 	sqrtNodes := uint16(math.Ceil(math.Sqrt(float64(numNodes))))
 
-	// Đảm bảo grid không quá nhỏ
-	if sqrtNodes < 16 {
-		sqrtNodes = 16
+	// Đảm bảo grid không quá nhỏ (tối thiểu 2 để hỗ trợ mạng thử nghiệm nhỏ)
+	if sqrtNodes < 2 {
+		sqrtNodes = 2
 	}
 
 	// Đảm bảo grid không quá lớn

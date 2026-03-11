@@ -39,6 +39,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		shrexComponents(tp, cfg),
 		bitswapComponents(tp, cfg),
 		peerManagementComponents(tp, cfg),
+		rdaComponents(tp, cfg),
 	)
 
 	switch tp {
@@ -163,6 +164,29 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 	}
 }
 
+func rdaComponents(tp node.Type, cfg *Config) fx.Option {
+	if !cfg.RDAEnabled {
+		// Don't provide RDAModule when RDA is disabled
+		return fx.Options()
+	}
+
+	return fx.Options(
+		fx.Provide(
+			fx.Annotate(
+				newRDAService,
+				fx.OnStart(func(ctx context.Context, service *share.RDANodeService) error {
+					// Service is already started in newRDAService
+					return nil
+				}),
+				fx.OnStop(func(ctx context.Context, service *share.RDANodeService) error {
+					return service.Stop(ctx)
+				}),
+			),
+		),
+		fx.Provide(newRDAAPI),
+		fx.Provide(newRDAModule),
+	)
+}
 func shrexServerComponents(cfg *Config) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(_ *shrex.Server) {}),

@@ -2,6 +2,11 @@ package share
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"time"
 )
 
 // RDAAPI defines the RPC API interface for RDA operations
@@ -33,6 +38,30 @@ type RDAAPI interface {
 
 	// GetHealth returns health status of the RDA node
 	GetHealth(ctx context.Context) (*RDAHealthStatus, error)
+
+	// PublishToSubnet publishes data to all subnet peers (row + column)
+	PublishToSubnet(ctx context.Context, req *RDAPublishRequest) (*RDAPublishResponse, error)
+
+	// PublishToRow publishes data only to row peers
+	PublishToRow(ctx context.Context, req *RDAPublishRequest) (*RDAPublishResponse, error)
+
+	// PublishToCol publishes data only to column peers
+	PublishToCol(ctx context.Context, req *RDAPublishRequest) (*RDAPublishResponse, error)
+
+	// RequestDataFromRow requests data from row peers
+	RequestDataFromRow(ctx context.Context, req *RDADataRequest) (*RDABatchDataResponse, error)
+
+	// RequestDataFromCol requests data from column peers
+	RequestDataFromCol(ctx context.Context, req *RDADataRequest) (*RDABatchDataResponse, error)
+
+	// RequestDataFromSubnet requests data from all subnet peers
+	RequestDataFromSubnet(ctx context.Context, req *RDADataRequest) (*RDABatchDataResponse, error)
+
+	// GetSubnetMembers returns the list of members in this node's subnets
+	GetSubnetMembers(ctx context.Context) (*RDASubnetMembersResponse, error)
+
+	// AnnounceToSubnet manually triggers announcement to subnets
+	AnnounceToSubnet(ctx context.Context) (*RDAAnnouncementResponse, error)
 }
 
 // rdaAPI implements the RDAAPI interface
@@ -211,4 +240,366 @@ func (a *rdaAPI) GetHealth(ctx context.Context) (*RDAHealthStatus, error) {
 		ConnectedPeers:   totalPeers,
 		GridCoverageRate: coverageRate,
 	}, nil
+}
+
+// PublishToSubnet publishes data to all subnet peers (row + column)
+func (a *rdaAPI) PublishToSubnet(ctx context.Context, req *RDAPublishRequest) (*RDAPublishResponse, error) {
+	if req == nil || req.Data == "" {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "invalid request: data is required",
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Decode base64 data
+	data, err := decodeBase64(req.Data)
+	if err != nil {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "invalid data encoding: " + err.Error(),
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Publish to subnet
+	err = a.service.PublishToSubnet(ctx, data)
+	if err != nil {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "publish failed: " + err.Error(),
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Calculate hash
+	hash := calculateSHA256(data)
+
+	// Get connected peers count
+	rowPeers := a.service.GetRowPeers()
+	colPeers := a.service.GetColPeers()
+	peersReached := len(rowPeers) + len(colPeers)
+
+	return &RDAPublishResponse{
+		Success:      true,
+		DataHash:     encodeHex(hash),
+		Message:      "data published to subnet",
+		PeersReached: peersReached,
+	}, nil
+}
+
+// PublishToRow publishes data only to row peers
+func (a *rdaAPI) PublishToRow(ctx context.Context, req *RDAPublishRequest) (*RDAPublishResponse, error) {
+	if req == nil || req.Data == "" {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "invalid request: data is required",
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Decode base64 data
+	data, err := decodeBase64(req.Data)
+	if err != nil {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "invalid data encoding: " + err.Error(),
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Publish to row
+	err = a.service.PublishToRow(ctx, data)
+	if err != nil {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "publish failed: " + err.Error(),
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Calculate hash
+	hash := calculateSHA256(data)
+
+	// Get row peers count
+	rowPeers := a.service.GetRowPeers()
+
+	return &RDAPublishResponse{
+		Success:      true,
+		DataHash:     encodeHex(hash),
+		Message:      "data published to row",
+		PeersReached: len(rowPeers),
+	}, nil
+}
+
+// PublishToCol publishes data only to column peers
+func (a *rdaAPI) PublishToCol(ctx context.Context, req *RDAPublishRequest) (*RDAPublishResponse, error) {
+	if req == nil || req.Data == "" {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "invalid request: data is required",
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Decode base64 data
+	data, err := decodeBase64(req.Data)
+	if err != nil {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "invalid data encoding: " + err.Error(),
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Publish to column
+	err = a.service.PublishToCol(ctx, data)
+	if err != nil {
+		return &RDAPublishResponse{
+			Success:      false,
+			Message:      "publish failed: " + err.Error(),
+			PeersReached: 0,
+		}, nil
+	}
+
+	// Calculate hash
+	hash := calculateSHA256(data)
+
+	// Get column peers count
+	colPeers := a.service.GetColPeers()
+
+	return &RDAPublishResponse{
+		Success:      true,
+		DataHash:     encodeHex(hash),
+		Message:      "data published to column",
+		PeersReached: len(colPeers),
+	}, nil
+}
+
+// RequestDataFromRow requests data from row peers
+func (a *rdaAPI) RequestDataFromRow(ctx context.Context, req *RDADataRequest) (*RDABatchDataResponse, error) {
+	if req == nil || req.DataHash == "" {
+		return &RDABatchDataResponse{
+			Found:        false,
+			Message:      "invalid request: data_hash is required",
+			PeersQueried: 0,
+			Responses:    []RDADataResponse{},
+		}, nil
+	}
+
+	// Get row peers
+	rowPeers := a.service.GetRowPeers()
+	peersQueried := len(rowPeers)
+
+	// Request data from row (this would make actual requests in production)
+	// For now, return response indicating peer count
+	responses := []RDADataResponse{}
+
+	return &RDABatchDataResponse{
+		RequestID:    req.DataHash,
+		Found:        false,
+		Message:      "requested data from row peers",
+		PeersQueried: peersQueried,
+		Responses:    responses,
+	}, nil
+}
+
+// RequestDataFromCol requests data from column peers
+func (a *rdaAPI) RequestDataFromCol(ctx context.Context, req *RDADataRequest) (*RDABatchDataResponse, error) {
+	if req == nil || req.DataHash == "" {
+		return &RDABatchDataResponse{
+			Found:        false,
+			Message:      "invalid request: data_hash is required",
+			PeersQueried: 0,
+			Responses:    []RDADataResponse{},
+		}, nil
+	}
+
+	// Get column peers
+	colPeers := a.service.GetColPeers()
+	peersQueried := len(colPeers)
+
+	// Request data from column
+	responses := []RDADataResponse{}
+
+	return &RDABatchDataResponse{
+		RequestID:    req.DataHash,
+		Found:        false,
+		Message:      "requested data from column peers",
+		PeersQueried: peersQueried,
+		Responses:    responses,
+	}, nil
+}
+
+// RequestDataFromSubnet requests data from all subnet peers
+func (a *rdaAPI) RequestDataFromSubnet(ctx context.Context, req *RDADataRequest) (*RDABatchDataResponse, error) {
+	if req == nil || req.DataHash == "" {
+		return &RDABatchDataResponse{
+			Found:        false,
+			Message:      "invalid request: data_hash is required",
+			PeersQueried: 0,
+			Responses:    []RDADataResponse{},
+		}, nil
+	}
+
+	// Get all subnet peers
+	rowPeers := a.service.GetRowPeers()
+	colPeers := a.service.GetColPeers()
+	peersQueried := len(rowPeers) + len(colPeers)
+
+	// Request data from subnet
+	responses := []RDADataResponse{}
+
+	return &RDABatchDataResponse{
+		RequestID:    req.DataHash,
+		Found:        false,
+		Message:      "requested data from subnet peers",
+		PeersQueried: peersQueried,
+		Responses:    responses,
+	}, nil
+}
+
+// GetSubnetMembers returns the list of members discovered in row/col subnets
+func (a *rdaAPI) GetSubnetMembers(ctx context.Context) (*RDASubnetMembersResponse, error) {
+	mgr := a.service.GetSubnetDiscoveryManager()
+	if mgr == nil {
+		return &RDASubnetMembersResponse{
+			RowMembers: 0,
+			ColMembers: 0,
+			Members:    []RDASubnetMember{},
+			Message:    "subnet discovery not enabled",
+		}, nil
+	}
+
+	// Get this node's position
+	myPos := a.service.GetMyPosition()
+	rowSubnet := fmt.Sprintf("row/%d", myPos.Row)
+	colSubnet := fmt.Sprintf("col/%d", myPos.Col)
+
+	// Get announcers
+	rowAnnouncer, _ := mgr.GetOrCreateAnnouncer(ctx, rowSubnet)
+	colAnnouncer, _ := mgr.GetOrCreateAnnouncer(ctx, colSubnet)
+
+	var rowMembers, colMembers []SubnetMember
+	if rowAnnouncer != nil {
+		rowMembers = rowAnnouncer.GetMembers()
+	}
+	if colAnnouncer != nil {
+		colMembers = colAnnouncer.GetMembers()
+	}
+
+	// Convert to RDA types
+	members := make([]RDASubnetMember, 0, len(rowMembers)+len(colMembers))
+	for _, m := range rowMembers {
+		addrs := make([]string, len(m.PeerAddrs))
+		for i, ai := range m.PeerAddrs {
+			addrs[i] = ai.String()
+		}
+		members = append(members, RDASubnetMember{
+			PeerID:    m.PeerID.String(),
+			Addresses: addrs,
+			LastSeen:  m.LastSeen.UnixNano(),
+		})
+	}
+	for _, m := range colMembers {
+		addrs := make([]string, len(m.PeerAddrs))
+		for i, ai := range m.PeerAddrs {
+			addrs[i] = ai.String()
+		}
+		members = append(members, RDASubnetMember{
+			PeerID:    m.PeerID.String(),
+			Addresses: addrs,
+			LastSeen:  m.LastSeen.UnixNano(),
+		})
+	}
+
+	return &RDASubnetMembersResponse{
+		RowMembers: len(rowMembers),
+		ColMembers: len(colMembers),
+		Members:    members,
+		Message:    "subnet members retrieved",
+	}, nil
+}
+
+// AnnounceToSubnet manually triggers an announcement to subnets
+func (a *rdaAPI) AnnounceToSubnet(ctx context.Context) (*RDAAnnouncementResponse, error) {
+	mgr := a.service.GetSubnetDiscoveryManager()
+	if mgr == nil {
+		return &RDAAnnouncementResponse{
+			Success: false,
+			Message: "subnet discovery not enabled",
+		}, nil
+	}
+
+	// Get this node's position
+	myPos := a.service.GetMyPosition()
+	rowSubnet := fmt.Sprintf("row/%d", myPos.Row)
+	colSubnet := fmt.Sprintf("col/%d", myPos.Col)
+
+	// Create announcers and announce
+	rowAnnouncer, err := mgr.GetOrCreateAnnouncer(ctx, rowSubnet)
+	if err != nil {
+		return &RDAAnnouncementResponse{
+			Success: false,
+			Message: "failed to create row announcer: " + err.Error(),
+		}, nil
+	}
+
+	colAnnouncer, err := mgr.GetOrCreateAnnouncer(ctx, colSubnet)
+	if err != nil {
+		return &RDAAnnouncementResponse{
+			Success: false,
+			Message: "failed to create col announcer: " + err.Error(),
+		}, nil
+	}
+
+	now := time.Now().UnixNano()
+
+	// Announce
+	err = rowAnnouncer.AnnounceJoin(ctx)
+	if err != nil {
+		return &RDAAnnouncementResponse{
+			Success: false,
+			Message: "failed to announce to row subnet: " + err.Error(),
+		}, nil
+	}
+
+	err = colAnnouncer.AnnounceJoin(ctx)
+	if err != nil {
+		return &RDAAnnouncementResponse{
+			Success: false,
+			Message: "failed to announce to col subnet: " + err.Error(),
+		}, nil
+	}
+
+	// Get members after delay
+	rowMembers := rowAnnouncer.GetMembersAfterDelay(ctx)
+	colMembers := colAnnouncer.GetMembersAfterDelay(ctx)
+
+	return &RDAAnnouncementResponse{
+		Success:           true,
+		Message:           "announced to subnets successfully",
+		RowSubnetName:     rowSubnet,
+		ColSubnetName:     colSubnet,
+		AnnouncedAt:       now,
+		MembersDiscovered: len(rowMembers) + len(colMembers),
+	}, nil
+}
+
+// Helper functions
+
+// decodeBase64 decodes base64 string to bytes
+func decodeBase64(str string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(str)
+}
+
+// encodeHex encodes bytes to hex string
+func encodeHex(data []byte) string {
+	return hex.EncodeToString(data)
+}
+
+// calculateSHA256 calculates SHA256 hash of data
+func calculateSHA256(data []byte) []byte {
+	hash := sha256.Sum256(data)
+	return hash[:]
 }

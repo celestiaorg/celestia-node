@@ -20,6 +20,7 @@ import (
 func registerEndpoints(
 	stateMod state.Module,
 	shareMod share.Module,
+	rdaMod *share.RDAModule,
 	fraudMod fraud.Module,
 	headerMod header.Module,
 	daserMod das.Module,
@@ -40,6 +41,11 @@ func registerEndpoints(
 	serv.RegisterService("blob", blobMod, &blob.API{})
 	serv.RegisterService("da", daMod, &da.API{})
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
+
+	// Register RDA API if enabled
+	if rdaMod != nil {
+		serv.RegisterService("rda", rdaMod, &share.RDANodeAPI{})
+	}
 }
 
 func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {

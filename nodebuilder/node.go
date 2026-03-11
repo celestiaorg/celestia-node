@@ -77,6 +77,7 @@ type Node struct {
 	AdminServ     node.Module   // not optional
 	DAMod         da.Module     //nolint: staticcheck // not optional
 	BlobstreamMod blobstream.Module
+	RDAMod        *share.RDAModule `optional:"true"` // optional: enabled via config
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
 	start, stop lifecycleFunc
