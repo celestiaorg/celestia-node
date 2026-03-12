@@ -41,6 +41,7 @@ func TestShareModule(t *testing.T) {
 
 	lightNode := sw.NewLightNode()
 	require.NoError(t, lightNode.Start(ctx))
+	sw.Connect(t, bridge, lightNode)
 
 	bridgeClient := getAdminClient(ctx, bridge, t)
 	fullClient := getAdminClient(ctx, fullNode, t)

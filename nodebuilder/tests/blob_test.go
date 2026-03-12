@@ -45,6 +45,7 @@ func TestBlobModule(t *testing.T) {
 
 	lightNode := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addrFn}))
 	require.NoError(t, lightNode.Start(ctx))
+	sw.Connect(t, bridge, lightNode)
 
 	fullClient := getAdminClient(ctx, fullNode, t)
 	lightClient := getAdminClient(ctx, lightNode, t)

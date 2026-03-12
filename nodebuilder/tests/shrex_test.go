@@ -136,6 +136,7 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	require.NoError(t, startFullNodes(ctx, fulls...))
 	require.NoError(t, light.Start(ctx))
+	sw.Connect(t, bridge, light)
 
 	bridgeClient := getAdminClient(ctx, bridge, t)
 	lightClient := getAdminClient(ctx, light, t)
