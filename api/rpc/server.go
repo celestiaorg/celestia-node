@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"reflect"
@@ -153,10 +155,16 @@ func (s *Server) Start(context.Context) error {
 	}
 	listener, err := net.Listen("tcp", s.srv.Addr)
 	if err != nil {
+		s.started.Store(false)
 		return err
 	}
 	s.listener = listener
 	if s.tlsEnabled {
+		if _, err := tls.LoadX509KeyPair(s.tlsCertPath, s.tlsKeyPath); err != nil {
+			s.started.Store(false)
+			listener.Close()
+			return fmt.Errorf("failed to load TLS cert/key: %w", err)
+		}
 		log.Infow("server started with TLS", "listening on", s.srv.Addr)
 		//nolint:errcheck
 		go s.srv.ServeTLS(listener, s.tlsCertPath, s.tlsKeyPath)
