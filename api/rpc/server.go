@@ -162,8 +162,8 @@ func (s *Server) Start(context.Context) error {
 	if s.tlsEnabled {
 		if _, err := tls.LoadX509KeyPair(s.tlsCertPath, s.tlsKeyPath); err != nil {
 			s.started.Store(false)
+			s.listener = nil
 			listener.Close()
-			return fmt.Errorf("failed to load TLS cert/key: %w", err)
 		}
 		log.Infow("server started with TLS", "listening on", s.srv.Addr)
 		//nolint:errcheck
