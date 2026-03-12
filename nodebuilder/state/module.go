@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 var log = logging.Logger("module/state")
@@ -27,15 +28,26 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
-		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
-			coreAccessor,
-			fx.OnStart(func(ctx context.Context, state *state.CoreAccessor) error {
-				return state.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, state *state.CoreAccessor) error {
-				return state.Stop(ctx)
-			}),
-		)),
+		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(),
+			fx.Annotate(
+				newTxClient,
+				fx.OnStart(func(ctx context.Context, tc *txclient.TxClient) error {
+					return tc.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, tc *txclient.TxClient) error {
+					return tc.Stop(ctx)
+				}),
+			),
+			fx.Annotate(
+				coreAccessor,
+				fx.OnStart(func(ctx context.Context, ca *state.CoreAccessor) error {
+					return ca.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
+					return ca.Stop(ctx)
+				}),
+			),
+		),
 		fxutil.ProvideIf(!coreCfg.IsEndpointConfigured(), func() (*state.CoreAccessor, Module) {
 			return nil, &stubbedStateModule{}
 		}),

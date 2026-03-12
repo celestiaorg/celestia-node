@@ -1,7 +1,8 @@
-package state
+package txclient
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -18,6 +19,8 @@ const (
 
 	DefaultMaxGasPrice = appconsts.DefaultMinGasPrice * 100
 )
+
+var ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
 
 // NewTxConfig constructs a new TxConfig with the provided options.
 // It starts with a DefaultGasPrice and then applies any additional
@@ -38,7 +41,7 @@ const (
 	TxPriorityHigh
 )
 
-func (t TxPriority) toApp() gasestimation.TxPriority {
+func (t TxPriority) ToApp() gasestimation.TxPriority {
 	switch t {
 	case TxPriorityLow:
 		return gasestimation.TxPriority_TX_PRIORITY_LOW
@@ -89,6 +92,10 @@ func (cfg *TxConfig) GasPrice() float64 {
 		return DefaultGasPrice
 	}
 	return cfg.gasPrice
+}
+
+func (cfg *TxConfig) IsGasPriceSet() bool {
+	return cfg.isGasPriceSet
 }
 
 // MaxGasPrice will return the max gas price that the user set
@@ -150,16 +157,12 @@ func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func parseAccountKey(kr keyring.Keyring, accountKey string) (sdktypes.AccAddress, error) {
+func ParseAccountKey(kr keyring.Keyring, accountKey string) (sdktypes.AccAddress, error) {
 	rec, err := kr.Key(accountKey)
 	if err != nil {
 		return nil, fmt.Errorf("getting account key: %w", err)
 	}
 	return rec.GetAddress()
-}
-
-func parseAccAddressFromString(addrStr string) (sdktypes.AccAddress, error) {
-	return sdktypes.AccAddressFromBech32(addrStr)
 }
 
 // ConfigOption is the functional option that is applied to the TxConfig instance
