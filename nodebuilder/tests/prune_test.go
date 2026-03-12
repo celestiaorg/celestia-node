@@ -152,12 +152,16 @@ func TestArchivalBlobSync(t *testing.T) {
 	}
 
 	// ensure pruned FNs don't have the blocks associated
-	// with the historical blobs
+	// with the historical blobs. Use Eventually because the pruning FNs may
+	// fetch blocks from core during catch-up; the pruner needs time to
+	// remove data outside the availability window.
 	for _, pruned := range pruningFulls {
 		for _, b := range archivalBlobs {
-			has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
-			require.NoError(t, err)
-			assert.False(t, has)
+			assert.Eventually(t, func() bool {
+				has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
+				return err == nil && !has
+			}, 30*time.Second, 500*time.Millisecond,
+				"expected EDS at height %d to be pruned", b.height)
 		}
 	}
 

@@ -151,20 +151,23 @@ func TestHeaderSubscription(t *testing.T) {
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, bridge)
 
-	bridgeClient := getAdminClient(ctx, bridge, t)
-
-	// Wait for the bridge to accumulate blocks so the light node's initial
-	// header exchange sync generates subscription events without relying on
-	// gossipsub (which is unreliable in mocknet with FanoutOnly bridge nodes).
-	_, err = bridgeClient.Header.WaitForHeight(ctx, 10)
-	require.NoError(t, err)
-
 	// start a light node that's connected to the bridge node
 	light := sw.NewLightNode()
 	err = light.Start(ctx)
 	require.NoError(t, err)
 
+	// Explicitly connect bridge and light, then wait for gossipsub mesh
+	// formation. Bridge nodes use FanoutOnly for header gossipsub, so we
+	// need to ensure the connection is established and gossipsub has
+	// exchanged subscription metadata before subscribing.
+	sw.Connect(t, bridge, light)
+
 	lightClient := getAdminClient(ctx, light, t)
+	// Wait for the light to sync a few headers (proves connectivity) and
+	// give gossipsub heartbeats time to propagate subscription info.
+	_, err = lightClient.Header.WaitForHeight(ctx, 3)
+	require.NoError(t, err)
+	time.Sleep(3 * time.Second)
 
 	// subscribe to headers via the light node's RPC header subscription
 	subctx, subcancel := context.WithCancel(ctx)
