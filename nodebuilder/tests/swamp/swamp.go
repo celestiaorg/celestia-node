@@ -124,7 +124,7 @@ func (s *Swamp) WaitTillHeight(ctx context.Context, height int64) libhead.Hash {
 	for {
 		select {
 		case <-ctx.Done():
-			s.t.Fatalf("WaitTillHeight: context cancelled while waiting for height %d", height)
+			s.t.Fatalf("WaitTillHeight: context canceled while waiting for height %d", height)
 			return nil
 		case <-t.C:
 			latest, err := s.ClientContext.LatestHeight()
