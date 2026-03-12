@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
 	full_avail "github.com/celestiaorg/celestia-node/share/availability/full"
@@ -88,6 +89,13 @@ func TestArchivalBlobSync(t *testing.T) {
 			)
 		}),
 	)
+	// pruningNodeOpts also replaces the share.Window so the pruner service
+	// uses the 1ms availability window (prunerOpts only replaces time.Duration
+	// which doesn't affect the pruner's share.Window-typed dependency).
+	pruningNodeOpts := fx.Options(
+		prunerOpts,
+		fx.Replace(modshare.Window(testAvailWindow)),
+	)
 
 	// wait until bn syncs to the latest submitted height
 	_, err = archivalFN.HeaderServ.WaitForHeight(ctx, heights[len(heights)-1])
@@ -101,14 +109,14 @@ func TestArchivalBlobSync(t *testing.T) {
 	sw.Bootstrappers = sw.Bootstrappers[:0]
 	sw.SetBootstrapper(t, archivalFN)
 
-	pruningBN := sw.NewBridgeNode(prunerOpts)
+	pruningBN := sw.NewBridgeNode(pruningNodeOpts)
 	err = pruningBN.Start(ctx)
 	require.NoError(t, err)
 
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
 	for range 3 {
 		cfg := sw.DefaultTestConfig(node.Bridge)
-		pruningFN := sw.NewNodeWithConfig(node.Bridge, cfg, prunerOpts)
+		pruningFN := sw.NewNodeWithConfig(node.Bridge, cfg, pruningNodeOpts)
 		err = pruningFN.Start(ctx)
 		require.NoError(t, err)
 

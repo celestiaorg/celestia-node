@@ -123,7 +123,7 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
 		cfg := sw.DefaultTestConfig(node.Bridge)
-		setTimeInterval(cfg, testTimeout)
+		setTimeInterval(cfg, time.Second*20)
 		full := sw.NewNodeWithConfig(node.Bridge, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
