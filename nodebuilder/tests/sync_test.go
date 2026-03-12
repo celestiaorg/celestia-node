@@ -331,13 +331,14 @@ func TestSyncLightAgainstFull(t *testing.T) {
 	err = sw.Network.UnlinkPeers(bridge.Host.ID(), light.Host.ID())
 	require.NoError(t, err)
 
-	// start LN and wait for it to sync up to network head against the head of the FN
+	// start LN and wait for it to sync up to the known pre-filled height.
+	// Using a fixed height (numBlocks) instead of the full's current head avoids
+	// a race where the full advances past the light's exchange sync, leaving the
+	// light waiting on gossipsub (unreliable with FanoutOnly in mocknet).
 	err = light.Start(ctx)
 	require.NoError(t, err)
 	lightClient := getAdminClient(ctx, light, t)
-	fullHead, err := fullClient.Header.LocalHead(ctx)
-	require.NoError(t, err)
-	_, err = lightClient.Header.WaitForHeight(ctx, fullHead.Height())
+	_, err = lightClient.Header.WaitForHeight(ctx, numBlocks)
 	require.NoError(t, err)
 
 	// wait for the core block filling process to exit

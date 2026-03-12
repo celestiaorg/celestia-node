@@ -95,6 +95,12 @@ func TestArchivalBlobSync(t *testing.T) {
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
 
+	// Reset bootstrappers to exclude the stopped archivalBN. Keep only archivalFN
+	// so new nodes don't attempt connections to the stopped node (which causes
+	// "protocol not supported" errors).
+	sw.Bootstrappers = sw.Bootstrappers[:0]
+	sw.SetBootstrapper(t, archivalFN)
+
 	pruningBN := sw.NewBridgeNode(prunerOpts)
 	err = pruningBN.Start(ctx)
 	require.NoError(t, err)

@@ -151,6 +151,14 @@ func TestHeaderSubscription(t *testing.T) {
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, bridge)
 
+	bridgeClient := getAdminClient(ctx, bridge, t)
+
+	// Wait for the bridge to accumulate blocks so the light node's initial
+	// header exchange sync generates subscription events without relying on
+	// gossipsub (which is unreliable in mocknet with FanoutOnly bridge nodes).
+	_, err = bridgeClient.Header.WaitForHeight(ctx, 10)
+	require.NoError(t, err)
+
 	// start a light node that's connected to the bridge node
 	light := sw.NewLightNode()
 	err = light.Start(ctx)
