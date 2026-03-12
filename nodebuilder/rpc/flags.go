@@ -158,6 +158,7 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	}
 
 	// TLS settings
+	tlsSettingsProvided := false
 	if val, err := cmd.Flags().GetBool(tlsEnabledFlag); err != nil {
 		return err
 	} else if val {
@@ -167,11 +168,19 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 		return err
 	} else if certPath != "" {
 		cfg.TLSCertPath = certPath
+		tlsSettingsProvided = true
 	}
 	if keyPath, err := cmd.Flags().GetString(tlsKeyPathFlag); err != nil {
 		return err
 	} else if keyPath != "" {
 		cfg.TLSKeyPath = keyPath
+		tlsSettingsProvided = true
+	}
+	if tlsSettingsProvided && !cfg.TLSEnabled {
+		return fmt.Errorf(
+			"TLS cert/key paths provided but TLS is not enabled. Set --%s=true to apply these settings",
+			tlsEnabledFlag,
+		)
 	}
 
 	return nil

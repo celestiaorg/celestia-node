@@ -344,7 +344,7 @@ func TestServer_TLS(t *testing.T) {
 	ctx := context.Background()
 	err := srv.Start(ctx)
 	require.NoError(t, err)
-	t.Cleanup(func() { srv.Stop(ctx) })
+	t.Cleanup(func() { require.NoError(t, srv.Stop(ctx)) })
 
 	addr := srv.ListenAddr()
 	require.NotEmpty(t, addr)
@@ -352,7 +352,7 @@ func TestServer_TLS(t *testing.T) {
 	// HTTPS client with InsecureSkipVerify for self-signed cert
 	tlsClient := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 
@@ -383,7 +383,7 @@ func TestServer_NoTLS_PlainHTTP(t *testing.T) {
 	ctx := context.Background()
 	err := srv.Start(ctx)
 	require.NoError(t, err)
-	t.Cleanup(func() { srv.Stop(ctx) })
+	t.Cleanup(func() { require.NoError(t, srv.Stop(ctx)) })
 
 	addr := srv.ListenAddr()
 
