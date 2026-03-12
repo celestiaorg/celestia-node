@@ -23,7 +23,7 @@ import (
 
 func TestDaModule(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
@@ -102,6 +102,8 @@ func TestDaModule(t *testing.T) {
 				result, err := fullClient.DA.GetIDs(ctx, height, namespace.Bytes())
 				require.NoError(t, err)
 				require.EqualValues(t, ids, result.IDs)
+				_, err = lightClient.Header.WaitForHeight(ctx, height)
+				require.NoError(t, err)
 				header, err := lightClient.Header.GetByHeight(ctx, height)
 				require.NoError(t, err)
 				require.EqualValues(t, header.Time(), result.Timestamp)
