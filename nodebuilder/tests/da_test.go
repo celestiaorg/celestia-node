@@ -59,15 +59,20 @@ func TestDaModule(t *testing.T) {
 	require.NoError(t, fullNode.Start(ctx))
 	addrFn := host.InfoFromHost(fullNode.Host)
 
-	lightNode := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addrFn}))
-	require.NoError(t, lightNode.Start(ctx))
-	sw.Connect(t, bridge, lightNode)
-
 	fullClient := getAdminClient(ctx, fullNode, t)
-	lightClient := getAdminClient(ctx, lightNode, t)
 
 	ids, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace.Bytes())
 	require.NoError(t, err)
+
+	h, _ := da.SplitID(ids[0])
+	_, err = fullClient.Header.WaitForHeight(ctx, h)
+	require.NoError(t, err)
+
+	// Start the light node after submitting blobs so its initial header
+	// exchange sync fetches all needed headers without relying on gossipsub.
+	lightNode := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addrFn}))
+	require.NoError(t, lightNode.Start(ctx))
+	lightClient := getAdminClient(ctx, lightNode, t)
 
 	test := []struct {
 		name string

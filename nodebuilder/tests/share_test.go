@@ -39,19 +39,21 @@ func TestShareModule(t *testing.T) {
 	fullNode := sw.NewBridgeNode()
 	require.NoError(t, fullNode.Start(ctx))
 
-	lightNode := sw.NewLightNode()
-	require.NoError(t, lightNode.Start(ctx))
-	sw.Connect(t, bridge, lightNode)
-
 	bridgeClient := getAdminClient(ctx, bridge, t)
 	fullClient := getAdminClient(ctx, fullNode, t)
-	lightClient := getAdminClient(ctx, lightNode, t)
 
 	height, err := fullClient.Blob.Submit(ctx, nodeBlob, state.NewTxConfig())
 	require.NoError(t, err)
 
 	_, err = fullClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
+
+	// Start the light node after submitting blobs so its initial header
+	// exchange sync fetches all needed headers without relying on gossipsub.
+	lightNode := sw.NewLightNode()
+	require.NoError(t, lightNode.Start(ctx))
+	lightClient := getAdminClient(ctx, lightNode, t)
+
 	_, err = lightClient.Header.WaitForHeight(ctx, height)
 	require.NoError(t, err)
 

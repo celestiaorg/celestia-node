@@ -158,7 +158,6 @@ func TestArchivalBlobSync(t *testing.T) {
 	ln := sw.NewLightNode(prunerOpts)
 	err = ln.Start(ctx)
 	require.NoError(t, err)
-	sw.Connect(t, archivalFN, ln)
 
 	// ensure LN can retrieve all archival blobs from the
 	// archival FN
