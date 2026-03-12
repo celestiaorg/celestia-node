@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
@@ -17,6 +18,7 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 	flags := []*pflag.FlagSet{
 		NodeFlags(),
 		p2p.Flags(),
+		share.Flags(),
 		MiscFlags(),
 		core.Flags(),
 		rpc.Flags(),
@@ -44,6 +46,7 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 	flags := []*pflag.FlagSet{
 		NodeFlags(),
 		p2p.Flags(),
+		share.Flags(),
 		header.Flags(),
 		MiscFlags(),
 		core.Flags(),

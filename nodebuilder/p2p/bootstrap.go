@@ -18,8 +18,8 @@ func isBootstrapper() bool {
 }
 
 // BootstrappersFor returns address information of bootstrap peers for a given network.
-func BootstrappersFor(net Network) (Bootstrappers, error) {
-	bs, err := bootstrappersFor(net)
+func BootstrappersFor(net Network, cliBootnodes ...string) (Bootstrappers, error) {
+	bs, err := bootstrappersFor(net, cliBootnodes...)
 	if err != nil {
 		return nil, err
 	}
@@ -28,14 +28,20 @@ func BootstrappersFor(net Network) (Bootstrappers, error) {
 }
 
 // bootstrappersFor reports multiaddresses of bootstrap peers for a given network.
-func bootstrappersFor(net Network) ([]string, error) {
+// It merges hardcoded bootstrapList with any provided CLI bootnodes.
+func bootstrappersFor(net Network, cliBootnodes ...string) ([]string, error) {
 	var err error
 	net, err = net.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	return bootstrapList[net], nil
+	hardcoded := bootstrapList[net]
+	// If CLI bootnodes provided, use them; otherwise use hardcoded list
+	if len(cliBootnodes) > 0 {
+		return cliBootnodes, nil
+	}
+	return hardcoded, nil
 }
 
 // NOTE: Every time we add a new long-running network, its bootstrap peers have to be added here.
@@ -89,12 +95,12 @@ func parseAddrInfos(addrs []string) ([]peer.AddrInfo, error) {
 // initiates a connection to other hardcoded bootstrap peers
 // while the connectionManager hook adds them as mutual peers to prevent
 // trimming the connection. This will aid the network's connectivity.
-func connectToBootstrappers(ctx context.Context, h host.Host, network Network) error {
+func connectToBootstrappers(ctx context.Context, h host.Host, network Network, cfg *Config) error {
 	if !isBootstrapper() {
 		return nil
 	}
 
-	boots, err := BootstrappersFor(network)
+	boots, err := BootstrappersFor(network, cfg.BootstrapPeers...)
 	if err != nil {
 		return err
 	}

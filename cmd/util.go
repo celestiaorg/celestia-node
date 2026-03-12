@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	rpc_cfg "github.com/celestiaorg/celestia-node/nodebuilder/rpc"
+	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 )
 
@@ -138,6 +139,10 @@ func ParseAllFlags(cmd *cobra.Command, nodeType node.Type, args []string) error 
 	opt := pruner.ParseFlags(cmd, nodeType)
 	if opt != nil {
 		ctx = WithNodeOptions(ctx, opt)
+	}
+
+	if err := share.ParseFlags(cmd, &cfg.Share); err != nil {
+		return err
 	}
 
 	switch nodeType {

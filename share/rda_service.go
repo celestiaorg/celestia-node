@@ -133,13 +133,11 @@ func NewRDANodeService(
 		disc = NewRDADiscovery(host, config.Discovery, gridManager, config.BootstrapPeers)
 	}
 
-	// Create bootstrap discovery service if bootstrap peers configured
-	useBootstrapDiscovery := len(config.BootstrapPeers) > 0
-	var bootstrapDisc *BootstrapDiscoveryService
-	if useBootstrapDiscovery {
-		myCoords := GetCoords(host.ID(), gridDims)
-		bootstrapDisc = NewBootstrapDiscoveryService(host, config.BootstrapPeers, gridManager, uint32(myCoords.Row), uint32(myCoords.Col))
-	}
+	// Create bootstrap discovery service (always listens for incoming requests)
+	// Will only contact bootstrap peers if config.BootstrapPeers is non-empty
+	myCoords := GetCoords(host.ID(), gridDims)
+	bootstrapDisc := NewBootstrapDiscoveryService(host, config.BootstrapPeers, gridManager, uint32(myCoords.Row), uint32(myCoords.Col))
+	useBootstrapDiscovery := true
 
 	// Create subnet discovery manager if enabled
 	delayBeforePull := config.SubnetDiscoveryDelay
@@ -310,22 +308,19 @@ func (s *RDANodeService) startSubnetDiscovery(startCtx context.Context) {
 	log.Infof("RDA Subnet Discovery: node at (row=%d, col=%d)", myPos.Row, myPos.Col)
 
 	// ========== STEP 1 & 2: Bootstrap-based discovery ==========
+	// All nodes always listen for bootstrap requests (server mode)
+	// Only nodes with configured bootstrap peers will contact them (client mode)
 	var bootstrapRowPeers []peer.AddrInfo
 	var bootstrapColPeers []peer.AddrInfo
 
-	if s.useBootstrapDiscovery && s.bootstrapDiscovery != nil {
-		log.Infof("RDA: starting bootstrap peer discovery (contacting %d bootstrap peers)", len(s.bootstrapDiscovery.bootstrapPeers))
-
-		// Start bootstrap discovery service
-		if err := s.bootstrapDiscovery.Start(startCtx); err != nil {
-			log.Warnf("RDA bootstrap discovery failed to start: %v", err)
-		} else {
-			// Wait for bootstrap discovery to complete
-			time.Sleep(3 * time.Second)
-			bootstrapRowPeers = s.bootstrapDiscovery.GetRowPeers()
-			bootstrapColPeers = s.bootstrapDiscovery.GetColPeers()
-			log.Infof("RDA bootstrap discovered: %d row peers, %d col peers", len(bootstrapRowPeers), len(bootstrapColPeers))
-		}
+	if err := s.bootstrapDiscovery.Start(startCtx); err != nil {
+		log.Warnf("RDA bootstrap discovery failed to start: %v", err)
+	} else {
+		// Wait for bootstrap discovery to complete (only contacts if bootstrap peers configured)
+		time.Sleep(3 * time.Second)
+		bootstrapRowPeers = s.bootstrapDiscovery.GetRowPeers()
+		bootstrapColPeers = s.bootstrapDiscovery.GetColPeers()
+		log.Infof("RDA bootstrap discovered: %d row peers, %d col peers", len(bootstrapRowPeers), len(bootstrapColPeers))
 	}
 
 	// ========== STEP 3: Gossip-based discovery (for redundancy) ==========
@@ -420,6 +415,13 @@ func (s *RDANodeService) connectToAllDiscoveredPeers(
 		colPeers = append(colPeers, p)
 	}
 
+	log.Infof(
+		"RDA: discovery sources summary - bootstrap(row=%d,col=%d), gossip(row=%d,col=%d)",
+		len(bootstrapRowPeers),
+		len(bootstrapColPeers),
+		len(gossipRowPeers),
+		len(gossipColPeers),
+	)
 	log.Infof("RDA: total discovered peers - rows: %d, cols: %d", len(rowPeers), len(colPeers))
 
 	// Connect to discovered members
@@ -429,10 +431,11 @@ func (s *RDANodeService) connectToAllDiscoveredPeers(
 	// Connect to row members
 	for _, p := range rowPeers {
 		go func(peerInfo peer.AddrInfo) {
+			log.Infof("RDA: attempting row peer connect to %s", peerInfo.ID.String())
 			if err := s.host.Connect(connCtx, peerInfo); err != nil {
-				log.Debugf("RDA: failed to connect row peer %s: %v", peerInfo.ID.String()[:8], err)
+				log.Infof("RDA: failed to connect row peer %s: %v", peerInfo.ID.String(), err)
 			} else {
-				log.Debugf("RDA: connected to row peer %s", peerInfo.ID.String()[:8])
+				log.Infof("RDA: connected to row peer %s", peerInfo.ID.String())
 			}
 		}(p)
 	}
@@ -440,10 +443,11 @@ func (s *RDANodeService) connectToAllDiscoveredPeers(
 	// Connect to column members
 	for _, p := range colPeers {
 		go func(peerInfo peer.AddrInfo) {
+			log.Infof("RDA: attempting col peer connect to %s", peerInfo.ID.String())
 			if err := s.host.Connect(connCtx, peerInfo); err != nil {
-				log.Debugf("RDA: failed to connect col peer %s: %v", peerInfo.ID.String()[:8], err)
+				log.Infof("RDA: failed to connect col peer %s: %v", peerInfo.ID.String(), err)
 			} else {
-				log.Debugf("RDA: connected to col peer %s", peerInfo.ID.String()[:8])
+				log.Infof("RDA: connected to col peer %s", peerInfo.ID.String())
 			}
 		}(p)
 	}

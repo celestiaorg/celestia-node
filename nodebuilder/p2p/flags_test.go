@@ -118,3 +118,55 @@ func TestParseNetwork_envOverridesFlag(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, Network("custom-network"), network)
 }
+
+// TestParseFlags_BootnodesParsed tests that --p2p.bootnodes flag is correctly parsed
+func TestParseFlags_BootnodesParsed(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().AddFlagSet(Flags())
+
+	bootnode1 := "/dnsaddr/bootstrap1.example.com/p2p/12D3KooWSqZaLcn5Guypo2mrHr297YPJnV8KMEMXNjs3qAS8msw8"
+	bootnode2 := "/dnsaddr/bootstrap2.example.com/p2p/12D3KooWQpuTFELgsUypqp9N4a1rKBccmrmQVY8Em9yhqppTJcXf"
+
+	err := cmd.Flags().Set(bootnodeFlag, bootnode1)
+	require.NoError(t, err)
+	err = cmd.Flags().Set(bootnodeFlag, bootnode2)
+	require.NoError(t, err)
+
+	cfg := DefaultConfig(1) // 1 = Bridge node type
+	err = ParseFlags(cmd, &cfg)
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.BootstrapPeers, 2)
+	assert.Equal(t, bootnode1, cfg.BootstrapPeers[0])
+	assert.Equal(t, bootnode2, cfg.BootstrapPeers[1])
+}
+
+// TestParseFlags_BootnodesInvalidMultiaddr tests that invalid multiaddr is rejected
+func TestParseFlags_BootnodesInvalidMultiaddr(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().AddFlagSet(Flags())
+
+	err := cmd.Flags().Set(bootnodeFlag, "not-a-valid-multiaddr")
+	require.NoError(t, err)
+
+	cfg := DefaultConfig(1)
+	err = ParseFlags(cmd, &cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), bootnodeFlag)
+}
+
+// TestParseFlags_BootnodesEmpty tests that empty bootnodes list doesn't override config
+func TestParseFlags_BootnodesEmpty(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().AddFlagSet(Flags())
+
+	cfg := DefaultConfig(1)
+	cfg.BootstrapPeers = []string{"existing-bootnode"}
+
+	err := ParseFlags(cmd, &cfg)
+	require.NoError(t, err)
+
+	// Should keep existing bootstrap peers since no flag was set
+	assert.Len(t, cfg.BootstrapPeers, 1)
+	assert.Equal(t, "existing-bootnode", cfg.BootstrapPeers[0])
+}

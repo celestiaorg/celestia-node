@@ -14,8 +14,9 @@ import (
 const EnvCustomNetwork = "CELESTIA_CUSTOM"
 
 const (
-	networkFlag = "p2p.network"
-	mutualFlag  = "p2p.mutual"
+	networkFlag  = "p2p.network"
+	mutualFlag   = "p2p.mutual"
+	bootnodeFlag = "p2p.bootnodes"
 )
 
 // Flags gives a set of p2p flags.
@@ -37,6 +38,14 @@ Peers must bidirectionally point to each other. (Format: multiformats.io/multiad
 			"both init and start to take effect. Assumes mainnet (%s) unless otherwise specified.",
 			listAvailableNetworks(),
 			DefaultNetwork.String()),
+	)
+	flags.StringSlice(
+		bootnodeFlag,
+		nil,
+		`Comma-separated multiaddresses of bootstrap peers.
+ Each bootnode helps to bootstrap the node into the network via peer discovery.
+ Can be specified multiple times. (Format: multiformats.io/multiaddr)
+ `,
 	)
 
 	return flags
@@ -61,6 +70,22 @@ func ParseFlags(
 
 	if len(mutualPeers) != 0 {
 		cfg.MutualPeers = mutualPeers
+	}
+
+	bootnodes, err := cmd.Flags().GetStringSlice(bootnodeFlag)
+	if err != nil {
+		return err
+	}
+
+	for _, bootnode := range bootnodes {
+		_, err = multiaddr.NewMultiaddr(bootnode)
+		if err != nil {
+			return fmt.Errorf("cmd: while parsing '%s': %w", bootnodeFlag, err)
+		}
+	}
+
+	if len(bootnodes) != 0 {
+		cfg.BootstrapPeers = bootnodes
 	}
 	return nil
 }

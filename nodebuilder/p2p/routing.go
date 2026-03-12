@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/routing"
 	"go.uber.org/fx"
@@ -12,6 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 )
+
+var p2pLog = logging.Logger("p2p/routing")
 
 func newDHT(
 	ctx context.Context,
@@ -35,7 +38,10 @@ func newDHT(
 	// no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
 	// otherwise dht.Bootstrap(OnStart hook) will deadlock
 	if isBootstrapper() {
+		p2pLog.Infof("P2P: Node initialized as BOOTSTRAPPER (no upstream peers)")
 		bootstrappers = nil
+	} else {
+		p2pLog.Infof("P2P: Node initialized as regular peer (will connect to %d bootstrappers)", len(bootstrappers))
 	}
 
 	dht, err := discovery.NewDHT(ctx, network.String(), bootstrappers, host, dataStore, mode)

@@ -327,12 +327,11 @@ func (b *BootstrapDiscoveryService) Start(ctx context.Context) error {
 
 	rdalog.Infof("RDA bootstrap discovery: starting with %d bootstrap peer(s)", len(b.bootstrapPeers))
 
-	// Connect to bootstrap peers
-	connCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
+	// Connect to bootstrap peers in background
+	// Use background context so goroutines persist after Start() returns
+	bgCtx := context.Background()
 	for _, bootstrap := range b.bootstrapPeers {
-		go b.contactBootstrapPeer(connCtx, bootstrap)
+		go b.contactBootstrapPeer(bgCtx, bootstrap)
 	}
 
 	return nil
@@ -367,7 +366,7 @@ func (b *BootstrapDiscoveryService) handleBootstrapRequest(stream network.Stream
 		return
 	}
 
-	rdalog.Debugf("RDA bootstrap server: received %s request from %s at (row=%d, col=%d)", req.Type, req.NodeID, req.Row, req.Col)
+	rdalog.Infof("RDA bootstrap server: received %s request from %s at (row=%d, col=%d)", req.Type, req.NodeID, req.Row, req.Col)
 
 	// Process request based on type
 	var resp *BootstrapPeerResponse
@@ -402,7 +401,14 @@ func (b *BootstrapDiscoveryService) handleBootstrapRequest(stream network.Stream
 		return
 	}
 
-	rdalog.Debugf("RDA bootstrap server: sent response to %s", req.NodeID)
+	rdalog.Infof(
+		"RDA bootstrap server: responded to %s request from %s (success=%t, row_peers=%d, col_peers=%d)",
+		req.Type,
+		req.NodeID,
+		resp.Success,
+		len(resp.RowPeers),
+		len(resp.ColPeers),
+	)
 	// Keep stream open - let client read then close
 }
 
@@ -554,19 +560,22 @@ func (b *BootstrapDiscoveryService) contactBootstrapPeer(ctx context.Context, bo
 		return
 	}
 
-	rdalog.Debugf("RDA bootstrap: connected to bootstrap peer %s", bootstrap.ID)
+	rdalog.Infof("RDA bootstrap: connected to bootstrap peer %s", bootstrap.ID)
 
 	// Step 2: Send JOIN request to row subnet
+	rdalog.Infof("RDA bootstrap: sending %s request (row=%d, col=%d) to %s", JoinRowSubnetRequest, b.myRow, b.myCol, bootstrap.ID)
 	if err := b.sendJoinRequest(ctx, bootstrap.ID, JoinRowSubnetRequest, b.myRow, b.myCol); err != nil {
 		rdalog.Debugf("RDA bootstrap: failed to join row subnet: %v", err)
 	}
 
 	// Step 3: Send JOIN request to column subnet
+	rdalog.Infof("RDA bootstrap: sending %s request (row=%d, col=%d) to %s", JoinColSubnetRequest, b.myRow, b.myCol, bootstrap.ID)
 	if err := b.sendJoinRequest(ctx, bootstrap.ID, JoinColSubnetRequest, b.myRow, b.myCol); err != nil {
 		rdalog.Debugf("RDA bootstrap: failed to join col subnet: %v", err)
 	}
 
 	// Step 4: Request row peers
+	rdalog.Infof("RDA bootstrap: requesting row peers from %s for row=%d", bootstrap.ID, b.myRow)
 	if rowPeers, err := b.requestPeersFromBootstrap(ctx, bootstrap.ID, GetRowPeersRequest, b.myRow, b.myCol); err == nil {
 		b.mu.Lock()
 		for _, p := range rowPeers {
@@ -575,12 +584,13 @@ func (b *BootstrapDiscoveryService) contactBootstrapPeer(ctx context.Context, bo
 			}
 		}
 		b.mu.Unlock()
-		rdalog.Infof("RDA bootstrap: discovered %d row peers from bootstrap", len(rowPeers))
+		rdalog.Infof("RDA bootstrap: discovered %d row peers from bootstrap %s", len(rowPeers), bootstrap.ID)
 	} else {
 		rdalog.Debugf("RDA bootstrap: failed to get row peers: %v", err)
 	}
 
 	// Step 5: Request column peers
+	rdalog.Infof("RDA bootstrap: requesting col peers from %s for col=%d", bootstrap.ID, b.myCol)
 	if colPeers, err := b.requestPeersFromBootstrap(ctx, bootstrap.ID, GetColPeersRequest, b.myRow, b.myCol); err == nil {
 		b.mu.Lock()
 		for _, p := range colPeers {
@@ -589,7 +599,7 @@ func (b *BootstrapDiscoveryService) contactBootstrapPeer(ctx context.Context, bo
 			}
 		}
 		b.mu.Unlock()
-		rdalog.Infof("RDA bootstrap: discovered %d col peers from bootstrap", len(colPeers))
+		rdalog.Infof("RDA bootstrap: discovered %d col peers from bootstrap %s", len(colPeers), bootstrap.ID)
 	} else {
 		rdalog.Debugf("RDA bootstrap: failed to get col peers: %v", err)
 	}
@@ -626,6 +636,7 @@ func (b *BootstrapDiscoveryService) sendJoinRequest(ctx context.Context, bootstr
 	if _, err := stream.Write(data); err != nil {
 		return fmt.Errorf("failed to write request: %w", err)
 	}
+	rdalog.Infof("RDA bootstrap: sent %s request to %s (row=%d, col=%d)", requestType, bootstrapID, row, col)
 
 	// Read response (optional for join requests)
 	buf := make([]byte, 4096)

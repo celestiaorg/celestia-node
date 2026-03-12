@@ -22,6 +22,9 @@ type Config struct {
 	// Connections with those peers are protected from being trimmed, dropped or negatively scored.
 	// NOTE: Any two peers must bidirectionally configure each other on their MutualPeers field.
 	MutualPeers []string
+	// BootstrapPeers are peers used for bootstrapping the node into the network.
+	// Can be set via CLI flag --p2p.bootnodes or config file.
+	BootstrapPeers []string
 	// PeerExchange configures the node, whether it should share some peers to a pruned peer.
 	// This is enabled by default for Bootstrappers.
 	PeerExchange bool
@@ -60,9 +63,10 @@ func DefaultConfig(tp node.Type) Config {
 			"/ip4/127.0.0.1/tcp/2121",
 			"/ip6/::/tcp/2121",
 		},
-		MutualPeers:  []string{},
-		PeerExchange: tp == node.Bridge,
-		ConnManager:  defaultConnManagerConfig(tp),
+		MutualPeers:    []string{},
+		BootstrapPeers: []string{},
+		PeerExchange:   tp == node.Bridge,
+		ConnManager:    defaultConnManagerConfig(tp),
 	}
 }
 
