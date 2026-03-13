@@ -102,10 +102,15 @@ func TestArchivalBlobSync(t *testing.T) {
 	require.NoError(t, err)
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
+	// Close the stopped archivalBN's host so that future createPeer/LinkAll
+	// calls don't re-link new nodes to it. Without this, new nodes may try
+	// to reach archivalBN via shrex and get "protocols not supported" errors
+	// since its handlers are gone.
+	err = archivalBN.Host.Close()
+	require.NoError(t, err)
 
 	// Reset bootstrappers to exclude the stopped archivalBN. Keep only archivalFN
-	// so new nodes don't attempt connections to the stopped node (which causes
-	// "protocol not supported" errors).
+	// so new nodes don't attempt connections to the stopped node.
 	sw.Bootstrappers = sw.Bootstrappers[:0]
 	sw.SetBootstrapper(t, archivalFN)
 
