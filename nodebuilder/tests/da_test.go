@@ -23,7 +23,7 @@ import (
 
 func TestDaModule(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(time.Second))
 
@@ -59,14 +59,20 @@ func TestDaModule(t *testing.T) {
 	require.NoError(t, fullNode.Start(ctx))
 	addrFn := host.InfoFromHost(fullNode.Host)
 
-	lightNode := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addrFn}))
-	require.NoError(t, lightNode.Start(ctx))
-
 	fullClient := getAdminClient(ctx, fullNode, t)
-	lightClient := getAdminClient(ctx, lightNode, t)
 
 	ids, err := fullClient.DA.Submit(ctx, daBlobs, -1, namespace.Bytes())
 	require.NoError(t, err)
+
+	h, _ := da.SplitID(ids[0])
+	_, err = fullClient.Header.WaitForHeight(ctx, h)
+	require.NoError(t, err)
+
+	// Start the light node after submitting blobs so its initial header
+	// exchange sync fetches all needed headers without relying on gossipsub.
+	lightNode := sw.NewLightNode(nodebuilder.WithBootstrappers([]peer.AddrInfo{*addrFn}))
+	require.NoError(t, lightNode.Start(ctx))
+	lightClient := getAdminClient(ctx, lightNode, t)
 
 	test := []struct {
 		name string
@@ -102,6 +108,8 @@ func TestDaModule(t *testing.T) {
 				result, err := fullClient.DA.GetIDs(ctx, height, namespace.Bytes())
 				require.NoError(t, err)
 				require.EqualValues(t, ids, result.IDs)
+				_, err = lightClient.Header.WaitForHeight(ctx, height)
+				require.NoError(t, err)
 				header, err := lightClient.Header.GetByHeight(ctx, height)
 				require.NoError(t, err)
 				require.EqualValues(t, header.Time(), result.Timestamp)

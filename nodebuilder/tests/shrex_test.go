@@ -41,22 +41,33 @@ func TestShrexFromLights(t *testing.T) {
 	bridge := sw.NewBridgeNode()
 	sw.SetBootstrapper(t, bridge)
 
-	cfg := sw.DefaultTestConfig(node.Light)
-	cfg.Share.Discovery.PeersLimit = 1
-	light := sw.NewNodeWithConfig(node.Light, cfg)
-
 	err := bridge.Start(ctx)
-	require.NoError(t, err)
-	err = light.Start(ctx)
 	require.NoError(t, err)
 
 	bridgeClient := getAdminClient(ctx, bridge, t)
-	lightClient := getAdminClient(ctx, light, t)
 
 	// wait for chain to be filled
 	require.NoError(t, <-fillDn)
 
-	for i := range heightsCh {
+	// Collect all filled block heights and wait for bridge to sync them
+	heights := make([]uint64, 0, blocks)
+	for h := range heightsCh {
+		heights = append(heights, h)
+	}
+	_, err = bridgeClient.Header.WaitForHeight(ctx, heights[len(heights)-1])
+	require.NoError(t, err)
+
+	// Start the light node after blocks are filled so its initial header
+	// exchange sync fetches all needed headers without relying on gossipsub.
+	cfg := sw.DefaultTestConfig(node.Light)
+	cfg.Share.Discovery.PeersLimit = 1
+	light := sw.NewNodeWithConfig(node.Light, cfg)
+	err = light.Start(ctx)
+	require.NoError(t, err)
+
+	lightClient := getAdminClient(ctx, light, t)
+
+	for _, i := range heights {
 		h, err := bridgeClient.Header.GetByHeight(ctx, i)
 		require.NoError(t, err)
 
@@ -104,7 +115,7 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 		btime         = time.Millisecond * 300
 		bsize         = 16
 		amountOfFulls = 5
-		testTimeout   = time.Second * 20
+		testTimeout   = swamp.DefaultTestTimeout
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
@@ -123,27 +134,37 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
 		cfg := sw.DefaultTestConfig(node.Bridge)
-		setTimeInterval(cfg, testTimeout)
+		setTimeInterval(cfg, time.Second*20)
 		full := sw.NewNodeWithConfig(node.Bridge, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
-	lnConfig := sw.DefaultTestConfig(node.Light)
-	lnConfig.Share.Discovery.PeersLimit = uint(amountOfFulls)
-	light := sw.NewNodeWithConfig(node.Light, lnConfig)
-
-	// start all nodes
+	// start bridge and fulls
 	require.NoError(t, bridge.Start(ctx))
 	require.NoError(t, startFullNodes(ctx, fulls...))
-	require.NoError(t, light.Start(ctx))
 
 	bridgeClient := getAdminClient(ctx, bridge, t)
-	lightClient := getAdminClient(ctx, light, t)
 
 	// wait for chain to fill up
 	require.NoError(t, <-fillDn)
 
-	for i := range heightsCh {
+	// Collect all filled block heights and wait for bridge to sync them
+	heights := make([]uint64, 0, blocks)
+	for h := range heightsCh {
+		heights = append(heights, h)
+	}
+	_, err := bridgeClient.Header.WaitForHeight(ctx, heights[len(heights)-1])
+	require.NoError(t, err)
+
+	// Start the light node after blocks are filled so its initial header
+	// exchange sync fetches all needed headers without relying on gossipsub.
+	lnConfig := sw.DefaultTestConfig(node.Light)
+	lnConfig.Share.Discovery.PeersLimit = uint(amountOfFulls)
+	light := sw.NewNodeWithConfig(node.Light, lnConfig)
+	require.NoError(t, light.Start(ctx))
+	lightClient := getAdminClient(ctx, light, t)
+
+	for _, i := range heights {
 		h, err := bridgeClient.Header.GetByHeight(ctx, i)
 		require.NoError(t, err)
 

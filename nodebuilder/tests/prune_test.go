@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
 	"github.com/celestiaorg/celestia-node/share"
 	full_avail "github.com/celestiaorg/celestia-node/share/availability/full"
@@ -48,7 +49,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		bsize  = 16
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
@@ -88,21 +89,39 @@ func TestArchivalBlobSync(t *testing.T) {
 			)
 		}),
 	)
+	// pruningNodeOpts also replaces the share.Window so the pruner service
+	// uses the 1ms availability window (prunerOpts only replaces time.Duration
+	// which doesn't affect the pruner's share.Window-typed dependency).
+	pruningNodeOpts := fx.Options(
+		prunerOpts,
+		fx.Replace(modshare.Window(testAvailWindow)),
+	)
 
 	// wait until bn syncs to the latest submitted height
 	_, err = archivalFN.HeaderServ.WaitForHeight(ctx, heights[len(heights)-1])
 	require.NoError(t, err)
 	err = archivalBN.Stop(ctx)
 	require.NoError(t, err)
+	// Close the stopped archivalBN's host so that future createPeer/LinkAll
+	// calls don't re-link new nodes to it. Without this, new nodes may try
+	// to reach archivalBN via shrex and get "protocols not supported" errors
+	// since its handlers are gone.
+	err = archivalBN.Host.Close()
+	require.NoError(t, err)
 
-	pruningBN := sw.NewBridgeNode(prunerOpts)
+	// Reset bootstrappers to exclude the stopped archivalBN. Keep only archivalFN
+	// so new nodes don't attempt connections to the stopped node.
+	sw.Bootstrappers = sw.Bootstrappers[:0]
+	sw.SetBootstrapper(t, archivalFN)
+
+	pruningBN := sw.NewBridgeNode(pruningNodeOpts)
 	err = pruningBN.Start(ctx)
 	require.NoError(t, err)
 
 	pruningFulls := make([]*nodebuilder.Node, 0, 3)
 	for range 3 {
 		cfg := sw.DefaultTestConfig(node.Bridge)
-		pruningFN := sw.NewNodeWithConfig(node.Bridge, cfg, prunerOpts)
+		pruningFN := sw.NewNodeWithConfig(node.Bridge, cfg, pruningNodeOpts)
 		err = pruningFN.Start(ctx)
 		require.NoError(t, err)
 
@@ -146,12 +165,16 @@ func TestArchivalBlobSync(t *testing.T) {
 	}
 
 	// ensure pruned FNs don't have the blocks associated
-	// with the historical blobs
+	// with the historical blobs. Use Eventually because the pruning FNs may
+	// fetch blocks from core during catch-up; the pruner needs time to
+	// remove data outside the availability window.
 	for _, pruned := range pruningFulls {
 		for _, b := range archivalBlobs {
-			has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
-			require.NoError(t, err)
-			assert.False(t, has)
+			assert.Eventually(t, func() bool {
+				has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
+				return err == nil && !has
+			}, 30*time.Second, 500*time.Millisecond,
+				"expected EDS at height %d to be pruned", b.height)
 		}
 	}
 
