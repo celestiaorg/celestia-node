@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -290,6 +291,10 @@ type BootstrapDiscoveryService struct {
 	rowPeers     map[string]peer.AddrInfo // Map of peer ID to peer info for row (client-side cache)
 	colPeers     map[string]peer.AddrInfo // Map of peer ID to peer info for column (client-side cache)
 
+	// Bootstrap-to-bootstrap sync
+	peerBootstraps map[string]peer.AddrInfo // Other bootstrap servers for sync
+	isBusy         bool                     // Flag to prevent recursive sync calls
+
 	done chan struct{}
 }
 
@@ -309,6 +314,7 @@ func NewBootstrapDiscoveryService(
 		routingTable:   NewRoutingTable(RoutingTableCapacity),
 		rowPeers:       make(map[string]peer.AddrInfo),
 		colPeers:       make(map[string]peer.AddrInfo),
+		peerBootstraps: make(map[string]peer.AddrInfo),
 		done:           make(chan struct{}),
 	}
 }
@@ -319,6 +325,13 @@ func (b *BootstrapDiscoveryService) Start(ctx context.Context) error {
 	// Register handler to receive bootstrap requests from other nodes
 	b.host.SetStreamHandler(RDABootstrapProtocol, b.handleBootstrapRequest)
 	rdalog.Infof("RDA bootstrap: registered stream handler for %s", RDABootstrapProtocol)
+
+	// If this is a bootstrap server, join all row subnets
+	if b.isBootstrapServer() {
+		rdalog.Infof("RDA bootstrap: detected bootstrapper mode, will join all row subnets")
+		bgCtx := context.Background()
+		go b.JoinAllRowSubnets(bgCtx)
+	}
 
 	if len(b.bootstrapPeers) == 0 {
 		rdalog.Warnf("RDA bootstrap discovery: no bootstrap peers configured")
@@ -379,6 +392,9 @@ func (b *BootstrapDiscoveryService) handleBootstrapRequest(stream network.Stream
 		resp = b.processGetRowPeersRequest(req)
 	case GetColPeersRequest:
 		resp = b.processGetColPeersRequest(req)
+	case "sync_peer":
+		// Peer sync from another bootstrap server
+		resp = b.processSyncPeerRequest(req)
 	default:
 		resp = &BootstrapPeerResponse{
 			Type:      req.Type + "_resp",
@@ -434,6 +450,9 @@ func (b *BootstrapDiscoveryService) processJoinRowRequest(req *BootstrapPeerRequ
 	b.rowPeers[req.NodeID] = addrInfo
 	b.mu.Unlock()
 
+	// Broadcast to other bootstrap servers with retry logic
+	go b.broadcastPeerWithRetry(req.NodeID, addrInfo, req.Row, req.Col)
+
 	// Get random peers from row (3-5) excluding requester
 	randomPeers := b.routingTable.GetRowPeers(req.Row, RandomPeersPerQuery, req.NodeID)
 
@@ -479,6 +498,9 @@ func (b *BootstrapDiscoveryService) processJoinColRequest(req *BootstrapPeerRequ
 	b.colPeers[req.NodeID] = addrInfo
 	b.mu.Unlock()
 
+	// Broadcast to other bootstrap servers (async)
+	go b.broadcastPeerToOtherBootstraps(req.NodeID, addrInfo, req.Row, req.Col)
+
 	// Get random peers from column (3-5) excluding requester
 	randomPeers := b.routingTable.GetColPeers(req.Col, RandomPeersPerQuery, req.NodeID)
 
@@ -502,10 +524,14 @@ func (b *BootstrapDiscoveryService) processJoinColRequest(req *BootstrapPeerRequ
 	}
 }
 
-// processGetRowPeersRequest returns random peers from the same row
+// processGetRowPeersRequest returns random peers from the same row (excluding requester and self)
 func (b *BootstrapDiscoveryService) processGetRowPeersRequest(req *BootstrapPeerRequest) *BootstrapPeerResponse {
-	// Get random peers from row (3-5) excluding requester
-	randomPeers := b.routingTable.GetRowPeers(req.Row, RandomPeersPerQuery, req.NodeID)
+	// Exclude both the requester and self from results
+	excludeNodeID := req.NodeID
+	if req.NodeID == "" || req.NodeID == b.host.ID().String() {
+		excludeNodeID = b.host.ID().String()
+	}
+	randomPeers := b.routingTable.GetRowPeers(req.Row, RandomPeersPerQuery, excludeNodeID)
 
 	// Convert to response format
 	rowPeers := make([]BootstrapPeer, len(randomPeers))
@@ -527,10 +553,14 @@ func (b *BootstrapDiscoveryService) processGetRowPeersRequest(req *BootstrapPeer
 	}
 }
 
-// processGetColPeersRequest returns random peers from the same column
+// processGetColPeersRequest returns random peers from the same column (excluding requester and self)
 func (b *BootstrapDiscoveryService) processGetColPeersRequest(req *BootstrapPeerRequest) *BootstrapPeerResponse {
-	// Get random peers from column (3-5) excluding requester
-	randomPeers := b.routingTable.GetColPeers(req.Col, RandomPeersPerQuery, req.NodeID)
+	// Exclude both the requester and self from results
+	excludeNodeID := req.NodeID
+	if req.NodeID == "" || req.NodeID == b.host.ID().String() {
+		excludeNodeID = b.host.ID().String()
+	}
+	randomPeers := b.routingTable.GetColPeers(req.Col, RandomPeersPerQuery, excludeNodeID)
 
 	// Convert to response format
 	colPeers := make([]BootstrapPeer, len(randomPeers))
@@ -548,6 +578,33 @@ func (b *BootstrapDiscoveryService) processGetColPeersRequest(req *BootstrapPeer
 		Success:   true,
 		Message:   fmt.Sprintf("found %d peers in col %d", len(colPeers), req.Col),
 		ColPeers:  colPeers,
+		Timestamp: time.Now().Unix(),
+	}
+}
+
+// processSyncPeerRequest handles peer sync from another bootstrap server
+func (b *BootstrapDiscoveryService) processSyncPeerRequest(req *BootstrapPeerRequest) *BootstrapPeerResponse {
+	// Parse peer info
+	addrInfo, err := stringsToPeerAddrInfo(req.NodeID, req.PeerAddrs)
+	if err != nil {
+		rdalog.Debugf("RDA bootstrap: failed to sync peer %s: %v", req.NodeID, err)
+		return &BootstrapPeerResponse{
+			Type:      "sync_peer_resp",
+			Success:   false,
+			Message:   "failed to parse peer info",
+			Timestamp: time.Now().Unix(),
+		}
+	}
+
+	// Add peer to local routing table
+	b.routingTable.AddPeer(req.NodeID, addrInfo, req.Row, req.Col)
+
+	rdalog.Infof("RDA bootstrap: synced peer %s at (row=%d, col=%d) from another bootstrap", req.NodeID[:16], req.Row, req.Col)
+
+	return &BootstrapPeerResponse{
+		Type:      "sync_peer_resp",
+		Success:   true,
+		Message:   fmt.Sprintf("synced peer %s", req.NodeID[:16]),
 		Timestamp: time.Now().Unix(),
 	}
 }
@@ -579,6 +636,11 @@ func (b *BootstrapDiscoveryService) contactBootstrapPeer(ctx context.Context, bo
 	if rowPeers, err := b.requestPeersFromBootstrap(ctx, bootstrap.ID, GetRowPeersRequest, b.myRow, b.myCol); err == nil {
 		b.mu.Lock()
 		for _, p := range rowPeers {
+			// Filter out self to prevent dial-to-self
+			if p.PeerID == b.host.ID().String() {
+				rdalog.Debugf("RDA bootstrap: skipping self peer in row discovery")
+				continue
+			}
 			if addrInfo, err := peerToAddrInfo(p); err == nil {
 				b.rowPeers[p.PeerID] = addrInfo
 			}
@@ -594,6 +656,11 @@ func (b *BootstrapDiscoveryService) contactBootstrapPeer(ctx context.Context, bo
 	if colPeers, err := b.requestPeersFromBootstrap(ctx, bootstrap.ID, GetColPeersRequest, b.myRow, b.myCol); err == nil {
 		b.mu.Lock()
 		for _, p := range colPeers {
+			// Filter out self to prevent dial-to-self
+			if p.PeerID == b.host.ID().String() {
+				rdalog.Debugf("RDA bootstrap: skipping self peer in col discovery")
+				continue
+			}
 			if addrInfo, err := peerToAddrInfo(p); err == nil {
 				b.colPeers[p.PeerID] = addrInfo
 			}
@@ -712,28 +779,128 @@ func (b *BootstrapDiscoveryService) requestPeersFromBootstrap(
 	}
 }
 
-// GetRowPeers returns currently discovered row peers
+// GetRowPeers returns currently discovered row peers (excluding self)
 func (b *BootstrapDiscoveryService) GetRowPeers() []peer.AddrInfo {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
+	selfID := b.host.ID().String()
 	peers := make([]peer.AddrInfo, 0, len(b.rowPeers))
-	for _, p := range b.rowPeers {
-		peers = append(peers, p)
+	for peerID, p := range b.rowPeers {
+		if peerID != selfID {
+			peers = append(peers, p)
+		}
 	}
 	return peers
 }
 
-// GetColPeers returns currently discovered column peers
+// GetColPeers returns currently discovered column peers (excluding self)
 func (b *BootstrapDiscoveryService) GetColPeers() []peer.AddrInfo {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
+	selfID := b.host.ID().String()
 	peers := make([]peer.AddrInfo, 0, len(b.colPeers))
-	for _, p := range b.colPeers {
-		peers = append(peers, p)
+	for peerID, p := range b.colPeers {
+		if peerID != selfID {
+			peers = append(peers, p)
+		}
 	}
 	return peers
+}
+
+// broadcastPeerToOtherBootstraps shares peer information with other bootstrap servers
+// Called after a peer successfully joins to ensure all bootstraps know about it
+func (b *BootstrapDiscoveryService) broadcastPeerToOtherBootstraps(peerID string, addrInfo peer.AddrInfo, row, col uint32) {
+	// Retrieve known bootstrap servers
+	b.mu.RLock()
+	bootstraps := make([]peer.AddrInfo, 0, len(b.peerBootstraps))
+	for _, bs := range b.peerBootstraps {
+		bootstraps = append(bootstraps, bs)
+	}
+	b.mu.RUnlock()
+
+	if len(bootstraps) == 0 {
+		return // No other bootstraps to sync with
+	}
+
+	// Broadcast peer info to other bootstrap servers
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, bootstrapPeer := range bootstraps {
+		go func(bp peer.AddrInfo) {
+			if err := b.sendSyncRequest(ctx, bp.ID, peerID, addrInfo, row, col); err != nil {
+				rdalog.Debugf("RDA bootstrap: failed to sync peer %s with %s: %v", peerID, bp.ID, err)
+			}
+		}(bootstrapPeer)
+	}
+}
+
+// sendSyncRequest sends peer info to another bootstrap server
+func (b *BootstrapDiscoveryService) sendSyncRequest(
+	ctx context.Context,
+	bootstrapID peer.ID,
+	peerID string,
+	addrInfo peer.AddrInfo,
+	row, col uint32,
+) error {
+	// Connect to bootstrap
+	if err := b.host.Connect(ctx, peer.AddrInfo{ID: bootstrapID}); err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+
+	// Create request
+	req := BootstrapPeerRequest{
+		Type:      "sync_peer",
+		NodeID:    peerID,
+		Row:       row,
+		Col:       col,
+		PeerAddrs: addrInfoToStrings(addrInfo),
+		GridDims:  b.gridManager.GetGridDimensions(),
+	}
+
+	// Marshal request
+	data, err := marshalBootstrapRequest(&req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal: %w", err)
+	}
+
+	// Send request (fire and forget for sync)
+	stream, err := b.host.NewStream(ctx, bootstrapID, RDABootstrapProtocol)
+	if err != nil {
+		return fmt.Errorf("failed to create stream: %w", err)
+	}
+	defer stream.Close()
+
+	if _, err := stream.Write(data); err != nil {
+		return fmt.Errorf("failed to write: %w", err)
+	}
+
+	rdalog.Debugf("RDA bootstrap: synced peer %s to bootstrap %s", peerID[:16], bootstrapID.String()[:16])
+	return nil
+}
+
+// discoverBootstrapPeers discovers other bootstrap servers by connecting to peer's multiaddrs
+func (b *BootstrapDiscoveryService) discoverBootstrapPeers(peerAddrs []string) {
+	// Try to extract potential bootstrap peers from addresses
+	for _, addrStr := range peerAddrs {
+		addr, err := ma.NewMultiaddr(addrStr)
+		if err != nil {
+			continue
+		}
+
+		// Extract peer ID from multiaddr if present
+		protoCode := ma.ProtocolWithName("p2p")
+		parts := addr.Protocols()
+		for i, p := range parts {
+			if p.Code == protoCode.Code && i+1 < len(parts) {
+				// Found a peer ID, could be a bootstrap
+				// Note: In production, you might use DHT or other discovery mechanisms
+				rdalog.Debugf("RDA bootstrap: potential bootstrap discovered at %s", addrStr[:40])
+			}
+		}
+	}
 }
 
 // Helper functions
@@ -1048,4 +1215,161 @@ func split(s string, sep byte) []string {
 	}
 	parts = append(parts, current)
 	return parts
+}
+
+// isBootstrapServer checks if this node is running in bootstrap server mode
+func (b *BootstrapDiscoveryService) isBootstrapServer() bool {
+	return os.Getenv("CELESTIA_BOOTSTRAPPER") == "true"
+}
+
+// JoinAllRowSubnets makes the bootstrap server join all row subnets in the grid
+// This ensures bootstrap servers know about peers in all rows and can respond to discovery requests
+func (b *BootstrapDiscoveryService) JoinAllRowSubnets(ctx context.Context) {
+	gridDims := b.gridManager.GetGridDimensions()
+	rdalog.Infof("RDA bootstrap: joining all %d row subnets", gridDims.Rows)
+
+	for row := uint32(0); row < uint32(gridDims.Rows); row++ {
+		// Create join row request as if this bootstrap is a node joining
+		req := BootstrapPeerRequest{
+			Type:     JoinRowSubnetRequest,
+			NodeID:   b.host.ID().String(),
+			Row:      row,
+			Col:      b.myCol,
+			GridDims: gridDims,
+			PeerAddrs: addrInfoToStrings(peer.AddrInfo{
+				ID:    b.host.ID(),
+				Addrs: b.host.Addrs(),
+			}),
+		}
+
+		// Process the request locally to register this bootstrap in the row
+		resp := b.processJoinRowRequest(&req)
+		rdalog.Debugf("RDA bootstrap: joined row %d (success=%v, row_peers=%d, col_peers=%d)",
+			row, resp.Success, len(resp.RowPeers), len(resp.ColPeers))
+
+		// Small delay to avoid overwhelming the system
+		select {
+		case <-ctx.Done():
+			rdalog.Warnf("RDA bootstrap: stopped joining row subnets due to context cancellation")
+			return
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
+	rdalog.Infof("RDA bootstrap: completed joining all row subnets")
+}
+
+// broadcastPeerWithRetry broadcasts peer information to other bootstrap servers with retry logic
+// This ensures peer info is propagated across all bootstrap servers reliably
+func (b *BootstrapDiscoveryService) broadcastPeerWithRetry(peerID string, addrInfo peer.AddrInfo, row, col uint32) {
+	const maxRetries = 3
+	const retryDelay = 500 * time.Millisecond
+
+	b.mu.RLock()
+	bootstrapPeersCount := len(b.peerBootstraps)
+	b.mu.RUnlock()
+
+	if bootstrapPeersCount == 0 {
+		// No other bootstrap peers to sync with
+		return
+	}
+
+	rdalog.Debugf("RDA bootstrap: broadcasting peer %s to %d other bootstrap servers", peerID[:16], bootstrapPeersCount)
+
+	// Try to broadcast to all other bootstrap servers
+	b.mu.RLock()
+	bootstrapPeers := make([]peer.AddrInfo, 0, len(b.peerBootstraps))
+	for _, p := range b.peerBootstraps {
+		bootstrapPeers = append(bootstrapPeers, p)
+	}
+	b.mu.RUnlock()
+
+	for _, bootstrapPeer := range bootstrapPeers {
+		go func(bp peer.AddrInfo) {
+			// Retry logic for each bootstrap server
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := b.sendSyncRequestToBootstrap(ctx, bp.ID, peerID, addrInfo, row, col)
+				cancel()
+
+				if err == nil {
+					rdalog.Debugf("RDA bootstrap: synced peer %s to bootstrap %s", peerID[:16], bp.ID)
+					return
+				}
+
+				rdalog.Debugf("RDA bootstrap: sync attempt %d/%d to %s failed: %v", attempt+1, maxRetries, bp.ID, err)
+
+				// Wait before retry (except on last attempt)
+				if attempt < maxRetries-1 {
+					time.Sleep(retryDelay)
+				}
+			}
+
+			// Log failure after all retries exhausted
+			rdalog.Warnf("RDA bootstrap: failed to sync peer %s to bootstrap %s after %d retries", peerID[:16], bootstrapPeer.ID, maxRetries)
+		}(bootstrapPeer)
+	}
+}
+
+// sendSyncRequestToBootstrap sends a sync_peer request to another bootstrap server
+func (b *BootstrapDiscoveryService) sendSyncRequestToBootstrap(
+	ctx context.Context,
+	bootstrapID peer.ID,
+	peerID string,
+	addrInfo peer.AddrInfo,
+	row, col uint32,
+) error {
+	// Connect to bootstrap peer if not already connected
+	if err := b.host.Connect(ctx, peer.AddrInfo{ID: bootstrapID}); err != nil {
+		return fmt.Errorf("failed to connect to bootstrap peer %s: %w", bootstrapID, err)
+	}
+
+	// Create stream
+	stream, err := b.host.NewStream(ctx, bootstrapID, RDABootstrapProtocol)
+	if err != nil {
+		return fmt.Errorf("failed to create stream to bootstrap %s: %w", bootstrapID, err)
+	}
+	defer stream.Close()
+
+	// Create sync request
+	req := BootstrapPeerRequest{
+		Type:      "sync_peer",
+		NodeID:    peerID,
+		Row:       row,
+		Col:       col,
+		GridDims:  b.gridManager.GetGridDimensions(),
+		PeerAddrs: addrInfoToStrings(addrInfo),
+	}
+
+	// Send request
+	data, err := marshalBootstrapRequest(&req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal sync request: %w", err)
+	}
+
+	if _, err := stream.Write(data); err != nil {
+		return fmt.Errorf("failed to write sync request: %w", err)
+	}
+
+	// Read response
+	buf := make([]byte, 4096)
+	n, err := stream.Read(buf)
+	if err != nil && err != network.ErrReset {
+		return fmt.Errorf("failed to read sync response: %w", err)
+	}
+
+	if n == 0 {
+		return fmt.Errorf("empty sync response")
+	}
+
+	resp, err := unmarshalBootstrapResponse(buf[:n])
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal sync response: %w", err)
+	}
+
+	if !resp.Success {
+		return fmt.Errorf("sync request failed: %s", resp.Message)
+	}
+
+	return nil
 }

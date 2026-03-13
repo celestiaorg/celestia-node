@@ -58,6 +58,10 @@ type RDANodeServiceConfig struct {
 	// to connect to immediately on Start, so DHT discovery can follow.
 	BootstrapPeers []peer.AddrInfo
 
+	// PeerBootstraps is a list of other bootstrap servers for peer info sync.
+	// Only used when this node is a bootstrap server itself.
+	PeerBootstraps []peer.AddrInfo
+
 	// UseSubnetDiscovery enables RDA paper-based subnet discovery protocol
 	// instead of DHT. When true, nodes join via bootstrap and discover peers
 	// through subnet announcements/gossip.
@@ -137,6 +141,12 @@ func NewRDANodeService(
 	// Will only contact bootstrap peers if config.BootstrapPeers is non-empty
 	myCoords := GetCoords(host.ID(), gridDims)
 	bootstrapDisc := NewBootstrapDiscoveryService(host, config.BootstrapPeers, gridManager, uint32(myCoords.Row), uint32(myCoords.Col))
+
+	// Populate peer bootstraps (other bootstrap servers for sync)
+	for peerID, info := range convertAddrInfoToMap(config.PeerBootstraps) {
+		bootstrapDisc.peerBootstraps[peerID] = info
+	}
+
 	useBootstrapDiscovery := true
 
 	// Create subnet discovery manager if enabled
@@ -170,6 +180,15 @@ func NewRDANodeService(
 	}
 
 	return service
+}
+
+// convertAddrInfoToMap converts a list of peer.AddrInfo to a map indexed by peer ID string
+func convertAddrInfoToMap(peers []peer.AddrInfo) map[string]peer.AddrInfo {
+	result := make(map[string]peer.AddrInfo, len(peers))
+	for _, p := range peers {
+		result[p.ID.String()] = p
+	}
+	return result
 }
 
 // Start initializes and starts all RDA components

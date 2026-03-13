@@ -50,6 +50,11 @@ type Config struct {
 	// Example: ["/ip4/1.2.3.4/tcp/2121/p2p/12D3KooW..."]
 	RDABootstrapPeers []string `toml:",omitempty"`
 
+	// RDAPeerBootstraps is a list of other bootstrap servers for peer info sync.
+	// Only used when this node is a bootstrap server itself.
+	// Example: ["/dns4/bootstrap2/tcp/2121/p2p/12D3KooW..."]
+	RDAPeerBootstraps []string `toml:",omitempty"`
+
 	// RDAUseSubnetDiscovery enables the RDA paper-based subnet discovery protocol.
 	// When true, nodes discover peers via subnet announcements/gossip instead of DHT.
 	// This is the preferred method according to the RDA paper.
@@ -78,6 +83,7 @@ func DefaultConfig(tp node.Type) Config {
 		RDADetailedLogging:      false,
 		RDADiscoveryEnabled:     true,
 		RDABootstrapPeers:       nil,  // populated by operator / network config
+		RDAPeerBootstraps:       nil,  // populated by operator / network config
 		RDAUseSubnetDiscovery:   true, // Use subnet protocol by default (per paper)
 		RDASubnetDiscoveryDelay: "4s", // 4 seconds default (~4 rounds)
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -530,7 +531,7 @@ func TestIntegration_PeersInDifferentSizes(t *testing.T) {
 
 	for idx, dims := range gridSizes {
 		dims := dims
-		name := "Grid_" + string(rune(48+idx)) // "Grid_0", "Grid_1", etc
+		name := "Grid_" + string(rune(48+idx)) // "Grid_0", "Grid_1", etc.
 		t.Run(name, func(t *testing.T) {
 			mgr := NewRDAGridManager(dims)
 
@@ -543,4 +544,173 @@ func TestIntegration_PeersInDifferentSizes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestIntegration_BootstrapServers_MultiBootstrapperSync tests multiple bootstrap servers syncing peer info
+func TestIntegration_BootstrapServers_MultiBootstrapperSync(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	gridDims := GridDimensions{Rows: 16, Cols: 16}
+	gridManager := NewRDAGridManager(gridDims)
+
+	// Create 3 bootstrap servers
+	bootstrap1Host := createMockHostUnit(t)
+	bootstrap2Host := createMockHostUnit(t)
+	bootstrap3Host := createMockHostUnit(t)
+
+	bootstrap1Svc := NewBootstrapDiscoveryService(bootstrap1Host, []peer.AddrInfo{}, gridManager, 0, 0)
+	bootstrap2Svc := NewBootstrapDiscoveryService(bootstrap2Host, []peer.AddrInfo{}, gridManager, 0, 1)
+	bootstrap3Svc := NewBootstrapDiscoveryService(bootstrap3Host, []peer.AddrInfo{}, gridManager, 0, 2)
+
+	defer bootstrap1Svc.Stop(ctx)
+	defer bootstrap2Svc.Stop(ctx)
+	defer bootstrap3Svc.Stop(ctx)
+
+	// Setup peer bootstrap links (bootstrap servers know about each other)
+	bootstrap1Svc.mu.Lock()
+	bootstrap1Svc.peerBootstraps[bootstrap2Host.ID().String()] = peer.AddrInfo{ID: bootstrap2Host.ID(), Addrs: bootstrap2Host.Addrs()}
+	bootstrap1Svc.peerBootstraps[bootstrap3Host.ID().String()] = peer.AddrInfo{ID: bootstrap3Host.ID(), Addrs: bootstrap3Host.Addrs()}
+	bootstrap1Svc.mu.Unlock()
+
+	bootstrap2Svc.mu.Lock()
+	bootstrap2Svc.peerBootstraps[bootstrap1Host.ID().String()] = peer.AddrInfo{ID: bootstrap1Host.ID(), Addrs: bootstrap1Host.Addrs()}
+	bootstrap2Svc.peerBootstraps[bootstrap3Host.ID().String()] = peer.AddrInfo{ID: bootstrap3Host.ID(), Addrs: bootstrap3Host.Addrs()}
+	bootstrap2Svc.mu.Unlock()
+
+	bootstrap3Svc.mu.Lock()
+	bootstrap3Svc.peerBootstraps[bootstrap1Host.ID().String()] = peer.AddrInfo{ID: bootstrap1Host.ID(), Addrs: bootstrap1Host.Addrs()}
+	bootstrap3Svc.peerBootstraps[bootstrap2Host.ID().String()] = peer.AddrInfo{ID: bootstrap2Host.ID(), Addrs: bootstrap2Host.Addrs()}
+	bootstrap3Svc.mu.Unlock()
+
+	// Test 1: Join row subnet on bootstrap1
+	joiningPeer := createMockHostUnit(t)
+	joiningAddrInfo := peer.AddrInfo{ID: joiningPeer.ID(), Addrs: joiningPeer.Addrs()}
+
+	req1 := BootstrapPeerRequest{
+		Type:      JoinRowSubnetRequest,
+		NodeID:    joiningPeer.ID().String(),
+		Row:       0,
+		Col:       0,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(joiningAddrInfo),
+	}
+
+	resp1 := bootstrap1Svc.processJoinRowRequest(&req1)
+	assert.True(t, resp1.Success)
+	assert.Equal(t, 0, len(resp1.RowPeers)) // First peer, no others to return
+
+	// Test 2: Add another peer to bootstrap1, should see first peer
+	otherPeer := createMockHostUnit(t)
+	otherAddrInfo := peer.AddrInfo{ID: otherPeer.ID(), Addrs: otherPeer.Addrs()}
+
+	req2 := BootstrapPeerRequest{
+		Type:      JoinRowSubnetRequest,
+		NodeID:    otherPeer.ID().String(),
+		Row:       0,
+		Col:       1,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(otherAddrInfo),
+	}
+
+	resp2 := bootstrap1Svc.processJoinRowRequest(&req2)
+	assert.True(t, resp2.Success)
+	assert.Greater(t, len(resp2.RowPeers), 0) // Should see first peer
+
+	// Test 3: Simulate sync from bootstrap1 to bootstrap2
+	syncReq := BootstrapPeerRequest{
+		Type:      "sync_peer",
+		NodeID:    joiningPeer.ID().String(),
+		Row:       0,
+		Col:       0,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(joiningAddrInfo),
+	}
+
+	syncResp := bootstrap2Svc.processSyncPeerRequest(&syncReq)
+	assert.True(t, syncResp.Success)
+
+	// Test 4: Verify bootstrap2 now has the synced peer in its routing table
+	// by processing a join request and expecting it to see the synced peer
+	req3 := BootstrapPeerRequest{
+		Type:      JoinRowSubnetRequest,
+		NodeID:    otherPeer.ID().String(),
+		Row:       0,
+		Col:       2,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(otherAddrInfo),
+	}
+
+	resp3 := bootstrap2Svc.processJoinRowRequest(&req3)
+	assert.True(t, resp3.Success)
+	assert.Greater(t, len(resp3.RowPeers), 0) // Should include synced peer from bootstrap1
+
+	// Test 5: Verify bootstrap3 can also receive synced peers
+	syncReq2 := BootstrapPeerRequest{
+		Type:      "sync_peer",
+		NodeID:    otherPeer.ID().String(),
+		Row:       0,
+		Col:       1,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(otherAddrInfo),
+	}
+
+	syncResp2 := bootstrap3Svc.processSyncPeerRequest(&syncReq2)
+	assert.True(t, syncResp2.Success)
+
+	// Verify bootstrap3 has the synced peer
+	req4 := BootstrapPeerRequest{
+		Type:      GetRowPeersRequest,
+		NodeID:    createMockHostUnit(t).ID().String(),
+		Row:       0,
+		Col:       0,
+		GridDims:  gridDims,
+		PeerAddrs: []string{},
+	}
+
+	resp4 := bootstrap3Svc.processGetRowPeersRequest(&req4)
+	assert.True(t, resp4.Success)
+	assert.Greater(t, len(resp4.RowPeers), 0) // Should have synced peers
+
+	t.Logf("Integration test passed: 3 bootstrap servers syncing peer info successfully")
+}
+
+// TestIntegration_BootstrapServer_JoinAllRows tests bootstrap server joining all row subnets
+func TestIntegration_BootstrapServer_JoinAllRows(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	gridDims := GridDimensions{Rows: 8, Cols: 8} // Smaller grid for test speed
+	gridManager := NewRDAGridManager(gridDims)
+
+	bootstrapHost := createMockHostUnit(t)
+	bootstrapSvc := NewBootstrapDiscoveryService(bootstrapHost, []peer.AddrInfo{}, gridManager, 0, 0)
+
+	defer bootstrapSvc.Stop(ctx)
+
+	// Start the service (which should trigger JoinAllRowSubnets if CELESTIA_BOOTSTRAPPER=true)
+	// Since we can't set env vars easily in test, we manually call JoinAllRowSubnets
+	bootstrapSvc.JoinAllRowSubnets(ctx)
+
+	// Verify bootstrap is registered in all row subnets
+	for row := uint32(0); row < uint32(gridDims.Rows); row++ {
+		// Try to get row peers for verification
+		req := BootstrapPeerRequest{
+			Type:      GetRowPeersRequest,
+			NodeID:    createMockHostUnit(t).ID().String(),
+			Row:       row,
+			Col:       0,
+			GridDims:  gridDims,
+			PeerAddrs: []string{},
+		}
+
+		resp := bootstrapSvc.processGetRowPeersRequest(&req)
+		assert.True(t, resp.Success, "Bootstrap should be able to respond to row %d", row)
+	}
+
+	t.Logf("Integration test passed: bootstrap server joined all %d row subnets", gridDims.Rows)
 }

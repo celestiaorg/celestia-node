@@ -36,6 +36,12 @@ func newRDAService(
 		return nil, err
 	}
 
+	// Parse peer bootstraps (other bootstrap servers for sync).
+	peerBootstraps, err := parseRDABootstrapPeers(cfg.RDAPeerBootstraps)
+	if err != nil {
+		return nil, err
+	}
+
 	// Only use DHT discovery if explicitly enabled in config.
 	var activeDisc p2pDisc.Discovery
 	if cfg.RDADiscoveryEnabled {
@@ -72,6 +78,7 @@ func newRDAService(
 		EnableDetailedLogging: cfg.RDADetailedLogging,
 		Discovery:             activeDisc,
 		BootstrapPeers:        bootstrapPeers,
+		PeerBootstraps:        peerBootstraps,
 		UseSubnetDiscovery:    cfg.RDAUseSubnetDiscovery,
 		SubnetDiscoveryDelay:  delayBeforePull,
 	}

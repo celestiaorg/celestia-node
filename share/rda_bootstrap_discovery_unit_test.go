@@ -402,6 +402,147 @@ func TestBootstrapDiscovery_AddressConversion(t *testing.T) {
 	assert.GreaterOrEqual(t, len(converted), len(addrStrings))
 }
 
+// Test multi-bootstrapper peer sync
+func TestBootstrapDiscovery_MultiBootstrapperSync(t *testing.T) {
+	// Create 2 bootstrap hosts
+	bootstrap1Host := createMockHostUnit(t)
+	bootstrap2Host := createMockHostUnit(t)
+
+	gridDims := GridDimensions{Rows: 8, Cols: 8}
+	gridManager := NewRDAGridManager(gridDims)
+
+	// Create bootstrap services
+	bootstrap1Svc := NewBootstrapDiscoveryService(bootstrap1Host, []peer.AddrInfo{}, gridManager, 0, 0)
+	bootstrap2Svc := NewBootstrapDiscoveryService(bootstrap2Host, []peer.AddrInfo{}, gridManager, 1, 1)
+
+	// Configure them to know about each other (link peer bootstraps)
+	bootstrap1Svc.peerBootstraps[bootstrap2Host.ID().String()] = peer.AddrInfo{
+		ID:    bootstrap2Host.ID(),
+		Addrs: bootstrap2Host.Addrs(),
+	}
+
+	bootstrap2Svc.peerBootstraps[bootstrap1Host.ID().String()] = peer.AddrInfo{
+		ID:    bootstrap1Host.ID(),
+		Addrs: bootstrap1Host.Addrs(),
+	}
+
+	// Verify peer bootstraps populated
+	assert.Equal(t, 1, len(bootstrap1Svc.peerBootstraps))
+	assert.Equal(t, 1, len(bootstrap2Svc.peerBootstraps))
+
+	// Simulate a node joining bootstrap1
+	joiningPeer := createMockHostUnit(t)
+	joiningAddrInfo := peer.AddrInfo{
+		ID:    joiningPeer.ID(),
+		Addrs: joiningPeer.Addrs(),
+	}
+
+	req := BootstrapPeerRequest{
+		Type:      JoinRowSubnetRequest,
+		NodeID:    joiningAddrInfo.ID.String(),
+		Row:       0,
+		Col:       0,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(joiningAddrInfo),
+	}
+
+	// Process join request on bootstrap1
+	resp := bootstrap1Svc.processJoinRowRequest(&req)
+	assert.True(t, resp.Success)
+
+	// The response contains peers already in bootstrap1's row (should be 0 on first join)
+	assert.Equal(t, 0, len(resp.RowPeers))
+
+	// Now add another peer directly to bootstrap1 for row=0
+	otherPeer := createMockHostUnit(t)
+	otherAddrInfo := peer.AddrInfo{
+		ID:    otherPeer.ID(),
+		Addrs: otherPeer.Addrs(),
+	}
+
+	req2 := BootstrapPeerRequest{
+		Type:      JoinRowSubnetRequest,
+		NodeID:    otherPeer.ID().String(),
+		Row:       0,
+		Col:       1,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(otherAddrInfo),
+	}
+
+	// Add second peer to bootstrap1
+	resp2 := bootstrap1Svc.processJoinRowRequest(&req2)
+	assert.True(t, resp2.Success)
+
+	// Now resp2 should contain the first peer (random selection from routing table)
+	// First peer should be in the response since both are in row 0
+	assert.Greater(t, len(resp2.RowPeers), 0) // Should have at least the first peer
+
+	// Test broadcast to bootstrap2 via sync request (simulating the async broadcast)
+	syncReq := BootstrapPeerRequest{
+		Type:      "sync_peer",
+		NodeID:    joiningAddrInfo.ID.String(),
+		Row:       0,
+		Col:       0,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(joiningAddrInfo),
+	}
+
+	// Process sync on bootstrap2
+	syncResp := bootstrap2Svc.processSyncPeerRequest(&syncReq)
+	assert.True(t, syncResp.Success)
+
+	// Verify bootstrap2 now has the synced peer in its routing table
+	// by having it handle a join request that should return the synced peer
+	req3 := BootstrapPeerRequest{
+		Type:      JoinRowSubnetRequest,
+		NodeID:    otherPeer.ID().String(),
+		Row:       0,
+		Col:       2,
+		GridDims:  gridDims,
+		PeerAddrs: addrInfoToStrings(otherAddrInfo),
+	}
+
+	// Bootstrap2 should now return the synced peer when handling a new join
+	resp3 := bootstrap2Svc.processJoinRowRequest(&req3)
+	assert.True(t, resp3.Success)
+
+	// Verify the synced peer is available (should be one of the returned peers from row)
+	assert.Greater(t, len(resp3.RowPeers), 0) // Should include the synced peer from bootstrap1
+}
+
+// Test sync request marshaling for peer bootstrap
+func TestBootstrapDiscovery_SyncPeerMarshal(t *testing.T) {
+	h := createMockHostUnit(t)
+	addrInfo := peer.AddrInfo{
+		ID:    h.ID(),
+		Addrs: h.Addrs(),
+	}
+
+	syncReq := BootstrapPeerRequest{
+		Type:      "sync_peer",
+		NodeID:    h.ID().String(),
+		Row:       5,
+		Col:       10,
+		GridDims:  GridDimensions{Rows: 128, Cols: 128},
+		PeerAddrs: addrInfoToStrings(addrInfo),
+	}
+
+	// Marshal
+	data, err := marshalBootstrapRequest(&syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, data)
+
+	// Unmarshal
+	decoded, err := unmarshalBootstrapRequest(data)
+	require.NoError(t, err)
+
+	// Verify
+	assert.Equal(t, "sync_peer", decoded.Type)
+	assert.Equal(t, uint32(5), decoded.Row)
+	assert.Equal(t, uint32(10), decoded.Col)
+	assert.Equal(t, h.ID().String(), decoded.NodeID)
+}
+
 // Helper function to create a mock host for testing
 func createMockHostUnit(t *testing.T) host.Host {
 	h, err := libp2p.New()
