@@ -358,6 +358,36 @@ func (o *ODS) RangeNamespaceData(
 	return shwap.RangeNamespaceDataFromShares(shares, fromCoords, toCoords)
 }
 
+func (o *ODS) Blobs(ctx context.Context, namespace libshare.Namespace, commitments ...[]byte) ([]*shwap.Blob, error) {
+	shares, odsSize, err := o.extendedRowShares(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return shwap.BlobsFromShares(shares, namespace, odsSize, commitments...)
+}
+
+func (o *ODS) extendedRowShares(ctx context.Context) ([][]libshare.Share, int, error) {
+	size, err := o.Size(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	odsSize := size / 2
+	shares := make([][]libshare.Share, odsSize)
+	for index := 0; index < odsSize; index++ {
+		half, err := o.AxisHalf(ctx, rsmt2d.Row, index)
+		if err != nil {
+			return nil, 0, err
+		}
+		extendedRow, err := half.Extended()
+		if err != nil {
+			return nil, 0, err
+		}
+		shares[index] = extendedRow
+	}
+	return shares, odsSize, nil
+}
+
 func (o *ODS) axis(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) ([]libshare.Share, error) {
 	half, err := o.AxisHalf(ctx, axisType, axisIdx)
 	if err != nil {

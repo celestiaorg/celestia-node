@@ -56,3 +56,33 @@ func TestSampleCoords(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, rawIdx, idxOut)
 }
+
+func TestSampleCoordsFrom1DIndex_Bounds(t *testing.T) {
+	squareSize := 8
+
+	t.Run("negative index", func(t *testing.T) {
+		_, err := SampleCoordsFrom1DIndex(-1, squareSize)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidID)
+	})
+
+	t.Run("last valid index", func(t *testing.T) {
+		lastIdx := squareSize*squareSize - 1 // 63
+		coords, err := SampleCoordsFrom1DIndex(lastIdx, squareSize)
+		require.NoError(t, err)
+		assert.Equal(t, squareSize-1, coords.Row)
+		assert.Equal(t, squareSize-1, coords.Col)
+	})
+
+	t.Run("index equals square size", func(t *testing.T) {
+		_, err := SampleCoordsFrom1DIndex(squareSize*squareSize, squareSize)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrOutOfBounds)
+	})
+
+	t.Run("index exceeds square size", func(t *testing.T) {
+		_, err := SampleCoordsFrom1DIndex(squareSize*squareSize+1, squareSize)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrOutOfBounds)
+	})
+}

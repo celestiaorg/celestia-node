@@ -177,6 +177,37 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
+func (eds *Rsmt2D) Blobs(
+	ctx context.Context,
+	namespace libshare.Namespace,
+	commitments ...[]byte,
+) ([]*shwap.Blob, error) {
+	shares, odsSize, err := eds.extendedRowShares(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return shwap.BlobsFromShares(shares, namespace, odsSize, commitments...)
+}
+
+func (eds *Rsmt2D) extendedRowShares(ctx context.Context) ([][]libshare.Share, int, error) {
+	size, err := eds.Size(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	odsSize := size / 2
+	shares := make([][]libshare.Share, odsSize)
+	for index := 0; index < odsSize; index++ {
+		rawShare := eds.Row(uint(index))
+		sh, err := libshare.FromBytes(rawShare)
+		if err != nil {
+			return nil, 0, err
+		}
+		shares[index] = sh
+	}
+	return shares, odsSize, nil
+}
+
 // Rsmt2DFromShares constructs an Extended Data Square from shares.
 func Rsmt2DFromShares(shares []libshare.Share, odsSize int) (*Rsmt2D, error) {
 	treeFn := wrapper.NewConstructor(uint64(odsSize))

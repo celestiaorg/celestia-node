@@ -2,6 +2,7 @@ package eds
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 	"testing/iotest"
@@ -80,6 +81,10 @@ func (s *stubEdsAccessorCloser) RangeNamespaceData(
 	_, _ int,
 ) (shwap.RangeNamespaceData, error) {
 	return shwap.RangeNamespaceData{}, nil
+}
+
+func (s *stubEdsAccessorCloser) Blobs(context.Context, libshare.Namespace, ...[]byte) ([]*shwap.Blob, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (s *stubEdsAccessorCloser) Shares(context.Context) ([]libshare.Share, error) {

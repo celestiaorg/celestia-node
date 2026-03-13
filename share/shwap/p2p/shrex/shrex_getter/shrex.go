@@ -3,6 +3,7 @@ package shrex_getter
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"slices"
@@ -381,6 +382,105 @@ func (sg *Getter) GetRangeNamespaceData(
 		return shwap.RangeNamespaceData{}, err
 	}
 
+	return response, nil
+}
+
+func (sg *Getter) GetBlob(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+	commitment []byte,
+) (*shwap.Blob, error) {
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/get-blob", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.String("namespace", ns.String()),
+		attribute.String("commitment", hex.EncodeToString(commitment)),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	request, err := shwap.NewBlobID(header.Height(), ns, commitment)
+	if err != nil {
+		return nil, err
+	}
+	response := shwap.BlobSlice{}
+
+	logger := log.With(
+		"source", "shrex_getter",
+		"request_type", request.Name(),
+		"hash", header.DAH.String(),
+		"namespace", ns.String(),
+		"commitment", hex.EncodeToString(commitment),
+	)
+
+	req := func(ctx context.Context, peer libpeer.ID) error {
+		return sg.client.Get(ctx, &request, &response, peer)
+	}
+
+	verify := func() error {
+		if len(response) == 0 {
+			return errors.New("empty response")
+		}
+		return response[0].Verify(header.DAH.RowRoots, commitment)
+	}
+
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+	if err != nil {
+		return nil, err
+	}
+	return response[0], nil
+}
+
+func (sg *Getter) GetBlobs(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+) ([]*shwap.Blob, error) {
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/get-blobs", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.String("namespace", ns.String()),
+	))
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
+	request, err := shwap.NewBlobsID(header.Height(), ns)
+	if err != nil {
+		return nil, err
+	}
+	response := shwap.BlobSlice{}
+
+	logger := log.With(
+		"source", "shrex_getter",
+		"request_type", request.Name(),
+		"hash", header.DAH.String(),
+		"namespace", ns.String(),
+	)
+
+	req := func(ctx context.Context, peer libpeer.ID) error {
+		return sg.client.Get(ctx, &request, &response, peer)
+	}
+
+	verify := func() error {
+		if response == nil {
+			return errors.New("nil response")
+		}
+		for _, blob := range response {
+			err = blob.VerifyInclusion(header.DAH.RowRoots)
+			if err != nil {
+				return fmt.Errorf("failed to verify inclusion of blob %w", err)
+			}
+		}
+		return nil
+	}
+
+	err = sg.executeRequest(ctx, logger, header, request.Name(), req, verify)
+	if err != nil {
+		return nil, err
+	}
 	return response, nil
 }
 

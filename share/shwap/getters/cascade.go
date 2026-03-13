@@ -2,6 +2,7 @@ package getters
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -140,6 +141,50 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.RangeNamespaceData, error) {
 		return get.GetRangeNamespaceData(ctx, header, from, to)
+	}
+
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
+func (cg *CascadeGetter) GetBlob(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+	commitment []byte,
+) (*shwap.Blob, error) {
+	ctx, span := tracer.Start(
+		ctx,
+		"cascade/get-blob",
+		trace.WithAttributes(
+			attribute.Int64("height", int64(header.Height())),
+			attribute.String("namespace", ns.String()),
+			attribute.String("commitment", hex.EncodeToString(commitment)),
+		))
+	defer span.End()
+
+	get := func(ctx context.Context, get shwap.Getter) (*shwap.Blob, error) {
+		return get.GetBlob(ctx, header, ns, commitment)
+	}
+
+	return cascadeGetters(ctx, cg.getters, get)
+}
+
+func (cg *CascadeGetter) GetBlobs(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+) ([]*shwap.Blob, error) {
+	ctx, span := tracer.Start(
+		ctx,
+		"cascade/get-blobs",
+		trace.WithAttributes(
+			attribute.Int64("height", int64(header.Height())),
+			attribute.String("namespace", ns.String()),
+		))
+	defer span.End()
+
+	get := func(ctx context.Context, get shwap.Getter) ([]*shwap.Blob, error) {
+		return get.GetBlobs(ctx, header, ns)
 	}
 
 	return cascadeGetters(ctx, cg.getters, get)

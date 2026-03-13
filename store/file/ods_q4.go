@@ -199,3 +199,11 @@ func (odsq4 *ODSQ4) RangeNamespaceData(
 ) (shwap.RangeNamespaceData, error) {
 	return odsq4.ods.RangeNamespaceData(ctx, from, to)
 }
+
+func (odsq4 *ODSQ4) Blobs(
+	ctx context.Context,
+	namespace libshare.Namespace,
+	commitments ...[]byte,
+) ([]*shwap.Blob, error) {
+	return odsq4.ods.Blobs(ctx, namespace, commitments...)
+}
