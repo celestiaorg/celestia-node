@@ -164,6 +164,7 @@ func (s *Server) Start(context.Context) error {
 			s.started.Store(false)
 			s.listener = nil
 			listener.Close()
+			return err
 		}
 		log.Infow("server started with TLS", "listening on", s.srv.Addr)
 		//nolint:errcheck
