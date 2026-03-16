@@ -455,10 +455,12 @@ func BenchmarkStore(b *testing.B) {
 		edsStore, err := NewStore(paramsNoCache(), b.TempDir())
 		require.NoError(b, err)
 
+		var i uint64
 		b.ResetTimer()
 		for b.Loop() {
 			roots := edstest.RandomAxisRoots(b, 1)
-			_ = edsStore.PutODSQ4(ctx, roots, uint64(i), eds)
+			_ = edsStore.PutODSQ4(ctx, roots, i, eds)
+			i++
 		}
 	})
 
