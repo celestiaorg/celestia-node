@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -50,13 +50,16 @@ func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 }
 
 // WithPyroscope enables pyroscope profiling for the node.
-func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
+// basicAuthUser and basicAuthPassword are optional; both must be non-empty to enable basic auth.
+func WithPyroscope(endpoint, basicAuthUser, basicAuthPassword string, nodeType node.Type) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(peerID peer.ID) error {
 			_, err := pyroscope.Start(pyroscope.Config{
-				UploadRate:      15 * time.Second,
-				ApplicationName: "celestia.da-node",
-				ServerAddress:   endpoint,
+				UploadRate:        15 * time.Second,
+				ApplicationName:   "celestia.da-node",
+				ServerAddress:     endpoint,
+				BasicAuthUser:     basicAuthUser,
+				BasicAuthPassword: basicAuthPassword,
 				Tags: map[string]string{
 					"type":   nodeType.String(),
 					"peerId": peerID.String(),
@@ -204,26 +207,18 @@ func initializeMetrics(
 	network p2p.Network,
 	opts []otlpmetrichttp.Option,
 ) error {
-	exp, err := otlpmetrichttp.New(ctx, opts...)
+	cfg := utils.MetricProviderConfig{
+		ServiceNamespace:  network.String(),
+		ServiceName:       nodeType.String(),
+		ServiceInstanceID: peerID.String(),
+		Interval:          defaultMetricsCollectInterval,
+		OTLPOptions:       opts,
+	}
+
+	provider, err := utils.NewMetricProvider(ctx, cfg)
 	if err != nil {
 		return err
 	}
-
-	provider := sdk.NewMeterProvider(
-		sdk.WithReader(
-			sdk.NewPeriodicReader(exp,
-				sdk.WithTimeout(defaultMetricsCollectInterval),
-				sdk.WithInterval(defaultMetricsCollectInterval))),
-		sdk.WithResource(
-			resource.NewWithAttributes(
-				semconv.SchemaURL,
-				// ServiceNamespaceKey and ServiceNameKey will be concatenated into single attribute with key:
-				// "job" and value: "%service.namespace%/%service.name%"
-				semconv.ServiceNamespaceKey.String(network.String()),
-				semconv.ServiceNameKey.String(nodeType.String()),
-				// ServiceInstanceIDKey will be exported with key: "instance"
-				semconv.ServiceInstanceIDKey.String(peerID.String()),
-			)))
 
 	err = runtime.Start(
 		runtime.WithMinimumReadMemStatsInterval(defaultMetricsCollectInterval),
