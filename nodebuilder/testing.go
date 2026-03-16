@@ -8,8 +8,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -52,6 +50,15 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	cfg.RPC.Port = "0"
 	cfg.Header.TrustedPeers = []string{"/ip4/1.2.3.4/tcp/12345/p2p/12D3KooWNaJ1y1Yio3fFJEXCZyd1Cat3jmrPdgkYCrHfKD3Ce21p"}
 
+	// Bridge node requires a core endpoint. Set config IP/Port so the
+	// production grpcClient provider creates a properly configured connection.
+	if tp == node.Bridge && cfg.Core.IP == "" {
+		tn := core.StartTestNode(t)
+		var err error
+		cfg.Core.IP, cfg.Core.Port, err = net.SplitHostPort(tn.GRPCClient.Target())
+		require.NoError(t, err)
+	}
+
 	store := MockStore(t, cfg)
 	ks, err := store.Keystore()
 	require.NoError(t, err)
@@ -71,28 +78,6 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 		// avoid requesting trustedPeer during initialization
 		fxutil.ReplaceAs(headertest.NewStore(t), new(libhead.Store[*header.ExtendedHeader])),
 	)
-
-	// in fact, we don't need core.Client in tests, but the Bridge node requires a valid one.
-	// otherwise, it fails with a failed attempt to connect with a custom build client.
-	if tp == node.Bridge {
-		ip, port := cfg.Core.IP, cfg.Core.Port
-		// this means there is no core node currently configured, which a bridge node needs
-		if ip == "" {
-			tn := core.StartTestNode(t)
-			var err error
-			ip, port, err = net.SplitHostPort(tn.GRPCClient.Target())
-			require.NoError(t, err)
-		}
-
-		con, err := grpc.NewClient(
-			net.JoinHostPort(ip, port),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		require.NoError(t, err)
-		opts = append(opts,
-			fxutil.ReplaceAs(con, new(grpc.ClientConn)),
-		)
-	}
 
 	nd, err := New(tp, p2p.Private, store, opts...)
 	require.NoError(t, err)

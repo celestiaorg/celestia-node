@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	libp2p "github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,10 +94,12 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, "wrong-chain-rpc")
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-	require.NoError(t, err)
 
-	assert.Panics(t, func() { cl.listen(ctx, sub) })
+	// Start should fail because the core endpoint chain ID ("private") doesn't match
+	// the expected chain ID ("wrong-chain-rpc")
+	err = cl.Start(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "network mismatch")
 }
 
 // TestListener_DoesNotStoreHistoric tests the (unlikely) case that
@@ -144,9 +148,13 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
-	net, err := mocknet.FullMeshLinked(2)
+	host0, err := libp2p.New()
 	require.NoError(t, err)
-	host0, host1 := net.Hosts()[0], net.Hosts()[1]
+	t.Cleanup(func() { host0.Close() })
+
+	host1, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { host1.Close() })
 
 	// create pubsub for host
 	ps0, err := pubsub.NewGossipSub(context.Background(), host0,
@@ -162,7 +170,7 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 	sub1, err := host1.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	require.NoError(t, err)
 
-	err = net.ConnectAllButSelf()
+	err = host0.Connect(ctx, peer.AddrInfo{ID: host1.ID(), Addrs: host1.Addrs()})
 	require.NoError(t, err)
 
 	// wait on both peer identification events
