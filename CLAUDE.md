@@ -136,4 +136,4 @@ Any changes to `*.proto` files require running `make pb-gen` and committing the 
 
 ### Config Changes
 
-Changes to `nodebuilder/**/config.go` struct fields or `.proto` files are treated as potentially breaking and flagged by CI via `make detect-breaking`.
+Changes to `nodebuilder/**/config.go` struct fields or `.proto` files are potentially breaking. You can run `make detect-breaking` locally to check.
