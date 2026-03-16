@@ -188,8 +188,7 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {
 	t.Helper()
 
-	network := NewNetwork(t, cfg)
-	require.NoError(t, network.Start())
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})

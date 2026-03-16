@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -18,6 +19,11 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
+
+// maxBlockTime is the upper bound of expected block production time.
+// Used for syncer tail height estimation to ensure the tail stays within the pruning
+// window despite block time variance (real block times on mocha avg ~6.14s vs nominal 6s).
+const maxBlockTime = 7 * time.Second
 
 // newP2PExchange constructs a new Exchange for headers.
 func newP2PExchange[H libhead.Header[H]](
@@ -96,7 +102,7 @@ func newSyncer[H libhead.Header[H]](
 
 	opts := []sync.Option{
 		sync.WithParams(cfg.Syncer),
-		sync.WithBlockTime(modp2p.BlockTime),
+		sync.WithBlockTime(maxBlockTime),
 		sync.WithTrustingPeriod(trustingPeriod),
 	}
 	if MetricsEnabled {
