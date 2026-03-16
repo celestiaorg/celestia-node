@@ -25,7 +25,7 @@ type CoreGRPCConfig struct {
 	// AuthToken is the authentication token to be used for gRPC authentication.
 	// If left empty, the client will not include the authentication token in its requests.
 	// Note: AuthToken is insecure without TLS
-	AuthToken string
+	AuthToken string //nolint:gosec // not a hardcoded credential, user-provided config
 }
 
 func (cfg *CoreGRPCConfig) Validate() error {

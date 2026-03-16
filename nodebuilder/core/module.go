@@ -45,8 +45,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 				store *store.Store,
 				construct header.ConstructFn,
 				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
+				chainID p2p.Network,
 				opts []core.Option,
 			) (*core.Exchange, error) {
+				opts = append(opts, core.WithChainID(chainID))
+
 				if MetricsEnabled {
 					opts = append(opts, core.WithMetrics())
 				}
