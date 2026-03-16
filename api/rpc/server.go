@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"reflect"
