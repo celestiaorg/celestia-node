@@ -37,6 +37,17 @@ type ExtendedHeader struct {
 	Commit       *core.Commit               `json:"commit"`
 	ValidatorSet *core.ValidatorSet         `json:"validator_set"`
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
+	// CDAH carries CDA-specific header commitments (e.g. KZG column commitments).
+	// It is optional and may be nil when CDA is disabled or when headers were
+	// produced by legacy networks.
+	CDAH *CDAHeader `json:"cdah,omitempty"`
+}
+
+// CDAHeader carries commitments required for CDA validity checks.
+//
+// In the CDA design, this typically contains N column commitments.
+type CDAHeader struct {
+	ColumnCommitments [][]byte `json:"column_commitments"`
 }
 
 // MakeExtendedHeader assembles new ExtendedHeader.

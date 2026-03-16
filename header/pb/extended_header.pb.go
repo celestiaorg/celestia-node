@@ -5,21 +5,18 @@ package header_pb
 
 import (
 	fmt "fmt"
-	io "io"
-	math "math"
-	math_bits "math/bits"
-
 	da "github.com/celestiaorg/celestia-app/v7/proto/celestia/core/v1/da"
 	types "github.com/cometbft/cometbft/proto/tendermint/types"
 	proto "github.com/gogo/protobuf/proto"
+	io "io"
+	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
-var (
-	_ = proto.Marshal
-	_ = fmt.Errorf
-	_ = math.Inf
-)
+var _ = proto.Marshal
+var _ = fmt.Errorf
+var _ = math.Inf
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
@@ -27,24 +24,67 @@ var (
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+type CDAHeader struct {
+	ColumnCommitments [][]byte `protobuf:"bytes,1,rep,name=column_commitments,json=columnCommitments,proto3" json:"column_commitments,omitempty"`
+}
+
+func (m *CDAHeader) Reset()         { *m = CDAHeader{} }
+func (m *CDAHeader) String() string { return proto.CompactTextString(m) }
+func (*CDAHeader) ProtoMessage()    {}
+func (*CDAHeader) Descriptor() ([]byte, []int) {
+	return fileDescriptor_370294a9fc09133f, []int{0}
+}
+func (m *CDAHeader) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *CDAHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_CDAHeader.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *CDAHeader) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CDAHeader.Merge(m, src)
+}
+func (m *CDAHeader) XXX_Size() int {
+	return m.Size()
+}
+func (m *CDAHeader) XXX_DiscardUnknown() {
+	xxx_messageInfo_CDAHeader.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CDAHeader proto.InternalMessageInfo
+
+func (m *CDAHeader) GetColumnCommitments() [][]byte {
+	if m != nil {
+		return m.ColumnCommitments
+	}
+	return nil
+}
+
 type ExtendedHeader struct {
 	Header       *types.Header              `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Commit       *types.Commit              `protobuf:"bytes,2,opt,name=commit,proto3" json:"commit,omitempty"`
 	ValidatorSet *types.ValidatorSet        `protobuf:"bytes,3,opt,name=validator_set,json=validatorSet,proto3" json:"validator_set,omitempty"`
 	Dah          *da.DataAvailabilityHeader `protobuf:"bytes,4,opt,name=dah,proto3" json:"dah,omitempty"`
+	Cdah         *CDAHeader                 `protobuf:"bytes,5,opt,name=cdah,proto3" json:"cdah,omitempty"`
 }
 
 func (m *ExtendedHeader) Reset()         { *m = ExtendedHeader{} }
 func (m *ExtendedHeader) String() string { return proto.CompactTextString(m) }
 func (*ExtendedHeader) ProtoMessage()    {}
 func (*ExtendedHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_370294a9fc09133f, []int{0}
+	return fileDescriptor_370294a9fc09133f, []int{1}
 }
-
 func (m *ExtendedHeader) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-
 func (m *ExtendedHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ExtendedHeader.Marshal(b, m, deterministic)
@@ -57,15 +97,12 @@ func (m *ExtendedHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-
 func (m *ExtendedHeader) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ExtendedHeader.Merge(m, src)
 }
-
 func (m *ExtendedHeader) XXX_Size() int {
 	return m.Size()
 }
-
 func (m *ExtendedHeader) XXX_DiscardUnknown() {
 	xxx_messageInfo_ExtendedHeader.DiscardUnknown(m)
 }
@@ -100,31 +137,76 @@ func (m *ExtendedHeader) GetDah() *da.DataAvailabilityHeader {
 	return nil
 }
 
+func (m *ExtendedHeader) GetCdah() *CDAHeader {
+	if m != nil {
+		return m.Cdah
+	}
+	return nil
+}
+
 func init() {
+	proto.RegisterType((*CDAHeader)(nil), "header.pb.CDAHeader")
 	proto.RegisterType((*ExtendedHeader)(nil), "header.pb.ExtendedHeader")
 }
 
 func init() { proto.RegisterFile("header/pb/extended_header.proto", fileDescriptor_370294a9fc09133f) }
 
 var fileDescriptor_370294a9fc09133f = []byte{
-	// 268 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0xcf, 0x48, 0x4d, 0x4c,
-	0x49, 0x2d, 0xd2, 0x2f, 0x48, 0xd2, 0x4f, 0xad, 0x28, 0x49, 0xcd, 0x4b, 0x49, 0x4d, 0x89, 0x87,
-	0x08, 0xe9, 0x15, 0x14, 0xe5, 0x97, 0xe4, 0x0b, 0x71, 0xc2, 0x78, 0x49, 0x52, 0x32, 0x60, 0xf9,
-	0xa2, 0xdc, 0xcc, 0xbc, 0x12, 0xfd, 0x92, 0xca, 0x82, 0xd4, 0x62, 0x08, 0x09, 0x51, 0x28, 0xa5,
-	0x80, 0x21, 0x5b, 0x96, 0x98, 0x93, 0x99, 0x92, 0x58, 0x92, 0x0f, 0x35, 0x4a, 0x4a, 0x2b, 0x39,
-	0x35, 0x27, 0xb5, 0xb8, 0x24, 0x33, 0x51, 0x3f, 0x05, 0x84, 0x4a, 0x12, 0xe3, 0x13, 0xcb, 0x12,
-	0x33, 0x73, 0x12, 0x93, 0x32, 0x73, 0x32, 0x4b, 0x2a, 0x51, 0xac, 0x55, 0xfa, 0xc0, 0xc8, 0xc5,
-	0xe7, 0x0a, 0x75, 0x90, 0x07, 0x58, 0x42, 0xc8, 0x80, 0x8b, 0x0d, 0xa2, 0x44, 0x82, 0x51, 0x81,
-	0x51, 0x83, 0xdb, 0x48, 0x42, 0x0f, 0x61, 0xa3, 0x1e, 0xc4, 0x25, 0x10, 0x95, 0x41, 0x50, 0x75,
-	0x20, 0x1d, 0xc9, 0xf9, 0xb9, 0xb9, 0x99, 0x25, 0x12, 0x4c, 0xb8, 0x74, 0x38, 0x83, 0xe5, 0x83,
-	0xa0, 0xea, 0x84, 0x9c, 0xb9, 0x78, 0xe1, 0xae, 0x8e, 0x2f, 0x4e, 0x2d, 0x91, 0x60, 0x06, 0x6b,
-	0x94, 0xc3, 0xd4, 0x18, 0x06, 0x53, 0x16, 0x9c, 0x5a, 0x12, 0xc4, 0x53, 0x86, 0xc4, 0x13, 0x32,
-	0xe5, 0x62, 0x4e, 0x49, 0xcc, 0x90, 0x60, 0x01, 0x6b, 0x55, 0xd6, 0x83, 0xf9, 0x5a, 0x2f, 0x25,
-	0x51, 0xcf, 0x25, 0xb1, 0x24, 0xd1, 0x11, 0xc9, 0xd3, 0x50, 0x07, 0x83, 0xd4, 0x3b, 0x49, 0x9c,
-	0x78, 0x24, 0xc7, 0x78, 0xe1, 0x91, 0x1c, 0xe3, 0x83, 0x47, 0x72, 0x8c, 0x13, 0x1e, 0xcb, 0x31,
-	0x5c, 0x78, 0x2c, 0xc7, 0x70, 0xe3, 0xb1, 0x1c, 0x43, 0x12, 0x1b, 0x38, 0x4c, 0x8c, 0x01, 0x01,
-	0x00, 0x00, 0xff, 0xff, 0x33, 0x74, 0x5f, 0xa8, 0xad, 0x01, 0x00, 0x00,
+	// 337 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xcf, 0x4a, 0x33, 0x31,
+	0x14, 0xc5, 0x3b, 0x6d, 0xbf, 0x42, 0xf3, 0x55, 0xc1, 0xc1, 0x45, 0x28, 0x12, 0x4b, 0x57, 0x05,
+	0x31, 0xb1, 0x75, 0x27, 0xb8, 0xa8, 0xad, 0xe0, 0x7a, 0x04, 0xb7, 0xc3, 0x9d, 0x49, 0xa0, 0x81,
+	0xf9, 0x53, 0x66, 0xae, 0x83, 0x7d, 0x0b, 0x9f, 0xc1, 0xa7, 0x71, 0xd9, 0xa5, 0x4b, 0x69, 0x5f,
+	0x44, 0x26, 0x99, 0x4e, 0x2b, 0xc5, 0x4d, 0x20, 0x39, 0xe7, 0x77, 0x6f, 0xee, 0xb9, 0xe4, 0x72,
+	0xa1, 0x40, 0xaa, 0x4c, 0x2c, 0x03, 0xa1, 0xde, 0x50, 0x25, 0x52, 0x49, 0xdf, 0x3e, 0xf1, 0x65,
+	0x96, 0x62, 0xea, 0x76, 0x77, 0xb7, 0xa0, 0x7f, 0x61, 0xf4, 0x2c, 0xd6, 0x09, 0x0a, 0x5c, 0x2d,
+	0x55, 0x6e, 0x4f, 0x6b, 0xec, 0x0f, 0x8e, 0xd4, 0x02, 0x22, 0x2d, 0x01, 0xd3, 0xaa, 0x54, 0x7f,
+	0x12, 0xaa, 0x48, 0xe5, 0xa8, 0x41, 0x84, 0x69, 0xa6, 0x44, 0x31, 0x16, 0x12, 0x84, 0x04, 0x04,
+	0x1f, 0x0a, 0xd0, 0x11, 0x04, 0x3a, 0xd2, 0xb8, 0xfa, 0xd5, 0x7e, 0x78, 0x47, 0xba, 0xb3, 0xf9,
+	0xf4, 0xc9, 0x3c, 0xb9, 0xd7, 0xc4, 0x0d, 0xd3, 0xe8, 0x35, 0x4e, 0xfc, 0x30, 0x8d, 0x63, 0x8d,
+	0xb1, 0x4a, 0x30, 0xa7, 0xce, 0xa0, 0x35, 0xea, 0x79, 0x67, 0x56, 0x99, 0xed, 0x85, 0xe1, 0x47,
+	0x93, 0x9c, 0x3e, 0x56, 0x43, 0x55, 0x15, 0x6e, 0x48, 0xc7, 0x96, 0xa7, 0xce, 0xc0, 0x19, 0xfd,
+	0x9f, 0x50, 0xbe, 0xff, 0x35, 0xb7, 0xd3, 0x58, 0xa7, 0x57, 0xf9, 0x4a, 0xc2, 0x36, 0xa3, 0xcd,
+	0xbf, 0x08, 0xdb, 0xd3, 0xab, 0x7c, 0xee, 0x8c, 0x9c, 0xd4, 0x93, 0xfb, 0xb9, 0x42, 0xda, 0x32,
+	0x20, 0x3b, 0x06, 0x5f, 0x76, 0xb6, 0x67, 0x85, 0x5e, 0xaf, 0x38, 0xb8, 0xb9, 0xf7, 0xa4, 0x25,
+	0x61, 0x41, 0xdb, 0x06, 0xbd, 0xe2, 0xbb, 0xe4, 0x78, 0x99, 0x1c, 0x2f, 0xc6, 0x5c, 0x02, 0x9f,
+	0x03, 0xc2, 0xf4, 0x20, 0xb8, 0xea, 0xe3, 0x25, 0xe7, 0x8e, 0x48, 0x3b, 0x2c, 0xf9, 0x7f, 0x86,
+	0x3f, 0xe7, 0xf5, 0x12, 0x79, 0x9d, 0xa6, 0x67, 0x1c, 0x0f, 0xf4, 0x73, 0xc3, 0x9c, 0xf5, 0x86,
+	0x39, 0xdf, 0x1b, 0xe6, 0xbc, 0x6f, 0x59, 0x63, 0xbd, 0x65, 0x8d, 0xaf, 0x2d, 0x6b, 0x04, 0x1d,
+	0xb3, 0x81, 0xdb, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xbd, 0x5e, 0x88, 0xca, 0x23, 0x02, 0x00,
+	0x00,
+}
+
+func (m *CDAHeader) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *CDAHeader) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CDAHeader) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ColumnCommitments) > 0 {
+		for iNdEx := len(m.ColumnCommitments) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ColumnCommitments[iNdEx])
+			copy(dAtA[i:], m.ColumnCommitments[iNdEx])
+			i = encodeVarintExtendedHeader(dAtA, i, uint64(len(m.ColumnCommitments[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *ExtendedHeader) Marshal() (dAtA []byte, err error) {
@@ -147,6 +229,18 @@ func (m *ExtendedHeader) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.Cdah != nil {
+		{
+			size, err := m.Cdah.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintExtendedHeader(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
 	if m.Dah != nil {
 		{
 			size, err := m.Dah.MarshalToSizedBuffer(dAtA[:i])
@@ -209,6 +303,20 @@ func encodeVarintExtendedHeader(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *CDAHeader) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.ColumnCommitments) > 0 {
+		for _, b := range m.ColumnCommitments {
+			l = len(b)
+			n += 1 + l + sovExtendedHeader(uint64(l))
+		}
+	}
+	return n
+}
 
 func (m *ExtendedHeader) Size() (n int) {
 	if m == nil {
@@ -232,17 +340,101 @@ func (m *ExtendedHeader) Size() (n int) {
 		l = m.Dah.Size()
 		n += 1 + l + sovExtendedHeader(uint64(l))
 	}
+	if m.Cdah != nil {
+		l = m.Cdah.Size()
+		n += 1 + l + sovExtendedHeader(uint64(l))
+	}
 	return n
 }
 
 func sovExtendedHeader(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
-
 func sozExtendedHeader(x uint64) (n int) {
 	return sovExtendedHeader(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
+func (m *CDAHeader) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowExtendedHeader
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CDAHeader: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CDAHeader: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ColumnCommitments", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowExtendedHeader
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthExtendedHeader
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthExtendedHeader
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ColumnCommitments = append(m.ColumnCommitments, make([]byte, postIndex-iNdEx))
+			copy(m.ColumnCommitments[len(m.ColumnCommitments)-1], dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipExtendedHeader(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthExtendedHeader
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
 
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *ExtendedHeader) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -416,6 +608,42 @@ func (m *ExtendedHeader) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cdah", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowExtendedHeader
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthExtendedHeader
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthExtendedHeader
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Cdah == nil {
+				m.Cdah = &CDAHeader{}
+			}
+			if err := m.Cdah.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipExtendedHeader(dAtA[iNdEx:])
@@ -437,7 +665,6 @@ func (m *ExtendedHeader) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-
 func skipExtendedHeader(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0

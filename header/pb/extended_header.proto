@@ -6,11 +6,16 @@ import "tendermint/types/types.proto";
 import "tendermint/types/validator.proto";
 import "celestia/core/v1/da/data_availability_header.proto";
 
+message CDAHeader {
+  repeated bytes column_commitments = 1;
+}
+
 message ExtendedHeader {
   tendermint.types.Header header = 1;
   tendermint.types.Commit commit = 2;
   tendermint.types.ValidatorSet validator_set = 3;
   celestia.core.v1.da.DataAvailabilityHeader dah = 4;
+  CDAHeader cdah = 5;
 }
 
 // Generated with:

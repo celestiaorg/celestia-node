@@ -201,10 +201,14 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 	if err != nil {
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {
-			log.Warn("Propagating proof...")
-			sendErr := d.bcast.Broadcast(ctx, byzantine.CreateBadEncodingProof(h.Hash(), h.Height(), byzantineErr))
-			if sendErr != nil {
-				log.Errorw("fraud proof propagating failed", "err", sendErr)
+			// When CDA is enabled (i.e. CDA commitments are present), we bypass fraud proofs.
+			// CDA validity is checked via commitments + fragment verification/reconstruction.
+			if h.CDAH == nil || len(h.CDAH.ColumnCommitments) == 0 {
+				log.Warn("Propagating proof...")
+				sendErr := d.bcast.Broadcast(ctx, byzantine.CreateBadEncodingProof(h.Hash(), h.Height(), byzantineErr))
+				if sendErr != nil {
+					log.Errorw("fraud proof propagating failed", "err", sendErr)
+				}
 			}
 		}
 		return err

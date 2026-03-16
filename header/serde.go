@@ -28,6 +28,12 @@ func MarshalExtendedHeader(in *ExtendedHeader) (_ []byte, err error) {
 		return nil, err
 	}
 
+	if in.CDAH != nil && len(in.CDAH.ColumnCommitments) > 0 {
+		out.Cdah = &header_pb.CDAHeader{
+			ColumnCommitments: in.CDAH.ColumnCommitments,
+		}
+	}
+
 	return out.Marshal()
 }
 
@@ -59,6 +65,12 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	out.DAH, err = da.DataAvailabilityHeaderFromProto(in.Dah)
 	if err != nil {
 		return nil, err
+	}
+
+	if in.Cdah != nil && len(in.Cdah.ColumnCommitments) > 0 {
+		out.CDAH = &CDAHeader{
+			ColumnCommitments: in.Cdah.ColumnCommitments,
+		}
 	}
 
 	return out, nil

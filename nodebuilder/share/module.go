@@ -13,6 +13,7 @@ import (
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability"
+	cda "github.com/celestiaorg/celestia-node/share/availability/cda"
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -40,6 +41,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		bitswapComponents(tp, cfg),
 		peerManagementComponents(tp, cfg),
 		rdaComponents(tp, cfg),
+		cdaComponents(tp, cfg),
 	)
 
 	switch tp {
@@ -225,6 +227,17 @@ func edsStoreComponents(cfg *Config) fx.Option {
 func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 	switch tp {
 	case node.Light:
+		if cfg.CDAEnabled {
+			return fx.Options(
+				fx.Provide(func(n *share.CDANode) *cda.Availability {
+					return cda.New(n, cda.Config{
+						SampleAmount: int(cfg.LightAvailability.SampleAmount),
+						K:            int(cfg.CDAK),
+					})
+				}),
+				fx.Provide(func(a *cda.Availability) share.Availability { return a }),
+			)
+		}
 		return fx.Options(
 			fx.Provide(fx.Annotate(
 				func(getter shwap.Getter, ds datastore.Batching, bs blockstore.Blockstore) *light.ShareAvailability {

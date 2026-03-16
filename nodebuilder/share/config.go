@@ -64,6 +64,21 @@ type Config struct {
 	// after announcing to a subnet. Implements "delayed pull" from the paper.
 	// Default: 4 seconds (~4 rounds).
 	RDASubnetDiscoveryDelay string `toml:",omitempty"`
+
+	// CDA configuration
+	// CDAEnabled toggles the Coded Distributed Array pipeline. When false (default),
+	// the node behaves purely as an RDA node using full-share replication.
+	CDAEnabled bool `toml:",omitempty"`
+	// CDAK is the target coding rate k used for RLNC-based fragmentation.
+	// Small k (e.g. 16 or 32) keeps decoding inexpensive.
+	CDAK int `toml:",omitempty"`
+	// CDAUseRDAFallback allows falling back to the legacy RDA path (full shares)
+	// when CDA fragments are unavailable or decoding fails.
+	CDAUseRDAFallback bool `toml:",omitempty"`
+
+	// CDABuffer is the per-share storage headroom beyond k (hard cap = k + buffer).
+	// Recommended default is 4 for k=16 to tolerate linear dependence while staying small.
+	CDABuffer int `toml:",omitempty"`
 }
 
 func DefaultConfig(tp node.Type) Config {
@@ -86,6 +101,11 @@ func DefaultConfig(tp node.Type) Config {
 		RDAPeerBootstraps:       nil,  // populated by operator / network config
 		RDAUseSubnetDiscovery:   true, // Use subnet protocol by default (per paper)
 		RDASubnetDiscoveryDelay: "4s", // 4 seconds default (~4 rounds)
+
+		CDAEnabled:         false,
+		CDAK:               16,
+		CDAUseRDAFallback:  true,
+		CDABuffer:          4,
 	}
 
 	if tp == node.Light {

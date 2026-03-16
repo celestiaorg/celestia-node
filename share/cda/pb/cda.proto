@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package share.cda.pb;
+
+option go_package = "github.com/celestiaorg/celestia-node/share/cda/pb";
+
+message CodingVector {
+  uint32 k = 1;
+  bytes seed = 2;              // optional (ideally 32 bytes)
+  repeated bytes coeffs = 3;   // optional explicit coefficients
+}
+
+message FragmentProof {
+  bytes proof_bytes = 1;
+}
+
+message CDAStoreMessage {
+  uint64 height = 1;
+  uint32 row = 2;
+  uint32 col = 3;
+  bytes share = 4;
+}
+
+message CDAFragmentMessage {
+  uint64 height = 1;
+  uint32 row = 2;
+  uint32 col = 3;
+
+  // libp2p peer ID string form
+  string peer_id = 4;
+
+  CodingVector coding_vec = 5;
+  bytes data = 6;
+  FragmentProof proof = 7;
+}
+
