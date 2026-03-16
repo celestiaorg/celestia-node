@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/da"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
@@ -20,8 +21,8 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	network := NewNetwork(t, DefaultTestConfig())
-	require.NoError(t, network.Start())
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})
@@ -39,7 +40,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 	comm, val, err := fetcher.GetBlockInfo(ctx, height)
 	require.NoError(t, err)
 
-	eds, err := extendBlock(b.Data)
+	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	require.NoError(t, err)
 
 	headerExt, err := header.MakeExtendedHeader(b.Header, comm, val, eds)

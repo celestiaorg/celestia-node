@@ -18,25 +18,32 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	v2bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v2"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v7/app/errors"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 )
+
+var tracer = otel.Tracer("state/service")
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
@@ -51,6 +58,15 @@ type CoreAccessor struct {
 
 	keyring keyring.Keyring
 	client  *user.TxClient
+	// txWorkerAccounts is used for queued submission. It defines how many accounts the
+	// TxClient uses for PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	txWorkerAccounts int
 
 	// TODO @renaynay: clean this up -- only one!!!!
 	defaultSignerAccount string
@@ -58,9 +74,10 @@ type CoreAccessor struct {
 
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli   stakingtypes.QueryClient
-	feeGrantCli  feegrant.QueryClient
-	abciQueryCli tmservice.ServiceClient
+	stakingCli      stakingtypes.QueryClient
+	distributionCli distributiontypes.QueryClient
+	feeGrantCli     feegrant.QueryClient
+	abciQueryCli    tmservice.ServiceClient
 
 	prt *merkle.ProofRuntime
 
@@ -70,6 +87,9 @@ type CoreAccessor struct {
 	estimatorServiceAddr string
 	estimatorServiceTLS  bool
 	estimatorConn        *grpc.ClientConn
+
+	// metrics tracks state-related metrics
+	metrics *metrics
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -86,6 +106,7 @@ func NewCoreAccessor(
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
+	metrics *metrics,
 	opts ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier
@@ -110,6 +131,7 @@ func NewCoreAccessor(
 		prt:                  prt,
 		coreConns:            []*grpc.ClientConn{conn},
 		network:              network,
+		metrics:              metrics,
 	}
 
 	for _, opt := range opts {
@@ -123,6 +145,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
 	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
+	ca.distributionCli = distributiontypes.NewQueryClient(ca.coreConns[0])
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConns[0])
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
@@ -155,6 +178,7 @@ func (ca *CoreAccessor) Stop(_ context.Context) error {
 		ca.estimatorConn = nil
 	}
 
+	// No cleanup needed for metrics
 	return nil
 }
 
@@ -165,10 +189,59 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
-) (*TxResponse, error) {
-	if len(libBlobs) == 0 {
-		return nil, errors.New("state: no blobs provided")
+) (_ *TxResponse, err error) {
+	start := time.Now()
+
+	// Calculate blob metrics - optimized single pass
+	totalSize := int64(0)
+	for _, blob := range libBlobs {
+		totalSize += int64(len(blob.Data()))
 	}
+
+	var gasEstimationDuration time.Duration
+
+	// Use defer to ensure metrics are recorded exactly once at the end
+	defer func() {
+		ca.metrics.observePfbSubmission(ctx, time.Since(start), len(libBlobs), totalSize, gasEstimationDuration, 0, err)
+	}()
+
+	span := trace.SpanFromContext(ctx)
+	// span will be set to noopSpan if SubmitPayForBlob is called directly
+	if !span.SpanContext().IsValid() {
+		ctx, span = tracer.Start(ctx, "state/submit")
+		defer func() {
+			utils.SetStatusAndEnd(span, err)
+		}()
+	}
+
+	if len(libBlobs) == 0 {
+		err = errors.New("state: no blobs provided")
+		return nil, err
+	}
+
+	span.SetAttributes(
+		attribute.Int("amount", len(libBlobs)),
+		attribute.Float64("gas-price", cfg.GasPrice()),
+		attribute.Int64("gas-limit", int64(cfg.GasLimit())),
+		attribute.String("signer", cfg.SignerAddress()),
+		attribute.String("fee-granter", cfg.FeeGranterAddress()),
+		attribute.String("key-name", cfg.KeyName()),
+		attribute.Int("tx-priority", int(cfg.TxPriority())),
+	)
+
+	ids := make([]string, len(libBlobs))
+	dataLengths := make([]int, len(libBlobs))
+	for i := range libBlobs {
+		if err := libBlobs[i].Namespace().ValidateForBlob(); err != nil {
+			return nil, fmt.Errorf("not allowed namespace %s were used to build the blob", libBlobs[i].Namespace().ID())
+		}
+
+		ids[i] = libBlobs[i].Namespace().String()
+		dataLengths[i] = libBlobs[i].DataLen()
+	}
+
+	span.SetAttributes(attribute.StringSlice("namespaces", ids))
+	span.SetAttributes(attribute.IntSlice("blob-data-lengths", dataLengths))
 
 	client, err := ca.getTxClient(ctx)
 	if err != nil {
@@ -184,26 +257,37 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		feeGrant = user.SetFeeGranter(granter)
 	}
 
-	gas := cfg.GasLimit()
-	if gas == 0 {
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
-			blobSizes[i] = uint32(len(blob.Data()))
-		}
-		gas = ca.estimateGasForBlobs(blobSizes)
-	}
-
-	// get tx signer account name
+	// get signer address
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err
 	}
+
+	accountQueryStart := time.Now()
 	account := ca.client.AccountByAddress(ctx, author)
+	ca.metrics.observeAccountQuery(ctx, time.Since(accountQueryStart), nil)
+
 	if account == nil {
-		return nil, fmt.Errorf("account for signer %s not found", author)
+		err = fmt.Errorf("account for signer %s not found", author)
+		return nil, err
 	}
 
+	gas := cfg.GasLimit()
+	// Gas estimation if needed
+	if gas == 0 {
+		gasEstimationStart := time.Now()
+		gas, err = ca.estimateGasForBlobs(author.String(), libBlobs)
+		gasEstimationDuration = time.Since(gasEstimationStart)
+		ca.metrics.observeGasEstimation(ctx, gasEstimationDuration, err)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Gas price estimation
+	gasPriceEstimationStart := time.Now()
 	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
+	ca.metrics.observeGasPriceEstimation(ctx, time.Since(gasPriceEstimationStart), err)
 	if err != nil {
 		return nil, err
 	}
@@ -213,15 +297,51 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		opts = append(opts, feeGrant)
 	}
 
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	log.Infow("submitting blobs",
+		"amount", len(libBlobs),
+		"namespaces", ids,
+		"data-lengths", dataLengths,
+		"signer", account.Address().String(),
+		"key-name", account.Name(),
+		"gas-price", gasPrice,
+		"gas-limit", gas,
+		"fee-granter", cfg.FeeGranterAddress(),
+		"tx-priority", int(cfg.TxPriority()),
+	)
+	defer func() {
+		if err != nil {
+			log.Errorw("submitting blobs",
+				"err", err,
+				"namespaces", ids,
+				"signer", account.Address().String(),
+				"key-name", account.Name(),
+			)
+		}
+	}()
+
+	var response *user.TxResponse
+	if ca.txWorkerAccounts > 0 && author.Equals(ca.defaultSignerAddress) {
+		response, err = client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
+	} else {
+		response, err = client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+	}
 	if err == nil {
 		// metrics should only be counted on a successful PFB tx
 		if response.Code == 0 {
 			ca.markSuccessfulPFB()
 		}
-		return convertToSdkTxResponse(response), nil
+
+		resp := convertToSdkTxResponse(response)
+		span.SetAttributes(
+			attribute.Int64("height", resp.Height),
+			attribute.String("hash", resp.TxHash),
+			attribute.Int("code", int(resp.Code)),
+			attribute.Int64("gas-wanted", resp.GasWanted),
+			attribute.Int64("gas-used", resp.GasUsed),
+		)
+		return resp, nil
 	}
-	// TODO @renaynay: use new rachid named func
+
 	if apperrors.IsInsufficientFee(err) {
 		if cfg.isGasPriceSet {
 			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
@@ -416,6 +536,31 @@ func (ca *CoreAccessor) Delegate(
 	return ca.submitMsg(ctx, msg, cfg)
 }
 
+func (ca *CoreAccessor) WithdrawDelegatorReward(
+	ctx context.Context,
+	valAddr ValAddress,
+	cfg *TxConfig,
+) (*TxResponse, error) {
+	signer, err := ca.getTxAuthorAccAddress(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := distributiontypes.NewMsgWithdrawDelegatorReward(signer.String(), valAddr.String())
+	return ca.submitMsg(ctx, msg, cfg)
+}
+
+func (ca *CoreAccessor) QueryDelegationRewards(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*distributiontypes.QueryDelegationRewardsResponse, error) {
+	delAddr := ca.defaultSignerAddress
+	return ca.distributionCli.DelegationRewards(ctx, &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delAddr.String(),
+		ValidatorAddress: valAddr.String(),
+	})
+}
+
 func (ca *CoreAccessor) QueryDelegation(
 	ctx context.Context,
 	valAddr ValAddress,
@@ -524,13 +669,17 @@ func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
 		ca.estimatorConn = estimatorConn
 	}
 
+	if ca.txWorkerAccounts > 1 {
+		opts = append(opts, user.WithTxWorkers(ca.txWorkerAccounts))
+	}
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	if len(ca.coreConns) > 1 {
 		opts = append(opts, user.WithAdditionalCoreEndpoints(ca.coreConns[1:]))
 	}
 
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
+	client, err := user.SetupTxClient(ca.ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
@@ -568,7 +717,11 @@ func (ca *CoreAccessor) submitMsg(
 		txConfig = append(txConfig, user.SetFeeGranter(granter))
 	}
 
+	gasEstimationStart := time.Now()
 	gasPrice, gas, err := ca.estimateGasPriceAndUsage(ctx, cfg, msg)
+	gasEstimationDuration := time.Since(gasEstimationStart)
+	ca.metrics.observeGasEstimation(ctx, gasEstimationDuration, err)
+	ca.metrics.observeGasPriceEstimation(ctx, gasEstimationDuration, err)
 	if err != nil {
 		return nil, err
 	}

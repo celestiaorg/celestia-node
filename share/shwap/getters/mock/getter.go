@@ -10,7 +10,7 @@ import (
 
 	header "github.com/celestiaorg/celestia-node/header"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
-	share "github.com/celestiaorg/go-square/v2/share"
+	share "github.com/celestiaorg/go-square/v3/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )

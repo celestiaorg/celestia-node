@@ -48,5 +48,9 @@ func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
 		AllowedMethods: cfg.CORS.AllowedMethods,
 		AllowedHeaders: cfg.CORS.AllowedHeaders,
+	}, rpc.TLSConfig{
+		Enabled:  cfg.TLSEnabled,
+		CertPath: cfg.TLSCertPath,
+		KeyPath:  cfg.TLSKeyPath,
 	}, signer, verifier)
 }
