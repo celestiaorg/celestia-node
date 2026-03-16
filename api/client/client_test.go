@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
@@ -192,6 +193,89 @@ func TestSubmission(t *testing.T) {
 	}
 }
 
+// TestClientWithSubmission tests the client with parallel tx submission
+func TestSubmission_QueuedSubmission(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	t.Cleanup(cancel)
+
+	accounts := []string{"Elon"}
+
+	start := time.Now()
+	cctx := setupConsensus(t, ctx, accounts...)
+	fmt.Println("consensus", time.Since(start).String())
+
+	bn, adminToken := bridgeNode(t, ctx, cctx)
+	fmt.Println("bridgeNode", time.Since(start).String())
+
+	cfg := Config{
+		ReadConfig: ReadConfig{
+			BridgeDAAddr: "http://" + bn.RPCServer.ListenAddr(),
+			DAAuthToken:  adminToken,
+			EnableDATLS:  false,
+		},
+
+		SubmitConfig: SubmitConfig{
+			DefaultKeyName: accounts[0],
+			Network:        "private",
+			CoreGRPCConfig: CoreGRPCConfig{
+				Addr: cctx.GRPCClient.Target(),
+			},
+			TxWorkerAccounts: 4, // should create 3 additional parallel tx worker accounts
+		},
+	}
+	client, err := New(ctx, cfg, cctx.Keyring)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, client.Close())
+	})
+
+	// Test State returns actual balance
+	balance, err := client.State.Balance(ctx)
+	require.NoError(t, err)
+	fmt.Println("balance", balance)
+
+	// Test header read operation works
+	_, err = client.Header.GetByHeight(ctx, 1)
+	require.NoError(t, err)
+
+	namespace := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xb}, 10))
+	b, err := blob.NewBlob(libshare.ShareVersionZero, namespace, []byte("dataA"), nil)
+	require.NoError(t, err)
+	submitBlobs := []*blob.Blob{b}
+
+	now := time.Now()
+	// Submit a blob from default key
+	height, err := client.Blob.Submit(ctx, submitBlobs, &blob.SubmitOptions{})
+	require.NoError(t, err)
+	fmt.Println("height default", height, time.Since(now).String())
+
+	// Test blob read operation works
+	received, err := client.Blob.Get(ctx, height, namespace, b.Commitment)
+	require.NoError(t, err)
+	require.Equal(t, b.Data(), received.Data())
+	fmt.Println("get default", time.Since(now).String())
+
+	// Spam blobs from default key parallel
+	wg := sync.WaitGroup{}
+	for range 5 {
+		wg.Go(func() {
+			// submit takes ~3 seconds to confirm each Tx on localnet
+			submitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			t.Cleanup(cancel)
+
+			height, err := client.Blob.Submit(submitCtx, submitBlobs, state.NewTxConfig())
+			require.NoError(t, err)
+			fmt.Println("submit", accounts[0], height, time.Since(now).String())
+
+			received, err := client.Blob.Get(submitCtx, height, namespace, b.Commitment)
+			require.NoError(t, err)
+			require.Equal(t, b.Data(), received.Data())
+			fmt.Println("get", accounts[0], time.Since(now).String())
+		})
+	}
+	wg.Wait()
+}
+
 type mockAPI struct {
 	State      *stateMock.MockModule
 	Share      *shareMock.MockModule
@@ -239,7 +323,7 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 
 	// Setup node with authenticated RPC
 	addAuth, adminToken := addAuth(t)
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, addAuth)
+	nd := nodebuilder.TestNode(t, node.Bridge, invokeRPC, addAuth)
 	// start node
 	err := nd.Start(ctx)
 	require.NoError(t, err)
@@ -278,7 +362,6 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...string) testn
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(1 * time.Millisecond).
 		WithDelayedPrecommitTimeout(50 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, config)
@@ -326,7 +409,7 @@ func bridgeNode(t *testing.T, ctx context.Context, cctx testnode.Context) (*node
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		require.NoError(t, bn.Stop(ctx))
 		cancel()
 	})

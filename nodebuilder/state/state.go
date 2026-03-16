@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	libshare "github.com/celestiaorg/go-square/v3/share"
@@ -72,7 +73,18 @@ type Module interface {
 		amount state.Int,
 		config *state.TxConfig,
 	) (*state.TxResponse, error)
+	// WithdrawDelegatorReward withdraws a delegator's rewards from a validator.
+	WithdrawDelegatorReward(
+		ctx context.Context,
+		valAddr state.ValAddress,
+		config *state.TxConfig,
+	) (*state.TxResponse, error)
 
+	// QueryDelegationRewards retrieves the pending rewards for a delegation to a given validator.
+	QueryDelegationRewards(
+		ctx context.Context,
+		valAddr state.ValAddress,
+	) (*distributiontypes.QueryDelegationRewardsResponse, error)
 	// QueryDelegation retrieves the delegation information between a delegator and a validator.
 	QueryDelegation(ctx context.Context, valAddr state.ValAddress) (*types.QueryDelegationResponse, error)
 	// QueryUnbonding retrieves the unbonding status between a delegator and a validator.
@@ -142,6 +154,15 @@ type API struct {
 			amount state.Int,
 			config *state.TxConfig,
 		) (*state.TxResponse, error) `perm:"write"`
+		WithdrawDelegatorReward func(
+			ctx context.Context,
+			valAddr state.ValAddress,
+			config *state.TxConfig,
+		) (*state.TxResponse, error) `perm:"write"`
+		QueryDelegationRewards func(
+			ctx context.Context,
+			valAddr state.ValAddress,
+		) (*distributiontypes.QueryDelegationRewardsResponse, error) `perm:"read"`
 		QueryDelegation func(
 			ctx context.Context,
 			valAddr state.ValAddress,
@@ -228,6 +249,21 @@ func (api *API) Delegate(
 	config *state.TxConfig,
 ) (*state.TxResponse, error) {
 	return api.Internal.Delegate(ctx, delAddr, amount, config)
+}
+
+func (api *API) WithdrawDelegatorReward(
+	ctx context.Context,
+	valAddr state.ValAddress,
+	config *state.TxConfig,
+) (*state.TxResponse, error) {
+	return api.Internal.WithdrawDelegatorReward(ctx, valAddr, config)
+}
+
+func (api *API) QueryDelegationRewards(
+	ctx context.Context,
+	valAddr state.ValAddress,
+) (*distributiontypes.QueryDelegationRewardsResponse, error) {
+	return api.Internal.QueryDelegationRewards(ctx, valAddr)
 }
 
 func (api *API) QueryDelegation(ctx context.Context, valAddr state.ValAddress) (*types.QueryDelegationResponse, error) {

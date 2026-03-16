@@ -12,7 +12,8 @@ import (
 	state "github.com/celestiaorg/celestia-node/state"
 	share "github.com/celestiaorg/go-square/v3/share"
 	types "github.com/cosmos/cosmos-sdk/types"
-	types0 "github.com/cosmos/cosmos-sdk/x/staking/types"
+	types0 "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	types1 "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -145,10 +146,10 @@ func (mr *MockModuleMockRecorder) GrantFee(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // QueryDelegation mocks base method.
-func (m *MockModule) QueryDelegation(arg0 context.Context, arg1 types.ValAddress) (*types0.QueryDelegationResponse, error) {
+func (m *MockModule) QueryDelegation(arg0 context.Context, arg1 types.ValAddress) (*types1.QueryDelegationResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryDelegation", arg0, arg1)
-	ret0, _ := ret[0].(*types0.QueryDelegationResponse)
+	ret0, _ := ret[0].(*types1.QueryDelegationResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -159,11 +160,26 @@ func (mr *MockModuleMockRecorder) QueryDelegation(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryDelegation", reflect.TypeOf((*MockModule)(nil).QueryDelegation), arg0, arg1)
 }
 
+// QueryDelegationRewards mocks base method.
+func (m *MockModule) QueryDelegationRewards(arg0 context.Context, arg1 types.ValAddress) (*types0.QueryDelegationRewardsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryDelegationRewards", arg0, arg1)
+	ret0, _ := ret[0].(*types0.QueryDelegationRewardsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryDelegationRewards indicates an expected call of QueryDelegationRewards.
+func (mr *MockModuleMockRecorder) QueryDelegationRewards(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryDelegationRewards", reflect.TypeOf((*MockModule)(nil).QueryDelegationRewards), arg0, arg1)
+}
+
 // QueryRedelegations mocks base method.
-func (m *MockModule) QueryRedelegations(arg0 context.Context, arg1, arg2 types.ValAddress) (*types0.QueryRedelegationsResponse, error) {
+func (m *MockModule) QueryRedelegations(arg0 context.Context, arg1, arg2 types.ValAddress) (*types1.QueryRedelegationsResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryRedelegations", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*types0.QueryRedelegationsResponse)
+	ret0, _ := ret[0].(*types1.QueryRedelegationsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -175,10 +191,10 @@ func (mr *MockModuleMockRecorder) QueryRedelegations(arg0, arg1, arg2 interface{
 }
 
 // QueryUnbonding mocks base method.
-func (m *MockModule) QueryUnbonding(arg0 context.Context, arg1 types.ValAddress) (*types0.QueryUnbondingDelegationResponse, error) {
+func (m *MockModule) QueryUnbonding(arg0 context.Context, arg1 types.ValAddress) (*types1.QueryUnbondingDelegationResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryUnbonding", arg0, arg1)
-	ret0, _ := ret[0].(*types0.QueryUnbondingDelegationResponse)
+	ret0, _ := ret[0].(*types1.QueryUnbondingDelegationResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -247,4 +263,19 @@ func (m *MockModule) Undelegate(arg0 context.Context, arg1 types.ValAddress, arg
 func (mr *MockModuleMockRecorder) Undelegate(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Undelegate", reflect.TypeOf((*MockModule)(nil).Undelegate), arg0, arg1, arg2, arg3)
+}
+
+// WithdrawDelegatorReward mocks base method.
+func (m *MockModule) WithdrawDelegatorReward(arg0 context.Context, arg1 types.ValAddress, arg2 *state.TxConfig) (*types.TxResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithdrawDelegatorReward", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*types.TxResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WithdrawDelegatorReward indicates an expected call of WithdrawDelegatorReward.
+func (mr *MockModuleMockRecorder) WithdrawDelegatorReward(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithdrawDelegatorReward", reflect.TypeOf((*MockModule)(nil).WithdrawDelegatorReward), arg0, arg1, arg2)
 }

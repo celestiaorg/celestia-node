@@ -7,8 +7,8 @@ import (
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v3/inclusion"
 	libshare "github.com/celestiaorg/go-square/v3/share"

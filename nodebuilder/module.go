@@ -48,7 +48,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
-		das.ConstructModule(tp, &cfg.DASer),
+		das.ConstructModule(&cfg.DASer),
 		fraud.ConstructModule(tp),
 		blob.ConstructModule(),
 		da.ConstructModule(),

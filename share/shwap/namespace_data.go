@@ -21,11 +21,20 @@ type NamespaceData []RowNamespaceData
 
 // Flatten combines all shares from all rows within the namespace into a single slice.
 func (nd NamespaceData) Flatten() []libshare.Share {
-	var shares []libshare.Share
+	var shares []libshare.Share //nolint:prealloc
 	for _, row := range nd {
 		shares = append(shares, row.Shares...)
 	}
 	return shares
+}
+
+// Length returns the total number of shares in the NamespaceData.
+func (nd NamespaceData) Length() int {
+	var length int
+	for _, row := range nd {
+		length += len(row.Shares)
+	}
+	return length
 }
 
 // Verify checks the integrity of the NamespaceData against a provided root and namespace.
@@ -82,4 +91,8 @@ func (nd NamespaceData) WriteTo(writer io.Writer) (int64, error) {
 		}
 	}
 	return n, nil
+}
+
+func (nd NamespaceData) IsEmpty() bool {
+	return len(nd) == 0
 }

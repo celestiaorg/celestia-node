@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"testing"
@@ -19,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -469,7 +470,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	rawShares1, err := BlobsToShares(blobs[1])
 	require.NoError(t, err)
 
-	rawShares := make([]libshare.Share, 0)
+	rawShares := make([]libshare.Share, 0) //nolint:prealloc
 	rawShares = append(rawShares, append(rawShares0, padding0)...)
 	rawShares = append(rawShares, append(rawShares1, padding1)...)
 	service := createService(ctx, t, rawShares)
@@ -544,7 +545,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
 
-	rawShares := make([]libshare.Share, 0)
+	rawShares := make([]libshare.Share, 0) //nolint:prealloc
 
 	require.NoError(t, err)
 	padding, err := libshare.NamespacePaddingShare(blobs[0].Namespace(), libshare.ShareVersionZero)
@@ -658,7 +659,7 @@ func TestService_Subscribe(t *testing.T) {
 	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
-	service := createServiceWithSub(ctx, t, blobs)
+	service, headers := createServiceWithSub(ctx, t, blobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -670,7 +671,7 @@ func TestService_Subscribe(t *testing.T) {
 		for i := uint64(0); i < uint64(len(blobs)); i++ {
 			select {
 			case resp := <-subCh:
-				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
 				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for subscription response %d", i)
@@ -690,7 +691,10 @@ func TestService_Subscribe(t *testing.T) {
 			select {
 			case resp := <-subCh:
 				assert.Empty(t, resp.Blobs)
-				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
+				// Verify backwards compatibility: Height field should still be populated even with no blobs
+				assert.Equal(t, headers[i].Height(), resp.Height, "Height should match Header.Height for backwards compatibility")
+				assert.Equal(t, uint64(resp.Header.Height), resp.Height, "resp.Height should equal resp.Header.Height")
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for empty subscription response %d", i)
 			}
@@ -736,7 +740,7 @@ func TestService_Subscribe(t *testing.T) {
 		for range blobs {
 			select {
 			case val := <-subCh:
-				if val.Height == uint64(len(blobs)) {
+				if uint64(val.Header.Height) == uint64(len(blobs)) {
 					err = service.Stop(context.Background())
 					require.NoError(t, err)
 				}
@@ -775,7 +779,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	//nolint: gocritic
 	allBlobs := append(blobs1, blobs2...)
 
-	service := createServiceWithSub(ctx, t, allBlobs)
+	service, _ := createServiceWithSub(ctx, t, allBlobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -791,7 +795,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs1); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns1, b.Namespace())
@@ -804,7 +808,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs2); i++ {
 		select {
 		case resp := <-subCh2:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns2, b.Namespace())
@@ -852,7 +856,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
-func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Service, []*header.ExtendedHeader) {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
@@ -896,7 +900,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -998,6 +1002,155 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 			require.Error(t, err)
 		})
 	}
+}
+
+// TestProveCommitmentCollision reproduces a bug where ProveCommitment used the
+// last matching first-share index instead of the first match. When two blobs in
+// the same namespace have identical first shares (same namespace, same sequence
+// length, same initial data bytes), ProveCommitment would find the wrong start
+// index for the earlier blob, producing an invalid commitment proof.
+func TestProveCommitmentCollision(t *testing.T) {
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xAB}, 10))
+
+	// Both blobs must span at least 2 shares so their data extends beyond the
+	// first share. The first FirstSparseShareContentSize bytes of data are
+	// identical so that the first share of each blob is byte-equal.
+	firstShareDataSize := libshare.FirstSparseShareContentSize
+	extraBytes := 200 // enough to spill into a second share
+
+	// Shared prefix that fills the entire first share's data area.
+	sharedPrefix := bytes.Repeat([]byte{0x42}, firstShareDataSize)
+
+	// blob1 data: sharedPrefix + [0xAA ...] in the second share
+	data1 := make([]byte, firstShareDataSize+extraBytes)
+	copy(data1, sharedPrefix)
+	for i := firstShareDataSize; i < len(data1); i++ {
+		data1[i] = 0xAA
+	}
+
+	// blob2 data: sharedPrefix + [0xBB ...] in the second share
+	data2 := make([]byte, firstShareDataSize+extraBytes)
+	copy(data2, sharedPrefix)
+	for i := firstShareDataSize; i < len(data2); i++ {
+		data2[i] = 0xBB
+	}
+
+	blob1, err := NewBlob(libshare.ShareVersionZero, ns, data1, nil)
+	require.NoError(t, err)
+	blob2, err := NewBlob(libshare.ShareVersionZero, ns, data2, nil)
+	require.NoError(t, err)
+
+	// Commitments must differ (data differs after the first share).
+	require.False(t, bytes.Equal(blob1.Commitment, blob2.Commitment),
+		"blobs should have different commitments")
+
+	shares1, err := BlobsToShares(blob1)
+	require.NoError(t, err)
+	shares2, err := BlobsToShares(blob2)
+	require.NoError(t, err)
+
+	// Verify the first shares are indeed byte-equal (precondition for the bug).
+	require.True(t, bytes.Equal(shares1[0].ToBytes(), shares2[0].ToBytes()),
+		"first shares of both blobs should be byte-equal for this test to be valid")
+
+	eds, dataRoot := buildEDS(t, append(shares1, shares2...))
+
+	// Prove and verify blob1 (the first blob in the ODS).
+	proof1, err := ProveCommitment(eds, ns, shares1)
+	require.NoError(t, err)
+	require.NoError(t, proof1.Validate())
+	err = proof1.Verify(dataRoot, blob1.Commitment)
+	require.NoError(t, err, "commitment proof for blob1 should verify")
+
+	// Prove and verify blob2 (the second blob in the ODS).
+	proof2, err := ProveCommitment(eds, ns, shares2)
+	require.NoError(t, err)
+	require.NoError(t, proof2.Validate())
+	err = proof2.Verify(dataRoot, blob2.Commitment)
+	require.NoError(t, err, "commitment proof for blob2 should verify")
+}
+
+// TestProveCommitmentIdenticalBlobs verifies that ProveCommitment works when
+// two fully identical blobs (same namespace, same data) appear in the ODS.
+// Since their shares and commitments are identical, any matching position
+// produces a valid proof.
+func TestProveCommitmentIdenticalBlobs(t *testing.T) {
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xCD}, 10))
+	data := bytes.Repeat([]byte{0x42}, libshare.FirstSparseShareContentSize+200)
+
+	blob1, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+	blob2, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+
+	require.True(t, bytes.Equal(blob1.Commitment, blob2.Commitment),
+		"identical blobs should have equal commitments")
+
+	shares1, err := BlobsToShares(blob1)
+	require.NoError(t, err)
+	shares2, err := BlobsToShares(blob2)
+	require.NoError(t, err)
+
+	eds, dataRoot := buildEDS(t, append(shares1, shares2...))
+
+	proof, err := ProveCommitment(eds, ns, shares1)
+	require.NoError(t, err)
+	require.NoError(t, proof.Validate())
+	err = proof.Verify(dataRoot, blob1.Commitment)
+	require.NoError(t, err, "commitment proof for identical blobs should verify")
+}
+
+// TestProveCommitmentSingleShareCollision verifies that ProveCommitment
+// correctly handles two single-share blobs with identical share bytes. This
+// exercises the boundary case where the "verify all shares" inner loop body
+// never executes because each blob is only one share.
+func TestProveCommitmentSingleShareCollision(t *testing.T) {
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xEF}, 10))
+
+	// Use data small enough to fit in a single share.
+	data := bytes.Repeat([]byte{0x42}, 100)
+
+	blob1, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+	blob2, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+
+	shares1, err := BlobsToShares(blob1)
+	require.NoError(t, err)
+	require.Len(t, shares1, 1, "blob should fit in a single share")
+
+	shares2, err := BlobsToShares(blob2)
+	require.NoError(t, err)
+
+	eds, dataRoot := buildEDS(t, append(shares1, shares2...))
+
+	proof, err := ProveCommitment(eds, ns, shares1)
+	require.NoError(t, err)
+	require.NoError(t, proof.Validate())
+	err = proof.Verify(dataRoot, blob1.Commitment)
+	require.NoError(t, err, "commitment proof for single-share blob should verify")
+}
+
+// buildEDS constructs an EDS from the given shares, padding with tail padding
+// shares to fill the square. Returns the EDS and the data root.
+func buildEDS(t *testing.T, shares []libshare.Share) (*rsmt2d.ExtendedDataSquare, []byte) {
+	t.Helper()
+	odsSize := int(math.Ceil(math.Sqrt(float64(len(shares)))))
+	if odsSize < 1 {
+		odsSize = 1
+	}
+	for len(shares) < odsSize*odsSize {
+		shares = append(shares, libshare.TailPaddingShare())
+	}
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		libshare.ToBytes(shares),
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
+	require.NoError(t, err)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	return eds, roots.Hash()
 }
 
 func rawBlobSize(totalSize int) int {

@@ -36,7 +36,7 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	)
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		return fx.Module(
 			"p2p",
 			baseComponents,

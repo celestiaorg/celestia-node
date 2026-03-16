@@ -7,15 +7,15 @@ import (
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/app"
-	"github.com/celestiaorg/celestia-app/v6/app/encoding"
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/da"
-	"github.com/celestiaorg/celestia-app/v6/pkg/user"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v6/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v6/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v7/app/encoding"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/da"
+	"github.com/celestiaorg/celestia-app/v7/pkg/user"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -130,7 +130,7 @@ func GenerateTestBlock(
 		blobSize,
 	)
 
-	txs := make(coretypes.Txs, 0)
+	txs := make(coretypes.Txs, 0) //nolint:prealloc
 	txs = append(txs, coreTxs...)
 
 	eds, err := da.ConstructEDS(txs.ToSliceOfBytes(), appconsts.Version, -1)
@@ -152,10 +152,10 @@ func createTestBlobTransactions(
 	t *testing.T,
 	numberOfTransactions, size int,
 ) ([]libshare.Namespace, []*blobtypes.MsgPayForBlobs, []*libshare.Blob, []coretypes.Tx) {
-	nss := make([]libshare.Namespace, 0)
-	msgs := make([]*blobtypes.MsgPayForBlobs, 0)
-	blobs := make([]*libshare.Blob, 0)
-	coreTxs := make([]coretypes.Tx, 0)
+	nss := make([]libshare.Namespace, 0, numberOfTransactions)
+	msgs := make([]*blobtypes.MsgPayForBlobs, 0, numberOfTransactions)
+	blobs := make([]*libshare.Blob, 0, numberOfTransactions)
+	coreTxs := make([]coretypes.Tx, 0, numberOfTransactions)
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := testfactory.TestKeyring(config.Codec, accountName)
 	account := user.NewAccount(accountName, 0, 0)
