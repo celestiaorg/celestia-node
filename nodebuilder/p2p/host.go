@@ -104,11 +104,7 @@ func newHost(params hostParams) (HostBase, error) {
 		libp2p.DefaultMuxers,
 	}
 
-	if params.Registerer != nil {
-		opts = append(opts, libp2p.PrometheusRegisterer(params.Registerer))
-	} else {
-		opts = append(opts, libp2p.DisableMetrics())
-	}
+	opts = append(opts, libp2pMetricsOpt(params.Registerer))
 
 	// All node types except light (bridge, full) will enable NATService
 	if params.Tp != node.Light {

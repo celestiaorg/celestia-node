@@ -9,11 +9,14 @@ import (
 	"github.com/grafana/pyroscope-go"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/prometheus/client_golang/prometheus"
+	otelprom "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.11.0"
@@ -207,12 +210,17 @@ func initializeMetrics(
 	network p2p.Network,
 	opts []otlpmetrichttp.Option,
 ) error {
+	// Create a prometheus bridge that exports all prometheus-collected metrics (libp2p, bitswap)
+	// through the OTel pipeline, eliminating the need for a standalone Prometheus HTTP server.
+	promProducer := otelprom.NewMetricProducer(otelprom.WithGatherer(prometheus.DefaultGatherer))
+
 	cfg := utils.MetricProviderConfig{
 		ServiceNamespace:  network.String(),
 		ServiceName:       nodeType.String(),
 		ServiceInstanceID: peerID.String(),
 		Interval:          defaultMetricsCollectInterval,
 		OTLPOptions:       opts,
+		Producers:         []sdk.Producer{promProducer},
 	}
 
 	provider, err := utils.NewMetricProvider(ctx, cfg)
