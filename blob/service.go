@@ -106,12 +106,32 @@ type SubscriptionResponse struct {
 // Please note that no errors are returned: underlying operations are retried until successful.
 // Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
 func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan *SubscriptionResponse, error) {
+	return s.SubscribeWithStartHeight(ctx, ns, 0)
+}
+
+// SubscribeWithStartHeight returns a channel that will receive SubscriptionResponse objects
+// starting from the given startHeight. It first replays all historical blobs from startHeight
+// up to the current network head, then transitions to streaming new blobs as
+// they arrive.
+//
+// A startHeight of 0 skips the catchup phase and behaves identically to Subscribe.
+//
+// The channel will be closed when the context is canceled or the service is stopped.
+// Errors during catchup (e.g. pruned data) will close the subscription. During the live
+// phase, retrieval errors are retried until successful.
+// Not reading from the returned channel will cause the stream to close after 16 messages.
+func (s *Service) SubscribeWithStartHeight(
+	ctx context.Context,
+	ns libshare.Namespace,
+	startHeight uint64,
+) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
 	}
 
 	log.Infow("subscribing for blobs",
-		"namespaces", ns.String(),
+		"namespace", ns.String(),
+		"startHeight", startHeight,
 	)
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
@@ -122,6 +142,45 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 	go func() {
 		defer close(blobCh)
 
+		lastHeight := uint64(0)
+		// Fetch blobs for historical heights.
+		if startHeight > 0 {
+			for height := startHeight; ; height++ {
+				if ctx.Err() != nil {
+					log.Debugw("blobsub: canceling catchup due to user ctx closing", "namespace", ns.ID())
+					return
+				}
+				if s.ctx.Err() != nil {
+					log.Debugw("blobsub: canceling catchup due to service ctx closing", "namespace", ns.ID())
+					return
+				}
+
+				header, err := s.headerGetter(ctx, height)
+				if err != nil {
+					// height not yet available consider catchup done, continue streaming live.
+					log.Debugw("blobsub: catchup done, transitioning to live",
+						"namespace", ns.ID(), "lastHeight", height-1)
+					break
+				}
+
+				blobs, err := s.getAll(ctx, header, []libshare.Namespace{ns})
+				if err != nil {
+					log.Errorw("blobsub: failed to retrieve blobs during catchup",
+						"namespace", ns.ID(), "height", height, "err", err)
+					return
+				}
+
+				select {
+				case <-ctx.Done():
+					log.Debugw("blobsub: canceling catchup due to user ctx closing", "namespace", ns.ID())
+					return
+				case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height(), Header: &header.RawHeader}:
+				}
+				lastHeight = height
+			}
+		}
+
+		// stream blobs as new headers arrive from the subscription.
 		for {
 			select {
 			case header, ok := <-headerCh:
@@ -130,22 +189,27 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 					return
 				}
 				if !ok {
-					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
+					log.Errorw("blobsub: header channel closed for subscription", "namespace", ns.ID())
 					return
 				}
+				if header.Height() <= lastHeight {
+					continue
+				}
+
 				// close subscription before buffer overflows
 				if len(blobCh) == cap(blobCh) {
-					log.Debugw("blobsub: canceling subscription due to buffer overflow from slow reader", "namespace", ns.ID())
+					log.Debugw("blobsub: canceling subscription due to buffer overflow from slow reader",
+						"namespace", ns.ID())
 					return
 				}
 
 				var blobs []*Blob
-				var err error
 				for {
 					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
 					if ctx.Err() != nil {
 						// context canceled, continuing would lead to unexpected missed heights for the client
-						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+						log.Debugw("blobsub: canceling subscription due to user ctx closing",
+							"namespace", ns.ID())
 						return
 					}
 					if err == nil {
