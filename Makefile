@@ -269,25 +269,29 @@ goreleaser-release:
 
 # detect changed files and parse output
 # to inspect changes to nodebuilder/**/config.go fields
-CHANGED_FILES      = $(shell git diff --name-only origin/main...HEAD)
+BASE_BRANCH ?= main
+GIT_REMOTE  ?= origin
+CHANGED_FILES      = $(shell git diff --name-only $(GIT_REMOTE)/$(BASE_BRANCH)...HEAD)
 detect-breaking:
-	@BREAK=false
-	@for file in ${CHANGED_FILES}; do \
+	@BREAK=false; \
+	for file in ${CHANGED_FILES}; do \
 		if echo $$file | grep -qE '\.proto$$'; then \
+			echo "proto change: $$file"; \
 			BREAK=true; \
 		fi; \
 		if echo $$file | grep -qE 'nodebuilder/.*/config\.go'; then \
-			DIFF_OUTPUT=$$(git diff origin/main...HEAD $$file); \
+			DIFF_OUTPUT=$$(git diff $(GIT_REMOTE)/$(BASE_BRANCH)...HEAD $$file); \
 			if echo "$$DIFF_OUTPUT" | grep -qE 'type Config struct|^\s+\w+\s+Config'; then \
+				echo "config struct change: $$file"; \
 				BREAK=true; \
 			fi; \
 		fi; \
 	done; \
 	if [ "$$BREAK" = true ]; then \
-		echo "break detected"; \
+		echo "breaking change detected"; \
 		exit 1; \
 	else \
-		echo "no break detected"; \
+		echo "no breaking change detected"; \
 		exit 0; \
 	fi
 .PHONY: detect-breaking
