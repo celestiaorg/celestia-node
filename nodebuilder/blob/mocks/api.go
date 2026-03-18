@@ -141,3 +141,18 @@ func (mr *MockModuleMockRecorder) Subscribe(arg0, arg1 interface{}) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockModule)(nil).Subscribe), arg0, arg1)
 }
+
+// SubscribeWithStartHeight mocks base method.
+func (m *MockModule) SubscribeWithStartHeight(arg0 context.Context, arg1 share.Namespace, arg2 uint64) (<-chan *blob.SubscriptionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeWithStartHeight", arg0, arg1, arg2)
+	ret0, _ := ret[0].(<-chan *blob.SubscriptionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubscribeWithStartHeight indicates an expected call of SubscribeWithStartHeight.
+func (mr *MockModuleMockRecorder) SubscribeWithStartHeight(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeWithStartHeight", reflect.TypeOf((*MockModule)(nil).SubscribeWithStartHeight), arg0, arg1, arg2)
+}

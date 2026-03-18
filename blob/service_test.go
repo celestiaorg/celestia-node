@@ -827,6 +827,138 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	assert.Empty(t, emptyBlobResponse.Blobs)
 }
 
+func TestService_SubscribeWithStartHeight(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(cancel)
+
+	libBlobs, err := libshare.GenerateV0Blobs([]int{16, 16, 16, 16, 16}, true)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(libBlobs...)
+	require.NoError(t, err)
+
+	service, headers := createServiceWithSub(ctx, t, blobs)
+	err = service.Start(ctx)
+	require.NoError(t, err)
+
+	t.Run("catchup and live", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+
+		subCh, err := service.SubscribeWithStartHeight(ctx, ns, 1)
+		require.NoError(t, err)
+
+		for i := uint64(0); i < uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
+				assert.Equal(t, headers[i].Height(), resp.Height)
+				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
+			case <-time.After(time.Second * 3):
+				t.Fatalf("timeout waiting for subscription response %d", i+1)
+			}
+		}
+	})
+
+	t.Run("start from middle height", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		startHeight := uint64(3)
+
+		subCh, err := service.SubscribeWithStartHeight(ctx, ns, startHeight)
+		require.NoError(t, err)
+
+		// receive responses starting from height 3.
+		for i := startHeight; i <= uint64(len(blobs)); i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, &headers[i-1].RawHeader, resp.Header)
+				assert.Equal(t, i, resp.Height)
+			case <-time.After(time.Second * 3):
+				t.Fatalf("timeout waiting for subscription response at height %d", i)
+			}
+		}
+	})
+
+	t.Run("zero start height returns error", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		_, err := service.SubscribeWithStartHeight(ctx, ns, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to fetch header at startHeight 0")
+		assert.Contains(t, err.Error(), "height is equal to 0")
+	})
+
+	t.Run("start height beyond network head returns error", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+		_, err := service.SubscribeWithStartHeight(ctx, ns, 999)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not yet available on the network")
+		assert.Contains(t, err.Error(), "from the future")
+	})
+
+	t.Run("cancellation during catchup", func(t *testing.T) {
+		subCtx, subCancel := context.WithCancel(ctx)
+		ns := blobs[0].Namespace()
+
+		subCh, err := service.SubscribeWithStartHeight(subCtx, ns, 1)
+		require.NoError(t, err)
+
+		// receive the first response, then cancel.
+		select {
+		case <-subCh:
+			subCancel()
+		case <-ctx.Done():
+			subCancel()
+			t.Fatal("timeout waiting for first subscription response")
+		}
+
+		// channel should close after cancellation.
+		for {
+			select {
+			case _, ok := <-subCh:
+				if !ok {
+					return
+				}
+			case <-ctx.Done():
+				t.Fatal("timeout waiting for subscription channel to close")
+			}
+		}
+	})
+
+	t.Run("catchup fails fast on retrieval error", func(t *testing.T) {
+		// replace the share getter with one that fails at height 2.
+		ctrl := gomock.NewController(t)
+		failingGetter := mock.NewMockGetter(ctrl)
+		failingGetter.EXPECT().GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+			DoAndReturn(func(_ context.Context, h *header.ExtendedHeader, _ libshare.Namespace) (shwap.NamespaceData, error) {
+				if h.Height() == 2 {
+					return nil, errors.New("data unavailable (pruned)")
+				}
+				return nil, nil
+			})
+		origGetter := service.shareGetter
+		service.shareGetter = failingGetter
+		t.Cleanup(func() { service.shareGetter = origGetter })
+
+		ns := blobs[0].Namespace()
+		subCh, err := service.SubscribeWithStartHeight(ctx, ns, 1)
+		require.NoError(t, err)
+
+		// should get height 1 successfully.
+		select {
+		case resp := <-subCh:
+			assert.Equal(t, uint64(1), resp.Height)
+		case <-time.After(time.Second * 3):
+			t.Fatal("timeout waiting for height 1 response")
+		}
+
+		// channel should close because height 2 failed.
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed after catchup retrieval error")
+		case <-time.After(time.Second * 3):
+			t.Fatal("timeout: catchup did not fail fast on retrieval error")
+		}
+	})
+}
+
 // BenchmarkGetByCommitment-12    	    1869	    571663 ns/op	 1085371 B/op	    6414 allocs/op
 func BenchmarkGetByCommitment(b *testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -877,6 +1009,13 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 	require.NoError(t, err)
 
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		if height == 0 {
+			return nil, fmt.Errorf("height is equal to 0")
+		}
+		if height > uint64(len(headers)) {
+			return nil, fmt.Errorf("header: given height is from the future: "+
+				"networkHeight: %d, requestedHeight: %d", len(headers), height)
+		}
 		return headers[height-1], nil
 		// return headerStore.GetByHeight(ctx, height)
 	}
