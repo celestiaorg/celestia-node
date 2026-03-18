@@ -13,28 +13,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup:
-    name: Setup
-    runs-on: ubuntu-latest
-    outputs:
-      debug: ${{ steps.debug.outputs.debug }}
-    steps:
-      - name: Set debug output
-        id: debug
-        run: |
-          if [[ "${{ runner.debug }}" == "true" ]]; then
-            echo "debug=true" >> $GITHUB_ENV
-          else
-            echo "debug=false" >> $GITHUB_ENV
-          fi
-
   lint:
-    needs: [setup]
     name: Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v6
         with:
@@ -47,12 +31,11 @@ jobs:
           version: v2.10.1
 
   lint-imports:
-    needs: [setup]
     name: Lint Imports
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v6
         with:
@@ -65,12 +48,11 @@ jobs:
         run: make lint-imports
 
   go_mod_tidy_check:
-    needs: [setup]
     name: Go Mod Tidy Check
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v6
         with:
@@ -86,12 +68,11 @@ jobs:
         run: git diff --exit-code
 
   go_mod_parity_check:
-    needs: [setup]
     name: Go Mod Parity Check
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v6
         with:
@@ -101,7 +82,6 @@ jobs:
         run: ./scripts/check-go-mod-parity.sh
 
   test_coverage:
-    needs: [setup]
     name: Unit Tests Coverage
     strategy:
       fail-fast: false
@@ -112,19 +92,31 @@ jobs:
       OS: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-
+            go-${{ runner.os }}-
 
       - name: set up go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
+          cache: false
 
       - name: run unit tests
-        run: make test-unit ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+        run: make test-unit ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v6
-        if: always() && needs.setup.outputs.debug == 'true'
+        if: always() && runner.debug == '1'
         with:
           name: unit-test-output-${{ matrix.os }}
           path: |
@@ -133,7 +125,7 @@ jobs:
           retention-days: 5
 
       - name: upload coverage
-        uses: codecov/codecov-action@v5.5.1
+        uses: codecov/codecov-action@v5.5.2
         with:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -152,7 +144,7 @@ jobs:
   #   runs-on: ubuntu-latest
 
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v5
 
   #     - name: set up go
   #       uses: actions/setup-go@v6
@@ -160,7 +152,7 @@ jobs:
   #         go-version: ${{ inputs.go-version }}
 
   #     - name: execute test run
-  #       run: make test-unit-race ENABLE_VERBOSE=${{ needs.setup.outputs.debug }}
+  #       run: make test-unit-race ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
   integration_test:
     name: Integration Tests
