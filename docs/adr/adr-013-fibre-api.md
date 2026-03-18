@@ -244,6 +244,25 @@ type AccountModule interface {
 These functions are Fibre-specific operations and do not belong in
 the blob module.
 
+### Header module
+
+Validator-set lookup needed for `MsgPayForFibre` verification should be exposed
+through the header module rather than the Fibre module.
+
+```go
+type HeaderModule interface {
+    GetValidatorSetByHeight(ctx context.Context, height uint64) (*coretypes.ValidatorSet, error)
+}
+```
+
+- `GetValidatorSetByHeight` returns the validator set at the given height so
+  clients can verify validator signatures included with a Fibre payment flow.
+- This is a height-keyed consensus query, so it belongs with header access
+  rather than Fibre-specific data-plane or escrow APIs.
+- Although callers can derive validator-set access indirectly from
+  `GetByHeight(...).ValidatorSet`, a dedicated method provides a lighter and
+  clearer verification-oriented API surface.
+
 ## Rationale
 
 This design balances integration with clarity.
@@ -260,6 +279,14 @@ enumerating namespace contents.
 Escrow management and Fibre data-plane retrieval are not generic blob concerns.
 Placing them in a dedicated Fibre module keeps the blob API simpler and makes
 the Fibre surface explicit.
+
+### Keep validator-set queries with consensus data
+
+Validator sets are consensus/header data, not Fibre-specific state. Fibre needs
+them for PFF verification, but that dependency should not move validator-set
+access into the Fibre module. Exposing a dedicated height-based query in the
+header module keeps the boundary clean and makes the required verification input
+explicit.
 
 ### Support both full-service and staged Fibre flows
 
@@ -326,6 +353,7 @@ been shown to match the current blob API cleanly.
 
 ## References
 
+- [Linear issue: PROTOCO-998 Embed Fibre client in the node API](https://linear.app/celestia/issue/PROTOCO-998/embed-fibre-client-in-the-node-api)
 - [ADR 009: Public API](./adr-009-public-api.md)
 - [Blob service implementation](../../blob/service.go)
 - [Blob type and share version handling](../../blob/blob.go)
