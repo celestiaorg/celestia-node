@@ -145,8 +145,8 @@ func (f *BlockFetcher) ValidatorSet(ctx context.Context, height int64) (*types.V
 
 // SubscribeNewBlockEvent subscribes to new block events from Core, returning
 // a new block event channel.
-func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan types.EventDataSignedBlock, error) {
-	signedBlockCh := make(chan types.EventDataSignedBlock, 1)
+func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan SignedBlock, error) {
+	signedBlockCh := make(chan SignedBlock, 1)
 
 	go func() {
 		defer close(signedBlockCh)
@@ -178,7 +178,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan types.E
 
 func (f *BlockFetcher) receive(
 	ctx context.Context,
-	signedBlockCh chan types.EventDataSignedBlock,
+	signedBlockCh chan SignedBlock,
 	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
 ) error {
 	log.Debug("fetcher: started listening for new blocks")
@@ -198,11 +198,11 @@ func (f *BlockFetcher) receive(
 		}
 
 		select {
-		case signedBlockCh <- types.EventDataSignedBlock{
-			Header:       *signedBlock.Header,
-			Commit:       *signedBlock.Commit,
-			ValidatorSet: *signedBlock.ValidatorSet,
-			Data:         *signedBlock.Data,
+		case signedBlockCh <- SignedBlock{
+			Header:       signedBlock.Header,
+			Commit:       signedBlock.Commit,
+			ValidatorSet: signedBlock.ValidatorSet,
+			Data:         signedBlock.Data,
 		}:
 		case <-ctx.Done():
 			return ctx.Err()
@@ -219,6 +219,19 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return resp.SyncInfo.CatchingUp, nil
+}
+
+// ChainID returns the chain ID (network name) that the Core node is connected to.
+// This can be used to validate that the node is connected to the correct network.
+func (f *BlockFetcher) ChainID(ctx context.Context) (string, error) {
+	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	if err != nil {
+		return "", err
+	}
+	if resp.NodeInfo == nil {
+		return "", fmt.Errorf("core/fetcher: node info not available in status response")
+	}
+	return resp.NodeInfo.Network, nil
 }
 
 func (f *BlockFetcher) receiveBlockByHeight(ctx context.Context, streamer coregrpc.BlockAPI_BlockByHeightClient) (
@@ -298,7 +311,7 @@ func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 			return nil, err
 		}
 		if !ok {
-			return nil, err
+			return nil, fmt.Errorf("core/fetcher: failed to add part (index %d): duplicate or invalid", part.Index)
 		}
 	}
 	pbb := new(tmproto.Block)

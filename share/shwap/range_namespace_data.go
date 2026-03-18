@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
@@ -121,12 +122,12 @@ func RangeNamespaceDataFromShares(
 		extendedRowShares[len(extendedRowShares)-1] = extendedRowShares[len(extendedRowShares)-1][:to.Col+1]
 	}
 
-	for row, rowShares := range extendedRowShares {
-		if len(rowShares) >= odsSize {
+	for row := range extendedRowShares {
+		if len(extendedRowShares[row]) >= odsSize {
 			// keep only original data
-			extendedRowShares[row] = rowShares[:odsSize]
+			extendedRowShares[row] = extendedRowShares[row][:odsSize]
 		}
-		for col, shr := range rowShares {
+		for col, shr := range extendedRowShares[row] {
 			if !namespace.Equals(shr.Namespace()) {
 				return RangeNamespaceData{}, fmt.Errorf("mismatched namespace for share at: row %d, col: %d", row, col)
 			}
@@ -257,7 +258,7 @@ func (rngdata *RangeNamespaceData) verifyShares(
 // If the RangeNamespaceData is empty (i.e., contains no shares), Flatten returns nil.
 // Otherwise, it returns a flattened slice of libshare.Share combining shares from all rows.
 func (rngdata *RangeNamespaceData) Flatten() []libshare.Share {
-	var shares []libshare.Share
+	var shares []libshare.Share //nolint:prealloc
 	for _, shrs := range rngdata.Shares {
 		shares = append(shares, shrs...)
 	}
@@ -470,4 +471,44 @@ func GenerateSharesProofs(
 		return nil, fmt.Errorf("failed to generate proof for row %d, range %d-%d: %w", row, fromCol, toCol, err)
 	}
 	return &proof, nil
+}
+
+func (rngdata *RangeNamespaceData) WriteTo(writer io.Writer) (int64, error) {
+	length := int64(0)
+	for i, shr := range rngdata.Shares {
+		rowData := RowNamespaceData{Shares: shr}
+		if i == 0 {
+			rowData.Proof = rngdata.FirstIncompleteRowProof
+		} else if i == len(rngdata.Shares)-1 {
+			rowData.Proof = rngdata.LastIncompleteRowProof
+		}
+
+		n, err := rowData.WriteTo(writer)
+		if err != nil {
+			return 0, fmt.Errorf("failed to write data: %w", err)
+		}
+		length += n
+	}
+	return length, nil
+}
+
+// ReadFrom reads length-delimited protobuf representation of RangeNamespaceData
+// implementing io.ReaderFrom.
+func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
+	nd := NamespaceData{}
+	n, err := nd.ReadFrom(reader)
+	if err != nil {
+		return n, fmt.Errorf("failed to read data: %w", err)
+	}
+
+	rngdata.Shares = make([][]libshare.Share, len(nd))
+	for i, row := range nd {
+		rngdata.Shares[i] = row.Shares
+		if i == 0 {
+			rngdata.FirstIncompleteRowProof = row.Proof
+		} else {
+			rngdata.LastIncompleteRowProof = row.Proof
+		}
+	}
+	return n, nil
 }

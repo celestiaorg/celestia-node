@@ -13,7 +13,7 @@ import (
 	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/malicious"
+	"github.com/celestiaorg/celestia-app/v7/test/util/malicious"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -83,6 +83,32 @@ func TestBEFP_Validate(t *testing.T) {
 			},
 			expectedResult: func(err error) {
 				require.ErrorIs(t, err, errNMTTreeRootsMatch)
+			},
+		},
+		{
+			name: "invalid BEFP with unordered shares list",
+			prepareFn: func() error {
+				validSquare := edstest.RandEDS(t, 2)
+				validRoots, err := share.NewAxisRoots(validSquare)
+				require.NoError(t, err)
+				err = ipld.ImportEDS(ctx, validSquare, bServ)
+				require.NoError(t, err)
+				validShares := validSquare.Flattened()
+				errInvalidByz := NewErrByzantine(ctx, bServ.Blockstore(), validRoots,
+					&rsmt2d.ErrByzantineData{
+						Axis:   rsmt2d.Row,
+						Index:  0,
+						Shares: validShares[0:4],
+					},
+				)
+				var errInvalid *ErrByzantine
+				require.ErrorAs(t, errInvalidByz, &errInvalid)
+				errInvalid.Shares[0], errInvalid.Shares[1] = errInvalid.Shares[1], errInvalid.Shares[0]
+				invalidBefp := CreateBadEncodingProof([]byte("hash"), 0, errInvalid)
+				return invalidBefp.Validate(&header.ExtendedHeader{DAH: validRoots})
+			},
+			expectedResult: func(err error) {
+				require.Error(t, err)
 			},
 		},
 		{
@@ -307,4 +333,44 @@ func (n *namespacedBlockService) GetBlocks(ctx context.Context, cids []cid.Cid) 
 		}
 	}()
 	return resultCh
+}
+
+// TestBEFP_ForgedByReorderedShares checks whether a valid row can be made to look
+// byzantine by reordering otherwise valid shares with valid inclusion proofs.
+func TestBEFP_ForgedByReorderedShares(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+	bServ := ipld.NewMemBlockservice()
+	size := 4
+	shares, err := libshare.RandShares(size * size)
+	require.NoError(t, err)
+	eds, err := ipld.AddShares(ctx, shares, bServ)
+	require.NoError(t, err)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	rowIdx := 0
+	width := int(eds.Width())
+	row := eds.Row(uint(rowIdx))
+	shareProofs := make([]*ShareWithProof, width)
+	for i := 0; i < width; i++ {
+		sh, err := libshare.NewShare(row[i])
+		require.NoError(t, err)
+		proof, err := GetShareWithProof(ctx, bServ, roots, *sh, rsmt2d.Row, rowIdx, i)
+		require.NoError(t, err)
+		shareProofs[i] = proof
+	}
+	// Reorder two shares while keeping their proofs intact.
+	shareProofs[0], shareProofs[1] = shareProofs[1], shareProofs[0]
+	fakeErr := ErrByzantine{
+		Index:  uint32(rowIdx),
+		Shares: shareProofs,
+		Axis:   rsmt2d.Row,
+	}
+	h := &header.ExtendedHeader{
+		RawHeader: core.Header{Height: 1},
+		DAH:       roots,
+	}
+	proof := CreateBadEncodingProof([]byte("hash"), h.Height(), &fakeErr)
+	err = proof.Validate(h)
+	require.Error(t, err)
 }

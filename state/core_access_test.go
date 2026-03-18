@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v6/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v6/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
@@ -231,6 +231,40 @@ func TestDelegate(t *testing.T) {
 			require.EqualValues(t, 0, resp.Code)
 		})
 	}
+}
+
+func TestWithdrawDelegatorReward(t *testing.T) {
+	ctx := context.Background()
+	ca, _ := buildAccessor(t)
+	err := ca.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = ca.Stop(ctx)
+	})
+
+	valRec, err := ca.keyring.Key("validator")
+	require.NoError(t, err)
+	valAddr, err := valRec.GetAddress()
+	require.NoError(t, err)
+
+	// use default signer (accounts[0]) so QueryDelegationRewards matches
+	opts := NewTxConfig()
+
+	// delegate first so there is an active delegation
+	resp, err := ca.Delegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, resp.Code)
+
+	// query rewards — should succeed even if rewards are zero right after delegation
+	rewardsResp, err := ca.QueryDelegationRewards(ctx, ValAddress(valAddr))
+	require.NoError(t, err)
+	require.NotNil(t, rewardsResp)
+
+	// withdraw rewards — should succeed even with zero rewards
+	opts = NewTxConfig()
+	resp, err = ca.WithdrawDelegatorReward(ctx, ValAddress(valAddr), opts)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, resp.Code)
 }
 
 func TestParallelPayForBlobSubmission(t *testing.T) {
@@ -472,7 +506,7 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
-		WithTimeoutCommit(time.Millisecond * 1)
+		WithDelayedPrecommitTimeout(time.Millisecond * 50)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
 

@@ -45,11 +45,12 @@ func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 // GetSamples gets samples from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
 	indices []shwap.SampleCoords,
-) ([]shwap.Sample, error) {
+) (_ []shwap.Sample, err error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-samples", trace.WithAttributes(
+		attribute.Int64("height", int64(hdr.Height())),
 		attribute.Int("amount", len(indices)),
 	))
-	defer span.End()
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) ([]shwap.Sample, error) {
 		return get.GetSamples(ctx, hdr, indices)
@@ -61,9 +62,11 @@ func (cg *CascadeGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHea
 // GetEDS gets a full EDS from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(
 	ctx context.Context, header *header.ExtendedHeader,
-) (*rsmt2d.ExtendedDataSquare, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-eds")
-	defer span.End()
+) (_ *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-eds", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+	))
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, header)
@@ -74,9 +77,16 @@ func (cg *CascadeGetter) GetEDS(
 
 // GetRow gets row shares from any of registered shwap.Getters in cascading
 // order.
-func (cg *CascadeGetter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-row")
-	defer span.End()
+func (cg *CascadeGetter) GetRow(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	rowIdx int,
+) (_ shwap.Row, err error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-row", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.Int("rowIndex", rowIdx),
+	))
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.Row, error) {
 		return get.GetRow(ctx, header, rowIdx)
@@ -90,11 +100,12 @@ func (cg *CascadeGetter) GetNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace libshare.Namespace,
-) (shwap.NamespaceData, error) {
+) (_ shwap.NamespaceData, err error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
 		attribute.String("namespace", namespace.String()),
 	))
-	defer span.End()
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.NamespaceData, error) {
 		return get.GetNamespaceData(ctx, header, namespace)
@@ -107,15 +118,16 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	from, to int,
-) (shwap.RangeNamespaceData, error) {
+) (_ shwap.RangeNamespaceData, err error) {
 	ctx, span := tracer.Start(
 		ctx,
 		"cascade/get-shares-range",
 		trace.WithAttributes(
+			attribute.Int64("height", int64(header.Height())),
 			attribute.Int("from", from),
 			attribute.Int("to", to),
 		))
-	defer span.End()
+	defer utils.SetStatusAndEnd(span, err)
 
 	if from < 0 || to < 0 {
 		return shwap.RangeNamespaceData{},

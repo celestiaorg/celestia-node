@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
+	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
@@ -15,8 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
 
-// SampleName is the name identifier for the sample container.
-const SampleName = "sample_v0"
+// sampleName is the name identifier for the sample container.
+const sampleName = "sample_v0"
 
 // ErrFailedVerification is returned when inclusion proof verification fails. It is returned
 // when the data and the proof do not match trusted data root.
@@ -139,6 +141,29 @@ func (s Sample) Verify(roots *share.AxisRoots, rowIdx, colIdx int) error {
 		return ErrFailedVerification
 	}
 	return nil
+}
+
+func (s *Sample) WriteTo(writer io.Writer) (int64, error) {
+	pbsample := s.ToProto()
+	n, err := serde.Write(writer, pbsample)
+	if err != nil {
+		return int64(n), fmt.Errorf("writing Sample: %w", err)
+	}
+
+	return int64(n), nil
+}
+
+func (s *Sample) ReadFrom(reader io.Reader) (int64, error) {
+	var sample pb.Sample
+	n, err := serde.Read(reader, &sample)
+	if err != nil {
+		return int64(n), fmt.Errorf("reading Sample: %w", err)
+	}
+	*s, err = SampleFromProto(&sample)
+	if err != nil {
+		return 0, fmt.Errorf("unmarshaling Sample: %w", err)
+	}
+	return int64(n), nil
 }
 
 // verifyInclusion checks if the share is included in the given root hash at the specified indices.

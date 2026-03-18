@@ -155,6 +155,12 @@ test-unit:
 	@go test $(VERBOSE) -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
+## test-unit-fast: Run unit tests without coverage instrumentation.
+test-unit-fast:
+	@echo "--> Running unit tests"
+	@go test $(VERBOSE) `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+.PHONY: test-unit-fast
+
 ## test-unit-race: Run unit tests with data race detector.
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
@@ -269,25 +275,29 @@ goreleaser-release:
 
 # detect changed files and parse output
 # to inspect changes to nodebuilder/**/config.go fields
-CHANGED_FILES      = $(shell git diff --name-only origin/main...HEAD)
+BASE_BRANCH ?= main
+GIT_REMOTE  ?= origin
+CHANGED_FILES      = $(shell git diff --name-only $(GIT_REMOTE)/$(BASE_BRANCH)...HEAD)
 detect-breaking:
-	@BREAK=false
-	@for file in ${CHANGED_FILES}; do \
+	@BREAK=false; \
+	for file in ${CHANGED_FILES}; do \
 		if echo $$file | grep -qE '\.proto$$'; then \
+			echo "proto change: $$file"; \
 			BREAK=true; \
 		fi; \
 		if echo $$file | grep -qE 'nodebuilder/.*/config\.go'; then \
-			DIFF_OUTPUT=$$(git diff origin/main...HEAD $$file); \
+			DIFF_OUTPUT=$$(git diff $(GIT_REMOTE)/$(BASE_BRANCH)...HEAD $$file); \
 			if echo "$$DIFF_OUTPUT" | grep -qE 'type Config struct|^\s+\w+\s+Config'; then \
+				echo "config struct change: $$file"; \
 				BREAK=true; \
 			fi; \
 		fi; \
 	done; \
 	if [ "$$BREAK" = true ]; then \
-		echo "break detected"; \
+		echo "breaking change detected"; \
 		exit 1; \
 	else \
-		echo "no break detected"; \
+		echo "no breaking change detected"; \
 		exit 0; \
 	fi
 .PHONY: detect-breaking

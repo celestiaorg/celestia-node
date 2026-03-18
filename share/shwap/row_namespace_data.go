@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v6/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v6/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
@@ -15,9 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"
 )
-
-// RowNamespaceDataName is the name identifier for the row namespace data container.
-const RowNamespaceDataName = "rnd_v0"
 
 // ErrNamespaceOutsideRange is returned by RowNamespaceDataFromShares when the target namespace is
 // outside of the namespace range for the given row. In this case, the implementation cannot return
@@ -105,6 +102,14 @@ func RowNamespaceDataFromShares(
 
 // RowNamespaceDataFromProto constructs RowNamespaceData out of its protobuf representation.
 func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, error) {
+	shares, err := SharesFromProto(row.GetShares())
+	if err != nil {
+		return RowNamespaceData{}, err
+	}
+	if row.GetProof() == nil {
+		return RowNamespaceData{Shares: shares}, nil
+	}
+
 	var proof nmt.Proof
 	if row.GetProof().GetLeafHash() != nil {
 		proof = nmt.NewAbsenceProof(
@@ -123,11 +128,6 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, erro
 		)
 	}
 
-	shares, err := SharesFromProto(row.GetShares())
-	if err != nil {
-		return RowNamespaceData{}, err
-	}
-
 	return RowNamespaceData{
 		Shares: shares,
 		Proof:  &proof,
@@ -136,15 +136,19 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, erro
 
 // ToProto converts RowNamespaceData to its protobuf representation for serialization.
 func (rnd RowNamespaceData) ToProto() *pb.RowNamespaceData {
-	return &pb.RowNamespaceData{
-		Shares: SharesToProto(rnd.Shares),
-		Proof: &nmt_pb.Proof{
+	var proof *nmt_pb.Proof
+	if rnd.Proof != nil {
+		proof = &nmt_pb.Proof{
 			Start:                 int64(rnd.Proof.Start()),
 			End:                   int64(rnd.Proof.End()),
 			Nodes:                 rnd.Proof.Nodes(),
 			LeafHash:              rnd.Proof.LeafHash(),
 			IsMaxNamespaceIgnored: rnd.Proof.IsMaxNamespaceIDIgnored(),
-		},
+		}
+	}
+	return &pb.RowNamespaceData{
+		Shares: SharesToProto(rnd.Shares),
+		Proof:  proof,
 	}
 }
 
