@@ -81,15 +81,13 @@ jobs:
       - name: Check go.mod parity between root and tastora
         run: ./scripts/check-go-mod-parity.sh
 
-  test_coverage:
-    name: Unit Tests Coverage
+  unit_tests:
+    name: Unit Tests
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-14]
     runs-on: ${{ matrix.os }}
-    env:
-      OS: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v5
@@ -112,13 +110,42 @@ jobs:
           cache: false
 
       - name: run unit tests
+        run: make test-unit-fast ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    env:
+      OS: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-
+            go-${{ runner.os }}-
+
+      - name: set up go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: false
+
+      - name: run unit tests with coverage
         run: make test-unit ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
       - name: Upload unit test output
         uses: actions/upload-artifact@v6
         if: always() && runner.debug == '1'
         with:
-          name: unit-test-output-${{ matrix.os }}
+          name: unit-test-output-ubuntu-latest
           path: |
             debug.log
             coverage.txt
@@ -130,7 +157,7 @@ jobs:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
-          name: coverage-${{ matrix.os }}
+          name: coverage-ubuntu-latest
 
   # @ramin - Temporarily removed while we figure out getting
   # these unit tests consistently running on ubuntu-latest
@@ -156,7 +183,7 @@ jobs:
 
   integration_test:
     name: Integration Tests
-    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, test_coverage]
+    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, unit_tests]
     uses: ./.github/workflows/integration-tests.yml
     with:
       go-version: ${{ inputs.go-version }}
