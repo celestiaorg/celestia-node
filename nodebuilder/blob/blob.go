@@ -91,7 +91,7 @@ type API struct {
 			context.Context,
 			libshare.Namespace,
 		) (<-chan *blob.SubscriptionResponse, error) `perm:"read"`
-		SubscribeWithStartHeight func(
+		SubscribeFromStartHeight func(
 			context.Context,
 			libshare.Namespace,
 			uint64,
@@ -151,10 +151,10 @@ func (api *API) Subscribe(
 	return api.Internal.Subscribe(ctx, namespace)
 }
 
-func (api *API) SubscribeWithStartHeight(
+func (api *API) SubscribeFromStartHeight(
 	ctx context.Context,
 	namespace libshare.Namespace,
 	startHeight uint64,
 ) (<-chan *blob.SubscriptionResponse, error) {
-	return api.Internal.SubscribeWithStartHeight(ctx, namespace, startHeight)
+	return api.Internal.SubscribeFromStartHeight(ctx, namespace, startHeight)
 }

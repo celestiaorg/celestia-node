@@ -828,7 +828,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	assert.Empty(t, emptyBlobResponse.Blobs)
 }
 
-func TestService_SubscribeWithStartHeight(t *testing.T) {
+func TestService_SubscribeFromStartHeight(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
