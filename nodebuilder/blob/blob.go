@@ -47,7 +47,11 @@ type Module interface {
 	// SubscribeFromStartHeight subscribes to published blobs from the given namespace,
 	// starting from the given height. It first replays historical blobs from startHeight
 	// to the current head, then streams new blobs as they arrive.
-	SubscribeFromStartHeight(_ context.Context, _ libshare.Namespace, startHeight uint64) (<-chan *blob.SubscriptionResponse, error)
+	SubscribeFromStartHeight(
+		_ context.Context,
+		_ libshare.Namespace,
+		startHeight uint64,
+	) (<-chan *blob.SubscriptionResponse, error)
 }
 
 type API struct {
