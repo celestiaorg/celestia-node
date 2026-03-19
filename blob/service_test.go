@@ -10,6 +10,7 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -843,7 +844,7 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 	t.Run("catchup and live", func(t *testing.T) {
 		ns := blobs[0].Namespace()
 
-		subCh, err := service.SubscribeWithStartHeight(ctx, ns, 1)
+		subCh, err := service.SubscribeFromStartHeight(ctx, ns, 1)
 		require.NoError(t, err)
 
 		for i := uint64(0); i < uint64(len(blobs)); i++ {
@@ -862,7 +863,7 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 		ns := blobs[0].Namespace()
 		startHeight := uint64(3)
 
-		subCh, err := service.SubscribeWithStartHeight(ctx, ns, startHeight)
+		subCh, err := service.SubscribeFromStartHeight(ctx, ns, startHeight)
 		require.NoError(t, err)
 
 		// receive responses starting from height 3.
@@ -879,7 +880,7 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 
 	t.Run("zero start height returns error", func(t *testing.T) {
 		ns := blobs[0].Namespace()
-		_, err := service.SubscribeWithStartHeight(ctx, ns, 0)
+		_, err := service.SubscribeFromStartHeight(ctx, ns, 0)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to fetch header at startHeight 0")
 		assert.Contains(t, err.Error(), "height is equal to 0")
@@ -887,9 +888,9 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 
 	t.Run("start height beyond network head returns error", func(t *testing.T) {
 		ns := blobs[0].Namespace()
-		_, err := service.SubscribeWithStartHeight(ctx, ns, 999)
+		_, err := service.SubscribeFromStartHeight(ctx, ns, 999)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not yet available on the network")
+		assert.Contains(t, err.Error(), "failed to fetch header at startHeight 999")
 		assert.Contains(t, err.Error(), "from the future")
 	})
 
@@ -897,7 +898,7 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 		subCtx, subCancel := context.WithCancel(ctx)
 		ns := blobs[0].Namespace()
 
-		subCh, err := service.SubscribeWithStartHeight(subCtx, ns, 1)
+		subCh, err := service.SubscribeFromStartHeight(subCtx, ns, 1)
 		require.NoError(t, err)
 
 		// receive the first response, then cancel.
@@ -922,6 +923,58 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 		}
 	})
 
+	t.Run("live streaming with height gaps to fill", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+
+		// simulate a network where only height 1 exists during catchup.
+		// after catchup, headerSub delivers header 5 skipping 3, 4, forcing
+		// the live loop to gap fill heights 3, 4.
+		var tip atomic.Uint64
+		tip.Store(2)
+
+		headerGetter := func(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+			if height == 0 {
+				return nil, fmt.Errorf("height is equal to 0")
+			}
+			if height > uint64(len(headers)) {
+				return nil, fmt.Errorf("header: given height is from the future: "+
+					"networkHeight: %d, requestedHeight: %d", len(headers), height)
+			}
+			if height > tip.Load() {
+				return nil, fmt.Errorf("header: given height is from the future: "+
+					"networkHeight: %d, requestedHeight: %d", tip.Load(), height)
+			}
+			return headers[height-1], nil
+		}
+
+		headerSub := func(_ context.Context) (<-chan *header.ExtendedHeader, error) {
+			ch := make(chan *header.ExtendedHeader, len(headers))
+			go func() {
+				// advance the tip and deliver header 5.
+				tip.Store(uint64(len(headers)))
+				ch <- headers[4]
+			}()
+			return ch, nil
+		}
+
+		svc := NewService(nil, service.shareGetter, headerGetter, headerSub)
+		require.NoError(t, svc.Start(ctx))
+		t.Cleanup(func() { _ = svc.Stop(ctx) })
+
+		subCh, err := svc.SubscribeFromStartHeight(ctx, ns, 1)
+		require.NoError(t, err)
+
+		// Expect height 1 from catchup, then 2-4 gap filled and 5 live.
+		for i := uint64(1); i <= 5; i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i, resp.Height, "expected height %d", i)
+			case <-time.After(time.Second * 3):
+				t.Fatalf("timeout waiting for response at height %d", i)
+			}
+		}
+	})
+
 	t.Run("catchup fails fast on retrieval error", func(t *testing.T) {
 		// replace the share getter with one that fails at height 2.
 		ctrl := gomock.NewController(t)
@@ -938,7 +991,7 @@ func TestService_SubscribeWithStartHeight(t *testing.T) {
 		t.Cleanup(func() { service.shareGetter = origGetter })
 
 		ns := blobs[0].Namespace()
-		subCh, err := service.SubscribeWithStartHeight(ctx, ns, 1)
+		subCh, err := service.SubscribeFromStartHeight(ctx, ns, 1)
 		require.NoError(t, err)
 
 		// should get height 1 successfully.

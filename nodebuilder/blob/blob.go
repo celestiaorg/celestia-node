@@ -44,10 +44,10 @@ type Module interface {
 	) (*blob.CommitmentProof, error)
 	// Subscribe to published blobs from the given namespace as they are included.
 	Subscribe(_ context.Context, _ libshare.Namespace) (<-chan *blob.SubscriptionResponse, error)
-	// SubscribeWithStartHeight subscribes to published blobs from the given namespace,
+	// SubscribeFromStartHeight subscribes to published blobs from the given namespace,
 	// starting from the given height. It first replays historical blobs from startHeight
 	// to the current head, then streams new blobs as they arrive.
-	SubscribeWithStartHeight(_ context.Context, _ libshare.Namespace, startHeight uint64) (<-chan *blob.SubscriptionResponse, error)
+	SubscribeFromStartHeight(_ context.Context, _ libshare.Namespace, startHeight uint64) (<-chan *blob.SubscriptionResponse, error)
 }
 
 type API struct {
