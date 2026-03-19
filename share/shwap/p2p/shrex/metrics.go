@@ -99,6 +99,7 @@ func InitClientMetrics() (*Metrics, error) {
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_client_request_duration",
 		metric.WithDescription("Time taken to complete a shrex client request"),
+		metric.WithUnit("s"),
 	)
 	if err != nil {
 		return nil, err
@@ -121,6 +122,7 @@ func InitServerMetrics() (*Metrics, error) {
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_server_request_duration",
 		metric.WithDescription("Time taken to handle a shrex client request"),
+		metric.WithUnit("s"),
 	)
 	if err != nil {
 		return nil, err
@@ -129,6 +131,7 @@ func InitServerMetrics() (*Metrics, error) {
 	payloadServedHist, err := meter.Int64Counter(
 		"shrex_payload_served_bytes",
 		metric.WithDescription("Total request data served by shrex server in bytes"),
+		metric.WithUnit("By"),
 	)
 	if err != nil {
 		return nil, err
