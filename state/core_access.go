@@ -440,7 +440,7 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -461,7 +461,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -482,7 +482,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -502,7 +502,7 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -522,7 +522,7 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
