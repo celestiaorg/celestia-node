@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
@@ -51,6 +52,54 @@ func TestAmountValidationDoesNotPanic(t *testing.T) {
 				} else {
 					assert.Empty(t, tc.errMsg, "expected error but validation would pass")
 				}
+			})
+		})
+	}
+}
+
+// TestCancelUnbondingDelegationHeightOverflow verifies that
+// CancelUnbondingDelegation does not panic when the height parameter exceeds
+// the int64 range.
+func TestCancelUnbondingDelegationHeightOverflow(t *testing.T) {
+	hugeHeight, ok := sdkmath.NewIntFromString("99999999999999999999999999999999999999")
+	require.True(t, ok)
+
+	ca := &CoreAccessor{}
+	ctx := context.Background()
+	validAmount := sdkmath.NewInt(1)
+
+	testCases := []struct {
+		name    string
+		height  sdkmath.Int
+		wantErr error
+	}{
+		{
+			name:    "nil height",
+			height:  sdkmath.Int{},
+			wantErr: ErrInvalidHeight,
+		},
+		{
+			name:    "zero height",
+			height:  sdkmath.NewInt(0),
+			wantErr: ErrInvalidHeight,
+		},
+		{
+			name:    "negative height",
+			height:  sdkmath.NewInt(-1),
+			wantErr: ErrInvalidHeight,
+		},
+		{
+			name:    "overflow height",
+			height:  hugeHeight,
+			wantErr: ErrInvalidHeight,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				_, err := ca.CancelUnbondingDelegation(ctx, ValAddress{}, validAmount, tc.height, nil)
+				assert.ErrorIs(t, err, tc.wantErr)
 			})
 		})
 	}
