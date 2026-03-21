@@ -160,6 +160,14 @@ func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) erro
 		subtreeRootsCursor += len(ranges)
 	}
 
+	if subtreeRootsCursor != len(commitmentProof.SubtreeRoots) {
+		return fmt.Errorf(
+			"not all subtree roots were verified: verified %d out of %d",
+			subtreeRootsCursor,
+			len(commitmentProof.SubtreeRoots),
+		)
+	}
+
 	// verify row roots to data root proof
 	valid := commitmentProof.RowProof.VerifyProof(dataRoot)
 	if !valid {
