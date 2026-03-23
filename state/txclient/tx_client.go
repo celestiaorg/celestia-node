@@ -167,9 +167,8 @@ func (c *TxClient) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	author types.AccAddress,
 	cfg *TxConfig,
-) (*user.TxResponse, error) {
-	err := c.setupClient()
-	if err != nil {
+) (_ *user.TxResponse, err error) {
+	if err = c.setupClient(); err != nil {
 		return nil, err
 	}
 
@@ -213,8 +212,7 @@ func (c *TxClient) SubmitPayForBlob(
 	c.metrics.observeAccountQuery(ctx, time.Since(accountQueryStart), nil)
 
 	if account == nil {
-		err := fmt.Errorf("account for signer %s not found", author)
-		return nil, err
+		return nil, fmt.Errorf("account for signer %s not found", author)
 	}
 
 	gas := cfg.GasLimit()

@@ -129,10 +129,12 @@ func (c *Client) initTxClient(
 		submitCfg.Network.String(),
 	)
 	if err != nil {
+		_ = tc.Stop(ctx)
 		return err
 	}
 	err = core.Start(ctx)
 	if err != nil {
+		_ = tc.Stop(ctx)
 		return err
 	}
 	c.State = core
@@ -141,6 +143,8 @@ func (c *Client) initTxClient(
 	blobSvc := blob.NewService(core, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
+		_ = core.Stop(ctx)
+		_ = tc.Stop(ctx)
 		return err
 	}
 	c.Blob = &blobSubmitClient{
