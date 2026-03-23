@@ -24,7 +24,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
 	github.com/filecoin-project/go-jsonrpc v0.10.1
-	github.com/gammazero/workerpool v1.1.3
+	github.com/gammazero/workerpool v1.2.1
 	github.com/gofrs/flock v0.13.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
