@@ -142,7 +142,7 @@ jobs:
         run: make test-unit ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
       - name: Upload unit test output
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always() && runner.debug == '1'
         with:
           name: unit-test-output-ubuntu-latest
