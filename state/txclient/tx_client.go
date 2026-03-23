@@ -79,7 +79,7 @@ func (c *TxClient) Start(context.Context) error {
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	err := c.setupClient()
 	if err != nil {
-		log.Warn("failed to setup tx client", "err", err)
+		log.Warnw("failed to setup tx client", "err", err)
 	}
 	return nil
 }
