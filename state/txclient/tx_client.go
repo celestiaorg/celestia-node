@@ -283,7 +283,7 @@ func ParseAccAddressFromString(addrStr string) (types.AccAddress, error) {
 	return types.AccAddressFromBech32(addrStr)
 }
 
-// estimate the gas price and limit.
+// estimateGasPriceAndUsage estimate the gas price and limit.
 // if gas price and gas limit are both set,
 // then these two values will be returned, bypassing other checks.
 func (c *TxClient) estimateGasPriceAndUsage(
