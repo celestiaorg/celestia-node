@@ -22,7 +22,7 @@ const (
 	errorTypeUnknown  = "unknown"
 )
 
-type Metrics struct {
+type metrics struct {
 	pfbSubmissionDuration    metric.Float64Histogram
 	pfbSubmissionBlobCount   metric.Int64Counter
 	pfbSubmissionBlobSize    metric.Int64Counter
@@ -143,7 +143,7 @@ func (c *TxClient) WithMetrics() error {
 		return err
 	}
 
-	c.metrics = &Metrics{
+	c.metrics = &metrics{
 		pfbSubmissionDuration:      pfbSubmissionDuration,
 		pfbSubmissionBlobCount:     pfbSubmissionBlobCount,
 		pfbSubmissionBlobSize:      pfbSubmissionBlobSize,
@@ -160,7 +160,7 @@ func (c *TxClient) WithMetrics() error {
 	return nil
 }
 
-func (m *Metrics) observePfbSubmission(
+func (m *metrics) observePfbSubmission(
 	ctx context.Context,
 	duration time.Duration,
 	blobCount int,
@@ -182,7 +182,7 @@ func (m *Metrics) observePfbSubmission(
 	m.pfbSubmissionTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
-func (m *Metrics) observeGasEstimation(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) observeGasEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -192,7 +192,7 @@ func (m *Metrics) observeGasEstimation(ctx context.Context, duration time.Durati
 	m.gasEstimationTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
-func (m *Metrics) observeGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) observeGasPriceEstimation(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}
@@ -202,7 +202,7 @@ func (m *Metrics) observeGasPriceEstimation(ctx context.Context, duration time.D
 	m.gasPriceEstimationTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
-func (m *Metrics) observeAccountQuery(ctx context.Context, duration time.Duration, err error) {
+func (m *metrics) observeAccountQuery(ctx context.Context, duration time.Duration, err error) {
 	if m == nil {
 		return
 	}

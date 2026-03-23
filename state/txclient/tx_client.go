@@ -42,7 +42,7 @@ type TxClient struct {
 	estimatorConn        *grpc.ClientConn
 	txWorkerAccounts     int
 
-	metrics *Metrics
+	metrics *metrics
 
 	clientLk sync.Mutex
 }
