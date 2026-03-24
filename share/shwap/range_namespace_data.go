@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
 	nmt_pb "github.com/celestiaorg/nmt/pb"

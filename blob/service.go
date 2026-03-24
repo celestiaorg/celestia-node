@@ -17,10 +17,10 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v7/pkg/proof"
-	"github.com/celestiaorg/go-square/v3/inclusion"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v8/pkg/proof"
+	"github.com/celestiaorg/go-square/v4/inclusion"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -669,10 +669,31 @@ func ProveCommitment(
 	}()
 
 	// find the blob shares in the EDS
+	odsShares := eds.FlattenedODS()
+	blobShareBytes := make([][]byte, len(blobShares))
+	for i, s := range blobShares {
+		blobShareBytes[i] = s.ToBytes()
+	}
 	blobSharesStartIndex := -1
-	for index, share := range eds.FlattenedODS() {
-		if bytes.Equal(share, blobShares[0].ToBytes()) {
+	for index := range odsShares {
+		if index+len(blobShares) > len(odsShares) {
+			break
+		}
+		if !bytes.Equal(odsShares[index], blobShareBytes[0]) {
+			continue
+		}
+		// First share matches; verify all shares match at this position to
+		// handle the case where multiple blobs have identical first shares.
+		allMatch := true
+		for i := 1; i < len(blobShares); i++ {
+			if !bytes.Equal(odsShares[index+i], blobShareBytes[i]) {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
 			blobSharesStartIndex = index
+			break
 		}
 	}
 	if blobSharesStartIndex < 0 {
@@ -717,10 +738,14 @@ func ProveCommitment(
 	for _, proof := range nmtProofs {
 		// TODO: do we want directly use the default subtree root threshold
 		// or want to allow specifying which version to use?
+		stw, err := inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold)
+		if err != nil {
+			return nil, err
+		}
 		ranges, err := nmt.ToLeafRanges(
 			proof.Start(),
 			proof.End(),
-			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
+			stw,
 		)
 		if err != nil {
 			return nil, err

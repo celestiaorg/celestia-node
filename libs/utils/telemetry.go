@@ -23,6 +23,8 @@ type MetricProviderConfig struct {
 	Interval time.Duration
 	// OTLPOptions are OTLP HTTP options (e.g., endpoint, headers, TLS config)
 	OTLPOptions []otlpmetrichttp.Option
+	// Producers are optional metric producers (e.g., prometheus bridge) added to the periodic reader
+	Producers []sdk.Producer
 }
 
 // NewMetricProvider creates a new OTLP metric provider with the given configuration
@@ -40,11 +42,17 @@ func NewMetricProvider(ctx context.Context, cfg MetricProviderConfig) (*sdk.Mete
 		interval = 10 * time.Second
 	}
 
+	readerOpts := []sdk.PeriodicReaderOption{
+		sdk.WithTimeout(interval),
+		sdk.WithInterval(interval),
+	}
+	for _, p := range cfg.Producers {
+		readerOpts = append(readerOpts, sdk.WithProducer(p))
+	}
+
 	provider := sdk.NewMeterProvider(
 		sdk.WithReader(
-			sdk.NewPeriodicReader(exp,
-				sdk.WithTimeout(interval),
-				sdk.WithInterval(interval))),
+			sdk.NewPeriodicReader(exp, readerOpts...)),
 		sdk.WithResource(
 			resource.NewWithAttributes(
 				semconv.SchemaURL,

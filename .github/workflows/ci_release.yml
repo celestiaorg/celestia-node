@@ -57,14 +57,14 @@ jobs:
   yamllint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: celestiaorg/.github/.github/actions/yamllint@v0.6.4
 
   markdown-lint:
     name: Markdown Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 18
@@ -87,7 +87,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
     permissions: "write-all"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - run: git fetch --force --tags
 
@@ -115,7 +115,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       # Generate the binaries and release
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: latest
@@ -134,7 +134,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

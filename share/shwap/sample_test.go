@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -58,7 +58,7 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	b[0] ^= 0xFF
 	shr, err := libshare.NewShare(b)
 	require.NoError(t, err)
-	sample.Share = *shr
+	sample.Share = shr
 	err = sample.Verify(root, 0, 0)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 
@@ -112,7 +112,7 @@ func BenchmarkSampleValidate(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = sample.Verify(root, 0, 0)
 	}
 }
