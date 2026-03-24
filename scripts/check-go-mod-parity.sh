@@ -71,8 +71,10 @@ get_module_version() {
     
     # Check if this is a replace directive (contains "=>")
     if [[ "$line" == *"=>"* ]]; then
-        # Extract the version after "=>" (the actual resolved version)
-        echo "$line" | awk -F'=> ' '{print $2}' | awk '{print $1}'
+        # Extract the resolved version after "=>"
+        # For "mod v1 => mod v2", $NF gives v2 (the version)
+        # For "mod v1 => ../path", $NF gives ../path
+        echo "$line" | awk -F'=> ' '{print $2}' | awk '{print $NF}'
     else
         # Regular version (no replace directive)
         echo "$line" | awk '{print $2}'
