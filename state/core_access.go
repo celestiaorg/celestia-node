@@ -47,6 +47,7 @@ var tracer = otel.Tracer("state/service")
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+	ErrInvalidHeight = errors.New("state: height must be positive and fit in int64")
 	log              = logging.Logger("state")
 )
 
@@ -440,7 +441,7 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -461,8 +462,11 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
+	}
+	if height.IsNil() || !height.IsPositive() || !height.IsInt64() {
+		return nil, ErrInvalidHeight
 	}
 
 	signer, err := ca.getTxAuthorAccAddress(cfg)
@@ -482,7 +486,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -502,7 +506,7 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -522,7 +526,7 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
