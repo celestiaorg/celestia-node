@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -160,7 +160,7 @@ func BenchmarkBEFPValidation(b *testing.B) {
 			require.ErrorAs(t, err, &errByz)
 			b.StartTimer()
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				b.ReportAllocs()
 				p := byzantine.CreateBadEncodingProof([]byte("hash"), h.Height(), errByz)
 				err = p.Validate(h)
@@ -207,7 +207,7 @@ func BenchmarkNewErrByzantineData(b *testing.B) {
 			require.ErrorAs(t, err, &errByz)
 			b.StartTimer()
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				err = byzantine.NewErrByzantine(ctx, bServ.Blockstore(), h.DAH, errByz)
 				require.NotNil(t, err)
 			}

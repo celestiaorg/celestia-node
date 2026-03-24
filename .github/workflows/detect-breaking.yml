@@ -1,0 +1,54 @@
+name: Detect Breaking Changes
+
+on:
+  pull_request:
+    paths:
+      - "**/*.proto"
+      - "nodebuilder/**/config.go"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-breaking:
+    name: Detect Breaking Changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.event.pull_request.base.ref }}
+
+      - name: Detect breaking changes
+        id: detect
+        continue-on-error: true
+        run: make detect-breaking BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+
+      - name: Add breaking label
+        if: steps.detect.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['kind:break!']
+            });
+
+      - name: Remove breaking label
+        if: steps.detect.outcome == 'success'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              name: 'kind:break!'
+            });

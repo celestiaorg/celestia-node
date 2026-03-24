@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -170,7 +170,7 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 		if err != nil {
 			return libshare.Share{}, fmt.Errorf("while creating share: %w", err)
 		}
-		return *sh, nil
+		return sh, nil
 	}
 	odsSize := int(eds.Width() / 2)
 	reader := NewShareReader(odsSize, getShare)
