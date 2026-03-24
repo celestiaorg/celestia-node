@@ -120,7 +120,7 @@ func initMetrics(manager *Manager) (*metrics, error) {
 	}
 
 	blacklisted, err := meter.Int64ObservableGauge(
-		manager.tag+"peer_manager_blacklisted_peers",
+		manager.tag+"_peer_manager_blacklisted_peers",
 		metric.WithDescription("blacklisted peers amount"))
 	if err != nil {
 		return nil, err

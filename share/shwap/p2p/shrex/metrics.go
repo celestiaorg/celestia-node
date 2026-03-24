@@ -89,8 +89,8 @@ func (m *Metrics) observePayloadServed(
 
 func InitClientMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
-		"shrex_server_total_responses",
-		metric.WithDescription("Total count of sent shrex responses"),
+		"shrex_client_total_requests",
+		metric.WithDescription("Total count of shrex client requests"),
 	)
 	if err != nil {
 		return nil, err
