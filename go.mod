@@ -418,3 +418,10 @@ replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
 replace github.com/libp2p/go-libp2p-pubsub => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20260225133553-213565e2a428
+
+// align with tastora so the go mod parity script correctly identifies a match
+replace (
+	github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
+	github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
+	github.com/cloudwego/base64x => github.com/cloudwego/base64x v0.1.6
+)
