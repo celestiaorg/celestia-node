@@ -30,7 +30,7 @@ jobs:
 
       - name: Add breaking label
         if: steps.detect.outcome == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.addLabels({
@@ -42,7 +42,7 @@ jobs:
 
       - name: Remove breaking label
         if: steps.detect.outcome == 'success'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         with:
           script: |
