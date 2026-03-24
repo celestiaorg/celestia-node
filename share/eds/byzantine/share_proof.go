@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
 	"github.com/celestiaorg/rsmt2d"
@@ -126,7 +126,7 @@ func ProtoToShare(protoShares []*pb.Share) ([]*ShareWithProof, error) {
 			return nil, err
 		}
 		shares[i] = &ShareWithProof{
-			Share: *sh,
+			Share: sh,
 			Proof: &proof,
 			Axis:  rsmt2d.Axis(protoSh.ProofAxis),
 		}
