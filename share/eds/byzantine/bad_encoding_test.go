@@ -13,8 +13,8 @@ import (
 	mhcore "github.com/multiformats/go-multihash/core"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v7/test/util/malicious"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v8/test/util/malicious"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -355,7 +355,7 @@ func TestBEFP_ForgedByReorderedShares(t *testing.T) {
 	for i := 0; i < width; i++ {
 		sh, err := libshare.NewShare(row[i])
 		require.NoError(t, err)
-		proof, err := GetShareWithProof(ctx, bServ, roots, *sh, rsmt2d.Row, rowIdx, i)
+		proof, err := GetShareWithProof(ctx, bServ, roots, sh, rsmt2d.Row, rowIdx, i)
 		require.NoError(t, err)
 		shareProofs[i] = proof
 	}
