@@ -7,7 +7,7 @@ require (
 	github.com/celestiaorg/celestia-app/v8 v8.0.0-20260319203113-2ec59a0a61e4
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc4.0.20260318002530-1ca8ff7b42ea
-	github.com/celestiaorg/tastora v0.8.0
+	github.com/celestiaorg/tastora v0.16.0
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
@@ -371,8 +371,12 @@ require (
 	github.com/cockroachdb/swiss v0.0.0-20251224182025-b0f6560f979b // indirect
 	github.com/consensys/gnark v0.14.0 // indirect
 	github.com/consensys/gnark-crypto v0.19.2 // indirect
+	github.com/crate-crypto/go-eth-kzg v1.4.0 // indirect
+	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/dunglas/httpsfv v1.1.0 // indirect
+	github.com/ethereum/c-kzg-4844/v2 v2.1.5 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
@@ -382,9 +386,14 @@ require (
 	github.com/moby/moby v27.5.1+incompatible // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
+	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
+	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
+	github.com/tklauser/go-sysconf v0.3.15 // indirect
+	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.42.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
 	pgregory.net/rapid v1.2.0 // indirect

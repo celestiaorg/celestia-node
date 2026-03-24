@@ -93,7 +93,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Cache Go modules and build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/go/pkg/mod
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Cache Go modules and build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/go/pkg/mod
@@ -142,7 +142,7 @@ jobs:
         run: make test-unit ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
       - name: Upload unit test output
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always() && runner.debug == '1'
         with:
           name: unit-test-output-ubuntu-latest
@@ -152,7 +152,7 @@ jobs:
           retention-days: 5
 
       - name: upload coverage
-        uses: codecov/codecov-action@v5.5.2
+        uses: codecov/codecov-action@v5.5.3
         with:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
