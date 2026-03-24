@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -326,7 +326,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 			// matches the commonNamespaceData that was copied across almost all data
 			sh, err := libshare.NewShare(node.RawData()[libshare.NamespaceSize:])
 			require.NoError(t, err)
-			assert.Equal(t, commonNamespaceData, *sh)
+			assert.Equal(t, commonNamespaceData, sh)
 		}
 	}
 }
