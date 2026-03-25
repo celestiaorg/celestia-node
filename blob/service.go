@@ -54,6 +54,12 @@ type Submitter interface {
 	SubmitPayForBlob(context.Context, []*libshare.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
+// HeaderService provides header access for the blob service.
+type HeaderService interface {
+	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
+	WaitForHeight(context.Context, uint64) (*header.ExtendedHeader, error)
+}
+
 type Service struct {
 	// ctx represents the Service's lifecycle context.
 	ctx    context.Context
@@ -62,8 +68,8 @@ type Service struct {
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter shwap.Getter
-	// headerGetter fetches header by the provided height
-	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+	// headerServ provides header fetching and waiting capabilities.
+	headerServ HeaderService
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 	// metrics tracks blob-related metrics
@@ -73,15 +79,14 @@ type Service struct {
 func NewService(
 	submitter Submitter,
 	getter shwap.Getter,
-	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	headerServ HeaderService,
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
-		headerGetter:  headerGetter,
+		headerServ:    headerServ,
 		headerSub:     headerSub,
-		metrics:       nil, // Will be initialized via WithMetrics() if needed
 	}
 }
 
@@ -173,7 +178,7 @@ func (s *Service) SubscribeFromStartHeight(
 	}
 
 	// startHeight must be > 0 and <= current head.
-	if _, err := s.headerGetter(ctx, startHeight); err != nil {
+	if _, err := s.headerServ.GetByHeight(ctx, startHeight); err != nil {
 		return nil, fmt.Errorf("failed to fetch header at startHeight %d: %w", startHeight, err)
 	}
 
@@ -189,7 +194,7 @@ func (s *Service) SubscribeFromStartHeight(
 		// catchup: replay historical blobs. errors are not retried.
 		expectedNextHeight := startHeight
 		for height := startHeight; ; height++ {
-			header, err := s.headerGetter(ctx, height)
+			header, err := s.headerServ.GetByHeight(ctx, height)
 			if err != nil {
 				if isBeyondTip(err) {
 					// height not yet available: catchup is done, transition to live.
@@ -244,12 +249,14 @@ func (s *Service) SubscribeFromStartHeight(
 					continue
 				}
 
-				// fill any gap between catchup and the live header.
+				// fill any gap between catchup and the live header. it waits for the store
+				// to sync up to the live header and blocks until the next expected header
+				// is available.
 				for ; expectedNextHeight < header.Height(); expectedNextHeight++ {
 					if ctx.Err() != nil || s.ctx.Err() != nil {
 						return
 					}
-					gapHeader, err := s.headerGetter(ctx, expectedNextHeight)
+					gapHeader, err := s.headerServ.WaitForHeight(ctx, expectedNextHeight)
 					if err != nil {
 						log.Errorw("blobsub: failed to fill gap between catchup and live",
 							"namespace", ns.ID(), "height", expectedNextHeight, "err", err)
@@ -458,7 +465,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libsha
 		"namespaces", namespaces,
 	)
 
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +781,7 @@ func (s *Service) GetCommitmentProof(
 		"getting the extended header",
 		"height", height,
 	)
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
