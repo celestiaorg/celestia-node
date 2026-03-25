@@ -81,7 +81,8 @@ func initMetrics(manager *Manager) (*metrics, error) {
 
 	getPeerWaitTimeHistogram, err := meter.Int64Histogram(
 		manager.tag+"_peer_manager_get_peer_ms_time_hist",
-		metric.WithDescription("get peer time histogram(ms), observed only for async get(is_instant = false)"))
+		metric.WithDescription("get peer time histogram(ms), observed only for async get(is_instant = false)"),
+		metric.WithUnit("ms"))
 	if err != nil {
 		return nil, err
 	}
