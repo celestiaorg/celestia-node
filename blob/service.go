@@ -24,11 +24,13 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 var (
@@ -50,12 +52,19 @@ type Submitter interface {
 	SubmitPayForBlob(context.Context, []*libshare.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
+// FibreSubmitter is an interface for submitting blobs to the Fibre network.
+type FibreSubmitter interface {
+	Submit(ctx context.Context, ns libshare.Namespace, data []byte, config *txclient.TxConfig) (*fibre.SubmitResult, error)
+}
+
 type Service struct {
 	// ctx represents the Service's lifecycle context.
 	ctx    context.Context
 	cancel context.CancelFunc
 	// accessor dials the given celestia-core endpoint to submit blobs.
 	blobSubmitter Submitter
+	// fibreSubmitter submits blobs to the Fibre network.
+	fibreSubmitter FibreSubmitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter shwap.Getter
 	// headerGetter fetches header by the provided height
@@ -68,16 +77,18 @@ type Service struct {
 
 func NewService(
 	submitter Submitter,
+	fibreSubmitter FibreSubmitter,
 	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
-		blobSubmitter: submitter,
-		shareGetter:   getter,
-		headerGetter:  headerGetter,
-		headerSub:     headerSub,
-		metrics:       nil, // Will be initialized via WithMetrics() if needed
+		blobSubmitter:  submitter,
+		fibreSubmitter: fibreSubmitter,
+		shareGetter:    getter,
+		headerGetter:   headerGetter,
+		headerSub:      headerSub,
+		metrics:        nil, // Will be initialized via WithMetrics() if needed
 	}
 }
 
@@ -195,14 +206,46 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 	for i := range blobs {
 		libBlobs[i] = blobs[i].Blob
 	}
-
-	spanCtx := trace.ContextWithSpan(ctx, span)
-	resp, err := s.blobSubmitter.SubmitPayForBlob(spanCtx, libBlobs, txConfig)
+	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
 	if err != nil {
 		return 0, err
 	}
-
 	return uint64(resp.Height), nil
+}
+
+// SubmitFibreBlob submits a blob via the Fibre network.
+// It performs the full Fibre flow: upload to FSPs, aggregate validator signatures,
+// and submit MsgPayForFibre on-chain.
+func (s *Service) SubmitFibreBlob(
+	ctx context.Context,
+	ns libshare.Namespace,
+	data []byte,
+	txConfig *SubmitOptions,
+) (*fibre.SubmitResult, error) {
+	ctx, span := tracer.Start(ctx, "blob/submit-fibre")
+	var err error
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+		if err != nil {
+			log.Errorw("submitting fibre blob failed", "err", err,
+				"namespace", ns.String(),
+			)
+		}
+	}()
+
+	if s.fibreSubmitter == nil {
+		err = fmt.Errorf("fibre submitter is not configured: node is not connected to a core endpoint")
+		return nil, err
+	}
+
+	log.Infow("submitting fibre blob", "namespace", ns.String(), "data-size", len(data))
+	result, err := s.fibreSubmitter.Submit(ctx, ns, data, txConfig)
+	if err != nil {
+		return nil, fmt.Errorf("fibre submit: %w", err)
+	}
+
+	log.Debugw("fibre blob submitted", "namespace", ns.String(), "height", result.Height, "tx-hash", result.TxHash)
+	return result, nil
 }
 
 // Get retrieves a blob in a given namespace at the given height by commitment.
