@@ -47,7 +47,8 @@ type TxClient struct {
 
 	metrics *metrics
 
-	clientLk sync.Mutex
+	txClientLk    sync.Mutex
+	fibreClientLk sync.Mutex
 }
 
 func NewTxClient(
@@ -80,9 +81,11 @@ func NewTxClient(
 
 func (c *TxClient) Start(context.Context) error {
 	c.ctx, c.cancel = context.WithCancel(context.Background())
-	err := c.setupClients()
-	if err != nil {
-		log.Warnw("failed to setup clients", "err", err)
+	if err := c.setupTxClient(); err != nil {
+		log.Warnw("failed to setup tx client", "err", err)
+	}
+	if err := c.setupFibreClient(); err != nil {
+		log.Warnw("failed to setup fibre client", "err", err)
 	}
 	return nil
 }
@@ -145,7 +148,7 @@ func (c *TxClient) SubmitMessage(
 	msg types.Msg,
 	cfg *TxConfig,
 ) (*user.TxResponse, error) {
-	err := c.setupClients()
+	err := c.setupTxClient()
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +181,7 @@ func (c *TxClient) SubmitPayForBlob(
 	author types.AccAddress,
 	cfg *TxConfig,
 ) (_ *user.TxResponse, err error) {
-	if err = c.setupClients(); err != nil {
+	if err = c.setupTxClient(); err != nil {
 		return nil, err
 	}
 
@@ -357,6 +360,9 @@ func (c *TxClient) estimateGasPrice(ctx context.Context, cfg *TxConfig) (float64
 }
 
 func (c *TxClient) setupTxClient() error {
+	c.txClientLk.Lock()
+	defer c.txClientLk.Unlock()
+
 	if c.txClient != nil {
 		return nil
 	}
@@ -389,15 +395,4 @@ func (c *TxClient) setupTxClient() error {
 
 	c.txClient = client
 	return nil
-}
-
-func (c *TxClient) setupClients() error {
-	c.clientLk.Lock()
-	defer c.clientLk.Unlock()
-
-	err := c.setupTxClient()
-	if err != nil {
-		return err
-	}
-	return c.setupFibreClient()
 }

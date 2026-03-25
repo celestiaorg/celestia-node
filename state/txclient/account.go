@@ -24,7 +24,7 @@ func (c *TxClient) QueryEscrowAccount(ctx context.Context, signer string) (*fibr
 }
 
 func (c *TxClient) Deposit(ctx context.Context, amount sdktypes.Coin, cfg *TxConfig) error {
-	if err := c.setupClients(); err != nil {
+	if err := c.setupTxClient(); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (c *TxClient) Deposit(ctx context.Context, amount sdktypes.Coin, cfg *TxCon
 }
 
 func (c *TxClient) Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *TxConfig) error {
-	if err := c.setupClients(); err != nil {
+	if err := c.setupTxClient(); err != nil {
 		return err
 	}
 
