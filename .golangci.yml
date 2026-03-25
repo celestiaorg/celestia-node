@@ -39,6 +39,9 @@ linters:
         - G115
     misspell:
       locale: US
+      extra-words:
+        - typo: "fibre"
+          correction: "fibre"
   exclusions:
     generated: lax
     presets:
