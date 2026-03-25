@@ -140,7 +140,7 @@ func (c *Client) initTxClient(
 	c.State = core
 
 	// setup blob submission service using core
-	blobSvc := blob.NewService(core, nil, nil, nil)
+	blobSvc := blob.NewService(core, nil, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
 		_ = core.Stop(ctx)
