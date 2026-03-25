@@ -21,6 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v8/app/errors"
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -32,7 +33,9 @@ type TxClient struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	client               *user.TxClient
+	txClient    *user.TxClient
+	fibreClient *appfibre.Client
+
 	keyring              keyring.Keyring
 	defaultSignerAccount string
 	defaultSignerAddress types.AccAddress
@@ -77,9 +80,9 @@ func NewTxClient(
 
 func (c *TxClient) Start(context.Context) error {
 	c.ctx, c.cancel = context.WithCancel(context.Background())
-	err := c.setupClient()
+	err := c.setupClients()
 	if err != nil {
-		log.Warnw("failed to setup tx client", "err", err)
+		log.Warnw("failed to setup clients", "err", err)
 	}
 	return nil
 }
@@ -117,8 +120,15 @@ func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool)
 	return conn, nil
 }
 
-func (c *TxClient) Stop(context.Context) error {
+func (c *TxClient) Stop(ctx context.Context) error {
 	c.cancel()
+
+	if c.fibreClient != nil {
+		if err := c.fibreClient.Stop(ctx); err != nil {
+			return err
+		}
+		c.fibreClient = nil
+	}
 
 	if c.estimatorConn != nil {
 		err := c.estimatorConn.Close()
@@ -135,7 +145,7 @@ func (c *TxClient) SubmitMessage(
 	msg types.Msg,
 	cfg *TxConfig,
 ) (*user.TxResponse, error) {
-	err := c.setupClient()
+	err := c.setupClients()
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +169,7 @@ func (c *TxClient) SubmitMessage(
 	}
 
 	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
-	return c.client.SubmitTx(ctx, []types.Msg{msg}, txConfig...)
+	return c.txClient.SubmitTx(ctx, []types.Msg{msg}, txConfig...)
 }
 
 func (c *TxClient) SubmitPayForBlob(
@@ -168,7 +178,7 @@ func (c *TxClient) SubmitPayForBlob(
 	author types.AccAddress,
 	cfg *TxConfig,
 ) (_ *user.TxResponse, err error) {
-	if err = c.setupClient(); err != nil {
+	if err = c.setupClients(); err != nil {
 		return nil, err
 	}
 
@@ -208,7 +218,7 @@ func (c *TxClient) SubmitPayForBlob(
 	}
 
 	accountQueryStart := time.Now()
-	account := c.client.AccountByAddress(ctx, author)
+	account := c.txClient.AccountByAddress(ctx, author)
 	c.metrics.observeAccountQuery(ctx, time.Since(accountQueryStart), nil)
 
 	if account == nil {
@@ -264,9 +274,9 @@ func (c *TxClient) SubmitPayForBlob(
 
 	var response *user.TxResponse
 	if c.txWorkerAccounts > 0 && author.Equals(c.defaultSignerAddress) {
-		response, err = c.client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
+		response, err = c.txClient.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
 	} else {
-		response, err = c.client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
+		response, err = c.txClient.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
 	}
 
 	if apperrors.IsInsufficientFee(err) {
@@ -295,7 +305,7 @@ func (c *TxClient) estimateGasPriceAndUsage(
 		return cfg.GasPrice(), cfg.GasLimit(), nil
 	}
 
-	gasPrice, gasLimit, err := c.client.EstimateGasPriceAndUsage(ctx, []types.Msg{msg}, cfg.TxPriority().ToApp())
+	gasPrice, gasLimit, err := c.txClient.EstimateGasPriceAndUsage(ctx, []types.Msg{msg}, cfg.TxPriority().ToApp())
 	if err != nil {
 		return 0, 0, err
 	}
@@ -333,7 +343,7 @@ func (c *TxClient) estimateGasPrice(ctx context.Context, cfg *TxConfig) (float64
 		return cfg.GasPrice(), nil
 	}
 
-	gasPrice, err := c.client.EstimateGasPrice(ctx, cfg.TxPriority().ToApp())
+	gasPrice, err := c.txClient.EstimateGasPrice(ctx, cfg.TxPriority().ToApp())
 	if err != nil {
 		return 0, err
 	}
@@ -346,11 +356,8 @@ func (c *TxClient) estimateGasPrice(ctx context.Context, cfg *TxConfig) (float64
 	return gasPrice, nil
 }
 
-func (c *TxClient) setupClient() error {
-	c.clientLk.Lock()
-	defer c.clientLk.Unlock()
-
-	if c.client != nil {
+func (c *TxClient) setupTxClient() error {
+	if c.txClient != nil {
 		return nil
 	}
 
@@ -380,6 +387,17 @@ func (c *TxClient) setupClient() error {
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
 
-	c.client = client
+	c.txClient = client
 	return nil
+}
+
+func (c *TxClient) setupClients() error {
+	c.clientLk.Lock()
+	defer c.clientLk.Unlock()
+
+	err := c.setupTxClient()
+	if err != nil {
+		return err
+	}
+	return c.setupFibreClient()
 }
