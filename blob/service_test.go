@@ -25,6 +25,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -900,7 +901,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2), headers
+	return NewService(nil, nil, shareGetter, fn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -944,7 +945,7 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		return nil, fmt.Errorf("not implemented")
 	}
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, nil, shareGetter, fn, fn2)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.
@@ -1161,4 +1162,88 @@ func rawBlobSize(totalSize int) int {
 func delimLen(size uint64) int {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(lenBuf, size)
+}
+
+// mockFibreSubmitter implements FibreSubmitter for testing.
+type mockFibreSubmitter struct {
+	submitFn func(
+		ctx context.Context,
+		ns libshare.Namespace,
+		data []byte,
+		options *SubmitOptions,
+	) (*fibre.SubmitResult, error)
+}
+
+func (m *mockFibreSubmitter) Submit(
+	ctx context.Context,
+	ns libshare.Namespace,
+	data []byte,
+	options *SubmitOptions,
+) (*fibre.SubmitResult, error) {
+	return m.submitFn(ctx, ns, data, options)
+}
+
+func TestService_SubmitFibreBlob(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	ns, err := libshare.NewV0Namespace([]byte("fibrens123"))
+	require.NoError(t, err)
+	data := []byte("fibre blob data")
+
+	expectedResult := &fibre.SubmitResult{
+		Height: 42,
+		TxHash: "ABCDEF123456",
+	}
+
+	mock := &mockFibreSubmitter{
+		submitFn: func(
+			_ context.Context, gotNs libshare.Namespace, gotData []byte, options *SubmitOptions,
+		) (*fibre.SubmitResult, error) {
+			assert.Equal(t, ns, gotNs)
+			assert.Equal(t, data, gotData)
+			return expectedResult, nil
+		},
+	}
+
+	service := NewService(nil, mock, nil, nil, nil)
+	result, err := service.SubmitFibreBlob(ctx, ns, data, &SubmitOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, expectedResult.Height, result.Height)
+	assert.Equal(t, expectedResult.TxHash, result.TxHash)
+}
+
+func TestService_SubmitFibreBlob_Error(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	ns, err := libshare.NewV0Namespace([]byte("fibrens123"))
+	require.NoError(t, err)
+
+	mock := &mockFibreSubmitter{
+		submitFn: func(_ context.Context, _ libshare.Namespace, _ []byte, _ *SubmitOptions) (*fibre.SubmitResult, error) {
+			return nil, errors.New("fibre submission failed")
+		},
+	}
+
+	service := NewService(nil, mock, nil, nil, nil)
+	result, err := service.SubmitFibreBlob(ctx, ns, []byte("data"), &SubmitOptions{})
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "fibre submit")
+	assert.Contains(t, err.Error(), "fibre submission failed")
+}
+
+func TestService_SubmitFibreBlob_NilClient(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	ns, err := libshare.NewV0Namespace([]byte("fibrens123"))
+	require.NoError(t, err)
+
+	service := NewService(nil, nil, nil, nil, nil)
+	result, err := service.SubmitFibreBlob(ctx, ns, []byte("data"), &SubmitOptions{})
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "fibre submitter is not configured")
 }

@@ -6,6 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
 	headerService "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -30,8 +31,16 @@ func ConstructModule() fx.Option {
 				sGetter shwap.Getter,
 				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
 				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
+				params struct {
+					fx.In
+					fibreClient *fibre.Client `optional:"true"`
+				},
 			) *blob.Service {
-				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
+				var fibreSubmitter blob.FibreSubmitter
+				if params.fibreClient != nil {
+					fibreSubmitter = params.fibreClient
+				}
+				return blob.NewService(state, fibreSubmitter, sGetter, getByHeightFn, subscribeFn)
 			},
 			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Start(ctx)
