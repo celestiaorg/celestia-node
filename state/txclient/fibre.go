@@ -2,7 +2,6 @@ package txclient
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
@@ -22,6 +21,14 @@ func (c *TxClient) Upload(
 	if err != nil {
 		return appfibre.SignedPaymentPromise{}, err
 	}
+	return c.upload(ctx, ns, blob)
+}
+
+func (c *TxClient) upload(
+	ctx context.Context,
+	ns libshare.Namespace,
+	blob *appfibre.Blob,
+) (appfibre.SignedPaymentPromise, error) {
 	return c.fibreClient.Upload(ctx, ns, blob)
 }
 
@@ -40,7 +47,7 @@ func (c *TxClient) Submit(
 		return nil, nil, err
 	}
 
-	promise, err := c.Upload(ctx, ns, data)
+	promise, err := c.upload(ctx, ns, blob)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,7 +59,7 @@ func (c *TxClient) Submit(
 
 	signer, err := c.getTxAuthorAccAddress(cfg)
 	if err != nil {
-		return nil, nil, errors.New("can't get signer address")
+		return nil, nil, fmt.Errorf("getting signer address: %w", err)
 	}
 
 	msg := &types.MsgPayForFibre{

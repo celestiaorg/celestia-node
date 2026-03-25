@@ -221,9 +221,8 @@ func (s *Service) SubmitFibreBlob(
 	ns libshare.Namespace,
 	data []byte,
 	txConfig *SubmitOptions,
-) (*fibre.SubmitResult, error) {
+) (_ *fibre.SubmitResult, err error) {
 	ctx, span := tracer.Start(ctx, "blob/submit-fibre")
-	var err error
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
 		if err != nil {
@@ -241,7 +240,8 @@ func (s *Service) SubmitFibreBlob(
 	log.Infow("submitting fibre blob", "namespace", ns.String(), "data-size", len(data))
 	result, err := s.fibreSubmitter.Submit(ctx, ns, data, txConfig)
 	if err != nil {
-		return nil, fmt.Errorf("fibre submit: %w", err)
+		err = fmt.Errorf("fibre submit: %w", err)
+		return nil, err
 	}
 
 	log.Debugw("fibre blob submitted", "namespace", ns.String(), "height", result.Height, "tx-hash", result.TxHash)

@@ -25,30 +25,28 @@ func ConstructModule() fx.Option {
 				return service.Subscribe
 			},
 		),
-		fx.Provide(fx.Annotate(
-			func(
-				state state.Module,
-				sGetter shwap.Getter,
-				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
-				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
-				params struct {
-					fx.In
-					fibreClient *fibre.Client `optional:"true"`
-				},
-			) *blob.Service {
-				var fibreSubmitter blob.FibreSubmitter
-				if params.fibreClient != nil {
-					fibreSubmitter = params.fibreClient
-				}
-				return blob.NewService(state, fibreSubmitter, sGetter, getByHeightFn, subscribeFn)
+		fx.Provide(func(
+			state state.Module,
+			sGetter shwap.Getter,
+			getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
+			subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
+			params struct {
+				fx.In
+				FibreClient *fibre.Client `optional:"true"`
 			},
-			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
-				return serv.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, serv *blob.Service) error {
-				return serv.Stop(ctx)
-			}),
-		)),
+		) *blob.Service {
+			var fibreSubmitter blob.FibreSubmitter
+			if params.FibreClient != nil {
+				fibreSubmitter = params.FibreClient
+			}
+			return blob.NewService(state, fibreSubmitter, sGetter, getByHeightFn, subscribeFn)
+		}),
+		fx.Invoke(func(lc fx.Lifecycle, serv *blob.Service) {
+			lc.Append(fx.Hook{
+				OnStart: serv.Start,
+				OnStop:  serv.Stop,
+			})
+		}),
 		fx.Provide(func(serv *blob.Service) Module {
 			return serv
 		}),

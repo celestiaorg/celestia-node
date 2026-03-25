@@ -126,11 +126,12 @@ func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool)
 func (c *TxClient) Stop(ctx context.Context) error {
 	c.cancel()
 
+	c.fibreClientLk.Lock()
+	defer c.fibreClientLk.Unlock()
 	if c.fibreClient != nil {
 		if err := c.fibreClient.Stop(ctx); err != nil {
-			return err
+			log.Warnw("failed to stop fibre client", "err", err)
 		}
-		c.fibreClient = nil
 	}
 
 	if c.estimatorConn != nil {
@@ -138,7 +139,6 @@ func (c *TxClient) Stop(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		c.estimatorConn = nil
 	}
 	return nil
 }
