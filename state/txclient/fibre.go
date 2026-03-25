@@ -15,7 +15,7 @@ func (c *TxClient) Upload(
 	ns libshare.Namespace,
 	data []byte,
 ) (appfibre.SignedPaymentPromise, error) {
-	if err := c.setupClients(); err != nil {
+	if err := c.setupFibreClient(); err != nil {
 		return appfibre.SignedPaymentPromise{}, err
 	}
 	blob, err := appfibre.NewBlob(data, appfibre.DefaultBlobConfigV0())
@@ -31,7 +31,7 @@ func (c *TxClient) Submit(
 	data []byte,
 	cfg *TxConfig,
 ) (*appfibre.PutResult, *appfibre.PaymentPromise, error) {
-	if err := c.setupClients(); err != nil {
+	if err := c.setupFibreClient(); err != nil {
 		return nil, nil, err
 	}
 
@@ -76,7 +76,7 @@ func (c *TxClient) Submit(
 }
 
 func (c *TxClient) Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*appfibre.Blob, error) {
-	if err := c.setupClients(); err != nil {
+	if err := c.setupFibreClient(); err != nil {
 		return nil, err
 	}
 	if len(commitment) != appfibre.CommitmentSize {
@@ -87,6 +87,9 @@ func (c *TxClient) Get(ctx context.Context, ns libshare.Namespace, commitment []
 }
 
 func (c *TxClient) setupFibreClient() error {
+	c.fibreClientLk.Lock()
+	defer c.fibreClientLk.Unlock()
+
 	if c.fibreClient != nil {
 		return nil
 	}
