@@ -193,6 +193,9 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
+		if blobs[i].IsFibreBlob() {
+			return 0, errors.New("cannot submit fibre blob. please use Fibre Submit instead")
+		}
 		libBlobs[i] = blobs[i].Blob
 	}
 

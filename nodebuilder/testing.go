@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -71,6 +72,10 @@ func TestNodeWithConfig(t *testing.T, tp node.Type, cfg *Config, opts ...fx.Opti
 	_, accName, err := stateModule.Keyring(cfg.State, ks)
 	require.NoError(t, err)
 	require.Equal(t, TestKeyringName, string(accName))
+
+	// create the fibre key required by the fibre module when core endpoint is configured
+	_, _, err = kr.NewMnemonic(appfibre.DefaultKeyName, keyring.English, "", "", hd.Secp256k1)
+	require.NoError(t, err)
 
 	opts = append(opts,
 		// temp dir for the eds store FIXME: Should be in mem
