@@ -41,13 +41,15 @@ func (d *DASer) InitMetrics() error {
 	}
 
 	sampleTime, err := meter.Float64Histogram("das_sample_time_hist",
-		metric.WithDescription("duration of sampling a single header"))
+		metric.WithDescription("duration of sampling a single header"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
 
 	getHeaderTime, err := meter.Float64Histogram("das_get_header_time_hist",
-		metric.WithDescription("duration of getting header from header store"))
+		metric.WithDescription("duration of getting header from header store"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
