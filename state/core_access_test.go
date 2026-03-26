@@ -19,9 +19,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v4/share"
+
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 const (
@@ -30,22 +32,18 @@ const (
 
 func TestSubmitPayForBlob(t *testing.T) {
 	ctx := context.Background()
-	ca, accounts := buildAccessor(t)
+	ca, _ := buildAccessor(t)
 	// start the accessor
 	err := ca.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = ca.Stop(ctx)
 	})
-	// explicitly reset client to nil to ensure
-	// that retry mechanism works.
-	ca.client = nil
 
 	ns, err := libshare.NewV0Namespace([]byte("namespace"))
 	require.NoError(t, err)
 	require.False(t, ns.IsReserved())
 
-	require.NoError(t, err)
 	blobbyTheBlob, err := libshare.NewV0Blob(ns, []byte("data"))
 	require.NoError(t, err)
 
@@ -59,7 +57,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 		{
 			name:     "empty blobs",
 			blobs:    []*libshare.Blob{},
-			gasPrice: DefaultGasPrice,
+			gasPrice: txclient.DefaultGasPrice,
 			gasLim:   0,
 			expErr:   errors.New("state: no blobs provided"),
 		},
@@ -80,7 +78,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, NewTxConfig())
+			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, txclient.NewTxConfig())
 			require.Equal(t, tc.expErr, err)
 			if err == nil {
 				require.EqualValues(t, 0, resp.Code)
@@ -90,10 +88,10 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := NewTxConfig(
-				WithGas(tc.gasLim),
-				WithGasPrice(tc.gasPrice),
-				WithKeyName(accounts[2]),
+			opts := txclient.NewTxConfig(
+				txclient.WithGas(tc.gasLim),
+				txclient.WithGasPrice(tc.gasPrice),
+				txclient.WithKeyName(accounts[2]),
 			)
 			resp, err := ca.SubmitPayForBlob(ctx, tc.blobs, opts)
 			require.Equal(t, tc.expErr, err)
@@ -106,7 +104,7 @@ func TestSubmitPayForBlob(t *testing.T) {
 
 func TestTransfer(t *testing.T) {
 	ctx := context.Background()
-	ca, accounts := buildAccessor(t)
+	ca, _ := buildAccessor(t)
 	// start the accessor
 	err := ca.Start(ctx)
 	require.NoError(t, err)
@@ -123,7 +121,7 @@ func TestTransfer(t *testing.T) {
 	}{
 		{
 			name:     "transfer without options",
-			gasPrice: DefaultGasPrice,
+			gasPrice: txclient.DefaultGasPrice,
 			gasLim:   0,
 			account:  "",
 			expErr:   nil,
@@ -137,7 +135,7 @@ func TestTransfer(t *testing.T) {
 		},
 		{
 			name:     "transfer with gas set",
-			gasPrice: DefaultGasPrice,
+			gasPrice: txclient.DefaultGasPrice,
 			gasLim:   84617,
 			account:  accounts[2],
 			expErr:   nil,
@@ -146,10 +144,10 @@ func TestTransfer(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := NewTxConfig(
-				WithGas(tc.gasLim),
-				WithGasPrice(tc.gasPrice),
-				WithKeyName(accounts[2]),
+			opts := txclient.NewTxConfig(
+				txclient.WithGas(tc.gasLim),
+				txclient.WithGasPrice(tc.gasPrice),
+				txclient.WithKeyName(accounts[2]),
 			)
 			key, err := ca.keyring.Key(accounts[1])
 			require.NoError(t, err)
@@ -176,7 +174,7 @@ func TestChainIDMismatch(t *testing.T) {
 
 func TestDelegate(t *testing.T) {
 	ctx := context.Background()
-	ca, accounts := buildAccessor(t)
+	ca, _ := buildAccessor(t)
 	// start the accessor
 	err := ca.Start(ctx)
 	require.NoError(t, err)
@@ -197,7 +195,7 @@ func TestDelegate(t *testing.T) {
 	}{
 		{
 			name:     "delegate/undelegate without options",
-			gasPrice: DefaultGasPrice,
+			gasPrice: txclient.DefaultGasPrice,
 			gasLim:   0,
 			account:  "",
 		},
@@ -211,19 +209,19 @@ func TestDelegate(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := NewTxConfig(
-				WithGas(tc.gasLim),
-				WithGasPrice(tc.gasPrice),
-				WithKeyName(accounts[2]),
+			opts := txclient.NewTxConfig(
+				txclient.WithGas(tc.gasLim),
+				txclient.WithGasPrice(tc.gasPrice),
+				txclient.WithKeyName(accounts[2]),
 			)
 			resp, err := ca.Delegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
 			require.NoError(t, err)
 			require.EqualValues(t, 0, resp.Code)
 
-			opts = NewTxConfig(
-				WithGas(tc.gasLim),
-				WithGasPrice(tc.gasPrice),
-				WithKeyName(accounts[2]),
+			opts = txclient.NewTxConfig(
+				txclient.WithGas(tc.gasLim),
+				txclient.WithGasPrice(tc.gasPrice),
+				txclient.WithKeyName(accounts[2]),
 			)
 
 			resp, err = ca.Undelegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
@@ -248,7 +246,7 @@ func TestWithdrawDelegatorReward(t *testing.T) {
 	require.NoError(t, err)
 
 	// use default signer (accounts[0]) so QueryDelegationRewards matches
-	opts := NewTxConfig()
+	opts := txclient.NewTxConfig()
 
 	// delegate first so there is an active delegation
 	resp, err := ca.Delegate(ctx, ValAddress(valAddr), math.NewInt(100_000), opts)
@@ -261,7 +259,7 @@ func TestWithdrawDelegatorReward(t *testing.T) {
 	require.NotNil(t, rewardsResp)
 
 	// withdraw rewards — should succeed even with zero rewards
-	opts = NewTxConfig()
+	opts = txclient.NewTxConfig()
 	resp, err = ca.WithdrawDelegatorReward(ctx, ValAddress(valAddr), opts)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, resp.Code)
@@ -277,9 +275,6 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	t.Cleanup(cancel)
 
 	t.Helper()
-	accounts := []string{
-		"jimmy", "carl", "sheen", "cindy",
-	}
 
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
@@ -291,7 +286,15 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(workerAccounts))
+	tc, err := txclient.NewTxClient(cctx.Keyring, accounts[0], conn, txclient.WithTxWorkerAccounts(workerAccounts))
+	require.NoError(t, err)
+	err = tc.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = tc.Stop(ctx)
+	})
+
+	ca, err := NewCoreAccessor(tc, cctx.Keyring, accounts[0], nil, conn, chainID)
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
@@ -312,7 +315,7 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 	for i := 0; i < blobCount; i++ {
 		idx := i
 		g.Go(func() error {
-			resp, err := ca.SubmitPayForBlob(ctx, blobs[idx], NewTxConfig())
+			resp, err := ca.SubmitPayForBlob(ctx, blobs[idx], txclient.NewTxConfig())
 			if err != nil {
 				return err
 			}
@@ -338,7 +341,7 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 
 	for i := 1; i < workerAccounts; i++ {
 		name := fmt.Sprintf("parallel-worker-%d", i)
-		_, err := ca.keyring.Key(name)
+		_, err := cctx.Keyring.Key(name)
 		require.NoError(t, err, "expected worker account %s", name)
 	}
 }
@@ -351,14 +354,14 @@ func TestTxWorkerSetup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
-	accounts := []string{
+	fundedAccounts := []string{
 		// fund a parallel tx worker account so it exists in account state
 		"jimmy", "carl", "sheen", "cindy", "parallel-worker-5",
 	}
 
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
-		WithFundedAccounts(accounts...).
+		WithFundedAccounts(fundedAccounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond)
 
 	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
@@ -371,14 +374,15 @@ func TestTxWorkerSetup(t *testing.T) {
 		keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, WithTxWorkerAccounts(8))
+	tc, err := txclient.NewTxClient(cctx.Keyring, fundedAccounts[0], conn, txclient.WithTxWorkerAccounts(8))
 	require.NoError(t, err)
-	err = ca.Start(ctx)
-	require.NoError(t, err)
-	// ensure tx client is set up properly even though some parallel worker accounts
+	// ensure tx client starts properly even though some parallel worker accounts
 	// exist in keyring already (unfunded) and some are funded
-	err = ca.setupTxClient(ctx)
+	err = tc.Start(ctx)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = tc.Stop(ctx)
+	})
 }
 
 // TestSubmitFromDefaultAccountWithoutTxWorkers ensures users can submit transactions
@@ -386,10 +390,6 @@ func TestTxWorkerSetup(t *testing.T) {
 func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
-
-	accounts := []string{
-		"jimmy", "carl", "sheen", "cindy",
-	}
 
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
@@ -401,7 +401,15 @@ func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
 	require.NoError(t, err)
 
 	// configured without txworkers
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID, nil)
+	tc, err := txclient.NewTxClient(cctx.Keyring, accounts[0], conn)
+	require.NoError(t, err)
+	err = tc.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = tc.Stop(ctx)
+	})
+
+	ca, err := NewCoreAccessor(tc, cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID)
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
@@ -423,7 +431,7 @@ func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
 	require.NoError(t, err)
 
 	// default tx config (submit from default acct)
-	_, err = ca.SubmitPayForBlob(ctx, randBlob, NewTxConfig())
+	_, err = ca.SubmitPayForBlob(ctx, randBlob, txclient.NewTxConfig())
 	require.NoError(t, err)
 
 	// ensure balance has remained the same for non-default account
@@ -445,10 +453,6 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
-	accounts := []string{
-		"jimmy", "carl", "sheen", "cindy",
-	}
-
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
@@ -458,8 +462,15 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID, nil,
-		WithTxWorkerAccounts(8))
+	tc, err := txclient.NewTxClient(cctx.Keyring, accounts[0], conn, txclient.WithTxWorkerAccounts(8))
+	require.NoError(t, err)
+	err = tc.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = tc.Stop(ctx)
+	})
+
+	ca, err := NewCoreAccessor(tc, cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID)
 	require.NoError(t, err)
 	err = ca.Start(ctx)
 	require.NoError(t, err)
@@ -480,7 +491,7 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	balDefault, err := ca.Balance(ctx)
 	require.NoError(t, err)
 
-	txConf := NewTxConfig(WithSignerAddress(addr.String()))
+	txConf := txclient.NewTxConfig(txclient.WithSignerAddress(addr.String()))
 	_, err = ca.SubmitPayForBlob(ctx, randBlob, txConf)
 	require.NoError(t, err)
 
@@ -497,11 +508,12 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	// TODO @renaynay: once tx response contains signer, check signer here
 }
 
-func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
+var accounts = []string{
+	"jimmy", "carl", "sheen", "cindy",
+}
+
+func buildAccessor(t *testing.T, opts ...txclient.Option) (*CoreAccessor, *txclient.TxClient) {
 	t.Helper()
-	accounts := []string{
-		"jimmy", "carl", "sheen", "cindy",
-	}
 
 	config := testnode.DefaultConfig().
 		WithChainID(chainID).
@@ -515,7 +527,16 @@ func buildAccessor(t *testing.T, opts ...Option) (*CoreAccessor, []string) {
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	ca, err := NewCoreAccessor(cctx.Keyring, accounts[0], nil, conn, chainID, nil, opts...)
+
+	tc, err := txclient.NewTxClient(cctx.Keyring, accounts[0], conn, opts...)
 	require.NoError(t, err)
-	return ca, accounts
+	err = tc.Start(context.Background())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = tc.Stop(context.Background())
+	})
+
+	ca, err := NewCoreAccessor(tc, cctx.Keyring, accounts[0], nil, conn, chainID)
+	require.NoError(t, err)
+	return ca, tc
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	stateapi "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 var log = logging.Logger("celestia-client")
@@ -104,26 +105,36 @@ func (c *Client) initTxClient(
 	conn *grpc.ClientConn,
 	kr keyring.Keyring,
 ) error {
-	var opts []state.Option
+	var opts []txclient.Option
 	if submitCfg.TxWorkerAccounts > 0 {
-		opts = append(opts, state.WithTxWorkerAccounts(submitCfg.TxWorkerAccounts))
+		opts = append(opts, txclient.WithTxWorkerAccounts(submitCfg.TxWorkerAccounts))
 	}
 
 	// key is specified. Set up core accessor and txClient
+	tc, err := txclient.NewTxClient(kr, submitCfg.DefaultKeyName, conn, opts...)
+	if err != nil {
+		return err
+	}
+	err = tc.Start(ctx)
+	if err != nil {
+		return err
+	}
+
 	core, err := state.NewCoreAccessor(
+		tc,
 		kr,
 		submitCfg.DefaultKeyName,
 		trustedHeadGetter{remote: c.Header},
 		conn,
 		submitCfg.Network.String(),
-		nil,
-		opts...,
 	)
 	if err != nil {
+		_ = tc.Stop(ctx)
 		return err
 	}
 	err = core.Start(ctx)
 	if err != nil {
+		_ = tc.Stop(ctx)
 		return err
 	}
 	c.State = core
@@ -132,6 +143,8 @@ func (c *Client) initTxClient(
 	blobSvc := blob.NewService(core, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
+		_ = core.Stop(ctx)
+		_ = tc.Stop(ctx)
 		return err
 	}
 	c.Blob = &blobSubmitClient{
@@ -144,13 +157,17 @@ func (c *Client) initTxClient(
 		if err != nil {
 			return fmt.Errorf("failed to close grpc connection: %w", err)
 		}
+		err = blobSvc.Stop(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to stop blob service: %w", err)
+		}
 		err = core.Stop(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to stop core accessor: %w", err)
 		}
-		err = blobSvc.Stop(ctx)
+		err = tc.Stop(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to stop blob service: %w", err)
+			return fmt.Errorf("failed to stop tx client: %w", err)
 		}
 		return nil
 	}

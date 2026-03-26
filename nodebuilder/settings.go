@@ -35,7 +35,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
-	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 const defaultMetricsCollectInterval = 10 * time.Second
@@ -93,15 +93,19 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(func(ca *state.CoreAccessor) error {
-			if ca == nil {
+		// TxClient is optional because it is only provided when a core endpoint
+		// is configured (i.e. the node can submit transactions). Light nodes
+		// without a core connection won't have a TxClient, so we use
+		// optional:"true" to avoid fx injection failures in that case.
+		fx.Invoke(func(params struct {
+			fx.In
+			Client *txclient.TxClient `optional:"true"`
+		},
+		) error {
+			if params.Client == nil {
 				return nil
 			}
-			err := ca.WithMetrics()
-			if err != nil {
-				return fmt.Errorf("failed to initialize state metrics: %w", err)
-			}
-			return nil
+			return params.Client.WithMetrics()
 		}),
 		fx.Invoke(func(serv *blob.Service) error {
 			err := serv.WithMetrics()

@@ -10,16 +10,13 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
@@ -54,25 +51,22 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().Greater(len(s.accounts), 0)
 	accountName := s.accounts[0].Name
 
-	accessor, err := NewCoreAccessor(s.network.Keyring, accountName, localHeader{s.network.Client}, nil, "", nil)
+	accessor, err := NewCoreAccessor(
+		nil,
+		s.network.Keyring,
+		accountName,
+		localHeader{s.network.Client},
+		s.network.GRPCClient,
+		"private",
+	)
 	require.NoError(s.T(), err)
-	ctx, cancel := context.WithCancel(context.Background())
-	accessor.ctx = ctx
-	accessor.cancel = cancel
-	setClients(accessor, s.network.GRPCClient)
+	err = accessor.Start(context.Background())
+	require.NoError(s.T(), err)
 	s.accessor = accessor
 
 	// required to ensure the Head request is non-nil
 	_, err = s.network.WaitForHeight(3)
 	require.NoError(s.T(), err)
-}
-
-func setClients(ca *CoreAccessor, conn *grpc.ClientConn) {
-	ca.coreConns = []*grpc.ClientConn{conn}
-	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
-
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {
