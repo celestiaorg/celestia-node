@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
-	apptypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
