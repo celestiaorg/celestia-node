@@ -412,3 +412,9 @@ replace github.com/celestiaorg/celestia-node => ../../..
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
 replace nhooyr.io/websocket => github.com/coder/websocket v1.8.6
+
+replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
+
+replace github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
+
+replace github.com/cloudwego/base64x => github.com/cloudwego/base64x v0.1.6
