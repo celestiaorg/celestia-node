@@ -71,10 +71,18 @@ get_module_version() {
     
     # Check if this is a replace directive (contains "=>")
     if [[ "$line" == *"=>"* ]]; then
-        # Extract the resolved version after "=>"
-        # For "mod v1 => mod v2", $NF gives v2 (the version)
-        # For "mod v1 => ../path", $NF gives ../path
-        echo "$line" | awk -F'=> ' '{print $2}' | awk '{print $NF}'
+        # Extract the replacement target after "=>"
+        # Format: "module version => replacement_module replacement_version"
+        # or: "module version => /local/path"
+        local replacement=$(echo "$line" | awk -F'=> ' '{print $2}')
+        local num_fields=$(echo "$replacement" | awk '{print NF}')
+        if [[ "$num_fields" -ge 2 ]]; then
+            # Has both module path and version (e.g., "github.com/foo v1.2.3")
+            echo "$replacement" | awk '{print $NF}'
+        else
+            # Local path replacement, use the replacement as-is
+            echo "$replacement" | awk '{print $1}'
+        fi
     else
         # Regular version (no replace directive)
         echo "$line" | awk '{print $2}'
