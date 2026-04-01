@@ -44,9 +44,9 @@ require (
 	github.com/ipfs/go-metrics-interface v0.3.0
 	github.com/ipfs/go-metrics-prometheus v0.1.0
 	github.com/klauspost/reedsolomon v1.13.3
-	github.com/libp2p/go-libp2p v0.47.0
-	github.com/libp2p/go-libp2p-kad-dht v0.38.0
-	github.com/libp2p/go-libp2p-pubsub v0.15.0
+	github.com/libp2p/go-libp2p v0.48.0
+	github.com/libp2p/go-libp2p-kad-dht v0.39.0
+	github.com/libp2p/go-libp2p-pubsub v0.15.1-0.20260318184623-12372d99a0bc
 	github.com/libp2p/go-libp2p-record v0.3.1
 	github.com/libp2p/go-libp2p-routing-helpers v0.7.5
 	github.com/mitchellh/go-homedir v1.1.0
@@ -415,4 +415,8 @@ replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0
 
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
-replace github.com/libp2p/go-libp2p-pubsub => github.com/celestiaorg/go-libp2p-pubsub v0.6.2-0.20260225133553-213565e2a428
+replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
+
+replace github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
+
+replace github.com/cloudwego/base64x => github.com/cloudwego/base64x v0.1.6
