@@ -29,6 +29,7 @@ const (
 	statusSendStatusErr     status = "send_status_err"
 	statusSendRespErr       status = "send_resp_err"
 	statusResourceExhausted status = "resource_exhausted"
+	statusRateLimited       status = "rate_limited"
 
 	// general statuses that are applied to both the client and the server
 	statusSuccess     status = "success"
