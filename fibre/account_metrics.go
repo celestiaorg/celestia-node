@@ -15,7 +15,7 @@ type accountMetrics struct {
 	pendingWithdrawalsDuration metric.Float64Histogram
 }
 
-func (a *AccountClient) withMetrics() error {
+func (a *AccountClient) WithMetrics() error {
 	queryDuration, err := meter.Float64Histogram(
 		"fibre_escrow_query_duration_seconds",
 		metric.WithDescription("Duration of fibre escrow account query operations"),

@@ -32,7 +32,7 @@ func ConstructModule() fx.Option {
 			subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
 			params struct {
 				fx.In
-				FibreClient *fibre.Client `optional:"true"`
+				FibreClient *fibre.Service `optional:"true"`
 			},
 		) *blob.Service {
 			var fibreSubmitter blob.FibreSubmitter

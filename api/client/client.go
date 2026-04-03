@@ -9,7 +9,10 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"google.golang.org/grpc"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
+
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	stateapi "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
@@ -139,8 +142,24 @@ func (c *Client) initTxClient(
 	}
 	c.State = core
 
+	// setup fibre client if the fibre key is available in the keyring
+	var fibreSvc *fibre.Service
+	fibreCfg := appfibre.DefaultClientConfig()
+	fibreCfg.StateAddress = conn.Target()
+	fibreClient, err := appfibre.NewClient(kr, fibreCfg)
+	if err != nil {
+		log.Warnw("fibre client not available, fibre blob submission disabled", "err", err)
+	} else {
+		if err := fibreClient.Start(ctx); err != nil {
+			log.Warnw("failed to start fibre client, fibre blob submission disabled", "err", err)
+		} else {
+			acc := fibre.NewAccountClient(tc, conn)
+			fibreSvc = fibre.NewService(fibreClient, tc, acc)
+		}
+	}
+
 	// setup blob submission service using core
-	blobSvc := blob.NewService(core, nil, nil, nil, nil)
+	blobSvc := blob.NewService(core, fibreSvc, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
 		_ = core.Stop(ctx)
@@ -160,6 +179,11 @@ func (c *Client) initTxClient(
 		err = blobSvc.Stop(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to stop blob service: %w", err)
+		}
+		if fibreClient != nil {
+			if stopErr := fibreClient.Stop(ctx); stopErr != nil {
+				log.Warnw("failed to stop fibre client", "err", stopErr)
+			}
 		}
 		err = core.Stop(ctx)
 		if err != nil {

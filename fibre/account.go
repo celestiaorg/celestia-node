@@ -2,9 +2,13 @@ package fibre
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/grpc"
+
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
@@ -34,8 +38,27 @@ type PendingWithdrawal struct {
 
 // AccountClient provides access to Fibre escrow account operations.
 type AccountClient struct {
-	client  client
+	client *txclient.TxClient
+
+	conns   []*grpc.ClientConn
 	metrics *accountMetrics
+}
+
+type Option func(*AccountClient)
+
+func WithAdditionalConnections(conns ...*grpc.ClientConn) Option {
+	return func(ac *AccountClient) {
+		ac.conns = append(ac.conns, conns...)
+	}
+}
+
+func NewAccountClient(client *txclient.TxClient, conn *grpc.ClientConn, opts ...Option) *AccountClient {
+	acc := &AccountClient{client: client}
+	acc.conns = append(acc.conns, conn)
+	for _, opt := range opts {
+		opt(acc)
+	}
+	return acc
 }
 
 func (a *AccountClient) QueryEscrowAccount(ctx context.Context, signer string) (_ *EscrowAccount, err error) {
@@ -50,21 +73,39 @@ func (a *AccountClient) QueryEscrowAccount(ctx context.Context, signer string) (
 
 	log.Infow("querying escrow account", "signer", signer)
 
-	account, err := a.client.QueryEscrowAccount(ctx, signer)
-	if err != nil {
-		log.Errorw("querying escrow account", "err", err, "signer", signer)
-		return nil, err
+	var resp *fibretypes.QueryEscrowAccountResponse
+	for _, conn := range a.conns {
+		queryClient := fibretypes.NewQueryClient(conn)
+		resp, err = queryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
+			Signer: signer,
+		})
+		if err != nil {
+			log.Warnw("querying escrow account", "error", err)
+			continue
+		}
+
+		if resp.Found {
+			break
+		}
+		log.Warnw("escrow account not found for signer", "signer", signer)
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("querying escrow account %w", err)
+	}
+	if !resp.Found {
+		return nil, fmt.Errorf("escrow account not found for signer:%s", signer)
 	}
 
 	log.Debugw("escrow account found",
-		"signer", signer,
-		"balance", account.Balance,
-		"available-balance", account.AvailableBalance,
+		"signer", resp.EscrowAccount.Signer,
+		"balance", resp.EscrowAccount.Balance,
+		"available-balance", resp.EscrowAccount.AvailableBalance,
 	)
 	return &EscrowAccount{
-		Signer:           account.Signer,
-		Balance:          account.Balance,
-		AvailableBalance: account.AvailableBalance,
+		Signer:           resp.EscrowAccount.Signer,
+		Balance:          resp.EscrowAccount.Balance,
+		AvailableBalance: resp.EscrowAccount.AvailableBalance,
 	}, nil
 }
 
@@ -82,10 +123,19 @@ func (a *AccountClient) Deposit(
 		a.metrics.observeDeposit(ctx, time.Since(start), amount.Denom, err)
 	}()
 
-	log.Infow("depositing to escrow", "amount", amount)
-	if err := a.client.Deposit(ctx, amount, cfg); err != nil {
-		log.Errorw("depositing to escrow", "err", err, "amount", amount)
-		return err
+	signer, err := a.client.GetTxAuthorAccAddress(cfg)
+	if err != nil {
+		return fmt.Errorf("getting signer address: %w", err)
+	}
+
+	msg := &fibretypes.MsgDepositToEscrow{
+		Signer: signer.String(),
+		Amount: amount,
+	}
+
+	_, err = a.client.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return fmt.Errorf("depositing to escrow: %w", err)
 	}
 
 	log.Debugw("deposit successful", "amount", amount)
@@ -107,9 +157,20 @@ func (a *AccountClient) Withdraw(
 	}()
 
 	log.Infow("requesting withdrawal", "amount", amount)
-	if err := a.client.Withdraw(ctx, amount, cfg); err != nil {
-		log.Errorw("requesting withdrawal", "err", err, "amount", amount)
-		return err
+
+	signer, err := a.client.GetTxAuthorAccAddress(cfg)
+	if err != nil {
+		return fmt.Errorf("getting signer address: %w", err)
+	}
+
+	msg := &fibretypes.MsgRequestWithdrawal{
+		Signer: signer.String(),
+		Amount: amount,
+	}
+
+	_, err = a.client.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return fmt.Errorf("requesting withdrawal: %w", err)
 	}
 
 	log.Debugw("withdrawal requested", "amount", amount)
@@ -127,15 +188,31 @@ func (a *AccountClient) PendingWithdrawals(ctx context.Context, signer string) (
 	}()
 
 	log.Infow("querying pending withdrawals", "signer", signer)
-	withdrawals, err := a.client.PendingWithdrawals(ctx, signer)
-	if err != nil {
+
+	var resp *fibretypes.QueryWithdrawalsResponse
+
+	for _, conn := range a.conns {
+		queryClient := fibretypes.NewQueryClient(conn)
+		resp, err = queryClient.Withdrawals(ctx, &fibretypes.QueryWithdrawalsRequest{
+			Signer: signer,
+		})
+		if err == nil {
+			break
+		}
+
+		if err != nil {
+			log.Warnw("querying pending withdrawals", "err", err, "signer", signer)
+		}
+	}
+
+	if resp == nil {
 		log.Errorw("querying pending withdrawals", "err", err, "signer", signer)
 		return nil, err
 	}
 
-	log.Debugw("pending withdrawals found", "signer", signer, "count", len(withdrawals))
-	result := make([]PendingWithdrawal, len(withdrawals))
-	for i, w := range withdrawals {
+	log.Debugw("pending withdrawals found", "signer", signer, "count", len(resp.Withdrawals))
+	result := make([]PendingWithdrawal, len(resp.Withdrawals))
+	for i, w := range resp.Withdrawals {
 		result[i] = PendingWithdrawal{
 			Signer:             w.Signer,
 			Amount:             w.Amount,

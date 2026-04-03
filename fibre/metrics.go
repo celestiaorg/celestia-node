@@ -27,15 +27,15 @@ type blobMetrics struct {
 	getDuration    metric.Float64Histogram
 }
 
-func (c *Client) WithMetrics() error {
-	err := c.withBlobMetrics()
+func (s *Service) WithMetrics() error {
+	err := s.withBlobMetrics()
 	if err != nil {
 		return err
 	}
-	return c.Account().withMetrics()
+	return s.AccountClient.WithMetrics()
 }
 
-func (c *Client) withBlobMetrics() error {
+func (s *Service) withBlobMetrics() error {
 	uploadDuration, err := meter.Float64Histogram(
 		"fibre_upload_duration_seconds",
 		metric.WithDescription("Duration of fibre blob upload operations"),
@@ -63,7 +63,7 @@ func (c *Client) withBlobMetrics() error {
 		return err
 	}
 
-	c.metrics = &blobMetrics{
+	s.metrics = &blobMetrics{
 		uploadDuration: uploadDuration,
 		submitDuration: submitDuration,
 		getDuration:    getDuration,

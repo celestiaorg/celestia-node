@@ -253,7 +253,7 @@ var submitFibreCmd = &cobra.Command{
 			blobData = []byte(args[1])
 		}
 
-		result, err := client.Blob.SubmitFibreBlob(cmd.Context(), namespace, blobData, state.GetTxConfig())
+		result, err := client.Fibre.Submit(cmd.Context(), namespace, blobData, state.GetTxConfig())
 		return cmdnode.PrintOutput(result, err, nil)
 	},
 }
