@@ -50,7 +50,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		das.ConstructModule(&cfg.DASer),
 		blob.ConstructModule(),
-		fibre.ConstructModule(),
+		fibre.ConstructModule(&cfg.Core),
 		da.ConstructModule(),
 		node.ConstructModule(tp),
 		pruner.ConstructModule(tp),

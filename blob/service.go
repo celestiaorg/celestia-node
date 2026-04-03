@@ -17,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v8/pkg/proof"
 	"github.com/celestiaorg/go-square/v4/inclusion"
@@ -24,7 +25,6 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
@@ -34,8 +34,9 @@ import (
 )
 
 var (
-	ErrBlobNotFound = errors.New("blob: not found")
-	ErrInvalidProof = errors.New("blob: invalid proof")
+	ErrBlobNotFound   = errors.New("blob: not found")
+	ErrInvalidProof   = errors.New("blob: invalid proof")
+	ErrMixedBlobTypes = errors.New("blob: cannot mix fibre (v2) and regular blobs in a single submit")
 
 	log    = logging.Logger("blob")
 	tracer = otel.Tracer("blob/service")
@@ -54,7 +55,16 @@ type Submitter interface {
 
 // FibreSubmitter is an interface for submitting blobs to the Fibre network.
 type FibreSubmitter interface {
-	Submit(ctx context.Context, ns libshare.Namespace, data []byte, config *txclient.TxConfig) (*fibre.SubmitResult, error)
+	Submit(
+		ctx context.Context,
+		ns libshare.Namespace,
+		data []byte,
+		config *txclient.TxConfig,
+	) (
+		_ *appfibre.PutResult,
+		_ *appfibre.PaymentPromise,
+		err error,
+	)
 }
 
 type Service struct {
@@ -187,10 +197,14 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 	return blobCh, nil
 }
 
-// Submit sends PFB transaction and reports the height at which it was included.
+// Submit sends PFB/PFF transaction and reports the height at which it was included.
 // Allows sending multiple Blobs atomically synchronously.
 // Uses default wallet registered on the Node.
 // Handles gas estimation and fee calculation.
+//
+// If all blobs are fibre blobs (share version 2), they are submitted via the fibre network.
+// If all blobs are regular blobs, they are submitted via the standard PFB path.
+// Mixing fibre and regular blobs in a single submit is not allowed.
 func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (_ uint64, err error) {
 	ctx, span := tracer.Start(ctx, "blob/submit")
 	defer func() {
@@ -201,6 +215,21 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 			)
 		}
 	}()
+
+	if len(blobs) == 0 {
+		return 0, errors.New("no blobs provided")
+	}
+
+	allFibre := slices.IndexFunc(blobs, func(b *Blob) bool { return !b.IsFibreBlob() }) == -1
+	anyFibre := slices.IndexFunc(blobs, func(b *Blob) bool { return b.IsFibreBlob() }) != -1
+
+	if anyFibre && !allFibre {
+		return 0, ErrMixedBlobTypes
+	}
+
+	if allFibre {
+		return s.submitFibreBlobs(ctx, blobs, txConfig)
+	}
 
 	libBlobs := make([]*libshare.Blob, len(blobs))
 	for i := range blobs {
@@ -213,39 +242,20 @@ func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOpt
 	return uint64(resp.Height), nil
 }
 
-// SubmitFibreBlob submits a blob via the Fibre network.
-// It performs the full Fibre flow: upload to FSPs, aggregate validator signatures,
-// and submit MsgPayForFibre on-chain.
-func (s *Service) SubmitFibreBlob(
-	ctx context.Context,
-	ns libshare.Namespace,
-	data []byte,
-	txConfig *SubmitOptions,
-) (_ *fibre.SubmitResult, err error) {
-	ctx, span := tracer.Start(ctx, "blob/submit-fibre")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-		if err != nil {
-			log.Errorw("submitting fibre blob failed", "err", err,
-				"namespace", ns.String(),
-			)
-		}
-	}()
-
+func (s *Service) submitFibreBlobs(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
 	if s.fibreSubmitter == nil {
-		err = fmt.Errorf("fibre submitter is not configured: node is not connected to a core endpoint")
-		return nil, err
+		return 0, fmt.Errorf("fibre submitter is not available")
 	}
 
-	log.Infow("submitting fibre blob", "namespace", ns.String(), "data-size", len(data))
-	result, err := s.fibreSubmitter.Submit(ctx, ns, data, txConfig)
-	if err != nil {
-		err = fmt.Errorf("fibre submit: %w", err)
-		return nil, err
+	var height uint64
+	for _, blob := range blobs {
+		res, _, err := s.fibreSubmitter.Submit(ctx, blob.Namespace(), blob.Data(), txConfig)
+		if err != nil {
+			return 0, err
+		}
+		height = res.Height
 	}
-
-	log.Debugw("fibre blob submitted", "namespace", ns.String(), "height", result.Height, "tx-hash", result.TxHash)
-	return result, nil
+	return height, nil
 }
 
 // Get retrieves a blob in a given namespace at the given height by commitment.

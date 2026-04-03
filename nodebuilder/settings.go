@@ -107,13 +107,13 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		}),
 		fx.Invoke(func(params struct {
 			fx.In
-			FibreClient *fibre.Client `optional:"true"`
+			FibreService *fibre.Service `optional:"true"`
 		},
 		) error {
-			if params.FibreClient == nil {
+			if params.FibreService == nil {
 				return nil
 			}
-			return params.FibreClient.WithMetrics()
+			return params.FibreService.WithMetrics()
 		}),
 		fx.Invoke(func(serv *blob.Service) error {
 			err := serv.WithMetrics()

@@ -12,12 +12,14 @@ import (
 	"time"
 
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cristalhq/jwt/v5"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
@@ -390,6 +392,9 @@ func bridgeNode(t *testing.T, ctx context.Context, cctx testnode.Context) (*node
 		BackendName: keyring.BackendTest,
 	}
 	kr, err := KeyringWithNewKey(keysCfg, tempDir)
+	require.NoError(t, err)
+	// add the fibre key required by the fibre module
+	_, _, err = kr.NewMnemonic(appfibre.DefaultKeyName, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 
 	bn, err := nodebuilder.New(node.Bridge, p2p.Private, store,

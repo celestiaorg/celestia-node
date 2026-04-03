@@ -6,7 +6,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/fibre"
 )
 
 var _ Module = (*API)(nil)
@@ -19,12 +18,6 @@ type Module interface {
 	// Allows sending multiple Blobs atomically synchronously.
 	// Uses default wallet registered on the Node.
 	Submit(_ context.Context, _ []*blob.Blob, _ *blob.SubmitOptions) (height uint64, _ error)
-	// SubmitFibreBlob submits a blob via the Fibre network.
-	// It performs the full Fibre flow: uploads blob data to FSPs, aggregates validator
-	// availability signatures, and submits MsgPayForFibre on-chain.
-	// Returns the submission result including the on-chain height and transaction hash.
-	// Requires the node to be connected to a core endpoint with Fibre support.
-	SubmitFibreBlob(_ context.Context, _ libshare.Namespace, _ []byte, _ *blob.SubmitOptions) (*fibre.SubmitResult, error)
 	// Get retrieves the blob by commitment under the given namespace and height.
 	Get(_ context.Context, height uint64, _ libshare.Namespace, _ blob.Commitment) (*blob.Blob, error)
 	// GetAll returns all blobs under the given namespaces at the given height.
@@ -60,12 +53,6 @@ type API struct {
 			[]*blob.Blob,
 			*blob.SubmitOptions,
 		) (uint64, error) `perm:"write"`
-		SubmitFibreBlob func(
-			context.Context,
-			libshare.Namespace,
-			[]byte,
-			*blob.SubmitOptions,
-		) (*fibre.SubmitResult, error) `perm:"write"`
 		Get func(
 			context.Context,
 			uint64,
@@ -105,15 +92,6 @@ type API struct {
 
 func (api *API) Submit(ctx context.Context, blobs []*blob.Blob, options *blob.SubmitOptions) (uint64, error) {
 	return api.Internal.Submit(ctx, blobs, options)
-}
-
-func (api *API) SubmitFibreBlob(
-	ctx context.Context,
-	ns libshare.Namespace,
-	data []byte,
-	options *blob.SubmitOptions,
-) (*fibre.SubmitResult, error) {
-	return api.Internal.SubmitFibreBlob(ctx, ns, data, options)
 }
 
 func (api *API) Get(

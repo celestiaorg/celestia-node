@@ -16,11 +16,20 @@ var errFibreNotAvailable = errors.New("fibre module is not available: node is no
 
 type stubbedFibreModule struct{}
 
-func (s *stubbedFibreModule) Upload(context.Context, libshare.Namespace, []byte) (*fibre.UploadResult, error) {
+func (s *stubbedFibreModule) Submit(
+	context.Context,
+	libshare.Namespace,
+	[]byte,
+	*fibre.TxConfig,
+) (*SubmitResult, error) {
 	return nil, errFibreNotAvailable
 }
 
-func (s *stubbedFibreModule) Get(context.Context, libshare.Namespace, []byte) (*fibre.GetBlobResponse, error) {
+func (s *stubbedFibreModule) Upload(context.Context, libshare.Namespace, []byte) (*UploadResult, error) {
+	return nil, errFibreNotAvailable
+}
+
+func (s *stubbedFibreModule) Get(context.Context, libshare.Namespace, []byte) (*GetBlobResult, error) {
 	return nil, errFibreNotAvailable
 }
 

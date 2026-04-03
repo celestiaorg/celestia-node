@@ -30,6 +30,7 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
+	fibre2 "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
@@ -182,10 +183,10 @@ func init() {
 	copy(fibreCommitment[:], commitment)
 	add(fibreCommitment)
 
-	exampleUploadResult := fibre.UploadResult{
+	exampleUploadResult := fibre2.UploadResult{
 		Commitment:          fibreCommitment,
-		ValidatorSignatures: []fibre.ValidatorSignature{[]byte("validator_signature_bytes")},
-		PaymentPromise: &fibre.PaymentPromise{
+		ValidatorSignatures: []fibre2.ValidatorSignature{[]byte("validator_signature_bytes")},
+		PaymentPromise: &fibre2.PaymentPromise{
 			ChainID:           "celestia",
 			Namespace:         namespace,
 			BlobSize:          1024,
@@ -198,16 +199,16 @@ func init() {
 	}
 	add(&exampleUploadResult)
 
-	exampleSubmitResult := fibre.SubmitResult{
+	exampleSubmitResult := fibre2.SubmitResult{
 		Commitment:          fibreCommitment,
-		ValidatorSignatures: []fibre.ValidatorSignature{[]byte("validator_signature_bytes")},
+		ValidatorSignatures: []fibre2.ValidatorSignature{[]byte("validator_signature_bytes")},
 		Height:              42,
 		TxHash:              "A5CF62609391B17E0340A6E07BD15860AFA4BE7F5DAF28F2E22A1C3B0CE85E64",
 		PaymentPromise:      exampleUploadResult.PaymentPromise,
 	}
 	add(&exampleSubmitResult)
 
-	add(&fibre.GetBlobResponse{
+	add(&fibre2.GetBlobResult{
 		Data: []byte("fibre blob data"),
 	})
 
@@ -224,7 +225,7 @@ func init() {
 		AvailableTimestamp: time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC),
 	})
 
-	add(fibre.PaymentPromise{
+	add(fibre2.PaymentPromise{
 		ChainID:           "celestia",
 		Namespace:         namespace,
 		BlobSize:          1024,

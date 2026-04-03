@@ -21,7 +21,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v8/app/errors"
-	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -33,8 +32,7 @@ type TxClient struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	txClient    *user.TxClient
-	fibreClient *appfibre.Client
+	txClient *user.TxClient
 
 	keyring              keyring.Keyring
 	defaultSignerAccount string
@@ -47,8 +45,7 @@ type TxClient struct {
 
 	metrics *metrics
 
-	txClientLk    sync.Mutex
-	fibreClientLk sync.Mutex
+	txClientLk sync.Mutex
 }
 
 func NewTxClient(
@@ -83,9 +80,6 @@ func (c *TxClient) Start(context.Context) error {
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	if err := c.setupTxClient(); err != nil {
 		log.Warnw("failed to setup tx client", "err", err)
-	}
-	if err := c.setupFibreClient(); err != nil {
-		log.Warnw("failed to setup fibre client", "err", err)
 	}
 	return nil
 }
@@ -123,17 +117,8 @@ func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool)
 	return conn, nil
 }
 
-func (c *TxClient) Stop(ctx context.Context) error {
+func (c *TxClient) Stop(context.Context) error {
 	c.cancel()
-
-	c.fibreClientLk.Lock()
-	defer c.fibreClientLk.Unlock()
-	if c.fibreClient != nil {
-		if err := c.fibreClient.Stop(ctx); err != nil {
-			log.Warnw("failed to stop fibre client", "err", err)
-		}
-	}
-
 	if c.estimatorConn != nil {
 		err := c.estimatorConn.Close()
 		if err != nil {
@@ -395,4 +380,17 @@ func (c *TxClient) setupTxClient() error {
 
 	c.txClient = client
 	return nil
+}
+
+// GetTxAuthorAccAddress resolves the signer address from cfg, falling back
+// to the default signer.
+func (c *TxClient) GetTxAuthorAccAddress(cfg *TxConfig) (types.AccAddress, error) {
+	switch {
+	case cfg != nil && cfg.SignerAddress() != "":
+		return ParseAccAddressFromString(cfg.SignerAddress())
+	case cfg != nil && cfg.KeyName() != "" && cfg.KeyName() != c.defaultSignerAccount:
+		return ParseAccountKey(c.keyring, cfg.KeyName())
+	default:
+		return c.defaultSignerAddress, nil
+	}
 }
