@@ -17,10 +17,11 @@ type status string
 
 const (
 	// statuses used by the client
-	statusOpenStreamErr status = "open_stream_err"
-	statusSendReqErr    status = "send_req_err"
-	statusReadStatusErr status = "read_status_err"
-	statusReadRespErr   status = "read_resp_err"
+	statusOpenStreamErr        status = "open_stream_err"
+	statusSendReqErr           status = "send_req_err"
+	statusReadStatusErr        status = "read_status_err"
+	statusReadRespErr          status = "read_resp_err"
+	statusResourceExhaustedErr status = "resource_exhausted_err"
 
 	// statuses used by the server
 	statusReadReqErr        status = "read_req_err"

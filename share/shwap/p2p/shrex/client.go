@@ -84,6 +84,9 @@ func (c *Client) doRequest(
 
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
+		if isResourceExhausted(err) {
+			return 0, statusResourceExhaustedErr, ErrResourceExhausted
+		}
 		return 0, statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
 	defer func() {
@@ -105,6 +108,9 @@ func (c *Client) doRequest(
 	var statusResp shrexpb.Response
 	statusLength, err := serde.Read(stream, &statusResp)
 	if err != nil {
+		if isResourceExhausted(err) {
+			return int64(statusLength), statusResourceExhaustedErr, ErrResourceExhausted
+		}
 		return int64(statusLength),
 			statusReadStatusErr,
 			fmt.Errorf("unexpected error during reading the status from stream: %w", err)
