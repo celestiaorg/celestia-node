@@ -6,7 +6,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
 	headerService "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/state"
@@ -25,28 +24,22 @@ func ConstructModule() fx.Option {
 				return service.Subscribe
 			},
 		),
-		fx.Provide(func(
-			state state.Module,
-			sGetter shwap.Getter,
-			getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
-			subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
-			params struct {
-				fx.In
-				FibreClient *fibre.Service `optional:"true"`
+		fx.Provide(fx.Annotate(
+			func(
+				state state.Module,
+				sGetter shwap.Getter,
+				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
+				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
+			) *blob.Service {
+				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
 			},
-		) *blob.Service {
-			var fibreSubmitter blob.FibreSubmitter
-			if params.FibreClient != nil {
-				fibreSubmitter = params.FibreClient
-			}
-			return blob.NewService(state, fibreSubmitter, sGetter, getByHeightFn, subscribeFn)
-		}),
-		fx.Invoke(func(lc fx.Lifecycle, serv *blob.Service) {
-			lc.Append(fx.Hook{
-				OnStart: serv.Start,
-				OnStop:  serv.Stop,
-			})
-		}),
+			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
+				return serv.Start(ctx)
+			}),
+			fx.OnStop(func(ctx context.Context, serv *blob.Service) error {
+				return serv.Stop(ctx)
+			}),
+		)),
 		fx.Provide(func(serv *blob.Service) Module {
 			return serv
 		}),

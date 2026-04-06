@@ -14,14 +14,12 @@ import (
 	"time"
 
 	tmrand "github.com/cometbft/cometbft/libs/rand"
-	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/golang/mock/gomock"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -36,8 +34,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
-	"github.com/celestiaorg/celestia-node/state"
-	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 func TestBlobService_Get(t *testing.T) {
@@ -904,7 +900,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, nil, shareGetter, fn, fn2), headers
+	return NewService(nil, shareGetter, fn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -948,7 +944,7 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		return nil, fmt.Errorf("not implemented")
 	}
-	return NewService(nil, nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.
@@ -1155,127 +1151,6 @@ func buildEDS(t *testing.T, shares []libshare.Share) (*rsmt2d.ExtendedDataSquare
 	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
 	return eds, roots.Hash()
-}
-
-// mockSubmitter implements the Submitter interface for testing.
-type mockSubmitter struct {
-	height int64
-	err    error
-	called bool
-}
-
-func (m *mockSubmitter) SubmitPayForBlob(
-	context.Context,
-	[]*libshare.Blob,
-	*state.TxConfig,
-) (*types.TxResponse, error) {
-	m.called = true
-	if m.err != nil {
-		return nil, m.err
-	}
-	return &types.TxResponse{Height: m.height}, nil
-}
-
-// mockFibreSubmitter implements the FibreSubmitter interface for testing.
-type mockFibreSubmitter struct {
-	height uint64
-	err    error
-	calls  int
-}
-
-func (m *mockFibreSubmitter) Submit(context.Context, libshare.Namespace, []byte, *txclient.TxConfig,
-) (*appfibre.PutResult, *appfibre.PaymentPromise, error) {
-	m.calls++
-	if m.err != nil {
-		return nil, nil, m.err
-	}
-	return &appfibre.PutResult{Height: m.height}, nil, nil
-}
-
-func newTestFibreBlob(t *testing.T) *Blob {
-	t.Helper()
-	ns := libshare.RandomBlobNamespace()
-	commitment := bytes.Repeat([]byte{0xAA}, libshare.FibreCommitmentSize)
-	signer := bytes.Repeat([]byte{0xBB}, 20)
-	libBlob, err := libshare.NewV2Blob(ns, 0, commitment, signer)
-	require.NoError(t, err)
-	blob, err := convertBlobs(libBlob)
-	require.NoError(t, err)
-	return blob[0]
-}
-
-func TestService_Submit_AllFibreBlobs(t *testing.T) {
-	fibreSub := &mockFibreSubmitter{height: 42}
-	blobSub := &mockSubmitter{height: 100}
-
-	svc := &Service{
-		blobSubmitter:  blobSub,
-		fibreSubmitter: fibreSub,
-	}
-	svc.ctx, svc.cancel = context.WithCancel(context.Background())
-	defer svc.cancel()
-
-	blobs := []*Blob{newTestFibreBlob(t), newTestFibreBlob(t)}
-	height, err := svc.Submit(context.Background(), blobs, nil)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(42), height)
-	assert.Equal(t, 2, fibreSub.calls)
-	assert.False(t, blobSub.called)
-}
-
-func TestService_Submit_AllRegularBlobs(t *testing.T) {
-	fibreSub := &mockFibreSubmitter{height: 42}
-	blobSub := &mockSubmitter{height: 100}
-
-	svc := &Service{
-		blobSubmitter:  blobSub,
-		fibreSubmitter: fibreSub,
-	}
-	svc.ctx, svc.cancel = context.WithCancel(context.Background())
-	defer svc.cancel()
-
-	libBlobs, err := libshare.GenerateV0Blobs([]int{10, 10}, false)
-	require.NoError(t, err)
-	blobs, err := convertBlobs(libBlobs...)
-	require.NoError(t, err)
-
-	height, err := svc.Submit(context.Background(), blobs, nil)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(100), height)
-	assert.True(t, blobSub.called)
-	assert.Equal(t, 0, fibreSub.calls)
-}
-
-func TestService_Submit_MixedBlobsError(t *testing.T) {
-	svc := &Service{
-		blobSubmitter:  &mockSubmitter{height: 100},
-		fibreSubmitter: &mockFibreSubmitter{height: 42},
-	}
-	svc.ctx, svc.cancel = context.WithCancel(context.Background())
-	defer svc.cancel()
-
-	libBlobs, err := libshare.GenerateV0Blobs([]int{10}, false)
-	require.NoError(t, err)
-	regularBlobs, err := convertBlobs(libBlobs...)
-	require.NoError(t, err)
-
-	mixed := []*Blob{regularBlobs[0], newTestFibreBlob(t)}
-	_, err = svc.Submit(context.Background(), mixed, nil)
-	require.ErrorIs(t, err, ErrMixedBlobTypes)
-}
-
-func TestService_Submit_FibreWithoutSubmitter(t *testing.T) {
-	svc := &Service{
-		blobSubmitter:  &mockSubmitter{height: 100},
-		fibreSubmitter: nil,
-	}
-	svc.ctx, svc.cancel = context.WithCancel(context.Background())
-	defer svc.cancel()
-
-	blobs := []*Blob{newTestFibreBlob(t)}
-	_, err := svc.Submit(context.Background(), blobs, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "fibre submitter is not available")
 }
 
 func rawBlobSize(totalSize int) int {
