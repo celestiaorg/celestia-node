@@ -23,9 +23,9 @@ import (
 var flagFileInput = "input-file"
 
 func init() {
-	Cmd.AddCommand(getCmd, getAllCmd, submitCmd, submitFibreCmd, getProofCmd)
+	Cmd.AddCommand(getCmd, getAllCmd, submitCmd, getProofCmd)
 
-	state.ApplyFlags(submitCmd, submitFibreCmd)
+	state.ApplyFlags(submitCmd)
 
 	submitCmd.PersistentFlags().String(flagFileInput, "", "Specifies the file input")
 }
@@ -219,42 +219,6 @@ var submitCmd = &cobra.Command{
 			Commitments: commitments,
 		}
 		return cmdnode.PrintOutput(response, err, nil)
-	},
-}
-
-var submitFibreCmd = &cobra.Command{
-	Use:  "submit-fibre [namespace] [blobData]",
-	Args: cobra.ExactArgs(2),
-	Short: "Submits a blob to the Fibre network.\n" +
-		"Note:\n* Namespace input parameter is expected to be in its hex representation.",
-	PreRunE: func(_ *cobra.Command, args []string) error {
-		if !strings.HasPrefix(args[0], "0x") {
-			args[0] = "0x" + args[0]
-		}
-		if !strings.HasPrefix(args[1], "0x") {
-			args[1] = "0x" + args[1]
-		}
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		namespace, err := cmdnode.ParseV0Namespace(args[0])
-		if err != nil {
-			return fmt.Errorf("error parsing a namespace: %w", err)
-		}
-
-		blobData, err := cmdnode.DecodeToBytes(args[1])
-		if err != nil {
-			blobData = []byte(args[1])
-		}
-
-		result, err := client.Fibre.Submit(cmd.Context(), namespace, blobData, state.GetTxConfig())
-		return cmdnode.PrintOutput(result, err, nil)
 	},
 }
 
