@@ -21,6 +21,18 @@ import (
 
 var log = logging.Logger("rpc")
 
+// TODO(@Wondertan): Expose in config if requested
+const (
+	// maxRequestSize is 5 MiB, significantly lower than go-jsonrpc's 100 MiB default.
+	maxRequestSize = 5 << 20
+	// maxConcurrentConns caps simultaneous connections to bound goroutine/FD usage.
+	maxConcurrentConns = 500
+	// maxRequestsPerSecond is the per-IP sustained rate.
+	maxRequestsPerSecond = 100
+	// maxRequestBurst is the per-IP burst allowance.
+	maxRequestBurst = 200
+)
+
 type CORSConfig struct {
 	Enabled        bool
 	AllowedOrigins []string
@@ -35,6 +47,7 @@ type Server struct {
 	authDisabled bool
 
 	started    atomic.Bool
+	cancelFunc context.CancelFunc
 	corsConfig CORSConfig
 
 	tlsEnabled  bool
@@ -59,12 +72,17 @@ func NewServer(
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
-	rpc := jsonrpc.NewServer()
+	rpc := jsonrpc.NewServer(
+		jsonrpc.WithMaxRequestSize(maxRequestSize),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
 		rpc:          rpc,
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
+		cancelFunc:   cancel,
 		corsConfig:   corsConfig,
 		tlsEnabled:   tlsConfig.Enabled,
 		tlsCertPath:  tlsConfig.CertPath,
@@ -73,26 +91,36 @@ func NewServer(
 
 	srv.srv = &http.Server{
 		Addr:    net.JoinHostPort(address, port),
-		Handler: srv.newHandlerStack(rpc),
+		Handler: srv.newHandlerStack(ctx, rpc),
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MiB
 	}
 
 	return srv
 }
 
-// newHandlerStack returns wrapped rpc related handlers
-func (s *Server) newHandlerStack(core http.Handler) http.Handler {
-	if s.authDisabled {
+// newHandlerStack returns wrapped rpc related handlers.
+// Middleware order (outermost first): rate-limit → conn-limit → CORS/auth → RPC handler.
+func (s *Server) newHandlerStack(ctx context.Context, core http.Handler) http.Handler {
+	var h http.Handler
+	switch {
+	case s.authDisabled:
 		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
-		return s.corsAny(core)
+		h = s.corsAny(core)
+	case s.corsConfig.Enabled:
+		h = s.corsWithConfig(s.authHandler(core))
+	default:
+		h = s.authHandler(core)
 	}
 
-	if s.corsConfig.Enabled {
-		return s.corsWithConfig(s.authHandler(core))
-	}
-
-	return s.authHandler(core)
+	// Apply connection and rate limiting as outermost layers.
+	h = connLimit(maxConcurrentConns, h)
+	h = rateLimit(ctx, maxRequestsPerSecond, maxRequestBurst, h)
+	return h
 }
 
 // verifyAuth is the RPC server's auth middleware. This middleware is only
@@ -183,6 +211,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		log.Warn("cannot stop server: already stopped")
 		return nil
 	}
+	s.cancelFunc()
 	err := s.srv.Shutdown(ctx)
 	if err != nil {
 		return err
