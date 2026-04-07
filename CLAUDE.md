@@ -137,3 +137,7 @@ Any changes to `*.proto` files require running `make pb-gen` and committing the 
 ### Config Changes
 
 Changes to `nodebuilder/**/config.go` struct fields or `.proto` files are potentially breaking. You can run `make detect-breaking` locally to check.
+
+### Security PRs
+
+- For PRs that resolve Hacken bug bounty reports, do not include details about the bug in the PR description. Instead, link to a Linear issue that contains more details on the bug and the link to the Hacken bug bounty report.
