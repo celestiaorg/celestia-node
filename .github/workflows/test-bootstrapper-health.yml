@@ -17,7 +17,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run bootstrapper health check
-        run: go test -tags bootstrapper_health -v -timeout 5m ./nodebuilder/p2p/
+        run: go test -tags bootstrapper_health -run TestBootstrapperHealth -v -timeout 5m ./nodebuilder/p2p/
 
   notify-slack-on-failure:
     name: Notify Slack on Failure
