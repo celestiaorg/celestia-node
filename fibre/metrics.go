@@ -24,7 +24,6 @@ const (
 type blobMetrics struct {
 	uploadDuration metric.Float64Histogram
 	submitDuration metric.Float64Histogram
-	getDuration    metric.Float64Histogram
 }
 
 func (s *Service) WithMetrics() error {
@@ -54,19 +53,9 @@ func (s *Service) withBlobMetrics() error {
 		return err
 	}
 
-	getDuration, err := meter.Float64Histogram(
-		"fibre_get_duration_seconds",
-		metric.WithDescription("Duration of fibre blob retrieval operations"),
-		metric.WithUnit("s"),
-	)
-	if err != nil {
-		return err
-	}
-
 	s.metrics = &blobMetrics{
 		uploadDuration: uploadDuration,
 		submitDuration: submitDuration,
-		getDuration:    getDuration,
 	}
 	return nil
 }
@@ -83,13 +72,6 @@ func (m *blobMetrics) observeSubmit(ctx context.Context, dur time.Duration, blob
 		return
 	}
 	m.submitDuration.Record(ctx, dur.Seconds(), blobAttrs(blobSize, err))
-}
-
-func (m *blobMetrics) observeGet(ctx context.Context, dur time.Duration, err error) {
-	if m == nil {
-		return
-	}
-	m.getDuration.Record(ctx, dur.Seconds(), errorAttrs(err))
 }
 
 func blobAttrs(blobSize int, err error) metric.MeasurementOption {

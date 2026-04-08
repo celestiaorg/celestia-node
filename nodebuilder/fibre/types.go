@@ -5,8 +5,6 @@ import (
 
 	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	libshare "github.com/celestiaorg/go-square/v4/share"
-
-	"github.com/celestiaorg/celestia-node/fibre"
 )
 
 // ValidatorSignature is a signature from a validator.
@@ -17,20 +15,18 @@ type ValidatorSignature []byte
 // that can be used for a later on-chain MsgPayForFibre submission.
 type UploadResult struct {
 	// Commitment is the Fibre commitment for the uploaded blob.
-	Commitment fibre.Commitment `json:"commitment"`
+	Commitment appfibre.Commitment `json:"commitment"`
 	// ValidatorSignatures are attestations from validators confirming blob availability.
 	ValidatorSignatures []ValidatorSignature `json:"validator_signatures"`
 	// PaymentPromise is the signed promise used for on-chain fee settlement.
 	PaymentPromise *PaymentPromise `json:"payment_promise,omitempty"`
-	// RetentionUntil is the time until which FSPs will retain the blob data.
-	RetentionUntil *time.Time `json:"retention_until,omitempty"`
 }
 
 // SubmitResult is the result of a full Fibre blob submission including on-chain MsgPayForFibre.
 // It extends UploadResult with chain inclusion details (height and transaction hash).
 type SubmitResult struct {
 	// Commitment is the Fibre commitment for the submitted blob.
-	Commitment fibre.Commitment `json:"commitment"`
+	Commitment appfibre.Commitment `json:"commitment"`
 	// ValidatorSignatures are attestations from validators confirming blob availability.
 	ValidatorSignatures []ValidatorSignature `json:"validator_signatures"`
 	// Height is the block height at which MsgPayForFibre was included on-chain.
@@ -39,8 +35,6 @@ type SubmitResult struct {
 	TxHash string `json:"tx_hash"`
 	// PaymentPromise is the signed promise used for on-chain fee settlement.
 	PaymentPromise *PaymentPromise `json:"payment_promise,omitempty"`
-	// RetentionUntil is the time until which FSPs will retain the blob data.
-	RetentionUntil *time.Time `json:"retention_until,omitempty"`
 }
 
 // PaymentPromise represents the signed payment promise between a user and the Fibre network.
@@ -53,7 +47,7 @@ type PaymentPromise struct {
 	// BlobSize is the size of the uploaded blob data in bytes.
 	BlobSize uint32 `json:"blob_size"`
 	// Commitment is the Fibre commitment for the blob.
-	Commitment fibre.Commitment `json:"commitment"`
+	Commitment appfibre.Commitment `json:"commitment"`
 	// RowVersion is the blob/share version used for encoding.
 	RowVersion uint32 `json:"row_version"`
 	// ValsetHeight is the validator set height at the time the promise was created.
@@ -78,7 +72,7 @@ func toNodePaymentPromise(result *appfibre.PaymentPromise) *PaymentPromise {
 		ChainID:           result.ChainID,
 		Namespace:         result.Namespace,
 		BlobSize:          result.UploadSize,
-		Commitment:        fibre.Commitment(result.Commitment),
+		Commitment:        result.Commitment,
 		RowVersion:        result.BlobVersion,
 		ValsetHeight:      result.Height,
 		CreationTimestamp: result.CreationTimestamp,

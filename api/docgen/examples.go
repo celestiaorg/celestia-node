@@ -22,7 +22,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	libhead "github.com/celestiaorg/go-header"
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -179,7 +179,7 @@ func init() {
 	add(bytes.HexBytes(hash))
 
 	// Fibre types
-	fibreCommitment := fibre.Commitment{}
+	fibreCommitment := appfibre.Commitment{}
 	copy(fibreCommitment[:], commitment)
 	add(fibreCommitment)
 

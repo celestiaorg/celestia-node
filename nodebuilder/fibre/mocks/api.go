@@ -15,6 +15,7 @@ import (
 
 	fibre "github.com/celestiaorg/celestia-node/fibre"
 	fibre0 "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
+	txclient "github.com/celestiaorg/celestia-node/state/txclient"
 	share "github.com/celestiaorg/go-square/v4/share"
 	types "github.com/cosmos/cosmos-sdk/types"
 	gomock "go.uber.org/mock/gomock"
@@ -45,7 +46,7 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 }
 
 // Deposit mocks base method.
-func (m *MockModule) Deposit(ctx context.Context, amount types.Coin, cfg *fibre.TxConfig) error {
+func (m *MockModule) Deposit(ctx context.Context, amount types.Coin, cfg *txclient.TxConfig) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Deposit", ctx, amount, cfg)
 	ret0, _ := ret[0].(error)
@@ -104,7 +105,7 @@ func (mr *MockModuleMockRecorder) QueryEscrowAccount(ctx, signer any) *gomock.Ca
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 share.Namespace, arg2 []byte, arg3 *fibre.TxConfig) (*fibre0.SubmitResult, error) {
+func (m *MockModule) Submit(arg0 context.Context, arg1 share.Namespace, arg2 []byte, arg3 *txclient.TxConfig) (*fibre0.SubmitResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Submit", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*fibre0.SubmitResult)
@@ -119,22 +120,22 @@ func (mr *MockModuleMockRecorder) Submit(arg0, arg1, arg2, arg3 any) *gomock.Cal
 }
 
 // Upload mocks base method.
-func (m *MockModule) Upload(ctx context.Context, ns share.Namespace, data []byte) (*fibre0.UploadResult, error) {
+func (m *MockModule) Upload(arg0 context.Context, arg1 share.Namespace, arg2 []byte, arg3 *txclient.TxConfig) (*fibre0.UploadResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Upload", ctx, ns, data)
+	ret := m.ctrl.Call(m, "Upload", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*fibre0.UploadResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Upload indicates an expected call of Upload.
-func (mr *MockModuleMockRecorder) Upload(ctx, ns, data any) *gomock.Call {
+func (mr *MockModuleMockRecorder) Upload(arg0, arg1, arg2, arg3 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upload", reflect.TypeOf((*MockModule)(nil).Upload), ctx, ns, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upload", reflect.TypeOf((*MockModule)(nil).Upload), arg0, arg1, arg2, arg3)
 }
 
 // Withdraw mocks base method.
-func (m *MockModule) Withdraw(ctx context.Context, amount types.Coin, cfg *fibre.TxConfig) error {
+func (m *MockModule) Withdraw(ctx context.Context, amount types.Coin, cfg *txclient.TxConfig) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Withdraw", ctx, amount, cfg)
 	ret0, _ := ret[0].(error)

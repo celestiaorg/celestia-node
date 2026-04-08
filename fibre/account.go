@@ -91,7 +91,7 @@ func (a *AccountClient) QueryEscrowAccount(ctx context.Context, signer string) (
 	}
 
 	if resp == nil {
-		return nil, fmt.Errorf("querying escrow account %w", err)
+		return nil, fmt.Errorf("querying escrow account: %w", err)
 	}
 	if !resp.Found {
 		return nil, fmt.Errorf("escrow account not found for signer:%s", signer)

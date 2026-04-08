@@ -20,12 +20,17 @@ func (s *stubbedFibreModule) Submit(
 	context.Context,
 	libshare.Namespace,
 	[]byte,
-	*fibre.TxConfig,
+	*txclient.TxConfig,
 ) (*SubmitResult, error) {
 	return nil, errFibreNotAvailable
 }
 
-func (s *stubbedFibreModule) Upload(context.Context, libshare.Namespace, []byte) (*UploadResult, error) {
+func (s *stubbedFibreModule) Upload(
+	context.Context,
+	libshare.Namespace,
+	[]byte,
+	*txclient.TxConfig,
+) (*UploadResult, error) {
 	return nil, errFibreNotAvailable
 }
 

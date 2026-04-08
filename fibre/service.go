@@ -109,6 +109,7 @@ func (s *Service) Upload(
 	ctx context.Context,
 	ns libshare.Namespace,
 	data []byte,
+	_ *txclient.TxConfig,
 ) (_ *appfibre.SignedPaymentPromise, err error) {
 	start := time.Now()
 	defer func() {
@@ -126,15 +127,11 @@ func (s *Service) Upload(
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
 		return nil, err
 	}
+	// TODO: add async fibre submit
 	return promise, nil
 }
 
-func (s *Service) Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (_ *appfibre.Blob, err error) {
-	start := time.Now()
-	defer func() {
-		s.metrics.observeGet(ctx, time.Since(start), err)
-	}()
-
+func (s *Service) Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*appfibre.Blob, error) {
 	log.Debugw("getting blob", "namespace", ns.ID(), "commitment", hex.EncodeToString(commitment))
 	if len(commitment) != appfibre.CommitmentSize {
 		return nil, fmt.Errorf("commitment size does not match. want:%d got:%d", appfibre.CommitmentSize, len(commitment))
