@@ -20,6 +20,7 @@ import (
 var log = logging.Logger("module/pruner")
 
 func ConstructModule(tp node.Type) fx.Option {
+	cfg := DefaultConfig()
 	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
@@ -38,7 +39,10 @@ func ConstructModule(tp node.Type) fx.Option {
 	baseComponents := fx.Options(
 		// supply the default config, which can only be overridden by
 		// passing the `--archival` flag
-		fx.Supply(DefaultConfig()),
+		fx.Supply(cfg),
+		fx.Provide(func(cfg *Config) node.ArchivalMode {
+			return node.ArchivalMode(!cfg.EnableService)
+		}),
 		// TODO @renaynay: move this to share module construction
 		advertiseArchival(),
 		prunerService,
@@ -53,19 +57,6 @@ func ConstructModule(tp node.Type) fx.Option {
 			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 			//  note this provide exists in pruner module to avoid cyclical imports
 			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
-		)
-	case node.Full:
-		return fx.Module("prune",
-			baseComponents,
-			fx.Supply(modshare.Window(availability.StorageWindow)),
-			fx.Provide(func(cfg *Config) []fullavail.Option {
-				if cfg.EnableService {
-					return make([]fullavail.Option, 0)
-				}
-				return []fullavail.Option{fullavail.WithArchivalMode()}
-			}),
-			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
-			fx.Invoke(convertToPruned),
 		)
 	case node.Bridge:
 		return fx.Module("prune",
@@ -87,7 +78,7 @@ func ConstructModule(tp node.Type) fx.Option {
 
 func advertiseArchival() fx.Option {
 	return fx.Provide(func(tp node.Type, pruneCfg *Config) discovery.Option {
-		if (tp == node.Full || tp == node.Bridge) && !pruneCfg.EnableService {
+		if tp == node.Bridge && !pruneCfg.EnableService {
 			return discovery.WithAdvertise()
 		}
 		var opt discovery.Option

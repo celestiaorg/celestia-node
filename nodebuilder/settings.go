@@ -9,6 +9,8 @@ import (
 	"github.com/grafana/pyroscope-go"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/prometheus/client_golang/prometheus"
+	otelprom "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
@@ -23,7 +25,9 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 
+	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -31,7 +35,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
-	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 const defaultMetricsCollectInterval = 10 * time.Second
@@ -49,13 +53,16 @@ func WithBootstrappers(peers p2p.Bootstrappers) fx.Option {
 }
 
 // WithPyroscope enables pyroscope profiling for the node.
-func WithPyroscope(endpoint string, nodeType node.Type) fx.Option {
+// basicAuthUser and basicAuthPassword are optional; both must be non-empty to enable basic auth.
+func WithPyroscope(endpoint, basicAuthUser, basicAuthPassword string, nodeType node.Type) fx.Option {
 	return fx.Options(
 		fx.Invoke(func(peerID peer.ID) error {
 			_, err := pyroscope.Start(pyroscope.Config{
-				UploadRate:      15 * time.Second,
-				ApplicationName: "celestia.da-node",
-				ServerAddress:   endpoint,
+				UploadRate:        15 * time.Second,
+				ApplicationName:   "celestia.da-node",
+				ServerAddress:     endpoint,
+				BasicAuthUser:     basicAuthUser,
+				BasicAuthPassword: basicAuthPassword,
 				Tags: map[string]string{
 					"type":   nodeType.String(),
 					"peerId": peerID.String(),
@@ -86,11 +93,26 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
-		fx.Invoke(func(lc fx.Lifecycle, ca *state.CoreAccessor) {
-			if ca == nil {
-				return
+		// TxClient is optional because it is only provided when a core endpoint
+		// is configured (i.e. the node can submit transactions). Light nodes
+		// without a core connection won't have a TxClient, so we use
+		// optional:"true" to avoid fx injection failures in that case.
+		fx.Invoke(func(params struct {
+			fx.In
+			Client *txclient.TxClient `optional:"true"`
+		},
+		) error {
+			if params.Client == nil {
+				return nil
 			}
-			state.WithMetrics(lc, ca)
+			return params.Client.WithMetrics()
+		}),
+		fx.Invoke(func(serv *blob.Service) error {
+			err := serv.WithMetrics()
+			if err != nil {
+				return fmt.Errorf("failed to initialize blob metrics: %w", err)
+			}
+			return nil
 		}),
 		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
@@ -107,23 +129,16 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 
 	var opts fx.Option
 	switch nodeType {
-	case node.Full:
-		opts = fx.Options(
-			baseComponents,
-			fx.Invoke(share.WithStoreMetrics),
-			fx.Invoke(share.WithShrexServerMetrics),
-			samplingMetrics,
-		)
-	case node.Light:
-		opts = fx.Options(
-			baseComponents,
-			samplingMetrics,
-		)
 	case node.Bridge:
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
 			fx.Invoke(share.WithShrexServerMetrics),
+		)
+	case node.Light:
+		opts = fx.Options(
+			baseComponents,
+			samplingMetrics,
 		)
 	default:
 		panic("invalid node type")
@@ -199,26 +214,23 @@ func initializeMetrics(
 	network p2p.Network,
 	opts []otlpmetrichttp.Option,
 ) error {
-	exp, err := otlpmetrichttp.New(ctx, opts...)
+	// Create a prometheus bridge that exports all prometheus-collected metrics (libp2p, bitswap)
+	// through the OTel pipeline, eliminating the need for a standalone Prometheus HTTP server.
+	promProducer := otelprom.NewMetricProducer(otelprom.WithGatherer(prometheus.DefaultGatherer))
+
+	cfg := utils.MetricProviderConfig{
+		ServiceNamespace:  network.String(),
+		ServiceName:       nodeType.String(),
+		ServiceInstanceID: peerID.String(),
+		Interval:          defaultMetricsCollectInterval,
+		OTLPOptions:       opts,
+		Producers:         []sdk.Producer{promProducer},
+	}
+
+	provider, err := utils.NewMetricProvider(ctx, cfg)
 	if err != nil {
 		return err
 	}
-
-	provider := sdk.NewMeterProvider(
-		sdk.WithReader(
-			sdk.NewPeriodicReader(exp,
-				sdk.WithTimeout(defaultMetricsCollectInterval),
-				sdk.WithInterval(defaultMetricsCollectInterval))),
-		sdk.WithResource(
-			resource.NewWithAttributes(
-				semconv.SchemaURL,
-				// ServiceNamespaceKey and ServiceNameKey will be concatenated into single attribute with key:
-				// "job" and value: "%service.namespace%/%service.name%"
-				semconv.ServiceNamespaceKey.String(network.String()),
-				semconv.ServiceNameKey.String(nodeType.String()),
-				// ServiceInstanceIDKey will be exported with key: "instance"
-				semconv.ServiceInstanceIDKey.String(peerID.String()),
-			)))
 
 	err = runtime.Start(
 		runtime.WithMinimumReadMemStatsInterval(defaultMetricsCollectInterval),

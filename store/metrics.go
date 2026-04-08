@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/store/cache"
 )
 
@@ -32,7 +33,8 @@ type metrics struct {
 
 func (s *Store) WithMetrics() error {
 	put, err := meter.Float64Histogram("eds_store_put_time_histogram",
-		metric.WithDescription("eds store put time histogram(s)"))
+		metric.WithDescription("eds store put time histogram(s)"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
@@ -44,25 +46,29 @@ func (s *Store) WithMetrics() error {
 	}
 
 	get, err := meter.Float64Histogram("eds_store_get_time_histogram",
-		metric.WithDescription("eds store get time histogram(s)"))
+		metric.WithDescription("eds store get time histogram(s)"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
 
 	has, err := meter.Float64Histogram("eds_store_has_time_histogram",
-		metric.WithDescription("eds store has time histogram(s)"))
+		metric.WithDescription("eds store has time histogram(s)"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
 
 	removeQ4, err := meter.Float64Histogram("eds_store_remove_q4_time_histogram",
-		metric.WithDescription("eds store remove q4 data time histogram(s)"))
+		metric.WithDescription("eds store remove q4 data time histogram(s)"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
 
 	removeODSQ4, err := meter.Float64Histogram("eds_store_remove_odsq4_time_histogram",
-		metric.WithDescription("eds store remove odsq4 file data time histogram(s)"))
+		metric.WithDescription("eds store remove odsq4 file data time histogram(s)"),
+		metric.WithUnit("s"))
 	if err != nil {
 		return err
 	}
@@ -101,9 +107,7 @@ func (m *metrics) observePut(
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.put.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed),
@@ -117,9 +121,7 @@ func (m *metrics) observePutExist(ctx context.Context) {
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.putExists.Add(ctx, 1)
 }
@@ -128,9 +130,7 @@ func (m *metrics) observeGet(ctx context.Context, dur time.Duration, failed bool
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.get.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -140,9 +140,7 @@ func (m *metrics) observeHas(ctx context.Context, dur time.Duration, failed bool
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.has.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -152,9 +150,7 @@ func (m *metrics) observeRemoveODSQ4(ctx context.Context, dur time.Duration, fai
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.removeODSQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
@@ -164,9 +160,7 @@ func (m *metrics) observeRemoveQ4(ctx context.Context, dur time.Duration, failed
 	if m == nil {
 		return
 	}
-	if ctx.Err() != nil {
-		ctx = context.Background()
-	}
+	ctx = utils.ResetContextOnError(ctx)
 
 	m.removeQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))

@@ -66,34 +66,3 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 	}
 	return cmd
 }
-
-func NewFull(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command {
-	flags := []*pflag.FlagSet{
-		NodeFlags(),
-		p2p.Flags(),
-		header.Flags(),
-		MiscFlags(),
-		core.Flags(),
-		rpc.Flags(),
-		state.Flags(),
-		pruner.Flags(),
-	}
-	cmd := &cobra.Command{
-		Use:   "full [subcommand]",
-		Args:  cobra.NoArgs,
-		Short: "Manage your Full node",
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			log.Error(
-				"DEPRECATION NOTICE: FULL NODE MODE WILL BE DEPRECATED SOON." +
-					" NODE OPERATORS SHOULD CONSIDER RUNNING A BRIDGE NODE INSTEAD IF THEY REQUIRE FULL DATA STORAGE FUNCTIONALITY.",
-			)
-			ctx := WithNodeType(cmd.Context(), node.Full)
-			cmd.SetContext(ctx)
-			return nil
-		},
-	}
-	for _, option := range options {
-		option(cmd, flags)
-	}
-	return cmd
-}

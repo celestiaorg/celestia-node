@@ -1,4 +1,4 @@
-package state
+package txclient
 
 import (
 	"context"
@@ -14,9 +14,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v5/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+)
+
+const (
+	chainID = "private"
 )
 
 func TestEstimatorService(t *testing.T) {
@@ -25,12 +29,15 @@ func TestEstimatorService(t *testing.T) {
 
 	mes := setupEstimatorService(t)
 
-	ca, _ := buildAccessor(t, WithEstimatorService(mes.addr))
-	// start the accessor
-	err := ca.Start(ctx)
+	accounts := []string{
+		"jimmy", "carl", "sheen", "cindy",
+	}
+
+	client := BuildClient(t, chainID, accounts, WithEstimatorService(mes.addr))
+	err := client.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_ = ca.Stop(ctx)
+		_ = client.Stop(ctx)
 	})
 
 	// should estimate gas price using estimator service
@@ -38,7 +45,7 @@ func TestEstimatorService(t *testing.T) {
 		mes.gasPriceToReturn = 0.02
 
 		txConfig := NewTxConfig()
-		gasPrice, err := ca.estimateGasPrice(ctx, txConfig)
+		gasPrice, err := client.estimateGasPrice(ctx, txConfig)
 		require.NoError(t, err)
 		assert.Equal(t, mes.gasPriceToReturn, gasPrice)
 	})
@@ -47,7 +54,7 @@ func TestEstimatorService(t *testing.T) {
 		mes.gasPriceToReturn = 0.02
 
 		txConfig := NewTxConfig(WithGasPrice(0.005))
-		gasPrice, err := ca.estimateGasPrice(ctx, txConfig)
+		gasPrice, err := client.estimateGasPrice(ctx, txConfig)
 		require.NoError(t, err)
 		assert.Equal(t, 0.005, gasPrice)
 	})
@@ -56,7 +63,7 @@ func TestEstimatorService(t *testing.T) {
 		mes.gasPriceToReturn = 0.02
 
 		txConfig := NewTxConfig(WithMaxGasPrice(0.0001))
-		_, err := ca.estimateGasPrice(ctx, txConfig)
+		_, err := client.estimateGasPrice(ctx, txConfig)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrGasPriceExceedsLimit)
 	})
@@ -65,7 +72,7 @@ func TestEstimatorService(t *testing.T) {
 		mes.gasPriceToReturn = 0.02
 
 		txConfig := NewTxConfig(WithMaxGasPrice(0.1))
-		gasPrice, err := ca.estimateGasPrice(ctx, txConfig)
+		gasPrice, err := client.estimateGasPrice(ctx, txConfig)
 		require.NoError(t, err)
 		assert.Equal(t, mes.gasPriceToReturn, gasPrice)
 	})
@@ -75,7 +82,7 @@ func TestEstimatorService(t *testing.T) {
 
 		// dummy tx, doesn't matter what's in it
 		coins := sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, math.NewInt(100)))
-		msg := banktypes.NewMsgSend(ca.defaultSignerAddress, ca.defaultSignerAddress, coins)
+		msg := banktypes.NewMsgSend(client.defaultSignerAddress, client.defaultSignerAddress, coins)
 
 		testcases := []struct {
 			name        string
@@ -124,7 +131,7 @@ func TestEstimatorService(t *testing.T) {
 
 		for _, tc := range testcases {
 			t.Run(tc.name, func(t *testing.T) {
-				gasPrice, gasUsage, err := ca.estimateGasPriceAndUsage(ctx, tc.txconf, msg)
+				gasPrice, gasUsage, err := client.estimateGasPriceAndUsage(ctx, tc.txconf, msg)
 				if tc.errExpected {
 					assert.Error(t, err)
 					assert.ErrorIs(t, err, tc.expectedErr)
@@ -173,8 +180,7 @@ func (m *mockEstimatorServer) stop() {
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	t.Helper()
 
-	freePort, err := testnode.GetFreePort()
-	require.NoError(t, err)
+	freePort := testnode.MustGetFreePort()
 	addr := fmt.Sprintf(":%d", freePort)
 	net, err := net.Listen("tcp", addr)
 	require.NoError(t, err)

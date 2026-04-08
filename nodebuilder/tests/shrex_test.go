@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -122,9 +122,9 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	}
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
-		cfg := sw.DefaultTestConfig(node.Full)
+		cfg := sw.DefaultTestConfig(node.Bridge)
 		setTimeInterval(cfg, testTimeout)
-		full := sw.NewNodeWithConfig(node.Full, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
+		full := sw.NewNodeWithConfig(node.Bridge, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}
 
