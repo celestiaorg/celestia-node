@@ -158,31 +158,31 @@ lint: lint-imports
 ## test-unit: Run unit tests.
 test-unit:
 	@echo "--> Running unit tests"
-	@go test $(VERBOSE) -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+	@go test $(VERBOSE) -tags=fibre -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
 ## test-unit-fast: Run unit tests without coverage instrumentation.
 test-unit-fast:
 	@echo "--> Running unit tests"
-	@go test $(VERBOSE) `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+	@go test $(VERBOSE) -tags=fibre `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-fast
 
 ## test-unit-race: Run unit tests with data race detector.
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
-	@go test $(VERBOSE) -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+	@go test $(VERBOSE) -tags=fibre -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-race
 
 ## test-integration: Run integration tests located in nodebuilder/tests.
 test-integration:
 	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
-	@go test $(VERBOSE) -timeout=20m -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
+	@go test $(VERBOSE) -timeout=20m -tags=$(TAGS),fibre $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
 .PHONY: test-integration
 
 ## test-integration-race: Run integration tests with data race detector located in nodebuilder/tests.
 test-integration-race:
 	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
-	@go test -race -tags=$(TAGS) ./nodebuilder/tests
+	@go test -race -tags=$(TAGS),fibre ./nodebuilder/tests
 .PHONY: test-integration-race
 
 ## test-blob: Run blob module tests via Tastora framework.
