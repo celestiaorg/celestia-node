@@ -1,0 +1,36 @@
+name: Bootstrapper Health Check
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 6 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  test-bootstrapper-health:
+    name: Test Bootstrapper Health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run bootstrapper health check
+        run: go test -tags bootstrapper_health -v -timeout 5m ./nodebuilder/p2p/
+
+  notify-slack-on-failure:
+    name: Notify Slack on Failure
+    needs: [test-bootstrapper-health]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.test-bootstrapper-health.result == 'failure' }}
+    steps:
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Bootstrapper health check failed! <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            }
