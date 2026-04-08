@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
+	"github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
@@ -39,8 +40,13 @@ func ConstructModule(coreCfg *core.Config) fx.Option {
 	)
 }
 
-func newAppFibreClient(keyring keyring.Keyring, conn *grpc.ClientConn) (*appfibre.Client, error) {
+func newAppFibreClient(
+	keyring keyring.Keyring,
+	keyName state.AccountName,
+	conn *grpc.ClientConn,
+) (*appfibre.Client, error) {
 	cfg := appfibre.DefaultClientConfig()
+	cfg.DefaultKeyName = string(keyName)
 	cfg.StateAddress = conn.Target()
 	return appfibre.NewClient(keyring, cfg)
 }
