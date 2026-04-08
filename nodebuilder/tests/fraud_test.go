@@ -75,10 +75,10 @@ func TestFraudProofHandling(t *testing.T) {
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, bridge)
 	// 3.
-	cfg := sw.DefaultTestConfig(node.Full)
+	cfg := sw.DefaultTestConfig(node.Bridge)
 	cfg.Share.UseShareExchange = false
 	store := nodebuilder.MockStore(t, cfg)
-	full := sw.MustNewNodeWithStore(node.Full, store)
+	full := sw.MustNewNodeWithStore(node.Bridge, store)
 
 	// 4.
 	err = full.Start(ctx)
@@ -152,7 +152,7 @@ func TestFraudProofHandling(t *testing.T) {
 	}
 
 	// 9.
-	fN := sw.MustNewNodeWithStore(node.Full, store)
+	fN := sw.MustNewNodeWithStore(node.Bridge, store)
 	err = fN.Start(ctx)
 	var fpExist *fraud.ErrFraudExists[*header.ExtendedHeader]
 	require.ErrorAs(t, err, &fpExist)

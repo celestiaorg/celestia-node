@@ -9,7 +9,7 @@ import (
 	"os"
 	"sync"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -459,7 +459,7 @@ func readRowHalf(r io.ReaderAt, rowIdx int, hdr *headerV0, offset int) ([]libsha
 		if err != nil {
 			return nil, err
 		}
-		shares[i] = *sh
+		shares[i] = sh
 	}
 	return shares, nil
 }
@@ -493,7 +493,7 @@ func readColHalf(r io.ReaderAt, colIdx int, hdr *headerV0, offset int) ([]libsha
 			return nil, err
 		}
 		// we got a share
-		shares[i] = *sh
+		shares[i] = sh
 	}
 	return shares, nil
 }
