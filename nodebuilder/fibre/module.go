@@ -34,7 +34,7 @@ func (m *module) Submit(
 	}
 
 	submitRes := &SubmitResult{
-		Commitment:     fibre.Commitment(putRes.BlobID.Commitment()),
+		Commitment:     putRes.BlobID.Commitment(),
 		Height:         putRes.Height,
 		TxHash:         putRes.TxHash,
 		PaymentPromise: toNodePaymentPromise(pp),
@@ -47,14 +47,19 @@ func (m *module) Submit(
 	return submitRes, nil
 }
 
-func (m *module) Upload(ctx context.Context, ns libshare.Namespace, data []byte) (*UploadResult, error) {
-	promise, err := m.service.Upload(ctx, ns, data)
+func (m *module) Upload(
+	ctx context.Context,
+	ns libshare.Namespace,
+	data []byte,
+	options *txclient.TxConfig,
+) (*UploadResult, error) {
+	promise, err := m.service.Upload(ctx, ns, data, options)
 	if err != nil {
 		return nil, err
 	}
 
 	uploadRes := &UploadResult{
-		Commitment:     fibre.Commitment(promise.Commitment),
+		Commitment:     promise.Commitment,
 		PaymentPromise: toNodePaymentPromise(promise.PaymentPromise),
 	}
 

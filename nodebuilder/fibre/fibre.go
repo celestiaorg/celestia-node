@@ -25,12 +25,12 @@ type Module interface {
 	// availability signatures, and submits MsgPayForFibre on-chain.
 	// Returns the submission result including the on-chain height and transaction hash.
 	// Requires the node to be connected to a core endpoint with Fibre support.
-	Submit(_ context.Context, _ libshare.Namespace, _ []byte, _ *fibre.TxConfig) (*SubmitResult, error)
+	Submit(_ context.Context, _ libshare.Namespace, _ []byte, _ *txclient.TxConfig) (*SubmitResult, error)
 	// Upload performs the off-chain portion of Fibre blob submission only.
 	// It encodes the blob, constructs a payment promise, uploads encoded rows to FSPs,
 	// and aggregates validator availability signatures. It does NOT submit MsgPayForFibre on-chain.
 	// Use blob.SubmitFibreBlob for the full submit flow.
-	Upload(ctx context.Context, ns libshare.Namespace, data []byte) (*UploadResult, error)
+	Upload(_ context.Context, _ libshare.Namespace, _ []byte, _ *txclient.TxConfig) (*UploadResult, error)
 	// Get retrieves a Fibre blob from FSPs by namespace and commitment.
 	// It reconstructs the original blob data from the encoded rows stored off-chain.
 	Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*GetBlobResult, error)
@@ -39,11 +39,11 @@ type Module interface {
 	QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error)
 	// Deposit adds funds to the node's Fibre escrow account.
 	// The signer is resolved from cfg (SignerAddress or KeyName) or the node's default account.
-	Deposit(ctx context.Context, amount sdktypes.Coin, cfg *fibre.TxConfig) error
+	Deposit(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error
 	// Withdraw requests a withdrawal from the node's Fibre escrow account.
 	// The signer is resolved from cfg (SignerAddress or KeyName) or the node's default account.
 	// The withdrawal enters an unbonding period before funds become claimable.
-	Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *fibre.TxConfig) error
+	Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error
 	// PendingWithdrawals returns all pending (not yet claimable) withdrawals for the given signer.
 	PendingWithdrawals(ctx context.Context, signer string) ([]fibre.PendingWithdrawal, error)
 }
@@ -55,12 +55,13 @@ type API struct {
 			context.Context,
 			libshare.Namespace,
 			[]byte,
-			*fibre.TxConfig,
+			*txclient.TxConfig,
 		) (*SubmitResult, error) `perm:"write"`
 		Upload func(
 			ctx context.Context,
 			ns libshare.Namespace,
 			data []byte,
+			config *txclient.TxConfig,
 		) (*UploadResult, error) `perm:"write"`
 		Get func(
 			ctx context.Context,
@@ -92,13 +93,18 @@ func (api *API) Submit(
 	ctx context.Context,
 	ns libshare.Namespace,
 	data []byte,
-	options *fibre.TxConfig,
+	options *txclient.TxConfig,
 ) (*SubmitResult, error) {
 	return api.Internal.Submit(ctx, ns, data, options)
 }
 
-func (api *API) Upload(ctx context.Context, ns libshare.Namespace, data []byte) (*UploadResult, error) {
-	return api.Internal.Upload(ctx, ns, data)
+func (api *API) Upload(
+	ctx context.Context,
+	ns libshare.Namespace,
+	data []byte,
+	options *txclient.TxConfig,
+) (*UploadResult, error) {
+	return api.Internal.Upload(ctx, ns, data, options)
 }
 
 func (api *API) Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*GetBlobResult, error) {
@@ -109,11 +115,11 @@ func (api *API) QueryEscrowAccount(ctx context.Context, signer string) (*fibre.E
 	return api.Internal.QueryEscrowAccount(ctx, signer)
 }
 
-func (api *API) Deposit(ctx context.Context, amount sdktypes.Coin, cfg *fibre.TxConfig) error {
+func (api *API) Deposit(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error {
 	return api.Internal.Deposit(ctx, amount, cfg)
 }
 
-func (api *API) Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *fibre.TxConfig) error {
+func (api *API) Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error {
 	return api.Internal.Withdraw(ctx, amount, cfg)
 }
 
