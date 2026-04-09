@@ -1,29 +1,27 @@
 # Celestia Node: A Complete Code Walkthrough
 
-*2026-04-08T21:15:20Z by Showboat 0.6.1*
-<!-- showboat-id: f78ee758-ec55-4a9b-a582-143e06a955db -->
+*2026-04-09T21:05:19Z by Showboat 0.6.1*
+<!-- showboat-id: c658231b-5110-4b6c-bcee-23462cee34e1 -->
 
-Celestia Node is the data availability layer of the Celestia blockchain. It runs as a daemon process that participates in the peer-to-peer network to distribute, sample, and verify block data. The codebase supports three distinct node types -- Bridge, Light, and Full -- all built from the same modular architecture using uber/fx dependency injection.
+Celestia Node is the data availability layer of the Celestia blockchain. It runs as a daemon process that participates in the peer-to-peer network to distribute, sample, and verify block data. The codebase supports two node types -- Bridge and Light -- built from the same modular architecture using uber/fx dependency injection.
 
 This walkthrough traces the code linearly from the binary entry point through startup, configuration, dependency injection, and into each major subsystem: P2P networking, header synchronization, share exchange (SHWAP), data availability sampling, blob handling, state management, fraud detection, the RPC API, and pruning.
 
 ## 1. Entry Point: cmd/celestia/main.go
 
-The binary starts here. The root Cobra command defines the CLI structure: `celestia [bridge | full | light] [subcommand]`. In `init()`, three top-level commands are registered -- one for each node type -- each decorated with the same set of subcommands (init, start, auth, etc.).
+The binary starts here. The root Cobra command defines the CLI structure: `celestia [bridge | light] [subcommand]`. In `init()`, two top-level commands are registered -- one for each node type -- each decorated with the same set of subcommands (init, start, auth, etc.).
 
 ```bash
-sed -n '26,65p' cmd/celestia/main.go
+sed -n '26,63p' cmd/celestia/main.go
 ```
 
 ```output
 func init() {
 	bridgeCmd := cmdnode.NewBridge(WithSubcommands())
 	lightCmd := cmdnode.NewLight(WithSubcommands())
-	fullCmd := cmdnode.NewFull(WithSubcommands())
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
-		fullCmd,
 		docgenCmd,
 		versionCmd,
 	)
@@ -42,7 +40,7 @@ func run() error {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "celestia [  bridge  ||  full ||  light  ] [subcommand]",
+	Use: "celestia [  bridge  ||  light  ] [subcommand]",
 	Short: `
 	    ____      __          __  _
 	  / ____/__  / /__  _____/ /_(_)___ _
@@ -57,7 +55,7 @@ var rootCmd = &cobra.Command{
 }
 ```
 
-Each node type command (`NewBridge`, `NewLight`, `NewFull`) is created with `WithSubcommands()`, which attaches the same set of lifecycle commands to each: `init`, `start`, `auth`, `reset-store`, `remove-config`, and `update-config`.
+Each node type command (`NewBridge`, `NewLight`) is created with `WithSubcommands()`, which attaches the same set of lifecycle commands:
 
 ```bash
 sed -n '13,24p' cmd/celestia/main.go
@@ -78,21 +76,25 @@ func WithSubcommands() func(*cobra.Command, []*pflag.FlagSet) {
 }
 ```
 
-## 2. Node Types: Bridge, Light, Full
+## 2. Node Types: Bridge and Light
 
-Before diving into startup, let's understand the three node types. They are defined as a simple `uint8` enum in `nodebuilder/node/type.go`:
+Before diving into startup, let's understand the two node types. They are defined as a simple `uint8` enum in `nodebuilder/node/type.go`:
 
 ```bash
-sed -n '9,27p' nodebuilder/node/type.go
+sed -n '8,27p' nodebuilder/node/type.go
 ```
 
 ```output
+// Type defines the Node type (e.g. `light`, `bridge`) for identity purposes.
 // The zero value for Type is invalid.
 type Type uint8
 
 // StorePath is an alias used in order to pass the base path of the node store to nodebuilder
 // modules.
 type StorePath string
+
+// ArchivalMode is an alias in order to pass whether the node is running in archival mode (no pruning).
+type ArchivalMode bool
 
 const (
 	// Bridge is a Celestia Node that bridges the Celestia consensus network and data availability
@@ -102,21 +104,19 @@ const (
 	// Light is a stripped-down Celestia Node which aims to be lightweight while preserving the highest
 	// possible security guarantees.
 	Light
-	// Full is a Celestia Node that stores blocks in their entirety.
-	Full
 )
-
 ```
 
-- **Bridge** nodes connect directly to a Celestia Core (consensus) node, fetch blocks, construct ExtendedHeaders, and broadcast them over P2P. They are the bridge between the consensus and DA networks.
+- **Bridge** nodes connect directly to a Celestia Core (consensus) node, fetch blocks, construct ExtendedHeaders, store Extended Data Squares (EDS), and broadcast headers over P2P. They are the bridge between the consensus and DA networks.
 - **Light** nodes subscribe to headers from the P2P network and perform statistical Data Availability Sampling (DAS) -- they verify data is available without downloading entire blocks.
-- **Full** nodes also subscribe to headers via P2P but download and store entire Extended Data Squares (EDS). They can serve share requests to other nodes.
+
+Note the `ArchivalMode` type alias: Bridge nodes can optionally run in archival mode (no pruning), which is signaled through the DI system.
 
 This type flows through the entire codebase: almost every module's `ConstructModule` function takes a `node.Type` and switches on it to configure type-specific behavior.
 
 ## 3. The Start Command: cmd/start.go
 
-The `start` command is where a node actually boots up. This is the most important command -- it parses flags, opens the store, constructs a keyring, builds the node via dependency injection, and then runs the lifecycle (start, wait for signal, stop).
+The `start` command is where a node actually boots up. It parses flags, opens the store, constructs a keyring, builds the node via dependency injection, and then runs the lifecycle (start, wait for signal, stop).
 
 ```bash
 sed -n '19,84p' cmd/start.go
@@ -206,7 +206,7 @@ The startup sequence in `Start` is:
 The `Config` struct aggregates configuration for every subsystem. Each field delegates to a subsystem-specific config. The config is persisted to disk as TOML and loaded on startup.
 
 ```bash
-sed -n '26,60p' nodebuilder/config.go
+sed -n '26,51p' nodebuilder/config.go
 ```
 
 ```output
@@ -225,7 +225,7 @@ type Config struct {
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
-	commonConfig := &Config{
+	return &Config{
 		Node:   node.DefaultConfig(tp),
 		Core:   core.DefaultConfig(),
 		State:  state.DefaultConfig(),
@@ -233,25 +233,16 @@ func DefaultConfig(tp node.Type) *Config {
 		RPC:    rpc.DefaultConfig(),
 		Share:  share.DefaultConfig(tp),
 		Header: header.DefaultConfig(tp),
-	}
-
-	switch tp {
-	case node.Bridge:
-		return commonConfig
-	case node.Light, node.Full:
-		commonConfig.DASer = das.DefaultConfig(tp)
-		return commonConfig
-	default:
-		panic("node: invalid node type")
+		DASer:  das.DefaultConfig(tp),
 	}
 }
 ```
 
-Notice that `DASer` config is only populated for Light and Full nodes -- Bridge nodes connect directly to consensus and don't need to sample. The config is serialized to TOML via `BurntSushi/toml` and can be updated in place with `mergo.Merge` (which fills in new fields from defaults while preserving existing values).
+Unlike the previous version where DASer config was only populated for non-Bridge nodes, the current code provides DASer config for all node types via `DefaultConfig`. The DASer module itself decides whether to enable or stub based on its own `Enabled` flag.
 
 ## 5. The Store: nodebuilder/store.go
 
-The Store provides persistent storage for node data. It's a filesystem-based implementation backed by BadgerDB (a high-performance key/value store), with file-locking to prevent multiple nodes from using the same store simultaneously.
+The Store provides persistent storage for node data. It's a filesystem-based implementation backed by BadgerDB, with file-locking to prevent multiple nodes from using the same store simultaneously.
 
 ```bash
 sed -n '38,57p' nodebuilder/store.go
@@ -280,13 +271,16 @@ type Store interface {
 }
 ```
 
-The store directory defaults to `~/.celestia-<type>` for mainnet or `~/.celestia-<type>-<network>` for testnets. It can be overridden via the `CELESTIA_HOME` environment variable. Let's see how it resolves the path:
-
 ```bash
-sed -n '190,211p' nodebuilder/store.go
+sed -n '212,233p' nodebuilder/store.go
 ```
 
 ```output
+	return "", ErrNoOpenStore
+}
+
+// DefaultNodeStorePath constructs the default node store path using the given
+// node type and network.
 var DefaultNodeStorePath = func(tp nodemod.Type, network p2p.Network) (string, error) {
 	home := os.Getenv("CELESTIA_HOME")
 	if home != "" {
@@ -304,25 +298,20 @@ var DefaultNodeStorePath = func(tp nodemod.Type, network p2p.Network) (string, e
 	// only include network name in path for testnets and custom networks
 	return fmt.Sprintf(
 		"%s/.celestia-%s-%s",
-		home,
-		strings.ToLower(tp.String()),
-		strings.ToLower(network.String()),
-	), nil
-}
 ```
 
-The store is directory-locked via `gofrs/flock` -- if you try to start a second node on the same store, you get `ErrOpened`. Inside the store directory the layout is:
+The store directory defaults to `~/.celestia-<type>` for mainnet or `~/.celestia-<type>-<network>` for testnets (overridable via `CELESTIA_HOME`). It is directory-locked via `gofrs/flock` -- if you try to start a second node on the same store, you get `ErrOpened`. Inside the store directory:
 
 - `config.toml` -- the serialized Config
 - `.lock` -- file lock preventing concurrent access
 - `keys/` -- keystore for signing keys
 - `data/` -- BadgerDB key/value store
-- `blocks/` -- EDS files (for Bridge/Full nodes)
+- `blocks/` -- EDS files (for Bridge nodes)
 - `blocks/heights/` -- hardlinks from height numbers to EDS files
 
 ## 6. Node Construction: The DI System
 
-This is the heart of celestia-node's architecture. The `Node` struct holds references to every subsystem -- P2P host, header service, share service, blob service, DAS, state, fraud detection, and the RPC server. It uses uber/fx's `fx.In` embedding to receive all dependencies via injection.
+The `Node` struct holds references to every subsystem. It uses uber/fx's `fx.In` embedding to receive all dependencies via injection.
 
 ```bash
 sed -n '47,83p' nodebuilder/node.go
@@ -368,9 +357,7 @@ type Node struct {
 }
 ```
 
-The `fx.In` embedding tells uber/fx to populate all exported fields from the DI container. The `start` and `stop` fields (unexported, hence `ignore-unexported`) are set directly from the fx.App's lifecycle methods after construction.
-
-The `NewWithConfig` function wires everything together:
+The `fx.In` embedding tells uber/fx to populate all exported fields from the DI container. The `start` and `stop` fields are set from the fx.App's lifecycle methods after construction. `NewWithConfig` wires everything together:
 
 ```bash
 sed -n '95,100p' nodebuilder/node.go
@@ -384,8 +371,6 @@ func NewWithConfig(tp node.Type, network p2p.Network, store Store, cfg *Config, 
 	return newNode(opts...)
 }
 ```
-
-And `newNode` creates the fx.App, populates the Node struct, and captures the lifecycle functions:
 
 ```bash
 sed -n '171,196p' nodebuilder/node.go
@@ -423,37 +408,13 @@ The key line is `fx.Populate(node)` -- this tells fx to fill in every field of t
 
 ## 7. The Module System: nodebuilder/module.go
 
-`ConstructModule` is where all the pieces come together. It builds the complete fx dependency graph by composing sub-modules for each subsystem. Every module gets the node type and its relevant config, so it can customize behavior accordingly.
+`ConstructModule` builds the complete fx dependency graph by composing sub-modules for each subsystem. Every module gets the node type and its config, so it can customize behavior accordingly.
 
 ```bash
-cat nodebuilder/module.go
+sed -n '25,65p' nodebuilder/module.go
 ```
 
 ```output
-package nodebuilder
-
-import (
-	"context"
-
-	"go.uber.org/fx"
-
-	"github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/libs/fxutil"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
-	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/da"
-	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
-	"github.com/celestiaorg/celestia-node/nodebuilder/rpc"
-	"github.com/celestiaorg/celestia-node/nodebuilder/share"
-	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-)
-
 func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store) fx.Option {
 	log.Infow("Accessing keyring...")
 	ks, err := store.Keystore()
@@ -480,7 +441,7 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		modhead.ConstructModule[*header.ExtendedHeader](tp, &cfg.Header),
 		share.ConstructModule(tp, &cfg.Share),
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
-		das.ConstructModule(tp, &cfg.DASer),
+		das.ConstructModule(&cfg.DASer),
 		fraud.ConstructModule(tp),
 		blob.ConstructModule(),
 		da.ConstructModule(),
@@ -497,23 +458,18 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 }
 ```
 
-This is the assembly line. It:
-
-1. **Supplies base values** into the DI container: the node type, network, keystore, config, datastore
-2. **Provides a lifecycle-bound context** that gets canceled when the fx app stops
-3. **Composes every subsystem module** -- each `ConstructModule` call returns an `fx.Option` that registers providers, suppliers, and lifecycle hooks
-
-The order of module registration doesn't matter to fx -- it resolves the dependency graph at build time. Let's walk through each module.
+This is the assembly line. It supplies base values (node type, network, keystore, config, datastore), provides a lifecycle-bound context, and composes every subsystem module. Note that `das.ConstructModule` only takes the config (no node type) -- the DASer decides whether to enable based on its own `Enabled` flag. The order of registration doesn't matter to fx -- it resolves the dependency graph at build time.
 
 ## 8. P2P Module: nodebuilder/p2p/module.go
 
 The P2P module sets up libp2p networking: the host, DHT routing, PubSub for gossip, connection management, and bandwidth monitoring.
 
 ```bash
-sed -n '16,56p' nodebuilder/p2p/module.go
+sed -n '15,56p' nodebuilder/p2p/module.go
 ```
 
 ```output
+func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 	// sanitize config values before constructing module
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
@@ -537,7 +493,7 @@ sed -n '16,56p' nodebuilder/p2p/module.go
 	)
 
 	switch tp {
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		return fx.Module(
 			"p2p",
 			baseComponents,
@@ -557,16 +513,16 @@ sed -n '16,56p' nodebuilder/p2p/module.go
 }
 ```
 
-The type-specific differences are significant:
+The type-specific differences:
 
-- **Full/Bridge**: Get `infiniteResources` (no libp2p resource limits), actively check their reachability (NAT traversal), and proactively connect to bootstrapper nodes
-- **Light**: Get `autoscaleResources` (dynamic resource limits based on available system resources) -- they are passive participants that don't need to be reachable
+- **Bridge**: Gets `infiniteResources` (no libp2p resource limits), actively checks reachability (NAT traversal), and proactively connects to bootstrapper nodes. Bridge nodes must be reachable to serve data.
+- **Light**: Gets `autoscaleResources` (dynamic resource limits based on available system resources) -- they are passive participants that don't need to be reachable.
 
 The provider chain builds up from key generation (`Key`) through peer identity (`id`), peer store, connection management, the libp2p host itself, and then the DHT and PubSub layers on top.
 
 ## 9. The Header System: header/header.go and nodebuilder/header/module.go
 
-The `ExtendedHeader` is the core data type that flows through the entire system. It wraps a CometBFT consensus header with the additional information needed for data availability: the Commit, ValidatorSet, and crucially, the DataAvailabilityHeader (DAH).
+The `ExtendedHeader` is the core data type that flows through the entire system. It wraps a CometBFT consensus header with the Commit, ValidatorSet, and the DataAvailabilityHeader (DAH) -- the row and column roots of the Extended Data Square.
 
 ```bash
 sed -n '32,40p' header/header.go
@@ -583,10 +539,6 @@ type ExtendedHeader struct {
 	DAH          *da.DataAvailabilityHeader `json:"dah"`
 }
 ```
-
-The `DAH` (DataAvailabilityHeader) contains the row and column roots of the Extended Data Square -- these are the Merkle roots that allow anyone to verify individual shares without downloading the entire block.
-
-The `Validate()` method performs thorough validation: basic header checks, version compatibility, commit validation, validator set consistency, DAH hash matching against the header's DataHash, and commit signature verification:
 
 ```bash
 sed -n '110,163p' header/header.go
@@ -649,10 +601,43 @@ func (eh *ExtendedHeader) Validate() error {
 }
 ```
 
-Now let's see the header module construction, which sets up the syncer, P2P subscriber, exchange server, and header store:
+Now the header module construction. A key change from earlier versions: the `newSubscriber` function uses `FanoutOnly` mode for Bridge nodes. This prevents the Bridge from receiving headers via gossip before its own `core.Listener` has stored the EDS -- otherwise the DASer could try to access an EDS that hasn't been written yet.
 
 ```bash
-sed -n '26,124p' nodebuilder/header/module.go
+sed -n '25,50p' nodebuilder/header/module.go
+```
+
+```output
+// newSubscriber constructs the fx.Option for the p2p.Subscriber component.
+// Bridge nodes use FanoutOnly mode to prevent receiving gossip headers before
+// the local core.Listener has finished storing the corresponding EDS.
+func newSubscriber[H libhead.Header[H]](tp node.Type) fx.Option {
+	return fx.Provide(fx.Annotate(
+		func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
+			opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
+			// Bridge nodes must not receive headers via p2p gossip: a remote peer
+			// can gossip the same header before the local core.Listener finishes
+			// storing EDS, causing the DASer to access EDS prematurely.
+			if tp == node.Bridge {
+				opts = append(opts, p2p.WithTopicOpts(pubsub.FanoutOnly()))
+			}
+			if MetricsEnabled {
+				opts = append(opts, p2p.WithSubscriberMetrics())
+			}
+			return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
+		},
+		fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+			return sub.Start(ctx)
+		}),
+		fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
+			return sub.Stop(ctx)
+		}),
+	))
+}
+```
+
+```bash
+sed -n '52,138p' nodebuilder/header/module.go
 ```
 
 ```output
@@ -668,12 +653,11 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(func(subscriber *p2p.Subscriber[H]) libhead.Subscriber[H] {
 			return subscriber
 		}),
-		fx.Provide(newSyncer[H]),
 		fx.Provide(fx.Annotate(
-			newFraudedSyncer[H],
+			newSyncer[H],
 			fx.OnStart(func(
 				ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
+				syncer *sync.Syncer[H],
 			) error {
 				// TODO(@Wondertan): This fix flakes in e2e tests
 				//  This is coming from the store asynchronity.
@@ -682,30 +666,16 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				//  However, the Store doesn't makes it immediately available causing flakes
 				//  The proper fix will be in a follow up release after pruning.
 				defer time.Sleep(time.Millisecond * 100)
-				return breaker.Start(ctx)
+				return syncer.Start(ctx)
 			}),
 			fx.OnStop(func(
 				ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*sync.Syncer[H], H],
+				syncer *sync.Syncer[H],
 			) error {
-				return breaker.Stop(ctx)
+				return syncer.Stop(ctx)
 			}),
 		)),
-		fx.Provide(fx.Annotate(
-			func(ps *pubsub.PubSub, network modp2p.Network) (*p2p.Subscriber[H], error) {
-				opts := []p2p.SubscriberOption{p2p.WithSubscriberNetworkID(network.String())}
-				if MetricsEnabled {
-					opts = append(opts, p2p.WithSubscriberMetrics())
-				}
-				return p2p.NewSubscriber[H](ps, header.MsgID, opts...)
-			},
-			fx.OnStart(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
-				return sub.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, sub *p2p.Subscriber[H]) error {
-				return sub.Stop(ctx)
-			}),
-		)),
+		newSubscriber[H](tp),
 		fx.Provide(fx.Annotate(
 			func(
 				cfg Config,
@@ -730,16 +700,19 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 				return server.Stop(ctx)
 			}),
 		)),
+		fx.Provide(newP2PExchange[H]),
+		fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
+			return pidstore.NewPeerIDStore(ctx, ds)
+		}),
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module(
 			"header",
 			baseComponents,
-			fx.Provide(newP2PExchange[H]),
-			fx.Provide(func(ctx context.Context, ds datastore.Batching) (p2p.PeerIDStore, error) {
-				return pidstore.NewPeerIDStore(ctx, ds)
+			fx.Provide(func(ex *p2p.Exchange[H]) libhead.Exchange[H] {
+				return ex
 			}),
 		)
 	case node.Bridge:
@@ -757,26 +730,29 @@ func ConstructModule[H libhead.Header[H]](tp node.Type, cfg *Config) fx.Option {
 }
 ```
 
-This is generics-heavy -- `ConstructModule[H libhead.Header[H]]` is instantiated with `*header.ExtendedHeader`. The key components:
+Key components in the header module:
 
 - **Header Store** -- persists validated headers
-- **Syncer** -- wrapped in a `ServiceBreaker` (fraud-protected) that stops syncing if a fraud proof is detected
-- **P2P Subscriber** -- listens for new headers gossiped over PubSub
+- **Syncer** -- now started directly (no longer wrapped in a fraud ServiceBreaker)
+- **P2P Subscriber** -- listens for new headers gossiped over PubSub (with FanoutOnly for Bridge)
 - **Exchange Server** -- serves header requests to other peers
+- **P2P Exchange** and **PeerIDStore** -- now provided for both node types in the base components
 
 The type-specific differences:
-- **Light/Full**: Use a P2P Exchange *client* to request headers from peers, with a PeerIDStore to track trusted header sources
-- **Bridge**: Uses the P2P Subscriber as a Broadcaster (it publishes headers *to* the network rather than consuming them), and supplies the `MakeExtendedHeader` constructor function (used by the Core module to build headers from consensus blocks)
+- **Light**: Wraps the P2P Exchange as the `libhead.Exchange` -- it fetches headers *from* the network
+- **Bridge**: Uses the P2P Subscriber as a `Broadcaster` (publishes headers *to* the network), and supplies the `MakeExtendedHeader` constructor function used by the Core module to build headers from consensus blocks
 
 ## 10. Core Module: nodebuilder/core/module.go
 
-The Core module manages the relationship with the Celestia Core consensus node. This module is fundamentally different between Bridge and non-Bridge nodes.
+The Core module manages the connection to the Celestia Core consensus node. This module is fundamentally different between Bridge and Light nodes.
 
 ```bash
-sed -n '21,84p' nodebuilder/core/module.go
+sed -n '21,103p' nodebuilder/core/module.go
 ```
 
 ```output
+// ConstructModule collects all the components and services related to managing the relationship
+// with the Core node.
 func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option {
 	// sanitize config values before constructing module
 	cfgErr := cfg.Validate()
@@ -791,25 +767,42 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Light, node.Full:
+	case node.Light:
 		return fx.Module("core", baseComponents)
 	case node.Bridge:
 		return fx.Module("core",
 			baseComponents,
 			fx.Provide(core.NewBlockFetcher),
-			fxutil.ProvideAs(
-				func(
-					fetcher *core.BlockFetcher,
-					store *store.Store,
-					construct header.ConstructFn,
-					opts []core.Option,
-				) (*core.Exchange, error) {
-					if MetricsEnabled {
-						opts = append(opts, core.WithMetrics())
-					}
+			fx.Provide(func(
+				fetcher *core.BlockFetcher,
+				store *store.Store,
+				construct header.ConstructFn,
+				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
+				chainID p2p.Network,
+				opts []core.Option,
+			) (*core.Exchange, error) {
+				opts = append(opts, core.WithChainID(chainID))
 
-					return core.NewExchange(fetcher, store, construct, opts...)
-				},
+				if MetricsEnabled {
+					opts = append(opts, core.WithMetrics())
+				}
+				// Add P2P exchange fallback for when core doesn't have blocks
+				// Only headers will be fetched; EDS downloading is handled by DASer
+				opts = append(opts, core.WithP2PExchange(p2pEx))
+				return core.NewExchange(fetcher, store, construct, opts...)
+			}),
+			fxutil.ProvideAs(func(
+				coreEx *core.Exchange,
+				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
+				window modshare.Window,
+			) (*core.RoutingExchange, error) {
+				return core.NewRoutingExchange(
+					coreEx,
+					p2pEx,
+					window.Duration(),
+					p2p.BlockTime,
+				)
+			},
 				new(libhead.Exchange[*header.ExtendedHeader])),
 			fx.Invoke(fx.Annotate(
 				func(
@@ -843,17 +836,18 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 }
 ```
 
-For **Light/Full** nodes, the Core module just provides a gRPC client (used by the state module for transaction submission). The real action is in **Bridge** nodes, which get three additional components:
+For **Light** nodes, the Core module just provides a gRPC client. The real action is in **Bridge** nodes, which get four key components:
 
-1. **BlockFetcher** -- pulls blocks from the Core node via gRPC
-2. **Exchange** -- wraps the fetcher to satisfy the `libhead.Exchange` interface, constructing `ExtendedHeader`s from raw blocks using the `ConstructFn` and storing the resulting EDS in the Store
-3. **Listener** -- subscribes to new blocks from Core, constructs ExtendedHeaders, stores the EDS, and broadcasts headers over P2P via the `Broadcaster` and share data hashes via `shrexsub.PubSub`
+1. **BlockFetcher** -- pulls blocks from Core via gRPC
+2. **Exchange** -- wraps the fetcher, now with a P2P exchange fallback for when Core doesn't have blocks (e.g., during a Core node restart). Only headers are fetched via P2P; EDS downloading is handled by the DASer.
+3. **RoutingExchange** -- a new abstraction that routes header requests between the Core exchange and P2P exchange based on the availability window and block time. This satisfies the `libhead.Exchange` interface.
+4. **Listener** -- subscribes to new blocks from Core, constructs ExtendedHeaders, stores the EDS, and broadcasts headers and share data hashes to the P2P network
 
-This is the critical Bridge data flow: **Core consensus -> BlockFetcher -> Listener -> (store EDS + broadcast header + broadcast shrexsub notification) -> P2P network**
+The critical Bridge data flow: **Core consensus -> BlockFetcher -> Listener -> (store EDS + broadcast header + broadcast shrexsub) -> P2P network**
 
 ## 11. Share Module & Data Availability: nodebuilder/share/module.go
 
-The Share module is one of the most complex modules. It handles everything related to fetching, serving, and validating share data -- the fundamental data units of Celestia's erasure-coded blocks.
+The Share module handles fetching, serving, and validating share data -- the fundamental data units of Celestia's erasure-coded blocks.
 
 ```bash
 sed -n '27,61p' nodebuilder/share/module.go
@@ -878,12 +872,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		return fx.Module(
 			"share",
 			baseComponents,
 			edsStoreComponents(cfg),
-			fx.Provide(bridgeAndFullGetter),
+			fx.Provide(bridgeGetter),
 		)
 	case node.Light:
 		return fx.Module(
@@ -897,20 +891,8 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 }
 ```
 
-The module is composed of several sub-component groups:
-
-- **availabilityComponents** -- the data availability validator, which differs by node type
-- **shrexComponents** -- ShrEx (Share Exchange) protocol: a custom peer-to-peer share exchange built on libp2p streams
-- **bitswapComponents** -- IPFS Bitswap-based block exchange, an alternative retrieval mechanism
-- **peerManagementComponents** -- manages pools of peers for share retrieval
-- **edsStoreComponents** -- (Bridge/Full only) the EDS file store for persisting complete blocks
-
-**Bridge/Full** nodes get the EDS store and a `bridgeAndFullGetter` that can fetch shares from the local store. **Light** nodes get a `lightGetter` that must fetch shares from the network.
-
-The availability components are particularly important -- they determine how each node type validates data availability:
-
 ```bash
-sed -n '210,246p' nodebuilder/share/module.go
+sed -n '201,237p' nodebuilder/share/module.go
 ```
 
 ```output
@@ -934,7 +916,7 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				}),
 			)),
 		)
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		return fx.Options(
 			fx.Provide(func(
 				s *store.Store,
@@ -953,18 +935,38 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 }
 ```
 
-- **Light availability** (`light.ShareAvailability`): Performs *statistical sampling* -- it randomly samples a configurable number of shares from the block and checks they are retrievable. If enough random samples succeed, it concludes (with high probability) that the full data is available.
-- **Full availability** (`full.ShareAvailability`): Downloads the *complete* data square and verifies it. Uses the EDS store and getter to ensure all data is actually retrievable.
+The module is composed of several sub-component groups:
+
+- **availabilityComponents** -- the data availability validator, which differs by node type
+- **shrexComponents** -- ShrEx (Share Exchange) protocol: custom peer-to-peer share exchange on libp2p streams
+- **bitswapComponents** -- IPFS Bitswap-based block exchange, an alternative retrieval mechanism
+- **peerManagementComponents** -- manages pools of peers for share retrieval
+- **edsStoreComponents** -- (Bridge only) the EDS file store for persisting complete blocks
+
+**Bridge** nodes get the EDS store and a `bridgeGetter` that fetches shares from the local store. **Light** nodes get a `lightGetter` that fetches from the network.
+
+Availability validators:
+- **Light** (`light.ShareAvailability`): Statistical sampling -- randomly samples shares and checks they are retrievable. If enough samples succeed, concludes (with high probability) the data is available.
+- **Bridge** (`full.ShareAvailability`): Downloads the complete data square and verifies it. Uses the EDS store.
 
 ## 12. The EDS Store: store/store.go
 
-Bridge and Full nodes persist Extended Data Squares on disk. The `Store` manages these as flat files with two file formats: ODS (Original Data Square -- just the first quadrant) and Q4 (the fourth quadrant of the erasure-coded extension).
+Bridge nodes persist Extended Data Squares on disk. The `Store` manages these as flat files with two formats: ODS (Original Data Square -- the first quadrant) and Q4 (the fourth quadrant of the erasure-coded extension).
 
 ```bash
 sed -n '38,87p' store/store.go
 ```
 
 ```output
+	// GetByHeight returns an Accessor by its height.
+	GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error)
+	// HasByHeight reports whether an Accessor for the height exists.
+	HasByHeight(ctx context.Context, height uint64) (bool, error)
+}
+
+// Store is a storage for EDS files. It persists EDS files on disk in form of Q1Q4 files or ODS
+// files. It provides methods to put, get and remove EDS files. It has two caches: recent eds cache
+// and availability cache. Recent eds cache is used to cache recent blocks. Availability cache is
 // used to cache blocks that are accessed by sample requests. Store is thread-safe.
 type Store struct {
 	// basepath is the root directory of the store
@@ -1006,32 +1008,23 @@ func NewStore(params *Parameters, basePath string) (*Store, error) {
 	store := &Store{
 		basepath:  basePath,
 		cache:     recentCache,
-		stripLock: newStripLock(1024),
-	}
-
-	if err := store.populateEmptyFile(); err != nil {
-		return nil, fmt.Errorf("ensuring empty EDS: %w", err)
-	}
-
-	return store, nil
-}
 ```
 
 Key design choices in the EDS Store:
 
 - **Files are addressed by data hash** -- the ODS file path is `blocks/<datahash>.ods`
-- **Heights are mapped via hard links** -- `blocks/heights/<height>.ods` is a hard link to the hash-named file. This means the same EDS can be looked up by either hash or height efficiently
-- **Empty blocks use symlinks** -- since many blocks may be empty, they all symlink to a single canonical empty EDS file (avoids hitting filesystem hard link limits)
-- **Striped locks** -- 1024 striped locks allow high-concurrency parallel reads/writes without a single global lock
+- **Heights are mapped via hard links** -- `blocks/heights/<height>.ods` hard-links to the hash-named file
+- **Empty blocks use symlinks** -- many blocks may be empty, so they symlink to a single canonical empty EDS file
+- **Striped locks** -- 1024 striped locks allow high-concurrency parallel reads/writes
 - **Cache layer** -- a recent blocks cache avoids repeated file I/O for hot data
-- **Corruption recovery** -- on `Put`, if a file already exists but has the wrong size, it's automatically deleted and recreated
+- **Corruption recovery** -- if a file exists but has the wrong size, it's automatically deleted and recreated
 
 ## 13. Data Availability Sampling: das/daser.go
 
-The DASer is the engine that continuously validates data availability. It only runs on Light and Full nodes (Bridge nodes have the data directly from Core). It subscribes to new headers and samples shares to verify they are available on the network.
+The DASer continuously validates data availability. It subscribes to new headers and samples shares to verify they are available on the network. It runs on both node types when enabled -- the DAS module no longer takes a node type, just a config with an `Enabled` flag.
 
 ```bash
-sed -n '23,78p' das/daser.go
+sed -n '23,76p' das/daser.go
 ```
 
 ```output
@@ -1048,9 +1041,8 @@ type DASer struct {
 	store      checkpointStore
 	subscriber subscriber
 
-	cancel         context.CancelFunc
-	subscriberDone chan struct{}
-	running        atomic.Bool
+	cancel  context.CancelFunc
+	running atomic.Bool
 }
 
 type (
@@ -1069,14 +1061,13 @@ func NewDASer(
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
-		params:         DefaultParameters(),
-		da:             da,
-		bcast:          bcast,
-		hsub:           hsub,
-		getter:         getter,
-		store:          newCheckpointStore(dstore),
-		subscriber:     newSubscriber(),
-		subscriberDone: make(chan struct{}),
+		params:     DefaultParameters(),
+		da:         da,
+		bcast:      bcast,
+		hsub:       hsub,
+		getter:     getter,
+		store:      newCheckpointStore(dstore),
+		subscriber: newSubscriber(),
 	}
 
 	for _, applyOpt := range options {
@@ -1093,13 +1084,12 @@ func NewDASer(
 }
 ```
 
-The DASer's Start method loads a checkpoint (so it can resume from where it left off after restart), subscribes to new headers, and launches three goroutines:
-
 ```bash
-sed -n '81,104p' das/daser.go
+sed -n '78,102p' das/daser.go
 ```
 
 ```output
+// Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
 func (d *DASer) Start(ctx context.Context) error {
 	if !d.running.CompareAndSwap(false, true) {
 		return errors.New("da: DASer already started")
@@ -1126,16 +1116,8 @@ func (d *DASer) Start(ctx context.Context) error {
 }
 ```
 
-Three concurrent goroutines work together:
-
-1. **`sampler.run`** -- the sampling coordinator that manages worker goroutines to sample header ranges
-2. **`subscriber.run`** -- listens for new headers from P2P and feeds them to the sampler
-3. **`store.runBackgroundStore`** -- periodically persists the sampling checkpoint to disk
-
-When the DASer samples a header, it calls `d.da.SharesAvailable()`. If that returns a `*byzantine.ErrByzantine`, it means the node detected invalid erasure coding -- a fraud proof is created and broadcast to the network:
-
 ```bash
-sed -n '201,215p' das/daser.go
+sed -n '199,213p' das/daser.go
 ```
 
 ```output
@@ -1156,7 +1138,9 @@ func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
 }
 ```
 
-The DAS module is wrapped in a fraud `ServiceBreaker`. Let's see how that works in the DAS module construction:
+Three concurrent goroutines work together: the sampling coordinator, the header subscriber, and the background checkpoint store. When sampling detects invalid erasure coding (`ErrByzantine`), a fraud proof is broadcast to the network.
+
+The DAS module construction is now simpler -- no node type, no fraud ServiceBreaker wrapper:
 
 ```bash
 cat nodebuilder/das/module.go
@@ -1171,22 +1155,19 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/das"
-	"github.com/celestiaorg/celestia-node/header"
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
+func ConstructModule(cfg *Config) fx.Option {
 	// If DASer is disabled, provide the stub implementation for any node type
-	// Also provide the stub implementation for bridge nodes as they do not need DASer
-	if !cfg.Enabled || tp == node.Bridge {
+	if !cfg.Enabled {
 		return fx.Module(
 			"das",
 			fx.Provide(newDaserStub),
 		)
 	}
 
-	baseComponents := fx.Options(
+	return fx.Module(
+		"das",
 		fx.Supply(*cfg),
 		fx.Error(cfg.Validate()),
 		fx.Provide(
@@ -1199,18 +1180,13 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 				}
 			},
 		),
-	)
-
-	return fx.Module(
-		"das",
-		baseComponents,
 		fx.Provide(fx.Annotate(
 			newDASer,
-			fx.OnStart(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
-				return breaker.Start(ctx)
+			fx.OnStart(func(ctx context.Context, daser *das.DASer) error {
+				return daser.Start(ctx)
 			}),
-			fx.OnStop(func(ctx context.Context, breaker *modfraud.ServiceBreaker[*das.DASer, *header.ExtendedHeader]) error {
-				return breaker.Stop(ctx)
+			fx.OnStop(func(ctx context.Context, daser *das.DASer) error {
+				return daser.Stop(ctx)
 			}),
 		)),
 		// Module is needed for the RPC handler
@@ -1221,17 +1197,18 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 }
 ```
 
-Note the guard at the top: if DAS is disabled or this is a Bridge node, a stub is provided instead. The `ServiceBreaker` pattern appears throughout the codebase -- it wraps a service so that if a fraud proof is detected, the service is automatically stopped to protect the node from acting on fraudulent data.
+The DASer is now started/stopped directly via fx lifecycle hooks rather than through a fraud ServiceBreaker. If disabled, a stub is provided. The `Enabled` flag in config controls this -- the DAS config's `DefaultConfig(tp)` sets the appropriate default per node type.
 
 ## 14. Blob Service: blob/service.go
 
-The Blob service is the user-facing layer for submitting and retrieving blobs -- the actual application data stored in Celestia blocks. It orchestrates between the state module (for submitting transactions), share getter (for retrieving data), and header service (for looking up blocks).
+The Blob service is the user-facing layer for submitting and retrieving blobs. It orchestrates between the state module (for submitting transactions), share getter (for retrieving data), and header service (for looking up blocks).
 
 ```bash
 sed -n '52,78p' blob/service.go
 ```
 
 ```output
+
 type Service struct {
 	// ctx represents the Service's lifecycle context.
 	ctx    context.Context
@@ -1244,6 +1221,8 @@ type Service struct {
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
+	// metrics tracks blob-related metrics
+	metrics *metrics
 }
 
 func NewService(
@@ -1256,114 +1235,18 @@ func NewService(
 		blobSubmitter: submitter,
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
-		headerSub:     headerSub,
-	}
-}
 ```
 
-The key operations are:
+The key operations are **Submit** (validates namespaces, calls `SubmitPayForBlob` via the state module), **Get** (retrieves a blob by height/namespace/commitment from the EDS), **GetAll** (retrieves all blobs under given namespaces, parallelized), **Subscribe** (streams blobs matching a namespace as blocks arrive), and **Included** (verifies a blob was included at a height).
 
-- **Submit** -- validates blob namespaces, converts to `libshare.Blob`, and calls `SubmitPayForBlob` via the state module to create a PayForBlob transaction
-- **Get** -- retrieves a specific blob by height, namespace, and commitment by fetching the EDS namespace data and matching commitments
-- **GetAll** -- retrieves all blobs under given namespaces at a height (parallelized across namespaces)
-- **Subscribe** -- streams new blobs matching a namespace as blocks arrive
-- **Included** -- verifies a blob was included at a specific height by recomputing the commitment and comparing proofs
-
-Let's look at how Submit works:
-
-```bash
-sed -n '166,187p' blob/service.go
-```
-
-```output
-// Submit sends PFB transaction and reports the height at which it was included.
-// Allows sending multiple Blobs atomically synchronously.
-// Uses default wallet registered on the Node.
-// Handles gas estimation and fee calculation.
-func (s *Service) Submit(ctx context.Context, blobs []*Blob, txConfig *SubmitOptions) (uint64, error) {
-	log.Debugw("submitting blobs", "amount", len(blobs))
-
-	libBlobs := make([]*libshare.Blob, len(blobs))
-	for i := range blobs {
-		if err := blobs[i].Namespace().ValidateForBlob(); err != nil {
-			return 0, fmt.Errorf("not allowed namespace %s were used to build the blob", blobs[i].Namespace().ID())
-		}
-
-		libBlobs[i] = blobs[i].Blob
-	}
-
-	resp, err := s.blobSubmitter.SubmitPayForBlob(ctx, libBlobs, txConfig)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(resp.Height), nil
-}
-```
-
-And the blob module's DI wiring shows how it pulls dependencies from the header and state modules:
-
-```bash
-cat nodebuilder/blob/module.go
-```
-
-```output
-package blob
-
-import (
-	"context"
-
-	"go.uber.org/fx"
-
-	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/header"
-	headerService "github.com/celestiaorg/celestia-node/nodebuilder/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/state"
-	"github.com/celestiaorg/celestia-node/share/shwap"
-)
-
-func ConstructModule() fx.Option {
-	return fx.Module("blob",
-		fx.Provide(
-			func(service headerService.Module) func(context.Context, uint64) (*header.ExtendedHeader, error) {
-				return service.GetByHeight
-			},
-		),
-		fx.Provide(
-			func(service headerService.Module) func(context.Context) (<-chan *header.ExtendedHeader, error) {
-				return service.Subscribe
-			},
-		),
-		fx.Provide(fx.Annotate(
-			func(
-				state state.Module,
-				sGetter shwap.Getter,
-				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
-				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
-			) *blob.Service {
-				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
-			},
-			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
-				return serv.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, serv *blob.Service) error {
-				return serv.Stop(ctx)
-			}),
-		)),
-		fx.Provide(func(serv *blob.Service) Module {
-			return serv
-		}),
-	)
-}
-```
-
-Notice how the blob module doesn't take a node type -- it's the same for all types. The differences in behavior come from the injected dependencies: a Light node's `shwap.Getter` fetches from the network, while a Bridge node's fetches from the local store.
+The blob module doesn't take a node type -- it's the same for both. Behavioral differences come from the injected dependencies: a Bridge node's `shwap.Getter` fetches from the local store, while a Light node's fetches from the network.
 
 ## 15. State Service: nodebuilder/state/module.go
 
-The State module manages on-chain state interaction -- balance queries, transaction submission, gas estimation. It connects to a Celestia Core node's gRPC endpoint.
+The State module manages on-chain state interaction -- balance queries, transaction submission, gas estimation.
 
 ```bash
-sed -n '23,59p' nodebuilder/state/module.go
+sed -n '22,65p' nodebuilder/state/module.go
 ```
 
 ```output
@@ -1376,26 +1259,33 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
-		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
-			coreAccessor,
-			fx.OnStart(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
-			) error {
-				return breaker.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
-			) error {
-				return breaker.Stop(ctx)
-			}),
-		)),
+		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(),
+			fx.Annotate(
+				newTxClient,
+				fx.OnStart(func(ctx context.Context, tc *txclient.TxClient) error {
+					return tc.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, tc *txclient.TxClient) error {
+					return tc.Stop(ctx)
+				}),
+			),
+			fx.Annotate(
+				coreAccessor,
+				fx.OnStart(func(ctx context.Context, ca *state.CoreAccessor) error {
+					return ca.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
+					return ca.Stop(ctx)
+				}),
+			),
+		),
 		fxutil.ProvideIf(!coreCfg.IsEndpointConfigured(), func() (*state.CoreAccessor, Module) {
 			return nil, &stubbedStateModule{}
 		}),
 	)
 
 	switch tp {
-	case node.Light, node.Full, node.Bridge:
+	case node.Light, node.Bridge:
 		return fx.Module(
 			"state",
 			baseComponents,
@@ -1406,13 +1296,13 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 }
 ```
 
-The state module uses a clever conditional pattern: `fxutil.ProvideIf`. If a Core endpoint is configured, it creates a real `CoreAccessor` (wrapped in a fraud ServiceBreaker). If not, it provides a stub that returns errors -- this allows Light nodes to run without a Core connection, just without state query capabilities.
+Key changes from earlier versions: the state module now uses a `TxClient` (transaction client) alongside the `CoreAccessor`, both with their own lifecycle hooks. The fraud `ServiceBreaker` wrapper has been removed -- the `CoreAccessor` is now started/stopped directly.
 
-The `CoreAccessor` is also fraud-protected: if a fraud proof is detected, state operations are halted to prevent the node from submitting transactions based on potentially fraudulent data.
+The conditional pattern with `fxutil.ProvideIf` remains: if a Core endpoint is configured, real implementations are created. If not, a stub is provided that returns errors -- allowing Light nodes to run without a Core connection.
 
 ## 16. Fraud Detection: nodebuilder/fraud/module.go
 
-The fraud module provides the infrastructure for detecting, creating, and propagating fraud proofs. Different node types handle fraud differently based on their sync requirements.
+The fraud module provides infrastructure for detecting, creating, and propagating fraud proofs.
 
 ```bash
 cat nodebuilder/fraud/module.go
@@ -1447,7 +1337,7 @@ func ConstructModule(tp node.Type) fx.Option {
 			baseComponent,
 			fx.Provide(newFraudServiceWithSync),
 		)
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		return fx.Module(
 			"fraud",
 			baseComponent,
@@ -1460,19 +1350,20 @@ func ConstructModule(tp node.Type) fx.Option {
 ```
 
 - **Light** nodes use `newFraudServiceWithSync` -- they wait for header sync to complete before processing fraud proofs, because they need a consistent view of the chain to validate proofs
-- **Full/Bridge** nodes use `newFraudServiceWithoutSync` -- they process fraud proofs asynchronously without waiting for sync, since they have complete local data
+- **Bridge** nodes use `newFraudServiceWithoutSync` -- they process fraud proofs asynchronously without waiting for sync, since they have complete local data
 
-The `ServiceBreaker` pattern we've seen in the header syncer, DASer, and state accessor all tie back to this fraud service. When a fraud proof is received and validated, the breaker trips and stops those services.
+Note that while the fraud `ServiceBreaker` pattern has been removed from the header syncer, DASer, and state accessor, the fraud detection and broadcasting infrastructure remains -- the DASer still broadcasts fraud proofs when it detects byzantine behavior during sampling.
 
 ## 17. RPC API Server: api/rpc/server.go
 
-The RPC server exposes all node functionality over a JSON-RPC 2.0 API with JWT-based authentication. This is how external tools and applications interact with the node.
+The RPC server exposes all node functionality over JSON-RPC 2.0 with JWT authentication.
 
 ```bash
 sed -n '30,67p' api/rpc/server.go
 ```
 
 ```output
+
 type Server struct {
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
@@ -1482,14 +1373,25 @@ type Server struct {
 	started    atomic.Bool
 	corsConfig CORSConfig
 
+	tlsEnabled  bool
+	tlsCertPath string
+	tlsKeyPath  string
+
 	signer   jwt.Signer
 	verifier jwt.Verifier
+}
+
+type TLSConfig struct {
+	Enabled  bool
+	CertPath string
+	KeyPath  string
 }
 
 func NewServer(
 	address, port string,
 	authDisabled bool,
 	corsConfig CORSConfig,
+	tlsConfig TLSConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
@@ -1499,107 +1401,21 @@ func NewServer(
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
-		corsConfig:   corsConfig,
-	}
-
-	srv.srv = &http.Server{
-		Addr:    net.JoinHostPort(address, port),
-		Handler: srv.newHandlerStack(rpc),
-		// the amount of time allowed to read request headers. set to the default 2 seconds
-		ReadHeaderTimeout: 2 * time.Second,
-	}
-
-	return srv
-}
 ```
 
-The handler stack is layered:
-
-1. **JSON-RPC server** (`filecoin-project/go-jsonrpc`) at the core
-2. **Auth middleware** -- extracts JWT tokens, verifies them, and maps to permission levels (read/write/admin)
-3. **CORS middleware** -- configurable cross-origin resource sharing
-
-When auth is disabled (e.g., for development), all permissions are granted and CORS allows all origins.
-
-```bash
-sed -n '119,127p' api/rpc/server.go
-```
-
-```output
-func (s *Server) RegisterService(namespace string, service, out any) {
-	if s.authDisabled {
-		s.rpc.Register(namespace, service)
-		return
-	}
-
-	auth.PermissionedProxy(perms.AllPerms, perms.DefaultPerms, service, getInternalStruct(out))
-	s.rpc.Register(namespace, out)
-}
-```
-
-Each module registers its methods under a namespace (e.g., `blob`, `header`, `state`, `das`, `share`, `node`, `p2p`). The `PermissionedProxy` call wraps each method with permission checks -- methods are tagged with required permission levels, and the JWT token's permissions must match.
-
-The RPC module wiring connects everything:
-
-```bash
-cat nodebuilder/rpc/module.go
-```
-
-```output
-package rpc
-
-import (
-	"context"
-
-	"go.uber.org/fx"
-
-	"github.com/celestiaorg/celestia-node/api/rpc"
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
-)
-
-func ConstructModule(tp node.Type, cfg *Config) fx.Option {
-	// sanitize config values before constructing module
-	cfgErr := cfg.Validate()
-
-	baseComponents := fx.Options(
-		fx.Supply(cfg),
-		fx.Error(cfgErr),
-		fx.Provide(fx.Annotate(
-			server,
-			fx.OnStart(func(ctx context.Context, server *rpc.Server) error {
-				return server.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context, server *rpc.Server) error {
-				return server.Stop(ctx)
-			}),
-		)),
-	)
-
-	switch tp {
-	case node.Light, node.Full, node.Bridge:
-		return fx.Module(
-			"rpc",
-			baseComponents,
-			fx.Invoke(registerEndpoints),
-		)
-	default:
-		panic("invalid node type")
-	}
-}
-```
-
-The `registerEndpoints` function (invoked by fx at startup) takes all the module interfaces and registers their methods on the RPC server under the appropriate namespaces.
+The server now also supports TLS configuration. The handler stack layers JSON-RPC, auth middleware (JWT tokens mapped to read/write/admin permissions), and CORS middleware. Each module registers its methods under a namespace (`blob`, `header`, `state`, `das`, `share`, `node`, `p2p`).
 
 ## 18. Pruning System: nodebuilder/pruner/module.go
 
-The pruner manages storage lifecycle by removing old data that is no longer needed. Different node types have different pruning behaviors based on their availability windows.
+The pruner manages storage lifecycle by removing old data. Different node types have different pruning behaviors.
 
 ```bash
-sed -n '22,86p' nodebuilder/pruner/module.go
+sed -n '22,77p' nodebuilder/pruner/module.go
 ```
 
 ```output
 func ConstructModule(tp node.Type) fx.Option {
+	cfg := DefaultConfig()
 	prunerService := fx.Options(
 		fx.Provide(fx.Annotate(
 			newPrunerService,
@@ -1618,7 +1434,10 @@ func ConstructModule(tp node.Type) fx.Option {
 	baseComponents := fx.Options(
 		// supply the default config, which can only be overridden by
 		// passing the `--archival` flag
-		fx.Supply(DefaultConfig()),
+		fx.Supply(cfg),
+		fx.Provide(func(cfg *Config) node.ArchivalMode {
+			return node.ArchivalMode(!cfg.EnableService)
+		}),
 		// TODO @renaynay: move this to share module construction
 		advertiseArchival(),
 		prunerService,
@@ -1633,19 +1452,6 @@ func ConstructModule(tp node.Type) fx.Option {
 			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 			//  note this provide exists in pruner module to avoid cyclical imports
 			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
-		)
-	case node.Full:
-		return fx.Module("prune",
-			baseComponents,
-			fx.Supply(modshare.Window(availability.StorageWindow)),
-			fx.Provide(func(cfg *Config) []fullavail.Option {
-				if cfg.EnableService {
-					return make([]fullavail.Option, 0)
-				}
-				return []fullavail.Option{fullavail.WithArchivalMode()}
-			}),
-			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
-			fx.Invoke(convertToPruned),
 		)
 	case node.Bridge:
 		return fx.Module("prune",
@@ -1668,18 +1474,17 @@ func ConstructModule(tp node.Type) fx.Option {
 
 Pruning behavior by node type:
 
-- **Light**: Uses a `SamplingWindow` -- only keeps data long enough to sample it, then prunes. This is the most aggressive pruning since Light nodes only need statistical verification.
-- **Full**: Uses a `StorageWindow` -- keeps data longer since Full nodes serve data to the network. Can run in **archival mode** (disabled pruning) via the `--archival` flag.
-- **Bridge**: Same storage window as Full, can also run archival. Bridge nodes that switch from archival to pruned mode trigger a `convertToPruned` hook that resets the pruning checkpoint to clean up all old data.
+- **Light**: Uses a `SamplingWindow` -- keeps data only long enough to sample, then prunes aggressively
+- **Bridge**: Uses a `StorageWindow` -- keeps data longer since Bridge nodes serve data to the network. Can run in **archival mode** (no pruning) via the `--archival` flag. Bridge nodes switching from archival to pruned trigger `convertToPruned` to clean up old data.
 
-The `advertiseArchival()` function controls peer discovery: archival nodes (non-pruning Full/Bridge) advertise themselves so peers know they can serve historical data.
+The pruner now also provides `node.ArchivalMode` to the DI container, and `advertiseArchival()` only advertises for Bridge nodes (since Light nodes are never archival).
 
 ## 19. Node Lifecycle: Start, Run, Stop
 
-With all modules wired up, the Node's lifecycle is straightforward. The `Start` method calls fx's app.Start (which triggers all `OnStart` hooks in dependency order), then prints the node's identity and listening addresses.
+With all modules wired up, the Node's lifecycle is straightforward. Start calls fx's app.Start (triggering all OnStart hooks in dependency order), then prints the node's identity and listening addresses.
 
 ```bash
-sed -n '102,136p' nodebuilder/node.go
+sed -n '102,169p' nodebuilder/node.go
 ```
 
 ```output
@@ -1718,15 +1523,19 @@ func (n *Node) Start(ctx context.Context) error {
 	fmt.Println()
 	return nil
 }
-```
 
-And the Stop method provides graceful shutdown with a configurable timeout:
+// Run is a Start which blocks on the given context 'ctx' until it is canceled.
+// If canceled, the Node is still in the running state and should be gracefully stopped via Stop.
+func (n *Node) Run(ctx context.Context) error {
+	err := n.Start(ctx)
+	if err != nil {
+		return err
+	}
 
-```bash
-sed -n '150,169p' nodebuilder/node.go
-```
+	<-ctx.Done()
+	return ctx.Err()
+}
 
-```output
 // Stop shuts down the Node, all its running Modules/Services and returns.
 // Canceling the given context earlier 'ctx' unblocks the Stop and aborts graceful shutdown forcing
 // remaining Modules/Services to close immediately.
@@ -1749,7 +1558,7 @@ func (n *Node) Stop(ctx context.Context) error {
 }
 ```
 
-Both Start and Stop use configurable timeouts. The stop sequence is the reverse of start -- fx calls all `OnStop` hooks in reverse dependency order, ensuring components that depend on other components are stopped first. The DASer saves its sampling checkpoint, the header syncer stops syncing, the P2P host closes connections, and the EDS store flushes its cache.
+Both Start and Stop use configurable timeouts. The stop sequence is the reverse of start -- fx calls all OnStop hooks in reverse dependency order.
 
 ## 20. Putting It All Together
 
@@ -1764,8 +1573,10 @@ Here's the complete data flow for each node type:
       +--> Broadcasts header via P2P PubSub
       +--> Broadcasts data hash via ShrExSub
       |
+      +--> RoutingExchange: routes header requests between Core and P2P
       +--> Serves header requests via ExchangeServer
       +--> Serves share requests via ShrEx Server
+      +--> DASer validates availability (full.ShareAvailability)
       +--> Exposes all operations via RPC API
 
 ### Light Node
@@ -1781,28 +1592,18 @@ Here's the complete data flow for each node type:
       +--> State service queries/submits via optional Core connection
       +--> Exposes all operations via RPC API
 
-### Full Node
-
-    P2P Network --PubSub--> Header Subscriber --> Header Syncer --> Header Store
-      |
-      +--> Downloads complete EDS via ShrEx Client / Bitswap
-      +--> Stores EDS in Store (ODS + Q4 files)
-      +--> Validates via full.ShareAvailability
-      |
-      +--> Serves share requests via ShrEx Server
-      +--> DASer validates availability (same as Light)
-      +--> Blob service, State service, RPC API (same as Light)
-
 ## Key Architectural Patterns
 
 1. **uber/fx Dependency Injection** -- The entire node is assembled declaratively. Modules register providers and lifecycle hooks; fx resolves the graph and manages startup/shutdown order.
 
-2. **Node Type Polymorphism** -- Rather than separate codebases, each module's `ConstructModule` switches on `node.Type` to configure type-specific behavior. The same binary serves all three roles.
+2. **Node Type Polymorphism** -- Rather than separate codebases, each module's `ConstructModule` switches on `node.Type` to configure type-specific behavior. The same binary serves both roles.
 
-3. **ServiceBreaker (Fraud Protection)** -- Critical services (syncer, DASer, state accessor) are wrapped in `ServiceBreaker`s that automatically stop the service when fraud is detected.
+3. **Fraud Detection & Broadcasting** -- The DASer broadcasts fraud proofs when it detects byzantine behavior. The fraud service propagates proofs across the network. Light nodes wait for sync before processing proofs; Bridge nodes process them asynchronously.
 
-4. **Modular Getter Pattern** -- Data retrieval is abstracted behind the `shwap.Getter` interface. Bridge/Full nodes get a getter backed by local storage; Light nodes get one that fetches from the network. Higher-level services (blob, DAS) are unaware of the source.
+4. **Modular Getter Pattern** -- Data retrieval is abstracted behind the `shwap.Getter` interface. Bridge nodes get a getter backed by local storage; Light nodes get one that fetches from the network. Higher-level services (blob, DAS) are unaware of the source.
 
-5. **Checkpoint-based Resumption** -- The DASer and pruner persist checkpoints to BadgerDB, allowing them to resume from where they left off after a restart rather than reprocessing the entire chain.
+5. **Checkpoint-based Resumption** -- The DASer and pruner persist checkpoints to BadgerDB, allowing them to resume from where they left off after a restart.
 
-6. **Dual Storage Strategy** -- A BadgerDB key-value store for metadata/checkpoints/headers and flat files (ODS/Q4) for the large EDS data, with filesystem hard links providing O(1) height-to-hash lookups.
+6. **Dual Storage Strategy** -- BadgerDB for metadata/checkpoints/headers and flat files (ODS/Q4) for large EDS data, with filesystem hard links providing O(1) height-to-hash lookups.
+
+7. **RoutingExchange** -- Bridge nodes use a RoutingExchange that can fall back to P2P header exchange when the Core node doesn't have blocks, improving resilience during Core node restarts.
