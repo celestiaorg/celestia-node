@@ -13,7 +13,6 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app/v5 v5.0.10
-	github.com/celestiaorg/go-fraud v0.2.3
 	github.com/celestiaorg/go-header v0.7.3
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
