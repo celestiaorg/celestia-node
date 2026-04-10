@@ -60,18 +60,18 @@ func (mr *MockModuleMockRecorder) Deposit(ctx, amount, cfg any) *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockModule) Get(ctx context.Context, ns share.Namespace, commitment []byte) (*fibre0.GetBlobResult, error) {
+func (m *MockModule) Get(ctx context.Context, blobID []byte) (*fibre0.GetBlobResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, ns, commitment)
+	ret := m.ctrl.Call(m, "Get", ctx, blobID)
 	ret0, _ := ret[0].(*fibre0.GetBlobResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockModuleMockRecorder) Get(ctx, ns, commitment any) *gomock.Call {
+func (mr *MockModuleMockRecorder) Get(ctx, blobID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockModule)(nil).Get), ctx, ns, commitment)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockModule)(nil).Get), ctx, blobID)
 }
 
 // PendingWithdrawals mocks base method.

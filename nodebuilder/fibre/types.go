@@ -11,11 +11,11 @@ import (
 type ValidatorSignature []byte
 
 // UploadResult is the result of uploading a blob to FSPs without on-chain submission.
-// It contains the blob commitment, aggregated validator signatures, and the payment promise
+// It contains the blob ID, aggregated validator signatures, and the payment promise
 // that can be used for a later on-chain MsgPayForFibre submission.
 type UploadResult struct {
-	// Commitment is the Fibre commitment for the uploaded blob.
-	Commitment appfibre.Commitment `json:"commitment"`
+	// BlobID is the Fibre blob identifier for the uploaded blob.
+	BlobID appfibre.BlobID `json:"blob_id"`
 	// ValidatorSignatures are attestations from validators confirming blob availability.
 	ValidatorSignatures []ValidatorSignature `json:"validator_signatures"`
 	// PaymentPromise is the signed promise used for on-chain fee settlement.
@@ -25,8 +25,8 @@ type UploadResult struct {
 // SubmitResult is the result of a full Fibre blob submission including on-chain MsgPayForFibre.
 // It extends UploadResult with chain inclusion details (height and transaction hash).
 type SubmitResult struct {
-	// Commitment is the Fibre commitment for the submitted blob.
-	Commitment appfibre.Commitment `json:"commitment"`
+	// BlobID is the Fibre blob identifier for the submitted blob.
+	BlobID appfibre.BlobID `json:"blob_id"`
 	// ValidatorSignatures are attestations from validators confirming blob availability.
 	ValidatorSignatures []ValidatorSignature `json:"validator_signatures"`
 	// Height is the block height at which MsgPayForFibre was included on-chain.

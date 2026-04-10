@@ -34,7 +34,7 @@ func (s *stubbedFibreModule) Upload(
 	return nil, errFibreNotAvailable
 }
 
-func (s *stubbedFibreModule) Get(context.Context, libshare.Namespace, []byte) (*GetBlobResult, error) {
+func (s *stubbedFibreModule) Get(context.Context, []byte) (*GetBlobResult, error) {
 	return nil, errFibreNotAvailable
 }
 

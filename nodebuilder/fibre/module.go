@@ -28,20 +28,20 @@ func (m *module) Submit(
 	data []byte,
 	options *txclient.TxConfig,
 ) (*SubmitResult, error) {
-	putRes, pp, err := m.service.Submit(ctx, ns, data, options)
+	resp, pp, id, err := m.service.Submit(ctx, ns, data, options)
 	if err != nil {
 		return nil, err
 	}
 
 	submitRes := &SubmitResult{
-		Commitment:     putRes.BlobID.Commitment(),
-		Height:         putRes.Height,
-		TxHash:         putRes.TxHash,
-		PaymentPromise: toNodePaymentPromise(pp),
+		BlobID:         id,
+		Height:         uint64(resp.Height),
+		TxHash:         resp.TxHash,
+		PaymentPromise: toNodePaymentPromise(pp.PaymentPromise),
 	}
 
-	submitRes.ValidatorSignatures = make([]ValidatorSignature, len(putRes.ValidatorSignatures))
-	for i, sig := range putRes.ValidatorSignatures {
+	submitRes.ValidatorSignatures = make([]ValidatorSignature, len(pp.ValidatorSignatures))
+	for i, sig := range pp.ValidatorSignatures {
 		submitRes.ValidatorSignatures[i] = sig
 	}
 	return submitRes, nil
@@ -53,13 +53,13 @@ func (m *module) Upload(
 	data []byte,
 	options *txclient.TxConfig,
 ) (*UploadResult, error) {
-	promise, err := m.service.Upload(ctx, ns, data, options)
+	promise, blobID, err := m.service.Upload(ctx, ns, data, options)
 	if err != nil {
 		return nil, err
 	}
 
 	uploadRes := &UploadResult{
-		Commitment:     promise.Commitment,
+		BlobID:         blobID,
 		PaymentPromise: toNodePaymentPromise(promise.PaymentPromise),
 	}
 
@@ -70,8 +70,8 @@ func (m *module) Upload(
 	return uploadRes, nil
 }
 
-func (m *module) Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*GetBlobResult, error) {
-	blob, err := m.service.Get(ctx, ns, commitment)
+func (m *module) Get(ctx context.Context, blobID []byte) (*GetBlobResult, error) {
+	blob, err := m.service.Get(ctx, blobID)
 	if err != nil {
 		return nil, err
 	}

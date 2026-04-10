@@ -31,9 +31,9 @@ type Module interface {
 	// and aggregates validator availability signatures. It does NOT submit MsgPayForFibre on-chain.
 	// Use blob.SubmitFibreBlob for the full submit flow.
 	Upload(_ context.Context, _ libshare.Namespace, _ []byte, _ *txclient.TxConfig) (*UploadResult, error)
-	// Get retrieves a Fibre blob from FSPs by namespace and commitment.
+	// Get retrieves a Fibre blob from FSPs by blobID.
 	// It reconstructs the original blob data from the encoded rows stored off-chain.
-	Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*GetBlobResult, error)
+	Get(ctx context.Context, blobID []byte) (*GetBlobResult, error)
 	// QueryEscrowAccount returns the escrow account details for the given signer address,
 	// including total balance and available (spendable) balance.
 	QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error)
@@ -65,8 +65,7 @@ type API struct {
 		) (*UploadResult, error) `perm:"write"`
 		Get func(
 			ctx context.Context,
-			ns libshare.Namespace,
-			commitment []byte,
+			blobID []byte,
 		) (*GetBlobResult, error) `perm:"read"`
 		QueryEscrowAccount func(
 			ctx context.Context,
@@ -107,8 +106,8 @@ func (api *API) Upload(
 	return api.Internal.Upload(ctx, ns, data, options)
 }
 
-func (api *API) Get(ctx context.Context, ns libshare.Namespace, commitment []byte) (*GetBlobResult, error) {
-	return api.Internal.Get(ctx, ns, commitment)
+func (api *API) Get(ctx context.Context, blobID []byte) (*GetBlobResult, error) {
+	return api.Internal.Get(ctx, blobID)
 }
 
 func (api *API) QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error) {
