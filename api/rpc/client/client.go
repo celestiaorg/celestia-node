@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -27,7 +26,6 @@ var (
 )
 
 type Client struct {
-	Fraud      fraud.API
 	Header     header.API
 	State      state.API
 	Share      share.API
@@ -93,7 +91,6 @@ func moduleMap(client *Client) map[string]any {
 		"share":      &client.Share.Internal,
 		"state":      &client.State.Internal,
 		"header":     &client.Header.Internal,
-		"fraud":      &client.Fraud.Internal,
 		"das":        &client.DAS.Internal,
 		"p2p":        &client.P2P.Internal,
 		"node":       &client.Node.Internal,
