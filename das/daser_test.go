@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/go-fraud/fraudtest"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -31,12 +30,12 @@ func TestDASerLifecycle(t *testing.T) {
 	avail := mocks.NewMockAvailability(ctrl)
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	// 15 headers from the past and 15 future headers
-	mockGet, sub, mockService := createDASerSubcomponents(t, 15, 15)
+	mockGet, sub := createDASerSubcomponents(t, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -62,12 +61,12 @@ func TestDASer_Restart(t *testing.T) {
 	avail := mocks.NewMockAvailability(ctrl)
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	// 15 headers from the past and 15 future headers
-	mockGet, sub, mockService := createDASerSubcomponents(t, 15, 15)
+	mockGet, sub := createDASerSubcomponents(t, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -88,7 +87,7 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser, err = NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
+	daser, err = NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(restartCtx)
@@ -104,77 +103,6 @@ func TestDASer_Restart(t *testing.T) {
 	// ensure checkpoint is stored at 45
 	assert.EqualValues(t, 60, checkpoint.SampleFrom-1)
 }
-
-// TODO(@walldiss): BEFP test will not work until BEFP-shwap integration
-// func TestDASer_stopsAfter_BEFP(t *testing.T) {
-//	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-//	t.Cleanup(cancel)
-//
-//	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-//	// create mock network
-//	net, err := mocknet.FullMeshLinked(1)
-//	require.NoError(t, err)
-//	// create pubsub for host
-//	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
-//		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-//	require.NoError(t, err)
-//
-//	ctrl := gomock.NewController(t)
-//	avail := mocks.NewMockAvailability(ctrl)
-//	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-//	// 15 headers from the past and 15 future headers
-//	mockGet, sub, _ := createDASerSubcomponents(t, 15, 15)
-//
-//	// create fraud service and break one header
-//	getter := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-//		return mockGet.GetByHeight(ctx, height)
-//	}
-//	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
-//		return mockGet.Head(ctx)
-//	}
-//	unmarshaler := fraud.MultiUnmarshaler[*header.ExtendedHeader]{
-//		Unmarshalers: map[fraud.ProofType]func([]byte) (fraud.Proof[*header.ExtendedHeader], error){
-//			byzantine.BadEncoding: func(data []byte) (fraud.Proof[*header.ExtendedHeader], error) {
-//				befp := &byzantine.BadEncodingProof{}
-//				return befp, befp.UnmarshalBinary(data)
-//			},
-//		},
-//	}
-//
-//	fserv := fraudserv.NewProofService[*header.ExtendedHeader](ps,
-//		net.Hosts()[0],
-//		getter,
-//		headGetter,
-//		unmarshaler,
-//		ds,
-//		false,
-//		"private",
-//	)
-//	require.NoError(t, fserv.Start(ctx))
-//	mockGet.headers[1] = headerfraud.CreateFraudExtHeader(t, mockGet.headers[1])
-//	newCtx := context.Background()
-//
-//	// create and start DASer
-//	daser, err := NewDASer(avail, sub, mockGet, ds, fserv, newBroadcastMock(1))
-//	require.NoError(t, err)
-//
-//	resultCh := make(chan error)
-//	go fraud.OnProof[*header.ExtendedHeader](newCtx, fserv, byzantine.BadEncoding,
-//		func(fraud.Proof[*header.ExtendedHeader]) {
-//			resultCh <- daser.Stop(newCtx)
-//		})
-//
-//	require.NoError(t, daser.Start(newCtx))
-//	// wait for fraud proof will be handled
-//	select {
-//	case <-ctx.Done():
-//		t.Fatal(ctx.Err())
-//	case res := <-resultCh:
-//		require.NoError(t, res)
-//	}
-//	// wait for manager to finish catchup
-//	require.False(t, daser.running.Load())
-//}
 
 func TestDASerSampleTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -202,10 +130,9 @@ func TestDASerSampleTimeout(t *testing.T) {
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	sub := new(headertest.Subscriber)
-	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
+	daser, err := NewDASer(avail, sub, getter, ds, newBroadcastMock(1),
 		WithSampleTimeout(1))
 	require.NoError(t, err)
 
@@ -230,11 +157,9 @@ func createDASerSubcomponents(
 ) (
 	libhead.Store[*header.ExtendedHeader],
 	libhead.Subscriber[*header.ExtendedHeader],
-	*fraudtest.DummyService[*header.ExtendedHeader],
 ) {
 	mockGet, sub := createMockGetterAndSub(t, numGetter, numSub)
-	fraud := &fraudtest.DummyService[*header.ExtendedHeader]{}
-	return mockGet, sub, fraud
+	return mockGet, sub
 }
 
 func createMockGetterAndSub(
