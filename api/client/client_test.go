@@ -33,8 +33,6 @@ import (
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	headerapi "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -208,7 +206,6 @@ func TestSubmission(t *testing.T) {
 type mockAPI struct {
 	State      *stateMock.MockModule
 	Share      *shareMock.MockModule
-	Fraud      *fraudMock.MockModule
 	Header     *headerMock.MockModule
 	Das        *dasMock.MockModule
 	P2P        *p2pMock.MockModule
@@ -225,7 +222,6 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 	mockAPI := &mockAPI{
 		stateMock.NewMockModule(ctrl),
 		shareMock.NewMockModule(ctrl),
-		fraudMock.NewMockModule(ctrl),
 		headerMock.NewMockModule(ctrl),
 		dasMock.NewMockModule(ctrl),
 		p2pMock.NewMockModule(ctrl),
@@ -239,7 +235,6 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
 	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterService("fraud", mockAPI.Fraud, &fraud.API{})
 		srv.RegisterService("das", mockAPI.Das, &das.API{})
 		srv.RegisterService("header", mockAPI.Header, &headerapi.API{})
 		srv.RegisterService("state", mockAPI.State, &statemod.API{})

@@ -10,16 +10,13 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	libfraud "github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
 
 // newP2PExchange constructs a new Exchange for headers.
@@ -104,17 +101,6 @@ func newSyncer[H libhead.Header[H]](
 	}
 
 	return syncer, nil
-}
-
-func newFraudedSyncer[H libhead.Header[H]](
-	fservice libfraud.Service[H],
-	syncer *sync.Syncer[H],
-) *modfraud.ServiceBreaker[*sync.Syncer[H], H] {
-	return &modfraud.ServiceBreaker[*sync.Syncer[H], H]{
-		Service:   syncer,
-		FraudType: byzantine.BadEncoding,
-		FraudServ: fservice,
-	}
 }
 
 // newStore constructs an initialized store
