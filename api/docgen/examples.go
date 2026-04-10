@@ -178,19 +178,19 @@ func init() {
 	add(network.DirUnknown)
 	add(bytes.HexBytes(hash))
 
-	// Fibre types
-	fibreCommitment := appfibre.Commitment{}
-	copy(fibreCommitment[:], commitment)
-	add(fibreCommitment)
+	id := make(appfibre.BlobID, appfibre.BlobIDSize)
+	id[0] = 2
+	copy(id[1:], commitment)
+	add(id)
 
 	exampleUploadResult := fibre2.UploadResult{
-		Commitment:          fibreCommitment,
+		BlobID:              id,
 		ValidatorSignatures: []fibre2.ValidatorSignature{[]byte("validator_signature_bytes")},
 		PaymentPromise: &fibre2.PaymentPromise{
 			ChainID:           "celestia",
 			Namespace:         namespace,
 			BlobSize:          1024,
-			Commitment:        fibreCommitment,
+			Commitment:        id.Commitment(),
 			RowVersion:        2,
 			ValsetHeight:      100,
 			CreationTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -200,7 +200,7 @@ func init() {
 	add(&exampleUploadResult)
 
 	exampleSubmitResult := fibre2.SubmitResult{
-		Commitment:          fibreCommitment,
+		BlobID:              id,
 		ValidatorSignatures: []fibre2.ValidatorSignature{[]byte("validator_signature_bytes")},
 		Height:              42,
 		TxHash:              "A5CF62609391B17E0340A6E07BD15860AFA4BE7F5DAF28F2E22A1C3B0CE85E64",
@@ -229,7 +229,7 @@ func init() {
 		ChainID:           "celestia",
 		Namespace:         namespace,
 		BlobSize:          1024,
-		Commitment:        fibreCommitment,
+		Commitment:        id.Commitment(),
 		RowVersion:        2,
 		ValsetHeight:      100,
 		CreationTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),

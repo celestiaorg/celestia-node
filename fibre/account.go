@@ -73,9 +73,10 @@ func (a *AccountClient) QueryEscrowAccount(ctx context.Context, signer string) (
 
 	log.Infow("querying escrow account", "signer", signer)
 
-	var resp *fibretypes.QueryEscrowAccountResponse
+	var successfulResp *fibretypes.QueryEscrowAccountResponse
 	for _, conn := range a.conns {
 		queryClient := fibretypes.NewQueryClient(conn)
+		var resp *fibretypes.QueryEscrowAccountResponse
 		resp, err = queryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
 			Signer: signer,
 		})
@@ -83,29 +84,29 @@ func (a *AccountClient) QueryEscrowAccount(ctx context.Context, signer string) (
 			log.Warnw("querying escrow account", "error", err)
 			continue
 		}
-
+		successfulResp = resp
 		if resp.Found {
 			break
 		}
 		log.Warnw("escrow account not found for signer", "signer", signer)
 	}
 
-	if resp == nil {
+	if successfulResp == nil {
 		return nil, fmt.Errorf("querying escrow account: %w", err)
 	}
-	if !resp.Found {
+	if !successfulResp.Found {
 		return nil, fmt.Errorf("escrow account not found for signer:%s", signer)
 	}
 
 	log.Debugw("escrow account found",
-		"signer", resp.EscrowAccount.Signer,
-		"balance", resp.EscrowAccount.Balance,
-		"available-balance", resp.EscrowAccount.AvailableBalance,
+		"signer", successfulResp.EscrowAccount.Signer,
+		"balance", successfulResp.EscrowAccount.Balance,
+		"available-balance", successfulResp.EscrowAccount.AvailableBalance,
 	)
 	return &EscrowAccount{
-		Signer:           resp.EscrowAccount.Signer,
-		Balance:          resp.EscrowAccount.Balance,
-		AvailableBalance: resp.EscrowAccount.AvailableBalance,
+		Signer:           successfulResp.EscrowAccount.Signer,
+		Balance:          successfulResp.EscrowAccount.Balance,
+		AvailableBalance: successfulResp.EscrowAccount.AvailableBalance,
 	}, nil
 }
 
@@ -190,7 +191,6 @@ func (a *AccountClient) PendingWithdrawals(ctx context.Context, signer string) (
 	log.Infow("querying pending withdrawals", "signer", signer)
 
 	var resp *fibretypes.QueryWithdrawalsResponse
-
 	for _, conn := range a.conns {
 		queryClient := fibretypes.NewQueryClient(conn)
 		resp, err = queryClient.Withdrawals(ctx, &fibretypes.QueryWithdrawalsRequest{
