@@ -2,24 +2,24 @@ package core
 
 import (
 	"context"
-	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
 type exchangeMetrics struct {
-	getByHeightDuration metric.Float64Histogram
+	totalBlocksProcessed metric.Int64Counter
 }
 
 func newExchangeMetrics() (*exchangeMetrics, error) {
 	m := new(exchangeMetrics)
 
 	var err error
-	m.getByHeightDuration, err = meter.Float64Histogram(
-		"core_ex_get_by_height_request_time",
-		metric.WithDescription("core exchange client getByHeight request time in seconds (per single height)"),
+	m.totalBlocksProcessed, err = meter.Int64Counter(
+		"core_ex_total_blocks_processed",
+		metric.WithDescription("total number of blocks processed by the exchange"),
 	)
 	if err != nil {
 		return nil, err
@@ -34,16 +34,16 @@ func (m *exchangeMetrics) observe(ctx context.Context, observeFn func(ctx contex
 	}
 
 	ctx = utils.ResetContextOnError(ctx)
-
 	observeFn(ctx)
 }
 
-func (m *exchangeMetrics) requestDurationPerHeader(ctx context.Context, duration time.Duration, amount uint64) {
+func (m *exchangeMetrics) observeBlockProcessed(ctx context.Context, edsSize int) {
 	m.observe(ctx, func(ctx context.Context) {
-		if amount == 0 {
-			return
-		}
-		durationPerHeader := duration.Seconds() / float64(amount)
-		m.getByHeightDuration.Record(ctx, durationPerHeader)
+		m.totalBlocksProcessed.Add(ctx, 1, metric.WithAttributes(edsSizeAttribute(edsSize)))
 	})
+}
+
+// edsSizeAttribute creates an attribute for the EDS square size
+func edsSizeAttribute(size int) attribute.KeyValue {
+	return attribute.Int("eds_size", size)
 }

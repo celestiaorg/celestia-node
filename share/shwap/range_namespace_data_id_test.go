@@ -63,4 +63,16 @@ func TestRangeNamespaceDataIDReaderWriter(t *testing.T) {
 
 	err = rngidOut.Validate()
 	require.NoError(t, err)
+
+	rngidV0in := RangeNamespaceDataIDV0{rngidOut}
+	buf = bytes.NewBuffer(nil)
+	n, err = rngidV0in.WriteTo(buf)
+	require.NoError(t, err)
+	require.Equal(t, int64(RangeNamespaceDataIDV0Size), n)
+
+	var rngidV0out RangeNamespaceDataIDV0
+	n, err = rngidV0out.ReadFrom(buf)
+	require.NoError(t, err)
+	require.Equal(t, int64(RangeNamespaceDataIDV0Size), n)
+	require.EqualValues(t, rngidV0in, rngidV0out)
 }

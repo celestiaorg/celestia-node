@@ -32,7 +32,7 @@ func defaultConnManagerConfig(tp node.Type) connManagerConfig {
 			High:        100,
 			GracePeriod: time.Minute,
 		}
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		return connManagerConfig{
 			Low:         800,
 			High:        1000,
