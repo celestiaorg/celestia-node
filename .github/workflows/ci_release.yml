@@ -82,25 +82,17 @@ jobs:
   goreleaser:
     needs: [setup]
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'release' ||
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
 
       - run: git fetch --force --tags
 
-      - name: Set LATEST_TAG for release
-        if: github.event_name == 'release'
-        run: echo "LATEST_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-
-      - name: Set LATEST_TAG for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
+      - name: Set LATEST_TAG
         run: echo "LATEST_TAG=${{ inputs.run-on-tag }}" >> $GITHUB_ENV
 
       - name: Checkout a given tag
-        if: github.event_name == 'workflow_dispatch'
         run: git checkout ${{ inputs.run-on-tag }}
 
       - uses: actions/setup-go@v6
@@ -127,9 +119,7 @@ jobs:
 
   upload-docs:
     needs: [setup]
-    if: |
-      github.event_name == 'release' ||
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -140,16 +130,10 @@ jobs:
 
       - run: git fetch --force --tags
 
-      - name: Set LATEST_TAG for release
-        if: github.event_name == 'release'
-        run: echo "LATEST_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-
-      - name: Set LATEST_TAG for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
+      - name: Set LATEST_TAG
         run: echo "LATEST_TAG=${{ inputs.run-on-tag }}" >> $GITHUB_ENV
 
       - name: Checkout a given tag
-        if: github.event_name == 'workflow_dispatch'
         run: git checkout ${{ inputs.run-on-tag }}
 
       - run: |
