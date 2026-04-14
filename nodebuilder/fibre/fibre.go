@@ -5,6 +5,7 @@ import (
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/fibre"
@@ -20,32 +21,34 @@ var _ Module = (*API)(nil)
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// Submit submits a blob via the Fibre network.
+	// Submit submits a v0 Fibre blob via the Fibre network.
 	// It performs the full Fibre flow: uploads blob data to FSPs, aggregates validator
 	// availability signatures, and submits MsgPayForFibre on-chain.
 	// Returns the submission result including the on-chain height and transaction hash.
 	// Requires the node to be connected to a core endpoint with Fibre support.
-	Submit(_ context.Context, _ libshare.Namespace, _ []byte, _ *txclient.TxConfig) (*SubmitResult, error)
-	// Upload performs the off-chain portion of Fibre blob submission only.
+	// NOTE: Currently only v0 Fibre blobs are supported
+	Submit(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*SubmitResult, error)
+	// Upload performs the off-chain portion of v0 Fibre blob submission only.
 	// It encodes the blob, constructs a payment promise, uploads encoded rows to FSPs,
 	// and aggregates validator availability signatures. It does NOT submit MsgPayForFibre on-chain.
-	// Use blob.SubmitFibreBlob for the full submit flow.
-	Upload(_ context.Context, _ libshare.Namespace, _ []byte, _ *txclient.TxConfig) (*UploadResult, error)
-	// Get retrieves a Fibre blob from FSPs by blobID.
+	// Use fibre.Submit for the full submit flow.
+	// NOTE: Currently only v0 Fibre blobs are supported.
+	Upload(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*UploadResult, error)
+	// Download retrieves a Fibre blob from FSPs by blobID.
 	// It reconstructs the original blob data from the encoded rows stored off-chain.
-	Get(ctx context.Context, blobID []byte) (*GetBlobResult, error)
+	Download(context.Context, appfibre.BlobID) (*GetBlobResult, error)
 	// QueryEscrowAccount returns the escrow account details for the given signer address,
 	// including total balance and available (spendable) balance.
-	QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error)
+	QueryEscrowAccount(_ context.Context, signer string) (*fibre.EscrowAccount, error)
 	// Deposit adds funds to the node's Fibre escrow account.
 	// The signer is resolved from cfg (SignerAddress or KeyName) or the node's default account.
-	Deposit(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error
+	Deposit(context.Context, sdktypes.Coin, *txclient.TxConfig) error
 	// Withdraw requests a withdrawal from the node's Fibre escrow account.
 	// The signer is resolved from cfg (SignerAddress or KeyName) or the node's default account.
 	// The withdrawal enters an unbonding period before funds become claimable.
-	Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error
+	Withdraw(context.Context, sdktypes.Coin, *txclient.TxConfig) error
 	// PendingWithdrawals returns all pending (not yet claimable) withdrawals for the given signer.
-	PendingWithdrawals(ctx context.Context, signer string) ([]fibre.PendingWithdrawal, error)
+	PendingWithdrawals(_ context.Context, signer string) ([]fibre.PendingWithdrawal, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -63,9 +66,9 @@ type API struct {
 			data []byte,
 			config *txclient.TxConfig,
 		) (*UploadResult, error) `perm:"write"`
-		Get func(
+		Download func(
 			ctx context.Context,
-			blobID []byte,
+			blobID appfibre.BlobID,
 		) (*GetBlobResult, error) `perm:"read"`
 		QueryEscrowAccount func(
 			ctx context.Context,
@@ -106,8 +109,8 @@ func (api *API) Upload(
 	return api.Internal.Upload(ctx, ns, data, options)
 }
 
-func (api *API) Get(ctx context.Context, blobID []byte) (*GetBlobResult, error) {
-	return api.Internal.Get(ctx, blobID)
+func (api *API) Download(ctx context.Context, blobID appfibre.BlobID) (*GetBlobResult, error) {
+	return api.Internal.Download(ctx, blobID)
 }
 
 func (api *API) QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error) {

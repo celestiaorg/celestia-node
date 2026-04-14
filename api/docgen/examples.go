@@ -23,6 +23,7 @@ import (
 	"golang.org/x/text/language"
 
 	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
+	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -200,11 +201,9 @@ func init() {
 	add(&exampleUploadResult)
 
 	exampleSubmitResult := fibre2.SubmitResult{
-		BlobID:              id,
-		ValidatorSignatures: []fibre2.ValidatorSignature{[]byte("validator_signature_bytes")},
-		Height:              42,
-		TxHash:              "A5CF62609391B17E0340A6E07BD15860AFA4BE7F5DAF28F2E22A1C3B0CE85E64",
-		PaymentPromise:      exampleUploadResult.PaymentPromise,
+		UploadResult: exampleUploadResult,
+		Height:       42,
+		TxHash:       "A5CF62609391B17E0340A6E07BD15860AFA4BE7F5DAF28F2E22A1C3B0CE85E64",
 	}
 	add(&exampleSubmitResult)
 
