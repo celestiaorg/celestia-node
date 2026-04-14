@@ -1,0 +1,50 @@
+name: Validate Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Check release commit
+        id: check
+        run: |
+          COMMIT_MSG=$(git log -1 --format=%s)
+          if [[ "$COMMIT_MSG" == chore:\ release\ v* ]]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Warn about manual release
+        if: steps.check.outputs.valid == 'false'
+        run: |
+          BODY=$(cat <<'COMMENT'
+          > [!WARNING]
+          > This release was created manually via the GitHub UI. Manual releases
+          > can cause the `celestia version` command to report an incorrect
+          > version when multiple network tags point to the same commit.
+          >
+          > **Please use the [Create Release](../actions/workflows/create-release.yml)
+          > workflow instead.** It creates a dedicated commit per network release
+          > so the version is always unambiguous.
+          >
+          > Consider deleting this release and re-creating it via the workflow.
+          COMMENT
+          )
+          gh release edit "$TAG" --notes "$(gh release view "$TAG" --json body -q .body)
+
+          ---
+
+          $BODY"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
