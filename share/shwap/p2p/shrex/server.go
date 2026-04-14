@@ -97,6 +97,15 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 	return func(s network.Stream) {
 		requestID, handleTime := id(), time.Now()
 
+		// bind the stream to the shrex service scope in the resource manager.
+		// this enforces global and per-peer stream concurrency limits.
+		if err := s.Scope().SetService(serviceName); err != nil {
+			log.Warnw("server: failed to attach stream to shrex service scope", "err", err)
+			s.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
+			srv.metrics.observeRequest(ctx, requestID.Name(), statusResourceExhausted, time.Since(handleTime))
+			return
+		}
+
 		status, size := srv.handleDataRequest(ctx, requestID, s)
 
 		srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
@@ -110,6 +119,11 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 		// reset because we will not send anything back
 		if status == statusBadRequest || status == statusReadReqErr {
 			s.Reset() //nolint:errcheck
+			return
+		}
+		// handleDataRequest already called ResetWithError for resource exhaustion;
+		// calling Reset() again would overwrite the specific error code with 0.
+		if status == statusResourceExhausted {
 			return
 		}
 
@@ -173,6 +187,23 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	}
 
 	defer utils.CloseAndLog(log, "file", file)
+	// get the actual EDS size to compute an exact memory reservation before reading.
+	edsSize, err := file.Size(ctx)
+	if err != nil {
+		logger.Errorf("getting EDS size %w", err)
+		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
+	}
+
+	// reserve memory before reading from the accessor so the resource manager
+	// can reject the request if the budget is exhausted.
+	memReserve := requestID.ResponseSize(edsSize)
+	if err := stream.Scope().ReserveMemory(memReserve, network.ReservationPriorityAlways); err != nil {
+		log.Warnw("server: failed to reserve memory for shrex stream", "err", err)
+		stream.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
+		return statusResourceExhausted, 0
+	}
+	defer stream.Scope().ReleaseMemory(memReserve)
+
 	r, err := requestID.ResponseReader(ctx, file)
 	if err != nil {
 		logger.Errorf("getting data from response reader %w", err)
