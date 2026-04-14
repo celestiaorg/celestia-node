@@ -20,6 +20,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: create-release-${{ inputs.base-branch }}
+  cancel-in-progress: false
+
 env:
   GO_VERSION: "1.24"
 
@@ -63,10 +67,14 @@ jobs:
 
       - name: Create GitHub release
         run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ inputs.network }}" != "mainnet" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
           gh release create "${{ steps.tag.outputs.tag }}" \
             --target "${{ inputs.base-branch }}" \
             --generate-notes \
-            --prerelease
+            $PRERELEASE_FLAG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
