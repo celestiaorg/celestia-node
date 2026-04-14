@@ -13,8 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	fibre "github.com/celestiaorg/celestia-node/fibre"
-	fibre0 "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
+	fibre "github.com/celestiaorg/celestia-app/v8/fibre"
+	fibre0 "github.com/celestiaorg/celestia-node/fibre"
+	fibre1 "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	txclient "github.com/celestiaorg/celestia-node/state/txclient"
 	share "github.com/celestiaorg/go-square/v4/share"
 	types "github.com/cosmos/cosmos-sdk/types"
@@ -59,26 +60,26 @@ func (mr *MockModuleMockRecorder) Deposit(ctx, amount, cfg any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deposit", reflect.TypeOf((*MockModule)(nil).Deposit), ctx, amount, cfg)
 }
 
-// Get mocks base method.
-func (m *MockModule) Get(ctx context.Context, blobID []byte) (*fibre0.GetBlobResult, error) {
+// Download mocks base method.
+func (m *MockModule) Download(ctx context.Context, blobID fibre.BlobID) (*fibre1.GetBlobResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, blobID)
-	ret0, _ := ret[0].(*fibre0.GetBlobResult)
+	ret := m.ctrl.Call(m, "Download", ctx, blobID)
+	ret0, _ := ret[0].(*fibre1.GetBlobResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get.
-func (mr *MockModuleMockRecorder) Get(ctx, blobID any) *gomock.Call {
+// Download indicates an expected call of Download.
+func (mr *MockModuleMockRecorder) Download(ctx, blobID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockModule)(nil).Get), ctx, blobID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Download", reflect.TypeOf((*MockModule)(nil).Download), ctx, blobID)
 }
 
 // PendingWithdrawals mocks base method.
-func (m *MockModule) PendingWithdrawals(ctx context.Context, signer string) ([]fibre.PendingWithdrawal, error) {
+func (m *MockModule) PendingWithdrawals(ctx context.Context, signer string) ([]fibre0.PendingWithdrawal, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PendingWithdrawals", ctx, signer)
-	ret0, _ := ret[0].([]fibre.PendingWithdrawal)
+	ret0, _ := ret[0].([]fibre0.PendingWithdrawal)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -90,10 +91,10 @@ func (mr *MockModuleMockRecorder) PendingWithdrawals(ctx, signer any) *gomock.Ca
 }
 
 // QueryEscrowAccount mocks base method.
-func (m *MockModule) QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error) {
+func (m *MockModule) QueryEscrowAccount(ctx context.Context, signer string) (*fibre0.EscrowAccount, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryEscrowAccount", ctx, signer)
-	ret0, _ := ret[0].(*fibre.EscrowAccount)
+	ret0, _ := ret[0].(*fibre0.EscrowAccount)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -105,33 +106,33 @@ func (mr *MockModuleMockRecorder) QueryEscrowAccount(ctx, signer any) *gomock.Ca
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 share.Namespace, arg2 []byte, arg3 *txclient.TxConfig) (*fibre0.SubmitResult, error) {
+func (m *MockModule) Submit(ctx context.Context, ns share.Namespace, data []byte, options *txclient.TxConfig) (*fibre1.SubmitResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Submit", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*fibre0.SubmitResult)
+	ret := m.ctrl.Call(m, "Submit", ctx, ns, data, options)
+	ret0, _ := ret[0].(*fibre1.SubmitResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Submit indicates an expected call of Submit.
-func (mr *MockModuleMockRecorder) Submit(arg0, arg1, arg2, arg3 any) *gomock.Call {
+func (mr *MockModuleMockRecorder) Submit(ctx, ns, data, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockModule)(nil).Submit), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockModule)(nil).Submit), ctx, ns, data, options)
 }
 
 // Upload mocks base method.
-func (m *MockModule) Upload(arg0 context.Context, arg1 share.Namespace, arg2 []byte, arg3 *txclient.TxConfig) (*fibre0.UploadResult, error) {
+func (m *MockModule) Upload(ctx context.Context, ns share.Namespace, data []byte, options *txclient.TxConfig) (*fibre1.UploadResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Upload", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*fibre0.UploadResult)
+	ret := m.ctrl.Call(m, "Upload", ctx, ns, data, options)
+	ret0, _ := ret[0].(*fibre1.UploadResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Upload indicates an expected call of Upload.
-func (mr *MockModuleMockRecorder) Upload(arg0, arg1, arg2, arg3 any) *gomock.Call {
+func (mr *MockModuleMockRecorder) Upload(ctx, ns, data, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upload", reflect.TypeOf((*MockModule)(nil).Upload), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upload", reflect.TypeOf((*MockModule)(nil).Upload), ctx, ns, data, options)
 }
 
 // Withdraw mocks base method.
