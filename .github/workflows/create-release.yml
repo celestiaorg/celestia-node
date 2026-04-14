@@ -1,0 +1,127 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version without v prefix (e.g. 0.30.2)"
+        required: true
+        type: string
+      network:
+        description: "Network name"
+        required: true
+        type: choice
+        options:
+          - mocha
+          - arabica
+          - mainnet
+      base-branch:
+        description: "Release branch (e.g. release/v0.30.x)"
+        required: true
+        type: string
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions: "write-all"
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ inputs.network }}" = "mainnet" ]; then
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${{ inputs.version }}-${{ inputs.network }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base-branch }}
+          # Use a PAT or GitHub App token if the release branch has branch
+          # protection rules that restrict pushes.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create release commit and tag
+        run: |
+          git commit --allow-empty -m "chore: release ${{ steps.tag.outputs.tag }}"
+          git tag "${{ steps.tag.outputs.tag }}"
+
+      - name: Push commit and tag
+        run: |
+          git push origin ${{ inputs.base-branch }}
+          git push origin "${{ steps.tag.outputs.tag }}"
+
+      - name: Create GitHub release
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --target "${{ inputs.base-branch }}" \
+            --generate-notes \
+            --prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  goreleaser:
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.tag }}
+          fetch-depth: 0
+
+      - run: git fetch --force --tags
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GORELEASER_CURRENT_TAG: ${{ needs.create-release.outputs.tag }}
+
+  upload-docs:
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.tag }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Generate and upload openrpc spec
+        run: |
+          set -e
+          make openrpc-gen > openrpc.json
+          gh release upload "$TAG" openrpc.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag }}
