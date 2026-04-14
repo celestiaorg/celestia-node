@@ -7,6 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+
+	libshare "github.com/celestiaorg/go-square/v4/share"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // SampleIDSize defines the size of the SampleID in bytes, combining RowID size and 2 additional
@@ -199,6 +204,11 @@ func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex)), nil
+}
+
+// ResponseSize returns 1 share + NMT proof bytes for the given EDS square size.
+func (sid SampleID) ResponseSize(edsSize int) int {
+	return libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(edsSize)))
 }
 
 func (sid SampleID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
