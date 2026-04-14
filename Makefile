@@ -79,6 +79,12 @@ cover:
 	@go-acc -o coverage.txt `go list ./... | grep -v nodebuilder/tests` -- -v
 .PHONY: cover
 
+## mod: Run go mod tidy on all subpackages.
+mod:
+	@echo "--> Running go mod tidy on all modules"
+	@find . -name 'go.mod' -execdir go mod tidy \;
+.PHONY: mod
+
 ## deps: Install dependencies.
 deps:
 	@echo "--> Installing Dependencies"

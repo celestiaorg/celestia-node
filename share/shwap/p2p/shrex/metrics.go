@@ -17,16 +17,18 @@ type status string
 
 const (
 	// statuses used by the client
-	statusOpenStreamErr status = "open_stream_err"
-	statusSendReqErr    status = "send_req_err"
-	statusReadStatusErr status = "read_status_err"
-	statusReadRespErr   status = "read_resp_err"
+	statusOpenStreamErr        status = "open_stream_err"
+	statusSendReqErr           status = "send_req_err"
+	statusReadStatusErr        status = "read_status_err"
+	statusReadRespErr          status = "read_resp_err"
+	statusResourceExhaustedErr status = "resource_exhausted_err"
 
 	// statuses used by the server
-	statusReadReqErr    status = "read_req_err"
-	statusBadRequest    status = "bad_request"
-	statusSendStatusErr status = "send_status_err"
-	statusSendRespErr   status = "send_resp_err"
+	statusReadReqErr        status = "read_req_err"
+	statusBadRequest        status = "bad_request"
+	statusSendStatusErr     status = "send_status_err"
+	statusSendRespErr       status = "send_resp_err"
+	statusResourceExhausted status = "resource_exhausted"
 
 	// general statuses that are applied to both the client and the server
 	statusSuccess     status = "success"
