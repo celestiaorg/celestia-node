@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
 // EdsIDSize defines the byte size of the EdsID.
@@ -99,6 +101,12 @@ func (eid EdsID) Validate() error {
 
 func (eid EdsID) Height() uint64 {
 	return eid.height
+}
+
+// ResponseSize returns the full ODS size in bytes for the given EDS square size.
+func (eid EdsID) ResponseSize(edsSize int) int {
+	odsLn := edsSize / 2
+	return odsLn * odsLn * libshare.ShareSize
 }
 
 func (eid EdsID) ResponseReader(_ context.Context, acc Accessor) (io.Reader, error) {
