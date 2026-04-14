@@ -25,16 +25,11 @@ type UploadResult struct {
 // SubmitResult is the result of a full Fibre blob submission including on-chain MsgPayForFibre.
 // It extends UploadResult with chain inclusion details (height and transaction hash).
 type SubmitResult struct {
-	// BlobID is the Fibre blob identifier for the submitted blob.
-	BlobID appfibre.BlobID `json:"blob_id"`
-	// ValidatorSignatures are attestations from validators confirming blob availability.
-	ValidatorSignatures []ValidatorSignature `json:"validator_signatures"`
+	UploadResult
 	// Height is the block height at which MsgPayForFibre was included on-chain.
 	Height uint64 `json:"height"`
 	// TxHash is the transaction hash of the on-chain MsgPayForFibre.
 	TxHash string `json:"tx_hash"`
-	// PaymentPromise is the signed promise used for on-chain fee settlement.
-	PaymentPromise *PaymentPromise `json:"payment_promise,omitempty"`
 }
 
 // PaymentPromise represents the signed payment promise between a user and the Fibre network.

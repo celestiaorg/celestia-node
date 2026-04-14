@@ -5,6 +5,7 @@ import (
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/fibre"
@@ -28,23 +29,26 @@ func (m *module) Submit(
 	data []byte,
 	options *txclient.TxConfig,
 ) (*SubmitResult, error) {
-	resp, pp, id, err := m.service.Submit(ctx, ns, data, options)
+	resp, pp, err := m.service.Submit(ctx, ns, data, options)
 	if err != nil {
 		return nil, err
 	}
 
-	submitRes := &SubmitResult{
-		BlobID:         id,
-		Height:         uint64(resp.Height),
-		TxHash:         resp.TxHash,
+	blobID := appfibre.NewBlobID(uint8(pp.BlobVersion), pp.Commitment)
+	uploadRes := UploadResult{
+		BlobID:         blobID,
 		PaymentPromise: toNodePaymentPromise(pp.PaymentPromise),
 	}
-
-	submitRes.ValidatorSignatures = make([]ValidatorSignature, len(pp.ValidatorSignatures))
+	uploadRes.ValidatorSignatures = make([]ValidatorSignature, len(pp.ValidatorSignatures))
 	for i, sig := range pp.ValidatorSignatures {
-		submitRes.ValidatorSignatures[i] = sig
+		uploadRes.ValidatorSignatures[i] = sig
 	}
-	return submitRes, nil
+
+	return &SubmitResult{
+		UploadResult: uploadRes,
+		Height:       uint64(resp.Height),
+		TxHash:       resp.TxHash,
+	}, nil
 }
 
 func (m *module) Upload(
@@ -70,8 +74,8 @@ func (m *module) Upload(
 	return uploadRes, nil
 }
 
-func (m *module) Get(ctx context.Context, blobID []byte) (*GetBlobResult, error) {
-	blob, err := m.service.Get(ctx, blobID)
+func (m *module) Download(ctx context.Context, blobID appfibre.BlobID) (*GetBlobResult, error) {
+	blob, err := m.service.Download(ctx, blobID)
 	if err != nil {
 		return nil, err
 	}

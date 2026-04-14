@@ -6,6 +6,7 @@ import (
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/fibre"
@@ -34,7 +35,7 @@ func (s *stubbedFibreModule) Upload(
 	return nil, errFibreNotAvailable
 }
 
-func (s *stubbedFibreModule) Get(context.Context, []byte) (*GetBlobResult, error) {
+func (s *stubbedFibreModule) Download(context.Context, appfibre.BlobID) (*GetBlobResult, error) {
 	return nil, errFibreNotAvailable
 }
 

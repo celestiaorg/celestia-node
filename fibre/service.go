@@ -47,7 +47,11 @@ func (s *Service) Submit(
 	ns libshare.Namespace,
 	data []byte,
 	options *txclient.TxConfig,
-) (_ *user.TxResponse, _ *appfibre.SignedPaymentPromise, _ appfibre.BlobID, err error) {
+) (_ *user.TxResponse, _ *appfibre.SignedPaymentPromise, err error) {
+	if s == nil {
+		return nil, nil, ErrClientNotAvailable
+	}
+
 	start := time.Now()
 	defer func() {
 		s.metrics.observeSubmit(ctx, time.Since(start), len(data), err)
@@ -57,23 +61,23 @@ func (s *Service) Submit(
 
 	blob, err := appfibre.NewBlob(data, appfibre.DefaultBlobConfigV0())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	promise, err := s.upload(ctx, ns, blob)
 	if err != nil {
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	protoPromise, err := promise.ToProto()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	signer, err := s.txClient.GetTxAuthorAccAddress(options)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("getting signer address: %w", err)
+		return nil, nil, fmt.Errorf("getting signer address: %w", err)
 	}
 
 	msg := &fibretypes.MsgPayForFibre{
@@ -84,7 +88,7 @@ func (s *Service) Submit(
 	resp, err := s.txClient.SubmitMessage(ctx, msg, options)
 	if err != nil {
 		log.Errorw("submitting blob", "err", err, "namespace", promise.Namespace)
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// go does not allow slicing a function return value directly (e.g., f()[:]).
@@ -96,7 +100,7 @@ func (s *Service) Submit(
 		"tx-hash", resp.TxHash,
 		"signatures", len(promise.ValidatorSignatures),
 	)
-	return resp, promise, blob.ID(), nil
+	return resp, promise, nil
 }
 
 func (s *Service) Upload(
@@ -105,6 +109,10 @@ func (s *Service) Upload(
 	data []byte,
 	_ *txclient.TxConfig,
 ) (_ *appfibre.SignedPaymentPromise, _ appfibre.BlobID, err error) {
+	if s == nil {
+		return nil, nil, ErrClientNotAvailable
+	}
+
 	start := time.Now()
 	defer func() {
 		s.metrics.observeUpload(ctx, time.Since(start), len(data), err)
@@ -125,15 +133,17 @@ func (s *Service) Upload(
 	return promise, blob.ID(), nil
 }
 
-func (s *Service) Get(ctx context.Context, blobID []byte) (*appfibre.Blob, error) {
-	blbID := appfibre.BlobID(blobID)
-	err := blbID.Validate()
+func (s *Service) Download(ctx context.Context, blobID appfibre.BlobID) (*appfibre.Blob, error) {
+	if s == nil {
+		return nil, ErrClientNotAvailable
+	}
+
+	err := blobID.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("invalid blob ID: %w", err)
 	}
-	log.Debugw("downloading fibre blob", "commitment", blbID.Commitment())
 
-	return s.fibreClient.Download(ctx, blbID)
+	return s.fibreClient.Download(ctx, blobID)
 }
 
 func (s *Service) upload(
