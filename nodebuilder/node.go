@@ -24,7 +24,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -71,7 +70,6 @@ type Node struct {
 	ShareServ     share.Module  // not optional
 	HeaderServ    header.Module // not optional
 	StateServ     state.Module  // not optional
-	FraudServ     fraud.Module  // not optional
 	BlobServ      blob.Module   // not optional
 	DASer         das.Module    // not optional
 	AdminServ     node.Module   // not optional

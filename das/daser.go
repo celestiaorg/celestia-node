@@ -9,12 +9,10 @@ import (
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
@@ -25,7 +23,6 @@ type DASer struct {
 	params Parameters
 
 	da     share.Availability
-	bcast  fraud.Broadcaster[*header.ExtendedHeader]
 	hsub   libhead.Subscriber[*header.ExtendedHeader] // listens for new headers in the network
 	getter libhead.Store[*header.ExtendedHeader]      // retrieves past headers
 
@@ -48,14 +45,12 @@ func NewDASer(
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	getter libhead.Store[*header.ExtendedHeader],
 	dstore datastore.Datastore,
-	bcast fraud.Broadcaster[*header.ExtendedHeader],
 	shrexBroadcast shrexsub.BroadcastFn,
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
 		params:     DefaultParameters(),
 		da:         da,
-		bcast:      bcast,
 		hsub:       hsub,
 		getter:     getter,
 		store:      newCheckpointStore(dstore),
@@ -197,19 +192,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 }
 
 func (d *DASer) sample(ctx context.Context, h *header.ExtendedHeader) error {
-	err := d.da.SharesAvailable(ctx, h)
-	if err != nil {
-		var byzantineErr *byzantine.ErrByzantine
-		if errors.As(err, &byzantineErr) {
-			log.Warn("Propagating proof...")
-			sendErr := d.bcast.Broadcast(ctx, byzantine.CreateBadEncodingProof(h.Hash(), h.Height(), byzantineErr))
-			if sendErr != nil {
-				log.Errorw("fraud proof propagating failed", "err", sendErr)
-			}
-		}
-		return err
-	}
-	return nil
+	return d.da.SharesAvailable(ctx, h)
 }
 
 // SamplingStats returns the current statistics over the DA sampling process.
