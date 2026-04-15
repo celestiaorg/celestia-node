@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	libp2prate "github.com/libp2p/go-libp2p/x/rate"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -29,6 +30,8 @@ type Server struct {
 
 	store store.AccessorGetter
 
+	rateLimiter *libp2prate.Limiter
+
 	params  *ServerParams
 	metrics *Metrics
 }
@@ -47,11 +50,12 @@ func NewServer(
 
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
-		ctx:    ctx,
-		cancel: cancel,
-		store:  store,
-		host:   host,
-		params: params,
+		ctx:         ctx,
+		cancel:      cancel,
+		store:       store,
+		host:        host,
+		params:      params,
+		rateLimiter: newPeerRateLimiter(),
 	}
 	return srv, nil
 }
@@ -103,6 +107,16 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 			log.Warnw("server: failed to attach stream to shrex service scope", "err", err)
 			s.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
 			srv.metrics.observeRequest(ctx, requestID.Name(), statusResourceExhausted, time.Since(handleTime))
+			return
+		}
+
+		// enforce per-peer-IP rate limit to prevent sequential request flooding.
+		// we call Allow() directly instead of using the Limiter.Limit() middleware
+		// so that rate-limited streams are counted in metrics.
+		// rateLimiter is nil when CELESTIA_SHREX_DISABLE_RATE_LIMITING=1.
+		if srv.rateLimiter != nil && !srv.rateLimiter.Allow(remoteIP(s)) {
+			s.ResetWithError(network.StreamRateLimited) //nolint:errcheck
+			srv.metrics.observeRequest(ctx, requestID.Name(), statusRateLimited, time.Since(handleTime))
 			return
 		}
 
