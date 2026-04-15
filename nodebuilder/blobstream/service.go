@@ -18,9 +18,9 @@ type Service struct {
 	headerGetter libhead.Getter[*header.ExtendedHeader]
 }
 
-func NewService(getter libhead.Getter[*header.ExtendedHeader]) *Service {
+func NewService(store libhead.Store[*header.ExtendedHeader]) *Service {
 	return &Service{
-		headerGetter: getter,
+		headerGetter: store,
 	}
 }
 
