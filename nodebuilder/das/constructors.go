@@ -6,7 +6,6 @@ import (
 
 	"github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/das"
@@ -40,9 +39,8 @@ func newDASer(
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	store libhead.Store[*header.ExtendedHeader],
 	batching datastore.Batching,
-	fraudServ fraud.Service[*header.ExtendedHeader],
 	bFn shrexsub.BroadcastFn,
 	options ...das.Option,
 ) (*das.DASer, error) {
-	return das.NewDASer(da, hsub, store, batching, fraudServ, bFn, options...)
+	return das.NewDASer(da, hsub, store, batching, bFn, options...)
 }

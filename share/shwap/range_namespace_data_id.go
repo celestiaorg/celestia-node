@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
@@ -170,6 +172,17 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	data = binary.BigEndian.AppendUint32(data, uint32(rngid.From))
 	data = binary.BigEndian.AppendUint32(data, uint32(rngid.To))
 	return data, nil
+}
+
+// ResponseSize returns the exact response size from the request's From/To range.
+// If To is 0 (zero-value instance used for limit configuration), the worst-case
+// full ODS size is returned for the given edsSize.
+func (rngid RangeNamespaceDataID) ResponseSize(edsSize int) int {
+	if rngid.To > 0 {
+		return (rngid.To - rngid.From) * libshare.ShareSize
+	}
+	odsLn := edsSize / 2
+	return odsLn * odsLn * libshare.ShareSize
 }
 
 func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {

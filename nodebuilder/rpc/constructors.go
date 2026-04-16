@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -20,7 +19,6 @@ import (
 func registerEndpoints(
 	stateMod state.Module,
 	shareMod share.Module,
-	fraudMod fraud.Module,
 	headerMod header.Module,
 	daserMod das.Module,
 	p2pMod p2p.Module,
@@ -30,7 +28,6 @@ func registerEndpoints(
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
 ) {
-	serv.RegisterService("fraud", fraudMod, &fraud.API{})
 	serv.RegisterService("das", daserMod, &das.API{})
 	serv.RegisterService("header", headerMod, &header.API{})
 	serv.RegisterService("state", stateMod, &state.API{})
