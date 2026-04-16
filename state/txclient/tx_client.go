@@ -264,7 +264,7 @@ func (c *TxClient) SubmitPayForBlob(
 	}()
 
 	var response *user.TxResponse
-	appBlobs, err := toAppBlobs(libBlobs)
+	appBlobs, err := toGoSquareV3Blobs(libBlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +323,7 @@ func (c *TxClient) estimateGasPriceAndUsage(
 
 // estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
 func estimateGasForBlobs(signer string, blobs []*libshare.Blob) (uint64, error) {
-	appBlobs, err := toAppBlobs(blobs)
+	appBlobs, err := toGoSquareV3Blobs(blobs)
 	if err != nil {
 		return 0, err
 	}
@@ -334,7 +334,7 @@ func estimateGasForBlobs(signer string, blobs []*libshare.Blob) (uint64, error) 
 	return apptypes.DefaultEstimateGas(msg), nil
 }
 
-func toAppBlobs(blobs []*libshare.Blob) ([]*appshare.Blob, error) {
+func toGoSquareV3Blobs(blobs []*libshare.Blob) ([]*appshare.Blob, error) {
 	appBlobs := make([]*appshare.Blob, len(blobs))
 	for i := range blobs {
 		namespace, err := appshare.NewNamespace(blobs[i].Namespace().Version(), blobs[i].Namespace().ID())
