@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	libp2prate "github.com/libp2p/go-libp2p/x/rate"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -27,12 +28,12 @@ type Server struct {
 
 	host host.Host
 
-	store *store.Store
+	store store.AccessorGetter
 
-	params *ServerParams
-	// TODO: decouple middleware metrics from shrex and remove middleware from Server
-	middleware *Middleware
-	metrics    *Metrics
+	rateLimiter *libp2prate.Limiter
+
+	params  *ServerParams
+	metrics *Metrics
 }
 
 // NewServer creates a new shrEx-Server. It configures the server with the provided
@@ -41,25 +42,20 @@ type Server struct {
 func NewServer(
 	params *ServerParams,
 	host host.Host,
-	store *store.Store,
+	store store.AccessorGetter,
 ) (*Server, error) {
 	if err := params.Validate(); err != nil {
 		return nil, fmt.Errorf("shrex/server: parameters are not valid: %w", err)
 	}
 
-	middleware, err := newMiddleware(params.ConcurrencyLimit)
-	if err != nil {
-		return nil, fmt.Errorf("shrex/server: could not initialize middleware: %w", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
-		ctx:        ctx,
-		cancel:     cancel,
-		store:      store,
-		host:       host,
-		middleware: middleware,
-		params:     params,
+		ctx:         ctx,
+		cancel:      cancel,
+		store:       store,
+		host:        host,
+		params:      params,
+		rateLimiter: newPeerRateLimiter(),
 	}
 	return srv, nil
 }
@@ -72,8 +68,7 @@ func (srv *Server) Start(_ context.Context) error {
 	for _, reqID := range registry {
 		id := reqID()
 		handler := srv.streamHandler(srv.ctx, reqID)
-		withRateLimit := srv.middleware.rateLimitHandler(srv.ctx, handler, srv.metrics, id.Name())
-		withRecovery := RecoveryMiddleware(withRateLimit)
+		withRecovery := RecoveryMiddleware(handler)
 
 		p := ProtocolID(srv.params.NetworkID(), id.Name())
 
@@ -104,10 +99,32 @@ func (srv *Server) WithMetrics() error {
 
 func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.StreamHandler {
 	return func(s network.Stream) {
-		requestID := id()
-		handleTime := time.Now()
-		status := srv.handleDataRequest(ctx, requestID, s)
-		srv.metrics.observeRequests(ctx, 1, requestID.Name(), status, time.Since(handleTime))
+		requestID, handleTime := id(), time.Now()
+
+		// bind the stream to the shrex service scope in the resource manager.
+		// this enforces global and per-peer stream concurrency limits.
+		if err := s.Scope().SetService(serviceName); err != nil {
+			log.Warnw("server: failed to attach stream to shrex service scope", "err", err)
+			s.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
+			srv.metrics.observeRequest(ctx, requestID.Name(), statusResourceExhausted, time.Since(handleTime))
+			return
+		}
+
+		// enforce per-peer-IP rate limit to prevent sequential request flooding.
+		// we call Allow() directly instead of using the Limiter.Limit() middleware
+		// so that rate-limited streams are counted in metrics.
+		// rateLimiter is nil when CELESTIA_SHREX_DISABLE_RATE_LIMITING=1.
+		if srv.rateLimiter != nil && !srv.rateLimiter.Allow(remoteIP(s)) {
+			s.ResetWithError(network.StreamRateLimited) //nolint:errcheck
+			srv.metrics.observeRequest(ctx, requestID.Name(), statusRateLimited, time.Since(handleTime))
+			return
+		}
+
+		status, size := srv.handleDataRequest(ctx, requestID, s)
+
+		srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
+		srv.metrics.observePayloadServed(ctx, requestID.Name(), status, size)
+
 		log.Debugw("server: handling request",
 			"name", requestID.Name(),
 			"status", status,
@@ -118,6 +135,11 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 			s.Reset() //nolint:errcheck
 			return
 		}
+		// handleDataRequest already called ResetWithError for resource exhaustion;
+		// calling Reset() again would overwrite the specific error code with 0.
+		if status == statusResourceExhausted {
+			return
+		}
 
 		if err := s.Close(); err != nil {
 			log.Debugw("server: closing stream", "err", err)
@@ -125,7 +147,9 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 	}
 }
 
-func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) status {
+// handleDataRequest handles incoming data requests from remote peers, returning the resulting
+// status of the request and, if successful, bytes written
+func (srv *Server) handleDataRequest(ctx context.Context, requestID request, stream network.Stream) (status, int) {
 	log.Debugf("server: handling data request: %s from peer: %s", requestID.Name(), stream.Conn().RemotePeer())
 
 	err := stream.SetReadDeadline(time.Now().Add(srv.params.ReadTimeout))
@@ -136,7 +160,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	_, err = requestID.ReadFrom(stream)
 	if err != nil {
 		log.Errorf("server: reading request %s from peer %s, %w", requestID.Name(), stream.Conn().RemotePeer(), err)
-		return statusReadReqErr
+		return statusReadReqErr, 0
 	}
 
 	logger := log.With(
@@ -154,7 +178,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	err = requestID.Validate()
 	if err != nil {
 		logger.Warnw("validate request", "err", err)
-		return statusBadRequest
+		return statusBadRequest, 0
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, srv.params.HandleRequestTimeout)
@@ -177,41 +201,59 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	}
 
 	defer utils.CloseAndLog(log, "file", file)
+	// get the actual EDS size to compute an exact memory reservation before reading.
+	edsSize, err := file.Size(ctx)
+	if err != nil {
+		logger.Errorf("getting EDS size %w", err)
+		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
+	}
+
+	// reserve memory before reading from the accessor so the resource manager
+	// can reject the request if the budget is exhausted.
+	memReserve := requestID.ResponseSize(edsSize)
+	if err := stream.Scope().ReserveMemory(memReserve, network.ReservationPriorityAlways); err != nil {
+		log.Warnw("server: failed to reserve memory for shrex stream", "err", err)
+		stream.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
+		return statusResourceExhausted, 0
+	}
+	defer stream.Scope().ReleaseMemory(memReserve)
+
 	r, err := requestID.ResponseReader(ctx, file)
 	if err != nil {
 		logger.Errorf("getting data from response reader %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
-	status := respondStatus(logger, shrexpb.Status_OK, stream)
+	status, writtenStatus := respondStatus(logger, shrexpb.Status_OK, stream)
 	logger.Debugw("sending status", "status", status)
 	if status != statusSuccess {
-		return status
+		return status, writtenStatus
 	}
 
-	_, err = io.Copy(stream, r)
+	writtenResponse, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
-		return statusSendRespErr
+		return statusSendRespErr, writtenStatus + int(writtenResponse)
 	}
 	logger.Debugw("sent the data to the client")
-	return statusSuccess
+	return statusSuccess, writtenStatus + int(writtenResponse)
 }
 
-func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) status {
-	_, err := serde.Write(stream, &shrexpb.Response{Status: status})
+// respondStatus returns the status written to stream and the size of the response.
+func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network.Stream) (status, int) {
+	written, err := serde.Write(stream, &shrexpb.Response{Status: status})
 	if err != nil {
 		log.Errorw("sending response status", "err", err)
-		return statusSendStatusErr
+		return statusSendStatusErr, written
 	}
 
 	switch status {
 	case shrexpb.Status_INTERNAL:
-		return statusInternalErr
+		return statusInternalErr, written
 	case shrexpb.Status_NOT_FOUND:
-		return statusNotFound
+		return statusNotFound, written
 	case shrexpb.Status_OK:
-		return statusSuccess
+		return statusSuccess, written
 	default:
 		panic("unknown status")
 	}

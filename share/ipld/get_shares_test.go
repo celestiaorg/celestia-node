@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -176,7 +176,7 @@ func TestGetSharesByNamespace(t *testing.T) {
 			eds, err := AddShares(ctx, tt.rawData, bServ)
 			require.NoError(t, err)
 
-			var shares []libshare.Share
+			shares := make([]libshare.Share, 0)
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
@@ -326,7 +326,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 			// matches the commonNamespaceData that was copied across almost all data
 			sh, err := libshare.NewShare(node.RawData()[libshare.NamespaceSize:])
 			require.NoError(t, err)
-			assert.Equal(t, commonNamespaceData, *sh)
+			assert.Equal(t, commonNamespaceData, sh)
 		}
 	}
 }
@@ -373,7 +373,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 			eds, err := AddShares(ctx, tt.rawData, bServ)
 			require.NoError(t, err)
 
-			var shares []libshare.Share
+			shares := make([]libshare.Share, 0)
 			rowRoots, err := eds.RowRoots()
 			require.NoError(t, err)
 			for _, row := range rowRoots {
@@ -391,7 +391,7 @@ func TestGetSharesWithProofsByNamespace(t *testing.T) {
 					shares = append(shares, rowShares...)
 
 					// construct nodes from shares by prepending namespace
-					var leaves [][]byte
+					leaves := make([][]byte, 0, len(rowShares))
 					for _, shr := range rowShares {
 						leaves = append(leaves, append(shr.Namespace().Bytes(), shr.ToBytes()...))
 					}

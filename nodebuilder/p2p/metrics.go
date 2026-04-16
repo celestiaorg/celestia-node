@@ -1,79 +1,32 @@
 package p2p
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"time"
-
-	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/fx"
-
-	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 // WithMetrics option sets up native libp2p metrics up.
 func WithMetrics() fx.Option {
 	return fx.Options(
 		fx.Provide(resourceManagerOpt(traceReporter)),
-		fx.Provide(prometheusMetrics),
+		fx.Provide(prometheusRegisterer),
 	)
 }
 
-const (
-	promAgentEndpoint = "/metrics"
-	promAgentPort     = "8890"
+// prometheusRegisterer provides a labeled prometheus.Registerer for libp2p and bitswap metrics.
+// The registerer is also set as the global default so that bitswap metrics (which register
+// with prometheus.DefaultRegisterer) are captured with the correct labels.
+// All collected prometheus metrics are bridged to OTel via the prometheus bridge in
+// nodebuilder/settings.go, eliminating the need for a standalone Prometheus HTTP server.
+func prometheusRegisterer() prometheus.Registerer {
+	return prometheus.DefaultRegisterer
+}
 
-	networkLabel  = "network"
-	nodeTypeLabel = "node_type"
-	peerIDLabel   = "peer_id"
-)
-
-// prometheusMetrics option sets up native libp2p metrics up
-func prometheusMetrics(lifecycle fx.Lifecycle,
-	peerID peer.ID,
-	nodeType node.Type,
-	network Network,
-) (prometheus.Registerer, error) {
-	reg := prometheus.NewRegistry()
-	labels := prometheus.Labels{
-		networkLabel:  network.String(),
-		nodeTypeLabel: nodeType.String(),
-		peerIDLabel:   peerID.String(),
+// libp2pMetricsOpt returns a libp2p option that either enables or disables prometheus metrics.
+func libp2pMetricsOpt(reg prometheus.Registerer) libp2p.Option {
+	if reg != nil {
+		return libp2p.PrometheusRegisterer(reg)
 	}
-	wrapped := prometheus.WrapRegistererWith(labels, reg)
-	// Set the default global registerer to the wrapped one with labels. This way all the metrics
-	// registered with the default registerer will be labeled with the provided labels. It is important
-	// because unlike libp2p metrics, bitswap metrics are registered with the default global registerer.
-	prometheus.DefaultRegisterer = wrapped
-
-	mux := http.NewServeMux()
-	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: wrapped})
-	mux.Handle(promAgentEndpoint, handler)
-
-	// TODO(@Wondertan): Unify all the servers into one (See #2007)
-	promHTTPServer := &http.Server{
-		Addr:              fmt.Sprintf(":%s", promAgentPort),
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	lifecycle.Append(fx.Hook{
-		OnStart: func(_ context.Context) error {
-			go func() {
-				if err := promHTTPServer.ListenAndServe(); err != nil {
-					log.Errorf("Error starting Prometheus metrics exporter http server: %s", err)
-				}
-			}()
-
-			log.Infof("Prometheus agent started on :%s/%s", promAgentPort, promAgentEndpoint)
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			return promHTTPServer.Shutdown(ctx)
-		},
-	})
-	return wrapped, nil
+	return libp2p.DisableMetrics()
 }

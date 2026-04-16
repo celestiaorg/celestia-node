@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"testing"
@@ -19,14 +20,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v5/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	libshare "github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/nmt"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -152,7 +148,7 @@ func TestBlobService_Get(t *testing.T) {
 					require.True(t, bytes.Equal(smpls[0].ToBytes(), resultShares[shareOffset].ToBytes()),
 						fmt.Sprintf("issue on %d attempt. ROW:%d, COL: %d, blobIndex:%d", i, row, col, blobs[i].index),
 					)
-					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())))
+					shareOffset += libshare.SparseSharesNeeded(uint32(len(blobs[i].Data())), false)
 				}
 			},
 		},
@@ -474,7 +470,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	rawShares1, err := BlobsToShares(blobs[1])
 	require.NoError(t, err)
 
-	rawShares := make([]libshare.Share, 0)
+	rawShares := make([]libshare.Share, 0) //nolint:prealloc
 	rawShares = append(rawShares, append(rawShares0, padding0)...)
 	rawShares = append(rawShares, append(rawShares1, padding1)...)
 	service := createService(ctx, t, rawShares)
@@ -533,7 +529,7 @@ func TestService_Get(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset], fmt.Sprintf("issue on %d attempt", i))
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -549,7 +545,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	blobs, err := convertBlobs(libBlob...)
 	require.NoError(t, err)
 
-	rawShares := make([]libshare.Share, 0)
+	rawShares := make([]libshare.Share, 0) //nolint:prealloc
 
 	require.NoError(t, err)
 	padding, err := libshare.NamespacePaddingShare(blobs[0].Namespace(), libshare.ShareVersionZero)
@@ -595,7 +591,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, smpls[0].Share, resultShares[shareOffset])
-		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())))
+		shareOffset += libshare.SparseSharesNeeded(uint32(len(blob.Data())), false)
 	}
 }
 
@@ -663,7 +659,7 @@ func TestService_Subscribe(t *testing.T) {
 	blobs, err := convertBlobs(libBlobs...)
 	require.NoError(t, err)
 
-	service := createServiceWithSub(ctx, t, blobs)
+	service, headers := createServiceWithSub(ctx, t, blobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -675,7 +671,7 @@ func TestService_Subscribe(t *testing.T) {
 		for i := uint64(0); i < uint64(len(blobs)); i++ {
 			select {
 			case resp := <-subCh:
-				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
 				assert.Equal(t, blobs[i].Data(), resp.Blobs[0].Data())
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for subscription response %d", i)
@@ -695,7 +691,10 @@ func TestService_Subscribe(t *testing.T) {
 			select {
 			case resp := <-subCh:
 				assert.Empty(t, resp.Blobs)
-				assert.Equal(t, i+1, resp.Height)
+				assert.Equal(t, &headers[i].RawHeader, resp.Header)
+				// Verify backwards compatibility: Height field should still be populated even with no blobs
+				assert.Equal(t, headers[i].Height(), resp.Height, "Height should match Header.Height for backwards compatibility")
+				assert.Equal(t, uint64(resp.Header.Height), resp.Height, "resp.Height should equal resp.Header.Height")
 			case <-time.After(time.Second * 2):
 				t.Fatalf("timeout waiting for empty subscription response %d", i)
 			}
@@ -741,7 +740,7 @@ func TestService_Subscribe(t *testing.T) {
 		for range blobs {
 			select {
 			case val := <-subCh:
-				if val.Height == uint64(len(blobs)) {
+				if uint64(val.Header.Height) == uint64(len(blobs)) {
 					err = service.Stop(context.Background())
 					require.NoError(t, err)
 				}
@@ -780,7 +779,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	//nolint: gocritic
 	allBlobs := append(blobs1, blobs2...)
 
-	service := createServiceWithSub(ctx, t, allBlobs)
+	service, _ := createServiceWithSub(ctx, t, allBlobs)
 	err = service.Start(ctx)
 	require.NoError(t, err)
 
@@ -796,7 +795,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs1); i++ {
 		select {
 		case resp := <-subCh1:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns1, b.Namespace())
@@ -809,7 +808,7 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	for ; i < len(blobs2); i++ {
 		select {
 		case resp := <-subCh2:
-			assert.Equal(t, uint64(i+1), resp.Height)
+			assert.Equal(t, uint64(i+1), uint64(resp.Header.Height))
 			assert.NotEmpty(t, resp.Blobs)
 			for _, b := range resp.Blobs {
 				assert.Equal(t, ns2, b.Namespace())
@@ -843,7 +842,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	service := createService(ctx, b, shares)
 	indexer := &parser{}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		b.ReportAllocs()
 		indexer.reset()
 		indexer.verifyFn = func(blob *Blob) bool {
@@ -857,7 +856,7 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
-func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Service {
+func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Service, []*header.ExtendedHeader) {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := store.NewStore[*header.ExtendedHeader](batching)
@@ -901,7 +900,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) *Ser
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -973,7 +972,12 @@ func TestProveCommitmentAllCombinations(t *testing.T) {
 
 func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 	msgs, blobs, nss, eds, _, _, dataRoot := edstest.GenerateTestBlock(t, blobSize, 10)
-	for msgIndex, msg := range msgs {
+	randomBlob, err := libshare.GenerateV0Blobs([]int{10}, true)
+	require.NoError(t, err)
+	nodeBlob, err := ToNodeBlobs(randomBlob...)
+	require.NoError(t, err)
+
+	for msgIndex := range msgs {
 		t.Run(fmt.Sprintf("msgIndex=%d", msgIndex), func(t *testing.T) {
 			blb, err := NewBlob(blobs[msgIndex].ShareVersion(), nss[msgIndex], blobs[msgIndex].Data(), nil)
 			require.NoError(t, err)
@@ -985,109 +989,168 @@ func proveAndVerifyShareCommitments(t *testing.T, blobSize int) {
 
 			// make sure the actual commitment attests to the data
 			require.NoError(t, actualCommitmentProof.Validate())
-			valid, err := actualCommitmentProof.Verify(
+			err = actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.SubtreeRootThreshold,
+				blb.Commitment,
 			)
 			require.NoError(t, err)
-			require.True(t, valid)
 
-			// generate an expected proof and verify it's valid
-			expectedCommitmentProof := generateCommitmentProofFromBlock(t, eds, nss[msgIndex], blobs[msgIndex], dataRoot)
-			require.NoError(t, expectedCommitmentProof.Validate())
-			valid, err = expectedCommitmentProof.Verify(
+			err = actualCommitmentProof.Verify(
 				dataRoot,
-				appconsts.SubtreeRootThreshold,
+				nodeBlob[0].Commitment,
 			)
-			require.NoError(t, err)
-			require.True(t, valid)
-
-			// make sure the expected proof is the same as the actual on
-			assert.Equal(t, expectedCommitmentProof, *actualCommitmentProof)
-
-			// make sure the expected commitment commits to the subtree roots in the result proof
-			actualCommitment, _ := merkle.ProofsFromByteSlices(actualCommitmentProof.SubtreeRoots)
-			assert.Equal(t, msg.ShareCommitments[0], actualCommitment)
+			require.Error(t, err)
 		})
 	}
 }
 
-// generateCommitmentProofFromBlock takes a block and a PFB index and generates the commitment proof
-// using the traditional way of doing, instead of using the API.
-func generateCommitmentProofFromBlock(
-	t *testing.T,
-	eds *rsmt2d.ExtendedDataSquare,
-	ns libshare.Namespace,
-	blob *libshare.Blob,
-	dataRoot []byte,
-) CommitmentProof {
-	// create the blob from the data
-	blb, err := NewBlob(blob.ShareVersion(),
-		ns,
-		blob.Data(),
-		nil,
+// TestProveCommitmentCollision reproduces a bug where ProveCommitment used the
+// last matching first-share index instead of the first match. When two blobs in
+// the same namespace have identical first shares (same namespace, same sequence
+// length, same initial data bytes), ProveCommitment would find the wrong start
+// index for the earlier blob, producing an invalid commitment proof.
+func TestProveCommitmentCollision(t *testing.T) {
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xAB}, 10))
+
+	// Both blobs must span at least 2 shares so their data extends beyond the
+	// first share. The first FirstSparseShareContentSize bytes of data are
+	// identical so that the first share of each blob is byte-equal.
+	firstShareDataSize := libshare.FirstSparseShareContentSize
+	extraBytes := 200 // enough to spill into a second share
+
+	// Shared prefix that fills the entire first share's data area.
+	sharedPrefix := bytes.Repeat([]byte{0x42}, firstShareDataSize)
+
+	// blob1 data: sharedPrefix + [0xAA ...] in the second share
+	data1 := make([]byte, firstShareDataSize+extraBytes)
+	copy(data1, sharedPrefix)
+	for i := firstShareDataSize; i < len(data1); i++ {
+		data1[i] = 0xAA
+	}
+
+	// blob2 data: sharedPrefix + [0xBB ...] in the second share
+	data2 := make([]byte, firstShareDataSize+extraBytes)
+	copy(data2, sharedPrefix)
+	for i := firstShareDataSize; i < len(data2); i++ {
+		data2[i] = 0xBB
+	}
+
+	blob1, err := NewBlob(libshare.ShareVersionZero, ns, data1, nil)
+	require.NoError(t, err)
+	blob2, err := NewBlob(libshare.ShareVersionZero, ns, data2, nil)
+	require.NoError(t, err)
+
+	// Commitments must differ (data differs after the first share).
+	require.False(t, bytes.Equal(blob1.Commitment, blob2.Commitment),
+		"blobs should have different commitments")
+
+	shares1, err := BlobsToShares(blob1)
+	require.NoError(t, err)
+	shares2, err := BlobsToShares(blob2)
+	require.NoError(t, err)
+
+	// Verify the first shares are indeed byte-equal (precondition for the bug).
+	require.True(t, bytes.Equal(shares1[0].ToBytes(), shares2[0].ToBytes()),
+		"first shares of both blobs should be byte-equal for this test to be valid")
+
+	eds, dataRoot := buildEDS(t, append(shares1, shares2...))
+
+	// Prove and verify blob1 (the first blob in the ODS).
+	proof1, err := ProveCommitment(eds, ns, shares1)
+	require.NoError(t, err)
+	require.NoError(t, proof1.Validate())
+	err = proof1.Verify(dataRoot, blob1.Commitment)
+	require.NoError(t, err, "commitment proof for blob1 should verify")
+
+	// Prove and verify blob2 (the second blob in the ODS).
+	proof2, err := ProveCommitment(eds, ns, shares2)
+	require.NoError(t, err)
+	require.NoError(t, proof2.Validate())
+	err = proof2.Verify(dataRoot, blob2.Commitment)
+	require.NoError(t, err, "commitment proof for blob2 should verify")
+}
+
+// TestProveCommitmentIdenticalBlobs verifies that ProveCommitment works when
+// two fully identical blobs (same namespace, same data) appear in the ODS.
+// Since their shares and commitments are identical, any matching position
+// produces a valid proof.
+func TestProveCommitmentIdenticalBlobs(t *testing.T) {
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xCD}, 10))
+	data := bytes.Repeat([]byte{0x42}, libshare.FirstSparseShareContentSize+200)
+
+	blob1, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+	blob2, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+
+	require.True(t, bytes.Equal(blob1.Commitment, blob2.Commitment),
+		"identical blobs should have equal commitments")
+
+	shares1, err := BlobsToShares(blob1)
+	require.NoError(t, err)
+	shares2, err := BlobsToShares(blob2)
+	require.NoError(t, err)
+
+	eds, dataRoot := buildEDS(t, append(shares1, shares2...))
+
+	proof, err := ProveCommitment(eds, ns, shares1)
+	require.NoError(t, err)
+	require.NoError(t, proof.Validate())
+	err = proof.Verify(dataRoot, blob1.Commitment)
+	require.NoError(t, err, "commitment proof for identical blobs should verify")
+}
+
+// TestProveCommitmentSingleShareCollision verifies that ProveCommitment
+// correctly handles two single-share blobs with identical share bytes. This
+// exercises the boundary case where the "verify all shares" inner loop body
+// never executes because each blob is only one share.
+func TestProveCommitmentSingleShareCollision(t *testing.T) {
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0xEF}, 10))
+
+	// Use data small enough to fit in a single share.
+	data := bytes.Repeat([]byte{0x42}, 100)
+
+	blob1, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+	blob2, err := NewBlob(libshare.ShareVersionZero, ns, data, nil)
+	require.NoError(t, err)
+
+	shares1, err := BlobsToShares(blob1)
+	require.NoError(t, err)
+	require.Len(t, shares1, 1, "blob should fit in a single share")
+
+	shares2, err := BlobsToShares(blob2)
+	require.NoError(t, err)
+
+	eds, dataRoot := buildEDS(t, append(shares1, shares2...))
+
+	proof, err := ProveCommitment(eds, ns, shares1)
+	require.NoError(t, err)
+	require.NoError(t, proof.Validate())
+	err = proof.Verify(dataRoot, blob1.Commitment)
+	require.NoError(t, err, "commitment proof for single-share blob should verify")
+}
+
+// buildEDS constructs an EDS from the given shares, padding with tail padding
+// shares to fill the square. Returns the EDS and the data root.
+func buildEDS(t *testing.T, shares []libshare.Share) (*rsmt2d.ExtendedDataSquare, []byte) {
+	t.Helper()
+	odsSize := int(math.Ceil(math.Sqrt(float64(len(shares)))))
+	if odsSize < 1 {
+		odsSize = 1
+	}
+	for len(shares) < odsSize*odsSize {
+		shares = append(shares, libshare.TailPaddingShare())
+	}
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		libshare.ToBytes(shares),
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
 	)
 	require.NoError(t, err)
-
-	// convert the blob to a number of shares
-	blobShares, err := BlobsToShares(blb)
+	roots, err := share.NewAxisRoots(eds)
 	require.NoError(t, err)
-
-	// find the first share of the blob in the ODS
-	startShareIndex := -1
-	for i, sh := range eds.FlattenedODS() {
-		if bytes.Equal(sh, blobShares[0].ToBytes()) {
-			startShareIndex = i
-			break
-		}
-	}
-	require.Greater(t, startShareIndex, 0)
-
-	// create an inclusion proof of the blob using the share range instead of the commitment
-	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
-		eds,
-		ns,
-		libshare.NewRange(startShareIndex, startShareIndex+len(blobShares)),
-	)
-	require.NoError(t, err)
-	require.NoError(t, sharesProof.Validate(dataRoot))
-
-	// calculate the subtree roots
-	subtreeRoots := make([][]byte, 0)
-	dataCursor := 0
-	for _, proof := range sharesProof.ShareProofs {
-		ranges, err := nmt.ToLeafRanges(
-			int(proof.Start),
-			int(proof.End),
-			inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold),
-		)
-		require.NoError(t, err)
-		roots, err := computeSubtreeRoots(
-			blobShares[dataCursor:int32(dataCursor)+proof.End-proof.Start],
-			ranges,
-			int(proof.Start),
-		)
-		require.NoError(t, err)
-		subtreeRoots = append(subtreeRoots, roots...)
-		dataCursor += int(proof.End - proof.Start)
-	}
-
-	// convert the nmt proof to be accepted by the commitment proof
-	nmtProofs := make([]*nmt.Proof, 0)
-	for _, proof := range sharesProof.ShareProofs {
-		nmtProof := nmt.NewInclusionProof(int(proof.Start), int(proof.End), proof.Nodes, true)
-		nmtProofs = append(nmtProofs, &nmtProof)
-	}
-
-	commitmentProof := CommitmentProof{
-		SubtreeRoots:      subtreeRoots,
-		SubtreeRootProofs: nmtProofs,
-		NamespaceID:       sharesProof.NamespaceId,
-		RowProof:          *sharesProof.RowProof,
-		NamespaceVersion:  uint8(sharesProof.NamespaceVersion),
-	}
-
-	return commitmentProof
+	return eds, roots.Hash()
 }
 
 func rawBlobSize(totalSize int) int {
