@@ -23,7 +23,6 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v8/app/errors"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	appshare "github.com/celestiaorg/go-square/v3/share"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
@@ -264,14 +263,10 @@ func (c *TxClient) SubmitPayForBlob(
 	}()
 
 	var response *user.TxResponse
-	appBlobs, err := toGoSquareV3Blobs(libBlobs)
-	if err != nil {
-		return nil, err
-	}
 	if c.txWorkerAccounts > 0 && author.Equals(c.defaultSignerAddress) {
-		response, err = c.client.SubmitPayForBlobToQueue(ctx, appBlobs, opts...)
+		response, err = c.client.SubmitPayForBlobToQueue(ctx, libBlobs, opts...)
 	} else {
-		response, err = c.client.SubmitPayForBlobWithAccount(ctx, account.Name(), appBlobs, opts...)
+		response, err = c.client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
 	}
 
 	if apperrors.IsInsufficientFee(err) {
@@ -323,31 +318,11 @@ func (c *TxClient) estimateGasPriceAndUsage(
 
 // estimateGasForBlobs returns a gas limit that can be applied to the `MsgPayForBlob` transactions.
 func estimateGasForBlobs(signer string, blobs []*libshare.Blob) (uint64, error) {
-	appBlobs, err := toGoSquareV3Blobs(blobs)
-	if err != nil {
-		return 0, err
-	}
-	msg, err := apptypes.NewMsgPayForBlobs(signer, 0, appBlobs...)
+	msg, err := apptypes.NewMsgPayForBlobs(signer, 0, blobs...)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create msg pay-for-blobs: %w", err)
 	}
 	return apptypes.DefaultEstimateGas(msg), nil
-}
-
-func toGoSquareV3Blobs(blobs []*libshare.Blob) ([]*appshare.Blob, error) {
-	appBlobs := make([]*appshare.Blob, len(blobs))
-	for i := range blobs {
-		namespace, err := appshare.NewNamespace(blobs[i].Namespace().Version(), blobs[i].Namespace().ID())
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert namespace for blob %d: %w", i, err)
-		}
-		appBlob, err := appshare.NewBlob(namespace, blobs[i].Data(), blobs[i].ShareVersion(), blobs[i].Signer())
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert blob %d: %w", i, err)
-		}
-		appBlobs[i] = appBlob
-	}
-	return appBlobs, nil
 }
 
 // EstimateGasPrice queries the gas price for a transaction via the estimator

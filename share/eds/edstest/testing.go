@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	appshare "github.com/celestiaorg/go-square/v3/share"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -183,12 +182,10 @@ func createTestBlobTransaction(
 ) (libshare.Namespace, *blobtypes.MsgPayForBlobs, *libshare.Blob, coretypes.Tx) {
 	ns := libshare.RandomBlobNamespace()
 	account := signer.Account(accountName)
-	appNs, err := appshare.NewNamespace(ns.Version(), ns.ID())
-	require.NoError(t, err)
-	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), appNs, size)
+	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
 	blob, err := libshare.NewBlob(ns, b.Data(), b.ShareVersion(), b.Signer())
 	require.NoError(t, err)
-	cTx, _, err := signer.CreatePayForBlobs(accountName, []*appshare.Blob{b})
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{blob})
 	require.NoError(t, err)
-	return ns, msg, blob, cTx
+	return ns, msg, b, cTx
 }
