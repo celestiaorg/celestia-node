@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"reflect"
@@ -36,14 +37,25 @@ type Server struct {
 	started    atomic.Bool
 	corsConfig CORSConfig
 
+	tlsEnabled  bool
+	tlsCertPath string
+	tlsKeyPath  string
+
 	signer   jwt.Signer
 	verifier jwt.Verifier
+}
+
+type TLSConfig struct {
+	Enabled  bool
+	CertPath string
+	KeyPath  string
 }
 
 func NewServer(
 	address, port string,
 	authDisabled bool,
 	corsConfig CORSConfig,
+	tlsConfig TLSConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
@@ -54,6 +66,9 @@ func NewServer(
 		verifier:     verifier,
 		authDisabled: authDisabled,
 		corsConfig:   corsConfig,
+		tlsEnabled:   tlsConfig.Enabled,
+		tlsCertPath:  tlsConfig.CertPath,
+		tlsKeyPath:   tlsConfig.KeyPath,
 	}
 
 	srv.srv = &http.Server{
@@ -139,12 +154,25 @@ func (s *Server) Start(context.Context) error {
 	}
 	listener, err := net.Listen("tcp", s.srv.Addr)
 	if err != nil {
+		s.started.Store(false)
 		return err
 	}
 	s.listener = listener
-	log.Infow("server started", "listening on", s.srv.Addr)
-	//nolint:errcheck
-	go s.srv.Serve(listener)
+	if s.tlsEnabled {
+		if _, err := tls.LoadX509KeyPair(s.tlsCertPath, s.tlsKeyPath); err != nil {
+			s.started.Store(false)
+			s.listener = nil
+			listener.Close()
+			return err
+		}
+		log.Infow("server started with TLS", "listening on", s.srv.Addr)
+		//nolint:errcheck
+		go s.srv.ServeTLS(listener, s.tlsCertPath, s.tlsKeyPath)
+	} else {
+		log.Infow("server started", "listening on", s.srv.Addr)
+		//nolint:errcheck
+		go s.srv.Serve(listener)
+	}
 	return nil
 }
 

@@ -18,7 +18,7 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	"github.com/mitchellh/go-homedir"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	nodemod "github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -146,7 +146,7 @@ func (f *fsStore) Close() (err error) {
 		err = errors.Join(err, f.data.Close())
 	}
 	f.dataMu.Unlock()
-	return
+	return err
 }
 
 type fsStore struct {
@@ -156,6 +156,33 @@ type fsStore struct {
 	data    datastore.Batching
 	keys    keystore.Keystore
 	dirLock *flock.Flock // protects directory
+}
+
+// DiscoverStopped finds a path of an initialized store of a stopped Node and returns its path.
+// If multiple store exists, it only returns the path of the first found.
+// Network is favored over node type.
+//
+// Network preference order: Mainnet, Mocha, Arabica, Private, Custom
+// Type preference order: Bridge, Full, Light
+func DiscoverStopped() (string, error) {
+	defaultNetwork := p2p.GetNetworks()
+	nodeTypes := nodemod.GetTypes()
+
+	for _, n := range defaultNetwork {
+		for _, tp := range nodeTypes {
+			path, err := DefaultNodeStorePath(tp, n)
+			if err != nil {
+				return "", err
+			}
+
+			ok, _ := IsOpened(path)
+			if !ok && IsInit(path) {
+				return path, nil
+			}
+		}
+	}
+
+	return "", ErrNotInited
 }
 
 // DiscoverOpened finds a path of an opened Node Store and returns its path.

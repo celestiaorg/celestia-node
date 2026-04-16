@@ -33,6 +33,8 @@ func init() {
 		beginRedelegateCmd,
 		undelegateCmd,
 		delegateCmd,
+		withdrawDelegatorRewardCmd,
+		queryDelegationRewardsCmd,
 		queryDelegationCmd,
 		queryUnbondingCmd,
 		queryRedelegationCmd,
@@ -55,6 +57,7 @@ func init() {
 		beginRedelegateCmd,
 		undelegateCmd,
 		delegateCmd,
+		withdrawDelegatorRewardCmd,
 		grantFeeCmd,
 		revokeGrantFeeCmd)
 }
@@ -285,6 +288,52 @@ var delegateCmd = &cobra.Command{
 			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
+	},
+}
+
+var withdrawDelegatorRewardCmd = &cobra.Command{
+	Use:   "withdraw-delegator-reward [valAddress]",
+	Short: "Withdraws a delegator's rewards from a validator.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		addr, err := parseAddressFromString(args[0])
+		if err != nil {
+			return fmt.Errorf("error parsing an address: %w", err)
+		}
+
+		txResponse, err := client.State.WithdrawDelegatorReward(
+			cmd.Context(),
+			addr.Address.(state.ValAddress),
+			GetTxConfig(),
+		)
+		return cmdnode.PrintOutput(txResponse, err, nil)
+	},
+}
+
+var queryDelegationRewardsCmd = &cobra.Command{
+	Use:   "get-delegation-rewards [valAddress]",
+	Short: "Retrieves the pending rewards for a delegation to a given validator.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		addr, err := parseAddressFromString(args[0])
+		if err != nil {
+			return fmt.Errorf("error parsing an address: %w", err)
+		}
+
+		response, err := client.State.QueryDelegationRewards(cmd.Context(), addr.Address.(state.ValAddress))
+		return cmdnode.PrintOutput(response, err, nil)
 	},
 }
 

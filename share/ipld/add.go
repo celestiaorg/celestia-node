@@ -6,8 +6,8 @@ import (
 
 	"github.com/ipfs/boxo/blockservice"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 

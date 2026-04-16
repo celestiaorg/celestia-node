@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -139,6 +139,12 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return append(data, ndid.DataNamespace.Bytes()...), nil
+}
+
+// ResponseSize returns the worst-case response size: all ODS rows contain namespace data.
+func (ndid NamespaceDataID) ResponseSize(edsSize int) int {
+	odsLn := edsSize / 2
+	return odsLn * odsLn * libshare.ShareSize
 }
 
 func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
