@@ -2,6 +2,7 @@ package header
 
 import (
 	"context"
+	"time"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -10,16 +11,19 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/fx"
 
-	libfraud "github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
 	"github.com/celestiaorg/go-header/p2p"
 	"github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
 
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 )
+
+// maxBlockTime is the upper bound of expected block production time.
+// Used for syncer tail height estimation to ensure the tail stays within the pruning
+// window despite block time variance (real block times on mocha avg ~6.14s vs nominal 6s).
+const maxBlockTime = 7 * time.Second
 
 // newP2PExchange constructs a new Exchange for headers.
 func newP2PExchange[H libhead.Header[H]](
@@ -30,7 +34,7 @@ func newP2PExchange[H libhead.Header[H]](
 	host host.Host,
 	conngater *conngater.BasicConnectionGater,
 	pidstore p2p.PeerIDStore,
-) (libhead.Exchange[H], error) {
+) (*p2p.Exchange[H], error) {
 	peers, err := cfg.trustedPeers(bpeers)
 	if err != nil {
 		return nil, err
@@ -68,12 +72,39 @@ func newP2PExchange[H libhead.Header[H]](
 
 // newSyncer constructs new Syncer for headers.
 func newSyncer[H libhead.Header[H]](
+	ndtp node.Type,
+	net modp2p.Network,
 	ex libhead.Exchange[H],
 	store libhead.Store[H],
 	sub libhead.Subscriber[H],
 	cfg Config,
+	isArchival node.ArchivalMode,
 ) (*sync.Syncer[H], error) {
-	opts := []sync.Option{sync.WithParams(cfg.Syncer), sync.WithBlockTime(modp2p.BlockTime)}
+	switch ndtp {
+	case node.Bridge:
+		// Bridge nodes: check if archival mode is enabled via --archival flag
+		if isArchival {
+			// Archival mode: disable header pruning and sync from genesis
+			genesis, err := modp2p.GenesisFor(net)
+			if err != nil {
+				return nil, err
+			}
+			cfg.Syncer.PruningWindow = 0
+			cfg.Syncer.SyncFromHash = genesis
+			if genesis == "" {
+				cfg.Syncer.SyncFromHeight = 1
+			}
+		}
+	case node.Light:
+	default:
+		panic("invalid node type")
+	}
+
+	opts := []sync.Option{
+		sync.WithParams(cfg.Syncer),
+		sync.WithBlockTime(maxBlockTime),
+		sync.WithTrustingPeriod(trustingPeriod),
+	}
 	if MetricsEnabled {
 		opts = append(opts, sync.WithMetrics())
 	}
@@ -86,24 +117,11 @@ func newSyncer[H libhead.Header[H]](
 	return syncer, nil
 }
 
-func newFraudedSyncer[H libhead.Header[H]](
-	fservice libfraud.Service[H],
-	syncer *sync.Syncer[H],
-) *modfraud.ServiceBreaker[*sync.Syncer[H], H] {
-	return &modfraud.ServiceBreaker[*sync.Syncer[H], H]{
-		Service:   syncer,
-		FraudType: byzantine.BadEncoding,
-		FraudServ: fservice,
-	}
-}
-
-// newInitStore constructs an initialized store
-func newInitStore[H libhead.Header[H]](
+// newStore constructs an initialized store
+func newStore[H libhead.Header[H]](
 	lc fx.Lifecycle,
 	cfg Config,
-	net modp2p.Network,
 	ds datastore.Batching,
-	ex libhead.Exchange[H],
 ) (libhead.Store[H], error) {
 	opts := []store.Option{store.WithParams(cfg.Store)}
 	if MetricsEnabled {
@@ -115,17 +133,8 @@ func newInitStore[H libhead.Header[H]](
 		return nil, err
 	}
 
-	trustedHash, err := cfg.trustedHash(net)
-	if err != nil {
-		return nil, err
-	}
-
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			err = store.Init[H](ctx, s, ex, trustedHash)
-			if err != nil {
-				return err
-			}
 			return s.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {

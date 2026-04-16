@@ -3,17 +3,12 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ipfs/go-datastore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-)
-
-const (
-	defaultRoutingRefreshPeriod = time.Minute
 )
 
 // PeerRouting provides constructor for PeerRouting over DHT.
@@ -30,7 +25,6 @@ func NewDHT(
 		dht.BootstrapPeers(bootsrappers...),
 		dht.ProtocolPrefix(protocol.ID(fmt.Sprintf("/celestia/%s", prefix))),
 		dht.Datastore(dataStore),
-		dht.RoutingTableRefreshPeriod(defaultRoutingRefreshPeriod),
 		dht.Mode(mode),
 	}
 

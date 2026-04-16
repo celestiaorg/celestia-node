@@ -4,13 +4,11 @@ package core
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
 
 // TestBlockFetcherHeaderValues tests that both the Commit and ValidatorSet
@@ -19,11 +17,13 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	node := StartTestNode(t)
-	host, port, err := net.SplitHostPort(node.GRPCClient.Target())
-	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
+
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
 	require.NoError(t, err)
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
-	var nextBlock types.EventDataSignedBlock
+	var nextBlock SignedBlock
 	select {
 	case nextBlock = <-newBlockChan:
 	case <-ctx.Done():

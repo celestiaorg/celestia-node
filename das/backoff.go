@@ -51,7 +51,7 @@ func (s retryStrategy) nextRetry(lastRetry retryAttempt, lastAttempt time.Time,
 func exponentialBackoff(baseInterval time.Duration, multiplier, amount int) []time.Duration {
 	backoff := make([]time.Duration, 0, amount)
 	next := baseInterval
-	for i := 0; i < amount; i++ {
+	for range amount {
 		backoff = append(backoff, next)
 		next *= time.Duration(multiplier)
 	}

@@ -12,16 +12,16 @@ func TestAddressMarshalling(t *testing.T) {
 	testCases := []struct {
 		name           string
 		addressString  string
-		addressFromStr func(string) (interface{}, error)
-		marshalJSON    func(interface{}) ([]byte, error)
-		unmarshalJSON  func([]byte) (interface{}, error)
+		addressFromStr func(string) (any, error)
+		marshalJSON    func(any) ([]byte, error)
+		unmarshalJSON  func([]byte) (any, error)
 	}{
 		{
 			name:           "Account Address",
 			addressString:  "celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h",
-			addressFromStr: func(s string) (interface{}, error) { return sdk.AccAddressFromBech32(s) },
-			marshalJSON:    func(addr interface{}) ([]byte, error) { return addr.(sdk.AccAddress).MarshalJSON() },
-			unmarshalJSON: func(b []byte) (interface{}, error) {
+			addressFromStr: func(s string) (any, error) { return sdk.AccAddressFromBech32(s) },
+			marshalJSON:    func(addr any) ([]byte, error) { return addr.(sdk.AccAddress).MarshalJSON() },
+			unmarshalJSON: func(b []byte) (any, error) {
 				var addr sdk.AccAddress
 				err := addr.UnmarshalJSON(b)
 				return addr, err
@@ -30,9 +30,9 @@ func TestAddressMarshalling(t *testing.T) {
 		{
 			name:           "Validator Address",
 			addressString:  "celestiavaloper1q3v5cugc8cdpud87u4zwy0a74uxkk6u4q4gx4p",
-			addressFromStr: func(s string) (interface{}, error) { return sdk.ValAddressFromBech32(s) },
-			marshalJSON:    func(addr interface{}) ([]byte, error) { return addr.(sdk.ValAddress).MarshalJSON() },
-			unmarshalJSON: func(b []byte) (interface{}, error) {
+			addressFromStr: func(s string) (any, error) { return sdk.ValAddressFromBech32(s) },
+			marshalJSON:    func(addr any) ([]byte, error) { return addr.(sdk.ValAddress).MarshalJSON() },
+			unmarshalJSON: func(b []byte) (any, error) {
 				var addr sdk.ValAddress
 				err := addr.UnmarshalJSON(b)
 				return addr, err

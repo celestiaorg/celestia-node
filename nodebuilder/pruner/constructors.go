@@ -4,6 +4,7 @@ import (
 	"github.com/ipfs/go-datastore"
 
 	libhead "github.com/celestiaorg/go-header"
+	headsync "github.com/celestiaorg/go-header/sync"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -11,10 +12,14 @@ import (
 	"github.com/celestiaorg/celestia-node/pruner"
 )
 
+// ensures Pruner always starts after Syncer
+type syncerAnchor = headsync.Syncer[*header.ExtendedHeader]
+
 func newPrunerService(
 	p pruner.Pruner,
 	window modshare.Window,
 	getter libhead.Store[*header.ExtendedHeader],
+	_ *syncerAnchor,
 	ds datastore.Batching,
 	opts ...pruner.Option,
 ) (*pruner.Service, error) {

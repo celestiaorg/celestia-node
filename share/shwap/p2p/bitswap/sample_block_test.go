@@ -23,8 +23,8 @@ func TestSample_FetchRoundtrip(t *testing.T) {
 
 	width := int(eds.Width())
 	blks := make([]Block, 0, width*width)
-	for x := 0; x < width; x++ {
-		for y := 0; y < width; y++ {
+	for x := range width {
+		for y := range width {
 			idx := shwap.SampleCoords{Row: x, Col: y}
 
 			blk, err := NewEmptySampleBlock(1, idx, len(root.RowRoots))

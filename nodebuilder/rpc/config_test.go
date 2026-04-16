@@ -6,11 +6,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestDefaultConfig tests that the default gateway config is correct.
+// TestDefaultConfig tests that the default rpc config is correct.
 func TestDefaultConfig(t *testing.T) {
 	expected := Config{
-		Address: defaultBindAddress,
-		Port:    defaultPort,
+		Address:  defaultBindAddress,
+		Port:     defaultPort,
+		SkipAuth: false,
+		CORS: CORSConfig{
+			Enabled:        false,
+			AllowedOrigins: []string{},
+			AllowedHeaders: []string{},
+			AllowedMethods: []string{},
+		},
 	}
 
 	assert.Equal(t, expected, DefaultConfig())
@@ -33,7 +40,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "invalid address",
 			cfg: Config{
-				Address: "invalid",
+				Address: "999.999.999.999",
 				Port:    "8080",
 			},
 			err: true,

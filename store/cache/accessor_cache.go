@@ -211,7 +211,7 @@ func (s *accessor) close() error {
 		log.Errorf("closing accessor, some readers didn't close the accessor within timeout,"+
 			" amount left: %v", s.refs.Load())
 	}
-	if err := s.AccessorStreamer.Close(); err != nil {
+	if err := s.Close(); err != nil {
 		return fmt.Errorf("closing accessor: %w", err)
 	}
 	return nil

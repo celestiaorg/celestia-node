@@ -1,9 +1,17 @@
 package shwap
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+
+	libshare "github.com/celestiaorg/go-square/v4/share"
+
+	"github.com/celestiaorg/celestia-node/share"
 )
 
 // SampleIDSize defines the size of the SampleID in bytes, combining RowID size and 2 additional
@@ -13,6 +21,10 @@ const SampleIDSize = RowIDSize + 2
 type SampleCoords struct {
 	Row int `json:"row"`
 	Col int `json:"col"`
+}
+
+func (s SampleCoords) String() string {
+	return fmt.Sprintf("(%d:%d)", s.Row, s.Col)
 }
 
 func SampleCoordsAs1DIndex(idx SampleCoords, edsSize int) (int, error) {
@@ -47,7 +59,7 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 	sid := SampleID{
 		RowID: RowID{
 			EdsID: EdsID{
-				Height: height,
+				height: height,
 			},
 			RowIndex: idx.Row,
 		},
@@ -58,6 +70,41 @@ func NewSampleID(height uint64, idx SampleCoords, edsSize int) (SampleID, error)
 		return SampleID{}, fmt.Errorf("verifying SampleID: %w", err)
 	}
 	return sid, nil
+}
+
+// MarshalJSON encodes SampleID to the json encoded bytes.
+func (sid SampleID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Height     uint64 `json:"height"`
+		RowIndex   int    `json:"row_index"`
+		ShareIndex int    `json:"share_index"`
+	}{
+		Height:     sid.height,
+		RowIndex:   sid.RowIndex,
+		ShareIndex: sid.ShareIndex,
+	})
+}
+
+// UnmarshalJSON decodes json bytes to the SampleID.
+func (sid *SampleID) UnmarshalJSON(data []byte) error {
+	jsonSid := struct {
+		Height     uint64 `json:"height"`
+		RowIndex   int    `json:"row_index"`
+		ShareIndex int    `json:"share_index"`
+	}{}
+
+	err := json.Unmarshal(data, &jsonSid)
+	if err != nil {
+		return err
+	}
+	sid.height = jsonSid.Height
+	sid.RowIndex = jsonSid.RowIndex
+	sid.ShareIndex = jsonSid.ShareIndex
+	return nil
+}
+
+func (sid SampleID) Name() string {
+	return sampleName
 }
 
 // SampleIDFromBinary deserializes a SampleID from binary data, ensuring the data length matches
@@ -112,7 +159,11 @@ func (sid *SampleID) ReadFrom(r io.Reader) (int64, error) {
 // * No support for uint16
 func (sid SampleID) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 0, SampleIDSize)
-	return sid.appendTo(data), nil
+	data, err := sid.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteTo writes the binary form of SampleID to the provided writer.
@@ -145,9 +196,31 @@ func (sid SampleID) Validate() error {
 	return sid.RowID.Validate()
 }
 
-// appendTo helps in constructing the binary representation by appending the encoded ShareIndex to
+// AppendBinary helps in constructing the binary representation by appending the encoded ShareIndex to
 // the serialized RowID.
-func (sid SampleID) appendTo(data []byte) []byte {
-	data = sid.RowID.appendTo(data)
-	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex))
+func (sid SampleID) AppendBinary(data []byte) ([]byte, error) {
+	data, err := sid.RowID.AppendBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return binary.BigEndian.AppendUint16(data, uint16(sid.ShareIndex)), nil
+}
+
+// ResponseSize returns 1 share + NMT proof bytes for the given EDS square size.
+func (sid SampleID) ResponseSize(edsSize int) int {
+	return libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(edsSize)))
+}
+
+func (sid SampleID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
+	sample, err := acc.Sample(ctx, SampleCoords{Row: sid.RowIndex, Col: sid.ShareIndex})
+	if err != nil {
+		return nil, fmt.Errorf("getting sample from accessor: %w", err)
+	}
+
+	buf := &bytes.Buffer{}
+	_, err = sample.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("writing sample: %w", err)
+	}
+	return buf, nil
 }

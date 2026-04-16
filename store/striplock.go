@@ -19,7 +19,7 @@ type multiLock struct {
 func newStripLock(size int) *striplock {
 	heights := make([]*sync.RWMutex, size)
 	datahashes := make([]*sync.RWMutex, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		heights[i] = &sync.RWMutex{}
 		datahashes[i] = &sync.RWMutex{}
 	}

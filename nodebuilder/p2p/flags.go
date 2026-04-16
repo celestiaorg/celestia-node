@@ -92,17 +92,17 @@ func ParseNetwork(cmd *cobra.Command) (Network, error) {
 func parseNetworkFromEnv() (Network, error) {
 	var network Network
 	// check if custom network option set
-	// format: CELESTIA_CUSTOM=<netID>:<genesisHash>:<bootstrapPeerList>
+	// format: CELESTIA_CUSTOM=<netID>:<genesisBlockHash>:<bootstrapPeerList>
 	if custom, ok := os.LookupEnv(EnvCustomNetwork); ok {
 		fmt.Print("\n\nWARNING: Celestia custom network specified. Only use this option if the node is " +
 			"freshly created and initialized.\n**DO NOT** run a custom network over an already-existing node " +
 			"store!\n\n")
 		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
-		if len(params) == 0 {
-			return network, fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
+		netID := strings.TrimSpace(params[0])
+		if netID == "" {
+			return "", fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
 		}
-		netID := params[0]
 		network = Network(netID)
 		addCustomNetwork(network)
 		// check if genesis hash provided and register it if exists
@@ -117,7 +117,7 @@ func parseNetworkFromEnv() (Network, error) {
 			bs := strings.Split(bootstrappers, ",")
 			_, err := parseAddrInfos(bs)
 			if err != nil {
-				return DefaultNetwork, fmt.Errorf("params: env %s: contains invalid multiaddress", EnvCustomNetwork)
+				return "", fmt.Errorf("params: env %s: contains invalid multiaddress", EnvCustomNetwork)
 			}
 			bootstrapList[Network(netID)] = bs
 		}

@@ -2,28 +2,25 @@ package das
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/go-fraud/fraudtest"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability/mocks"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
 
-var timeout = time.Second * 15
+var timeout = time.Second * 3
 
 // TestDASerLifecycle tests to ensure every mock block is DASed and
 // the DASer checkpoint is updated to network head.
@@ -33,12 +30,12 @@ func TestDASerLifecycle(t *testing.T) {
 	avail := mocks.NewMockAvailability(ctrl)
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	// 15 headers from the past and 15 future headers
-	mockGet, sub, mockService := createDASerSubcomponents(t, 15, 15)
+	mockGet, sub := createDASerSubcomponents(t, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -54,13 +51,6 @@ func TestDASerLifecycle(t *testing.T) {
 		require.EqualValues(t, 30, checkpoint.SampleFrom-1)
 	}()
 
-	// wait for mock to indicate that catchup is done
-	select {
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	case <-mockGet.doneCh:
-	}
-
 	// wait for DASer to indicate done
 	require.NoError(t, waitHeight(ctx, daser, 30))
 }
@@ -71,23 +61,16 @@ func TestDASer_Restart(t *testing.T) {
 	avail := mocks.NewMockAvailability(ctrl)
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	// 15 headers from the past and 15 future headers
-	mockGet, sub, mockService := createDASerSubcomponents(t, 15, 15)
+	mockGet, sub := createDASerSubcomponents(t, 15, 15)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
 	require.NoError(t, err)
-
-	// wait for mock to indicate that catchup is done
-	select {
-	case <-ctx.Done():
-		t.Fatal(ctx.Err())
-	case <-mockGet.doneCh:
-	}
 
 	// wait for DASer to indicate done
 	require.NoError(t, waitHeight(ctx, daser, 30))
@@ -95,30 +78,20 @@ func TestDASer_Restart(t *testing.T) {
 	err = daser.Stop(ctx)
 	require.NoError(t, err)
 
-	// reset mockGet, generate 15 "past" headers, building off chain head which is 30
-	mockGet.generateHeaders(t, 30, 45)
-	mockGet.doneCh = make(chan struct{})
-	// reset dummy subscriber
-	mockGet.fillSubWithHeaders(t, sub, 45, 60)
-	// manually set mockGet head to trigger finished at 45
-	mockGet.head = int64(45)
+	// reset mockGet and mockSub, generate 15 "past" headers, building off chain head which is 30
+	head, err := mockGet.Head(ctx)
+	require.NoError(t, err)
+	mockGet, sub = createMockGetterAndSub(t, 15, 15, head)
 
 	// restart DASer with new context
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser, err = NewDASer(avail, sub, mockGet, ds, mockService, newBroadcastMock(1))
+	daser, err = NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
 	require.NoError(t, err)
 
 	err = daser.Start(restartCtx)
 	require.NoError(t, err)
-
-	// wait for dasing catch-up routine to indicateDone
-	select {
-	case <-restartCtx.Done():
-		t.Fatal(restartCtx.Err())
-	case <-mockGet.doneCh:
-	}
 
 	require.NoError(t, waitHeight(ctx, daser, 60))
 	err = daser.Stop(restartCtx)
@@ -131,82 +104,11 @@ func TestDASer_Restart(t *testing.T) {
 	assert.EqualValues(t, 60, checkpoint.SampleFrom-1)
 }
 
-// TODO(@walldiss): BEFP test will not work until BEFP-shwap integration
-// func TestDASer_stopsAfter_BEFP(t *testing.T) {
-//	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-//	t.Cleanup(cancel)
-//
-//	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-//	// create mock network
-//	net, err := mocknet.FullMeshLinked(1)
-//	require.NoError(t, err)
-//	// create pubsub for host
-//	ps, err := pubsub.NewGossipSub(ctx, net.Hosts()[0],
-//		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-//	require.NoError(t, err)
-//
-//	ctrl := gomock.NewController(t)
-//	avail := mocks.NewMockAvailability(ctrl)
-//	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-//	// 15 headers from the past and 15 future headers
-//	mockGet, sub, _ := createDASerSubcomponents(t, 15, 15)
-//
-//	// create fraud service and break one header
-//	getter := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-//		return mockGet.GetByHeight(ctx, height)
-//	}
-//	headGetter := func(ctx context.Context) (*header.ExtendedHeader, error) {
-//		return mockGet.Head(ctx)
-//	}
-//	unmarshaler := fraud.MultiUnmarshaler[*header.ExtendedHeader]{
-//		Unmarshalers: map[fraud.ProofType]func([]byte) (fraud.Proof[*header.ExtendedHeader], error){
-//			byzantine.BadEncoding: func(data []byte) (fraud.Proof[*header.ExtendedHeader], error) {
-//				befp := &byzantine.BadEncodingProof{}
-//				return befp, befp.UnmarshalBinary(data)
-//			},
-//		},
-//	}
-//
-//	fserv := fraudserv.NewProofService[*header.ExtendedHeader](ps,
-//		net.Hosts()[0],
-//		getter,
-//		headGetter,
-//		unmarshaler,
-//		ds,
-//		false,
-//		"private",
-//	)
-//	require.NoError(t, fserv.Start(ctx))
-//	mockGet.headers[1] = headerfraud.CreateFraudExtHeader(t, mockGet.headers[1])
-//	newCtx := context.Background()
-//
-//	// create and start DASer
-//	daser, err := NewDASer(avail, sub, mockGet, ds, fserv, newBroadcastMock(1))
-//	require.NoError(t, err)
-//
-//	resultCh := make(chan error)
-//	go fraud.OnProof[*header.ExtendedHeader](newCtx, fserv, byzantine.BadEncoding,
-//		func(fraud.Proof[*header.ExtendedHeader]) {
-//			resultCh <- daser.Stop(newCtx)
-//		})
-//
-//	require.NoError(t, daser.Start(newCtx))
-//	// wait for fraud proof will be handled
-//	select {
-//	case <-ctx.Done():
-//		t.Fatal(ctx.Err())
-//	case res := <-resultCh:
-//		require.NoError(t, res)
-//	}
-//	// wait for manager to finish catchup
-//	require.False(t, daser.running.Load())
-//}
-
 func TestDASerSampleTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 
-	getter := getterStub{}
+	getter := headertest.NewStore(t)
 	avail := mocks.NewMockAvailability(gomock.NewController(t))
 	doneCh := make(chan struct{})
 	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().
@@ -214,7 +116,11 @@ func TestDASerSampleTimeout(t *testing.T) {
 			func(sampleCtx context.Context, h *header.ExtendedHeader) error {
 				select {
 				case <-sampleCtx.Done():
-					close(doneCh)
+					select {
+					case <-doneCh:
+					default:
+						close(doneCh)
+					}
 					return nil
 				case <-ctx.Done():
 					t.Fatal("call context didn't timeout in time")
@@ -224,10 +130,9 @@ func TestDASerSampleTimeout(t *testing.T) {
 
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
 	sub := new(headertest.Subscriber)
-	fserv := &fraudtest.DummyService[*header.ExtendedHeader]{}
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, fserv, newBroadcastMock(1),
+	daser, err := NewDASer(avail, sub, getter, ds, newBroadcastMock(1),
 		WithSampleTimeout(1))
 	require.NoError(t, err)
 
@@ -249,106 +154,27 @@ func createDASerSubcomponents(
 	t *testing.T,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.Subscriber, *fraudtest.DummyService[*header.ExtendedHeader]) {
+) (
+	libhead.Store[*header.ExtendedHeader],
+	libhead.Subscriber[*header.ExtendedHeader],
+) {
 	mockGet, sub := createMockGetterAndSub(t, numGetter, numSub)
-	fraud := &fraudtest.DummyService[*header.ExtendedHeader]{}
-	return mockGet, sub, fraud
+	return mockGet, sub
 }
 
 func createMockGetterAndSub(
 	t *testing.T,
 	numGetter,
 	numSub int,
-) (*mockGetter, *headertest.Subscriber) {
-	mockGet := &mockGetter{
-		headers:        make(map[int64]*header.ExtendedHeader),
-		doneCh:         make(chan struct{}),
-		brokenHeightCh: make(chan struct{}),
+	tail ...*header.ExtendedHeader,
+) (libhead.Store[*header.ExtendedHeader], libhead.Subscriber[*header.ExtendedHeader]) {
+	hsuite := headertest.NewTestSuiteDefaults(t)
+	if len(tail) > 0 {
+		hsuite = headertest.NewTestSuiteWithTail(t, tail[0])
 	}
 
-	mockGet.generateHeaders(t, 0, numGetter)
-
-	sub := new(headertest.Subscriber)
-	mockGet.fillSubWithHeaders(t, sub, numGetter, numGetter+numSub)
-	return mockGet, sub
-}
-
-// fillSubWithHeaders generates `num` headers from the future for p2pSub to pipe through to DASer.
-func (m *mockGetter) fillSubWithHeaders(
-	t *testing.T,
-	sub *headertest.Subscriber,
-	startHeight,
-	endHeight int,
-) {
-	sub.Headers = make([]*header.ExtendedHeader, endHeight-startHeight)
-
-	index := 0
-	for i := startHeight; i < endHeight; i++ {
-		roots := edstest.RandomAxisRoots(t, 16)
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
-		randHeader.RawHeader.Height = int64(i + 1)
-
-		sub.Headers[index] = randHeader
-		// also checkpointStore to mock getter for duplicate sampling
-		m.headers[int64(i+1)] = randHeader
-
-		index++
-	}
-}
-
-type mockGetter struct {
-	getterStub
-	doneCh chan struct{} // signals all stored headers have been retrieved
-
-	brokenHeight   int64
-	brokenHeightCh chan struct{}
-
-	head    int64
-	headers map[int64]*header.ExtendedHeader
-}
-
-func (m *mockGetter) generateHeaders(t *testing.T, startHeight, endHeight int) {
-	for i := startHeight; i < endHeight; i++ {
-		roots := edstest.RandomAxisRoots(t, 16)
-
-		randHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
-		randHeader.RawHeader.Height = int64(i + 1)
-
-		m.headers[int64(i+1)] = randHeader
-	}
-	// set network head
-	m.head = int64(startHeight + endHeight)
-}
-
-func (m *mockGetter) Head(
-	context.Context,
-	...libhead.HeadOption[*header.ExtendedHeader],
-) (*header.ExtendedHeader, error) {
-	return m.headers[m.head], nil
-}
-
-func (m *mockGetter) GetByHeight(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
-	defer func() {
-		switch int64(height) {
-		case m.brokenHeight:
-			select {
-			case <-m.brokenHeightCh:
-			default:
-				close(m.brokenHeightCh)
-			}
-		case m.head:
-			select {
-			case <-m.doneCh:
-			default:
-				close(m.doneCh)
-			}
-		}
-	}()
-
-	if h, ok := m.headers[int64(height)]; ok {
-		return h, nil
-	}
-	return nil, fmt.Errorf("header not found")
+	store := headertest.NewCustomStore(t, hsuite, numGetter)
+	return store, headertest.NewSubscriber(t, store, hsuite, numSub)
 }
 
 type benchGetterStub struct {
@@ -410,6 +236,7 @@ func waitHeight(ctx context.Context, daser *DASer, height uint64) error {
 		if stats.SampledChainHead == height {
 			return nil
 		}
+
 		time.Sleep(time.Millisecond * 100)
 	}
 }
