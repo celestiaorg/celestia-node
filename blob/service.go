@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v8/pkg/proof"
 	"github.com/celestiaorg/go-square/v4/inclusion"
+	appshare "github.com/celestiaorg/go-square/v3/share"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -707,10 +708,14 @@ func ProveCommitment(
 		"end_share",
 		blobSharesStartIndex+len(blobShares),
 	)
+	proofNamespace, err := appshare.NewNamespace(namespace.Version(), namespace.ID())
+	if err != nil {
+		return nil, err
+	}
 	sharesProof, err := pkgproof.NewShareInclusionProofFromEDS(
 		eds,
-		namespace,
-		libshare.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
+		proofNamespace,
+		appshare.NewRange(blobSharesStartIndex, blobSharesStartIndex+len(blobShares)),
 	)
 	if err != nil {
 		return nil, err
