@@ -163,7 +163,7 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 //
 // Blob retrieval errors are retried until successful.
 // The channel will be closed when the context is canceled or the service is stopped.
-// Not reading from the returned channel will cause the stream to close after 16 messages.
+// Not reading from the returned channel will block additional messages.
 func (s *Service) SubscribeFromStartHeight(
 	ctx context.Context,
 	ns libshare.Namespace,
