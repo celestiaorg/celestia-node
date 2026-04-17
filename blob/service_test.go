@@ -26,6 +26,7 @@ import (
 	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/celestiaorg/celestia-node/blob/mocks"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -134,7 +135,7 @@ func TestBlobService_Get(t *testing.T) {
 					return val < 0
 				})
 
-				h, err := service.headerGetter(ctx, 1)
+				h, err := service.headerServ.GetByHeight(ctx, 1)
 				require.NoError(t, err)
 
 				resultShares, err := BlobsToShares(blobs...)
@@ -227,7 +228,7 @@ func TestBlobService_Get(t *testing.T) {
 			expectedResult: func(res any, err error) {
 				require.NoError(t, err)
 
-				header, err := service.headerGetter(ctx, 1)
+				header, err := service.headerServ.GetByHeight(ctx, 1)
 				require.NoError(t, err)
 
 				proof, ok := res.(*Proof)
@@ -342,7 +343,7 @@ func TestBlobService_Get(t *testing.T) {
 				proofs, ok := i.([]*Proof)
 				require.True(t, ok)
 
-				h, err := service.headerGetter(ctx, 1)
+				h, err := service.headerServ.GetByHeight(ctx, 1)
 				require.NoError(t, err)
 
 				originalDataWidth := len(h.DAH.RowRoots) / 2
@@ -483,7 +484,7 @@ func TestService_GetSingleBlobWithoutPadding(t *testing.T) {
 	resultShares, err := BlobsToShares(newBlob)
 	require.NoError(t, err)
 
-	h, err := service.headerGetter(ctx, 1)
+	h, err := service.headerServ.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 	row, col := calculateIndex(len(h.DAH.RowRoots), newBlob.index)
 	idx := shwap.SampleCoords{Row: row, Col: col}
@@ -510,7 +511,7 @@ func TestService_Get(t *testing.T) {
 	require.NoError(t, err)
 	service := createService(ctx, t, shares)
 
-	h, err := service.headerGetter(ctx, 1)
+	h, err := service.headerServ.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 
 	resultShares, err := BlobsToShares(blobs...)
@@ -578,7 +579,7 @@ func TestService_GetAllWithoutPadding(t *testing.T) {
 	resultShares, err := BlobsToShares(newBlobs...)
 	require.NoError(t, err)
 
-	h, err := service.headerGetter(ctx, 1)
+	h, err := service.headerServ.GetByHeight(ctx, 1)
 	require.NoError(t, err)
 	shareOffset := 0
 	for i, blob := range newBlobs {
@@ -894,7 +895,7 @@ func TestService_SubscribeFromStartHeight(t *testing.T) {
 		assert.Contains(t, err.Error(), "from the future")
 	})
 
-	t.Run("cancellation during catchup", func(t *testing.T) {
+	t.Run("user cancellation closes subscription", func(t *testing.T) {
 		subCtx, subCancel := context.WithCancel(ctx)
 		ns := blobs[0].Namespace()
 
@@ -923,49 +924,54 @@ func TestService_SubscribeFromStartHeight(t *testing.T) {
 		}
 	})
 
-	t.Run("live streaming with height gaps to fill", func(t *testing.T) {
+	t.Run("service shutdown closes subscription", func(t *testing.T) {
 		ns := blobs[0].Namespace()
 
-		// simulate a network where only height 1 exists during catchup.
-		// after catchup, headerSub delivers header 5 skipping 3, 4, forcing
-		// the live loop to gap fill heights 3, 4.
-		var tip atomic.Uint64
-		tip.Store(2)
+		// tip at 2: heights 1-2 available, WaitForHeight(3) will block
+		headerServ, _ := newMockHeaderServiceWithTip(t, headers, 2)
 
-		headerGetter := func(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
-			if height == 0 {
-				return nil, fmt.Errorf("height is equal to 0")
+		svc := NewService(nil, service.shareGetter, headerServ, nil)
+		require.NoError(t, svc.Start(ctx))
+
+		subCh, err := svc.SubscribeFromStartHeight(ctx, ns, 1)
+		require.NoError(t, err)
+
+		// consume heights 1-2, then WaitForHeight(3) blocks
+		for i := uint64(1); i <= 2; i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i, resp.Height)
+			case <-time.After(time.Second * 3):
+				t.Fatalf("timeout waiting for response at height %d", i)
 			}
-			if height > uint64(len(headers)) {
-				return nil, fmt.Errorf("header: given height is from the future: "+
-					"networkHeight: %d, requestedHeight: %d", len(headers), height)
-			}
-			if height > tip.Load() {
-				return nil, fmt.Errorf("header: given height is from the future: "+
-					"networkHeight: %d, requestedHeight: %d", tip.Load(), height)
-			}
-			return headers[height-1], nil
 		}
 
-		headerSub := func(_ context.Context) (<-chan *header.ExtendedHeader, error) {
-			ch := make(chan *header.ExtendedHeader, len(headers))
-			go func() {
-				// advance the tip and deliver header 5.
-				tip.Store(uint64(len(headers)))
-				ch <- headers[4]
-			}()
-			return ch, nil
-		}
+		// stop the service while WaitForHeight(3) is blocking
+		require.NoError(t, svc.Stop(context.Background()))
 
-		svc := NewService(nil, service.shareGetter, headerGetter, headerSub)
+		// channel should close after service shutdown
+		select {
+		case _, ok := <-subCh:
+			assert.False(t, ok, "expected subscription channel to be closed")
+		case <-time.After(time.Second * 3):
+			t.Fatal("timeout waiting for subscription channel to close after service stop")
+		}
+	})
+
+	t.Run("WaitForHeight blocks until available", func(t *testing.T) {
+		ns := blobs[0].Namespace()
+
+		headerServ, tip := newMockHeaderServiceWithTip(t, headers, 2)
+
+		svc := NewService(nil, service.shareGetter, headerServ, nil)
 		require.NoError(t, svc.Start(ctx))
 		t.Cleanup(func() { _ = svc.Stop(ctx) })
 
 		subCh, err := svc.SubscribeFromStartHeight(ctx, ns, 1)
 		require.NoError(t, err)
 
-		// Expect height 1 from catchup, then 2-4 gap filled and 5 live.
-		for i := uint64(1); i <= 5; i++ {
+		// Heights 1-2 should arrive immediately.
+		for i := uint64(1); i <= 2; i++ {
 			select {
 			case resp := <-subCh:
 				assert.Equal(t, i, resp.Height, "expected height %d", i)
@@ -973,41 +979,17 @@ func TestService_SubscribeFromStartHeight(t *testing.T) {
 				t.Fatalf("timeout waiting for response at height %d", i)
 			}
 		}
-	})
 
-	t.Run("catchup fails fast on retrieval error", func(t *testing.T) {
-		// replace the share getter with one that fails at height 2.
-		ctrl := gomock.NewController(t)
-		failingGetter := mock.NewMockGetter(ctrl)
-		failingGetter.EXPECT().GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-			DoAndReturn(func(_ context.Context, h *header.ExtendedHeader, _ libshare.Namespace) (shwap.NamespaceData, error) {
-				if h.Height() == 2 {
-					return nil, errors.New("data unavailable (pruned)")
-				}
-				return nil, nil
-			})
-		origGetter := service.shareGetter
-		service.shareGetter = failingGetter
-		t.Cleanup(func() { service.shareGetter = origGetter })
+		// Advance the tip so heights 3-5 become available.
+		tip.Store(uint64(len(headers)))
 
-		ns := blobs[0].Namespace()
-		subCh, err := service.SubscribeFromStartHeight(ctx, ns, 1)
-		require.NoError(t, err)
-
-		// should get height 1 successfully.
-		select {
-		case resp := <-subCh:
-			assert.Equal(t, uint64(1), resp.Height)
-		case <-time.After(time.Second * 3):
-			t.Fatal("timeout waiting for height 1 response")
-		}
-
-		// channel should close because height 2 failed.
-		select {
-		case _, ok := <-subCh:
-			assert.False(t, ok, "expected subscription channel to be closed after catchup retrieval error")
-		case <-time.After(time.Second * 3):
-			t.Fatal("timeout: catchup did not fail fast on retrieval error")
+		for i := uint64(3); i <= 5; i++ {
+			select {
+			case resp := <-subCh:
+				assert.Equal(t, i, resp.Height, "expected height %d", i)
+			case <-time.After(time.Second * 3):
+				t.Fatalf("timeout waiting for response at height %d", i)
+			}
 		}
 	})
 }
@@ -1041,6 +1023,45 @@ func BenchmarkGetByCommitment(b *testing.B) {
 	}
 }
 
+func newMockHeaderServiceWithTip(
+	t *testing.T,
+	headers []*header.ExtendedHeader,
+	initialTip uint64,
+) (*mocks.MockHeaderService, *atomic.Uint64) {
+	var tip atomic.Uint64
+	tip.Store(initialTip)
+
+	ctrl := gomock.NewController(t)
+	headerServ := mocks.NewMockHeaderService(ctrl)
+	headerServ.EXPECT().GetByHeight(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
+			if height == 0 {
+				return nil, fmt.Errorf("height is equal to 0")
+			}
+			if height > uint64(len(headers)) || height > tip.Load() {
+				return nil, fmt.Errorf("header: given height is from the future: "+
+					"networkHeight: %d, requestedHeight: %d", tip.Load(), height)
+			}
+			return headers[height-1], nil
+		})
+	headerServ.EXPECT().WaitForHeight(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+			for height > tip.Load() {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(10 * time.Millisecond):
+				}
+			}
+			if height > uint64(len(headers)) {
+				return nil, fmt.Errorf("header: given height is from the future: "+
+					"networkHeight: %d, requestedHeight: %d", len(headers), height)
+			}
+			return headers[height-1], nil
+		})
+	return headerServ, &tip
+}
+
 func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Service, []*header.ExtendedHeader) {
 	bs := ipld.NewMemBlockservice()
 	batching := ds_sync.MutexWrap(ds.NewMapDatastore())
@@ -1061,7 +1082,8 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 	err = headerStore.Append(ctx, headers...)
 	require.NoError(t, err)
 
-	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+	ctrl := gomock.NewController(t)
+	headerFn := func(_ context.Context, height uint64) (*header.ExtendedHeader, error) {
 		if height == 0 {
 			return nil, fmt.Errorf("height is equal to 0")
 		}
@@ -1070,9 +1092,14 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 				"networkHeight: %d, requestedHeight: %d", len(headers), height)
 		}
 		return headers[height-1], nil
-		// return headerStore.GetByHeight(ctx, height)
 	}
-	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+	headerServ := mocks.NewMockHeaderService(ctrl)
+	headerServ.EXPECT().GetByHeight(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(headerFn)
+	headerServ.EXPECT().WaitForHeight(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(headerFn)
+
+	headerSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		headerChan := make(chan *header.ExtendedHeader, len(headers))
 		defer func() {
 			for _, h := range headers {
@@ -1082,9 +1109,8 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 		}()
 		return headerChan, nil
 	}
-	ctrl := gomock.NewController(t)
-	shareGetter := mock.NewMockGetter(ctrl)
 
+	shareGetter := mock.NewMockGetter(ctrl)
 	shareGetter.EXPECT().GetNamespaceData(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, h *header.ExtendedHeader, ns libshare.Namespace) (shwap.NamespaceData, error) {
 			idx := int(h.Height()) - 1
@@ -1092,7 +1118,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2), headers
+	return NewService(nil, shareGetter, headerServ, headerSub), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -1130,13 +1156,19 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	err = headerStore.Append(ctx, h)
 	require.NoError(t, err)
 
-	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
-		return headerStore.GetByHeight(ctx, height)
-	}
-	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+	headerServ := mocks.NewMockHeaderService(ctrl)
+	headerServ.EXPECT().GetByHeight(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+			return headerStore.GetByHeight(ctx, height)
+		})
+	headerServ.EXPECT().WaitForHeight(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+			return headerStore.GetByHeight(ctx, height)
+		})
+	headerSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		return nil, fmt.Errorf("not implemented")
 	}
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, headerServ, headerSub)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.

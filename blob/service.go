@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -159,15 +158,12 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 }
 
 // SubscribeFromStartHeight returns a channel that will receive SubscriptionResponse objects
-// starting from the given startHeight. It first replays all historical blobs from startHeight
-// up to the current network head (catchup), then transitions to streaming new blobs as they
-// arrive (live).
+// starting from the given startHeight. It sequentially waits for each height to become
+// available and retrieves blobs at that height.
 //
-// Retrieval errors during catchup (e.g. pruned data) will close the subscription.
-// During the live phase, retrieval errors are retried until successful.
+// Blob retrieval errors are retried until successful.
 // The channel will be closed when the context is canceled or the service is stopped.
-// Not reading from the returned channel during live subscription will cause the stream
-// to close after 16 messages.
+// Not reading from the returned channel will cause the stream to close after 16 messages.
 func (s *Service) SubscribeFromStartHeight(
 	ctx context.Context,
 	ns libshare.Namespace,
@@ -187,107 +183,39 @@ func (s *Service) SubscribeFromStartHeight(
 		"startHeight", startHeight,
 	)
 
+	// blobCh is unbounded in the sense that it is never closed due to a full buffer.
+	// When the buffer is full, sends block until the consumer reads.
 	blobCh := make(chan *SubscriptionResponse, subscriptionBufferSize)
 	go func() {
 		defer close(blobCh)
 
-		// catchup: replay historical blobs. errors are not retried.
-		expectedNextHeight := startHeight
+		// cancel ctx when the service stops so WaitForHeight unblocks
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-s.ctx.Done():
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+
 		for height := startHeight; ; height++ {
-			header, err := s.headerServ.GetByHeight(ctx, height)
+			h, err := s.headerServ.WaitForHeight(ctx, height)
 			if err != nil {
-				if isBeyondTip(err) {
-					// height not yet available: catchup is done, transition to live.
-					log.Debugw("blobsub: catchup done, transitioning to live",
-						"namespace", ns.ID(), "lastHeight", height-1)
-					break
+				if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+					log.Errorw("blobsub: failed waiting for header",
+						"namespace", ns.ID(), "height", height, "err", err)
 				}
-				log.Errorw("blobsub: error during catchup header fetch",
-					"namespace", ns.ID(), "height", height, "err", err)
 				return
 			}
 
-			blobs, err := s.getAll(ctx, header, []libshare.Namespace{ns})
-			if err != nil {
-				log.Errorw("blobsub: failed to retrieve blobs during catchup",
-					"namespace", ns.ID(), "height", height, "err", err)
+			if !s.fetchAndSendBlobs(ctx, blobCh, h, ns) {
 				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-s.ctx.Done():
-				return
-			case blobCh <- &SubscriptionResponse{Blobs: blobs, Height: header.Height(), Header: &header.RawHeader}:
-			}
-			expectedNextHeight = height + 1
-		}
-
-		// subscribe after catchup to avoid filling the gossipsub buffer during long catchups.
-		headerCh, err := s.headerSub(ctx)
-		if err != nil {
-			log.Errorw("blobsub: failed to start header subscription after catchup",
-				"namespace", ns.ID(), "err", err)
-			return
-		}
-
-		// stream live headers, filling any gap between catchup and the first live header.
-		for {
-			select {
-			case <-ctx.Done():
-				log.Debugw("blobsub: stopping, context canceled", "namespace", ns.ID())
-				return
-			case <-s.ctx.Done():
-				log.Debugw("blobsub: stopping, service stopped", "namespace", ns.ID())
-				return
-			case header, ok := <-headerCh:
-				if !ok {
-					log.Errorw("blobsub: header channel closed unexpectedly", "namespace", ns.ID())
-					return
-				}
-				if header.Height() < expectedNextHeight {
-					continue
-				}
-
-				// fill any gap between catchup and the live header. it waits for the store
-				// to sync up to the live header and blocks until the next expected header
-				// is available.
-				for ; expectedNextHeight < header.Height(); expectedNextHeight++ {
-					if ctx.Err() != nil || s.ctx.Err() != nil {
-						return
-					}
-					gapHeader, err := s.headerServ.WaitForHeight(ctx, expectedNextHeight)
-					if err != nil {
-						log.Errorw("blobsub: failed to fill gap between catchup and live",
-							"namespace", ns.ID(), "height", expectedNextHeight, "err", err)
-						return
-					}
-					if !s.fetchAndSendBlobs(ctx, blobCh, gapHeader, ns) {
-						return
-					}
-				}
-
-				if len(blobCh) == cap(blobCh) {
-					log.Warnw("blobsub: closing subscription, buffer full from slow reader",
-						"namespace", ns.ID())
-					return
-				}
-
-				if !s.fetchAndSendBlobs(ctx, blobCh, header, ns) {
-					return
-				}
-				expectedNextHeight = header.Height() + 1
 			}
 		}
 	}()
 	return blobCh, nil
-}
-
-// isBeyondTip returns true if the error from headerGetter indicates the requested
-// height is beyond the current network or local head.
-func isBeyondTip(err error) bool {
-	msg := err.Error()
-	return strings.Contains(msg, "from the future") || strings.Contains(msg, "syncing in progress")
 }
 
 // fetchAndSendBlobs fetches blobs for the given header and namespace, retrying on error,
@@ -568,7 +496,7 @@ func (s *Service) retrieve(
 	)
 
 	span := trace.SpanFromContext(ctx)
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, nil, err
 	}
