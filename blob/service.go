@@ -236,6 +236,15 @@ func (s *Service) fetchAndSendBlobs(
 		if err == nil {
 			break
 		}
+		log.Debugw("blobsub: retrying blob retrieval",
+			"namespace", ns.ID(), "height", header.Height(), "err", err)
+		select {
+		case <-time.After(100 * time.Millisecond):
+		case <-ctx.Done():
+			return false
+		case <-s.ctx.Done():
+			return false
+		}
 	}
 
 	select {
