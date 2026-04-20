@@ -120,17 +120,17 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		row, err := strconv.ParseInt(args[1], 10, 64)
+		row, err := parseIndex(args[1], "row")
 		if err != nil {
 			return err
 		}
 
-		col, err := strconv.ParseInt(args[2], 10, 64)
+		col, err := parseIndex(args[2], "col")
 		if err != nil {
 			return err
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), height, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), height, row, col)
 
 		formatter := func(data any) any {
 			sh, ok := data.(libshare.Share)
