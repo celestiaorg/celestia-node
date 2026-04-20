@@ -25,7 +25,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.0
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
           args: --timeout 10m
           version: v2.10.1
@@ -152,7 +152,7 @@ jobs:
           retention-days: 5
 
       - name: upload coverage
-        uses: codecov/codecov-action@v6.0.0
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           env_vars: OS
           token: ${{ secrets.CODECOV_TOKEN }}
