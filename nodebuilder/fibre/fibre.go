@@ -32,7 +32,7 @@ type Module interface {
 	// It encodes the blob, constructs a payment promise, uploads encoded rows to FSPs,
 	// and aggregates validator availability signatures. It does NOT submit MsgPayForFibre on-chain.
 	// Use fibre.Submit for the full submit flow.
-	// NOTE: Currently only v0 Fibre blobs are supported.
+	// NOTE: Currently only v0 Fibre blobs are supported
 	Upload(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*UploadResult, error)
 	// Download retrieves a Fibre blob from FSPs by blobID.
 	// It reconstructs the original blob data from the encoded rows stored off-chain.
