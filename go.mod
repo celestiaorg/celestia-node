@@ -418,3 +418,6 @@ replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
 replace github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
 
 replace github.com/cloudwego/base64x => github.com/cloudwego/base64x v0.1.6
+
+// align with tastora: moby/moby/client@v0.4.0 requires creack/pty v1.1.24
+replace github.com/creack/pty => github.com/creack/pty v1.1.24
