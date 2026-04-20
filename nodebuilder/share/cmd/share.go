@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,19 @@ func init() {
 		getEDS,
 		getRange,
 	)
+}
+
+// parseIndex parses s as a non-negative int (a share index or dimension).
+// It rejects negative values and values that overflow int on the current platform.
+func parseIndex(s, name string) (int, error) {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("error parsing %s: %w", name, err)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("%s must be non-negative, got %d", name, n)
+	}
+	return n, nil
 }
 
 var Cmd = &cobra.Command{
