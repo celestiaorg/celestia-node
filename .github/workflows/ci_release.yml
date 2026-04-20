@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.6.4
+      - uses: celestiaorg/.github/.github/actions/yamllint@9ee03305d3cc6cf520b7895436429aa853b58e70 # v0.6.4
 
   markdown-lint:
     name: Markdown Lint
@@ -115,7 +115,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       # Generate the binaries and release
-      - uses: goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # v7
         with:
           distribution: goreleaser
           version: latest
