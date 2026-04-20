@@ -188,11 +188,11 @@ var getRange = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		start, err := strconv.ParseUint(args[1], 10, 64)
+		start, err := parseIndex(args[1], "start")
 		if err != nil {
 			return err
 		}
-		end, err := strconv.ParseUint(args[2], 10, 64)
+		end, err := parseIndex(args[2], "end")
 		if err != nil {
 			return err
 		}
@@ -201,7 +201,7 @@ var getRange = &cobra.Command{
 			return errors.New("start index must be less than end index")
 		}
 
-		rng, err := client.Share.GetRange(cmd.Context(), height, int(start), int(end))
+		rng, err := client.Share.GetRange(cmd.Context(), height, start, end)
 		return cmdnode.PrintOutput(rng, err, nil)
 	},
 }
