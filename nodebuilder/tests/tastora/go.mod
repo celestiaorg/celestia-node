@@ -7,7 +7,7 @@ require (
 	github.com/celestiaorg/celestia-app/v8 v8.0.0-20260319203113-2ec59a0a61e4
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc4.0.20260318002530-1ca8ff7b42ea
-	github.com/celestiaorg/tastora v0.16.0
+	github.com/celestiaorg/tastora v0.19.0
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
@@ -83,7 +83,6 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -204,7 +203,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
@@ -366,6 +364,7 @@ require (
 	github.com/cockroachdb/swiss v0.0.0-20251224182025-b0f6560f979b // indirect
 	github.com/consensys/gnark v0.14.0 // indirect
 	github.com/consensys/gnark-crypto v0.19.2 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.4.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/dunglas/httpsfv v1.1.0 // indirect
@@ -379,7 +378,8 @@ require (
 	github.com/ipfs/go-ds-badger4 v0.1.8 // indirect
 	github.com/ipfs/go-ds-pebble v0.5.10 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
-	github.com/moby/moby v27.5.1+incompatible // indirect
+	github.com/moby/moby/api v1.54.1 // indirect
+	github.com/moby/moby/client v0.4.0 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
