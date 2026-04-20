@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // EdsIDSize defines the byte size of the EdsID.

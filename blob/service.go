@@ -19,8 +19,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v8/pkg/proof"
-	"github.com/celestiaorg/go-square/v4/inclusion"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -738,10 +738,7 @@ func ProveCommitment(
 	for _, proof := range nmtProofs {
 		// TODO: do we want directly use the default subtree root threshold
 		// or want to allow specifying which version to use?
-		stw, err := inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold)
-		if err != nil {
-			return nil, err
-		}
+		stw := inclusion.SubTreeWidth(len(blobShares), subtreeRootThreshold)
 		ranges, err := nmt.ToLeafRanges(
 			proof.Start(),
 			proof.End(),

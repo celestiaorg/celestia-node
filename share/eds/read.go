@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -60,7 +60,7 @@ func ReadShares(r io.Reader, shareSize, odsSize int) ([]libshare.Share, error) {
 		if err != nil {
 			return nil, err
 		}
-		shares[i] = newShare
+		shares[i] = *newShare
 		total += n
 	}
 	return shares, nil
