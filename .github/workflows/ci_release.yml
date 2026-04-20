@@ -16,6 +16,9 @@ on:
         description: 'Tag for release'
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   # set up go version for use through pipelines, setting
   # variable one time and setting outputs to access passing it
@@ -85,7 +88,8 @@ jobs:
     if: |
       github.event_name == 'release' ||
       github.event_name == 'workflow_dispatch'
-    permissions: "write-all"
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
 
