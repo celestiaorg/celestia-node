@@ -35,7 +35,7 @@ func TestDASerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds)
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -66,7 +66,7 @@ func TestDASer_Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
-	daser, err := NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
+	daser, err := NewDASer(avail, sub, mockGet, ds)
 	require.NoError(t, err)
 
 	err = daser.Start(ctx)
@@ -87,7 +87,7 @@ func TestDASer_Restart(t *testing.T) {
 	restartCtx, restartCancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(restartCancel)
 
-	daser, err = NewDASer(avail, sub, mockGet, ds, newBroadcastMock(1))
+	daser, err = NewDASer(avail, sub, mockGet, ds)
 	require.NoError(t, err)
 
 	err = daser.Start(restartCtx)
@@ -132,7 +132,7 @@ func TestDASerSampleTimeout(t *testing.T) {
 	sub := new(headertest.Subscriber)
 
 	// create and start DASer
-	daser, err := NewDASer(avail, sub, getter, ds, newBroadcastMock(1),
+	daser, err := NewDASer(avail, sub, getter, ds,
 		WithSampleTimeout(1))
 	require.NoError(t, err)
 
