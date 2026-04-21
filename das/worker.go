@@ -11,7 +11,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/availability"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 type jobType string
@@ -26,10 +25,9 @@ type worker struct {
 	lock  sync.Mutex
 	state workerState
 
-	getter    libhead.Getter[*header.ExtendedHeader]
-	sampleFn  sampleFn
-	broadcast shrexsub.BroadcastFn
-	metrics   *metrics
+	getter   libhead.Getter[*header.ExtendedHeader]
+	sampleFn sampleFn
+	metrics  *metrics
 }
 
 // workerState contains important information about the state of a
@@ -54,14 +52,12 @@ type job struct {
 func newWorker(j job,
 	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
-	broadcast shrexsub.BroadcastFn,
 	metrics *metrics,
 ) worker {
 	return worker{
-		getter:    getter,
-		sampleFn:  sample,
-		broadcast: broadcast,
-		metrics:   metrics,
+		getter:   getter,
+		sampleFn: sample,
+		metrics:  metrics,
 		state: workerState{
 			curr: j.from,
 			result: result{
@@ -145,9 +141,9 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		return err
 	}
 
-	logout := log.Infow
-	if w.state.jobType == catchupJob {
-		logout = log.Debugw
+	logout := log.Debugw
+	if w.state.jobType == recentJob {
+		logout = log.Infow
 	}
 
 	logout(
