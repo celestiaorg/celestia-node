@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 )
@@ -23,7 +23,7 @@ func TestShareReader(t *testing.T) {
 		if err != nil {
 			return libshare.Share{}, err
 		}
-		return sh, nil
+		return *sh, nil
 	}
 
 	reader := NewShareReader(odsSize, getShare)

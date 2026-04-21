@@ -21,7 +21,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )

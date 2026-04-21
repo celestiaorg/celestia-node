@@ -19,7 +19,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
