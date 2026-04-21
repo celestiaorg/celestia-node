@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
