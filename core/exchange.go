@@ -157,22 +157,22 @@ func (ce *Exchange) Get(ctx context.Context, hash libhead.Hash) (*header.Extende
 
 	comm, vals, err := ce.fetcher.GetBlockInfo(ctx, block.Height)
 	if err != nil {
-		return nil, fmt.Errorf("fetching block info for height %d: %w", &block.Height, err)
+		return nil, fmt.Errorf("fetching block info for height %d: %w", block.Height, err)
 	}
 
 	eds, err := da.ConstructEDS(block.Txs.ToSliceOfBytes(), block.Version.App, -1)
 	if err != nil {
-		return nil, fmt.Errorf("extending block data for height %d: %w", &block.Height, err)
+		return nil, fmt.Errorf("extending block data for height %d: %w", block.Height, err)
 	}
 	// construct extended header
 	eh, err := ce.construct(&block.Header, comm, vals, eds)
 	if err != nil {
-		panic(fmt.Errorf("constructing extended header for height %d: %w", &block.Height, err))
+		panic(fmt.Errorf("constructing extended header for height %d: %w", block.Height, err))
 	}
 	// verify hashes match
 	if !bytes.Equal(hash, eh.Hash()) {
 		return nil, fmt.Errorf("incorrect hash in header at height %d: expected %x, got %x",
-			&block.Height, hash, eh.Hash())
+			block.Height, hash, eh.Hash())
 	}
 
 	err = storeEDS(ctx, eh, eds, ce.store, ce.availabilityWindow, ce.archival)
