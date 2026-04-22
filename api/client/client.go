@@ -9,7 +9,11 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"google.golang.org/grpc"
 
+	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
+
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/fibre"
+	nodebuilderfibre "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	stateapi "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
@@ -37,6 +41,14 @@ type SubmitConfig struct {
 	//     submitting blobs). Parallel submission is not guaranteed to include blobs
 	//     in the same order as they were submitted.
 	TxWorkerAccounts int
+	// Fibre tunes the local appfibre.Client used for Fibre operations
+	// (Submit/Upload/Download/Deposit/Withdraw/Query*). When nil,
+	// appfibre.DefaultClientConfig() is used. DefaultKeyName and StateAddress
+	// are always taken from SubmitConfig.DefaultKeyName and
+	// CoreGRPCConfig.Addr respectively, so callers can safely set only the
+	// knobs they care about (UploadConcurrency, DownloadConcurrency,
+	// StateClientFn, Log, Tracer, Meter, Clock, etc.).
+	Fibre *appfibre.ClientConfig
 }
 
 func (cfg Config) Validate() error {
@@ -152,7 +164,43 @@ func (c *Client) initTxClient(
 		submitter: blobSvc,
 	}
 
+	// Build a local Fibre module so all Fibre operations run against consensus
+	// gRPC and FSPs directly, without routing through a bridge node. This mirrors
+	// how Blob.Submit uses blobSvc. ReadClient.Fibre (JSON-RPC bridge) is still
+	// exposed by NewReadClient for read-only users.
+	var appFibreCfg appfibre.ClientConfig
+	if submitCfg.Fibre != nil {
+		appFibreCfg = *submitCfg.Fibre
+	} else {
+		appFibreCfg = appfibre.DefaultClientConfig()
+	}
+	appFibreCfg.DefaultKeyName = submitCfg.DefaultKeyName
+	appFibreCfg.StateAddress = conn.Target()
+	appFibreClient, err := appfibre.NewClient(kr, appFibreCfg)
+	if err != nil {
+		_ = blobSvc.Stop(ctx)
+		_ = core.Stop(ctx)
+		_ = tc.Stop(ctx)
+		return fmt.Errorf("creating fibre client: %w", err)
+	}
+	err = appFibreClient.Start(ctx)
+	if err != nil {
+		_ = blobSvc.Stop(ctx)
+		_ = core.Stop(ctx)
+		_ = tc.Stop(ctx)
+		return fmt.Errorf("starting fibre client: %w", err)
+	}
+	accClient := fibre.NewAccountClient(tc, conn)
+	fibreSvc := fibre.NewService(appFibreClient, tc, accClient)
+	c.Fibre = nodebuilderfibre.NewModule(fibreSvc)
+
 	c.closer = func() error {
+		// Stop the appfibre client first so its validator-state subscription
+		// drains before the underlying gRPC connection is torn down.
+		err = appFibreClient.Stop(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to stop fibre client: %w", err)
+		}
 		err = conn.Close()
 		if err != nil {
 			return fmt.Errorf("failed to close grpc connection: %w", err)

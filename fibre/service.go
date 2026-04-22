@@ -24,6 +24,11 @@ var (
 	ErrClientNotAvailable = errors.New("fibre client is not available: node is not connected to a core endpoint")
 )
 
+// asyncSubmitTimeout bounds the background MsgPayForFibre broadcast kicked off
+// by Upload. It needs to cover gas estimation plus at least one block time;
+// 2 minutes is a comfortable upper bound on any mainnet-scale configuration.
+const asyncSubmitTimeout = 2 * time.Minute
+
 type Service struct {
 	*AccountClient
 
@@ -107,7 +112,7 @@ func (s *Service) Upload(
 	ctx context.Context,
 	ns libshare.Namespace,
 	data []byte,
-	_ *txclient.TxConfig,
+	options *txclient.TxConfig,
 ) (_ *appfibre.SignedPaymentPromise, _ appfibre.BlobID, err error) {
 	if s == nil {
 		return nil, nil, ErrClientNotAvailable
@@ -129,8 +134,54 @@ func (s *Service) Upload(
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
 		return nil, nil, err
 	}
-	// TODO: add async fibre submit
+
+	// Per ADR-013, Upload settles payment on-chain in the background so the
+	// caller is not blocked on tx inclusion. Errors are logged only; a
+	// follow-up change will add lifecycle tracking to wait for in-flight
+	// submissions during Service shutdown.
+	go s.asyncSubmitPayForFibre(promise, options)
+
 	return promise, blob.ID(), nil
+}
+
+// asyncSubmitPayForFibre broadcasts MsgPayForFibre for a promise returned by
+// Upload. It runs in its own goroutine with a fresh context so the Upload
+// caller can return (and cancel its context) immediately.
+func (s *Service) asyncSubmitPayForFibre(
+	promise *appfibre.SignedPaymentPromise,
+	options *txclient.TxConfig,
+) {
+	ctx, cancel := context.WithTimeout(context.Background(), asyncSubmitTimeout)
+	defer cancel()
+
+	protoPromise, err := promise.ToProto()
+	if err != nil {
+		log.Errorw("async pay-for-fibre: marshal promise", "err", err, "namespace", promise.Namespace)
+		return
+	}
+
+	signer, err := s.txClient.GetTxAuthorAccAddress(options)
+	if err != nil {
+		log.Errorw("async pay-for-fibre: resolve signer", "err", err, "namespace", promise.Namespace)
+		return
+	}
+
+	msg := &fibretypes.MsgPayForFibre{
+		Signer:              signer.String(),
+		PaymentPromise:      *protoPromise,
+		ValidatorSignatures: promise.ValidatorSignatures,
+	}
+	resp, err := s.txClient.SubmitMessage(ctx, msg, options)
+	if err != nil {
+		log.Errorw("async pay-for-fibre: submit", "err", err, "namespace", promise.Namespace)
+		return
+	}
+
+	log.Debugw("async pay-for-fibre submitted",
+		"namespace", promise.Namespace,
+		"height", resp.Height,
+		"tx-hash", resp.TxHash,
+	)
 }
 
 func (s *Service) Download(ctx context.Context, blobID appfibre.BlobID) (*appfibre.Blob, error) {

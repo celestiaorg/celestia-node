@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cristalhq/jwt/v5"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -274,6 +276,84 @@ func TestSubmission_QueuedSubmission(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+// TestFibreEscrow exercises the Fibre escrow operations (Deposit, Withdraw,
+// QueryEscrowAccount, PendingWithdrawals) through the locally-wired Fibre
+// module on Client. These code paths hit consensus gRPC + TxClient directly
+// and never go through the bridge node, so they exercise the self-sufficient
+// wiring introduced in this PR.
+//
+// Upload/Download/Submit are not covered here because the default testnode
+// does not run Fibre servers on its validators — there are no FSPs to
+// collect availability signatures from, so Upload fails with insufficient
+// voting power. Those paths are validated at integration level against a
+// fibre-enabled network.
+func TestFibreEscrow(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+
+	accounts := []string{"Elon"}
+
+	cctx := setupConsensus(t, ctx, accounts...)
+	bn, adminToken := bridgeNode(t, ctx, cctx)
+
+	// Override UploadConcurrency via SubmitConfig.Fibre to exercise the new
+	// config-exposure plumbing end-to-end. DefaultKeyName and StateAddress are
+	// ignored here — SubmitConfig takes precedence, as documented on the field.
+	fibreCfg := appfibre.DefaultClientConfig()
+	fibreCfg.UploadConcurrency = 2
+	fibreCfg.DownloadConcurrency = 2
+
+	cfg := Config{
+		ReadConfig: ReadConfig{
+			BridgeDAAddr: "http://" + bn.RPCServer.ListenAddr(),
+			DAAuthToken:  adminToken,
+			EnableDATLS:  false,
+		},
+
+		SubmitConfig: SubmitConfig{
+			DefaultKeyName: accounts[0],
+			Network:        "private",
+			CoreGRPCConfig: CoreGRPCConfig{
+				Addr: cctx.GRPCClient.Target(),
+			},
+			Fibre: &fibreCfg,
+		},
+	}
+	client, err := New(ctx, cfg, cctx.Keyring)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, client.Close())
+	})
+
+	rec, err := cctx.Keyring.Key(accounts[0])
+	require.NoError(t, err)
+	addr, err := rec.GetAddress()
+	require.NoError(t, err)
+
+	// Deposit into Fibre escrow — this goes via our local TxClient, not the
+	// bridge. If the submit-side Fibre wiring still routed via JSON-RPC, this
+	// call would fail (the bridge has no key for `accounts[0]`).
+	depositAmount := sdktypes.NewCoin("utia", math.NewInt(10_000_000))
+	require.NoError(t, client.Fibre.Deposit(ctx, depositAmount, state.NewTxConfig()))
+
+	// Escrow query confirms the Deposit landed on-chain and the state read
+	// path goes directly to consensus gRPC (not JSON-RPC to the bridge).
+	esc, err := client.Fibre.QueryEscrowAccount(ctx, addr.String())
+	require.NoError(t, err)
+	require.NotNil(t, esc)
+	require.Equal(t, addr.String(), esc.Signer)
+	require.Equal(t, depositAmount.Amount, esc.Balance.Amount)
+
+	// Request a withdrawal to exercise another tx-emitting path.
+	withdrawAmount := sdktypes.NewCoin("utia", math.NewInt(1_000_000))
+	require.NoError(t, client.Fibre.Withdraw(ctx, withdrawAmount, state.NewTxConfig()))
+
+	pending, err := client.Fibre.PendingWithdrawals(ctx, addr.String())
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, withdrawAmount.Amount, pending[0].Amount.Amount)
 }
 
 type mockAPI struct {
