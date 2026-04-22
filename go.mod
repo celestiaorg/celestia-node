@@ -104,6 +104,7 @@ require (
 	filippo.io/keygen v0.0.0-20260114151900-8e2790ea4c5b // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
@@ -411,3 +412,14 @@ replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
 replace github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
 
 replace github.com/cloudwego/base64x => github.com/cloudwego/base64x v0.1.6
+
+// Aligns creack/pty with tastora, where moby/moby/client@v0.4.0 requires
+// v1.1.24. Kept as `replace` rather than a plain `require` because nothing in
+// root imports creack/pty, so `go mod tidy` prunes a plain require entry and
+// MVS falls back to v1.1.9 (from kr/text@v0.2.0), failing go-mod-parity CI.
+//
+// Safe to remove when `go list -m github.com/creack/pty` at repo root
+// naturally resolves to v1.1.24 or higher without this replace — e.g., when
+// kr/text (or another root dep) bumps its creack/pty requirement, or when
+// tastora stops pulling moby/moby/client.
+replace github.com/creack/pty => github.com/creack/pty v1.1.24
