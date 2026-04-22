@@ -25,13 +25,13 @@ func init() {
 
 // parseIndex parses s as a non-negative int (a share index or dimension).
 // It rejects negative values and values that overflow int on the current platform.
-func parseIndex(s, name string) (int, error) {
+func parseIndex(s string) (int, error) {
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		return 0, fmt.Errorf("error parsing %s: %w", name, err)
+		return 0, err
 	}
 	if n < 0 {
-		return 0, fmt.Errorf("%s must be non-negative, got %d", name, n)
+		return 0, fmt.Errorf("must be non-negative, got %d", n)
 	}
 	return n, nil
 }
@@ -120,14 +120,14 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		row, err := parseIndex(args[1], "row")
+		row, err := parseIndex(args[1])
 		if err != nil {
-			return err
+			return fmt.Errorf("row: %w", err)
 		}
 
-		col, err := parseIndex(args[2], "col")
+		col, err := parseIndex(args[2])
 		if err != nil {
-			return err
+			return fmt.Errorf("col: %w", err)
 		}
 
 		s, err := client.Share.GetShare(cmd.Context(), height, row, col)
@@ -188,13 +188,13 @@ var getRange = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		start, err := parseIndex(args[1], "start")
+		start, err := parseIndex(args[1])
 		if err != nil {
-			return err
+			return fmt.Errorf("start: %w", err)
 		}
-		end, err := parseIndex(args[2], "end")
+		end, err := parseIndex(args[2])
 		if err != nil {
-			return err
+			return fmt.Errorf("end: %w", err)
 		}
 
 		if start >= end {

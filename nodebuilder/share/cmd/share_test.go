@@ -17,12 +17,12 @@ func TestParseIndex(t *testing.T) {
 		{name: "zero", input: "0", want: 0},
 		{name: "positive", input: "42", want: 42},
 		{name: "negative rejected", input: "-1", wantErr: "must be non-negative"},
-		{name: "non-numeric rejected", input: "abc", wantErr: "error parsing index"},
+		{name: "non-numeric rejected", input: "abc", wantErr: "invalid syntax"},
 		{name: "overflow rejected", input: "9223372036854775808", wantErr: "value out of range"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseIndex(tc.input, "index")
+			got, err := parseIndex(tc.input)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
