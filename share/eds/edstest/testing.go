@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 

@@ -7,7 +7,7 @@ import (
 	"hash"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 

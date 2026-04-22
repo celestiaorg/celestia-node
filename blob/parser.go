@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v4/inclusion"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 // parser helps to collect shares and transform them into a blob.

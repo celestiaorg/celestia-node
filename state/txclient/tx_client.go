@@ -23,7 +23,7 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v8/app/errors"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 )
 
 var log = logging.Logger("state/txclient")
