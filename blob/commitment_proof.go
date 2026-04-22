@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -10,8 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/proof"
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v4/inclusion"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -40,7 +41,7 @@ type CommitmentProof struct {
 }
 
 func (com Commitment) String() string {
-	return string(com)
+	return hex.EncodeToString(com)
 }
 
 // Equal ensures that commitments are the same
@@ -122,10 +123,7 @@ func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) erro
 	// the subtree roots width is defined in ADR-013:
 	//
 	//https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
-	subtreeRootsWidth, err := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
-	if err != nil {
-		return err
-	}
+	subtreeRootsWidth := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
 
 	// verify the proof of the subtree roots
 	subtreeRootsCursor := 0

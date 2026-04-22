@@ -6,12 +6,17 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 )
 
-// isResourceExhausted reports whether err represents a stream reset with the
-// StreamResourceLimitExceeded code, meaning the remote peer rejected the request
-// because it hit a resource limit (stream count or memory budget).
+// isResourceExhausted reports whether err represents a stream reset indicating
+// the remote peer is temporarily overloaded. Two reset codes qualify:
+//   - StreamResourceLimitExceeded: rcmgr rejected the stream (concurrency or memory limit)
+//   - StreamRateLimited: the per-IP rate limiter rejected the stream
 func isResourceExhausted(err error) bool {
 	var streamErr *network.StreamError
-	return errors.As(err, &streamErr) && streamErr.ErrorCode == network.StreamResourceLimitExceeded
+	if !errors.As(err, &streamErr) {
+		return false
+	}
+	return streamErr.ErrorCode == network.StreamResourceLimitExceeded ||
+		streamErr.ErrorCode == network.StreamRateLimited
 }
 
 // ErrorContains reports whether any error in err's tree matches any error in targets tree.

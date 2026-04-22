@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -84,10 +85,17 @@ func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor),
 		)
 	}
-	opts = append(opts, grpc.WithDefaultCallOptions(
-		grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
-		grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
-	))
+	opts = append(opts,
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(defaultGRPCMessageSize),
+			grpc.MaxCallSendMsgSize(defaultGRPCMessageSize),
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                10 * time.Second,
+			Timeout:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
 
 	conn, err := grpc.NewClient(net.JoinHostPort(cfg.IP, cfg.Port), opts...)
 	if err != nil {

@@ -23,10 +23,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/go-fraud"
-
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -114,7 +111,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			}
 			return nil
 		}),
-		fx.Invoke(fraud.WithMetrics[*header.ExtendedHeader]),
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(share.WithDiscoveryMetrics),
 		fx.Invoke(share.WithBlockStoreMetrics),

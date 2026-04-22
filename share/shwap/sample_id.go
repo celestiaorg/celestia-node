@@ -9,7 +9,7 @@ import (
 	"io"
 	"math"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )

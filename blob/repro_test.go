@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/proof"
-	"github.com/celestiaorg/go-square/v4/inclusion"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v3/inclusion"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/pb"
 )

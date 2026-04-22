@@ -22,9 +22,8 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/celestiaorg/go-fraud"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
@@ -32,7 +31,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/eds/byzantine"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -78,18 +76,6 @@ func init() {
 	add(time.Second)
 	add(node.Bridge)
 	add(auth.Permission("admin"))
-	add(byzantine.BadEncoding)
-
-	// TODO: this case requires more debugging, simple to leave it as it was.
-	exampleValues[reflect.TypeOf((*fraud.Proof[*header.ExtendedHeader])(nil)).Elem()] = byzantine.CreateBadEncodingProof(
-		[]byte("bad encoding proof"),
-		42,
-		&byzantine.ErrByzantine{
-			Index:  0,
-			Shares: []*byzantine.ShareWithProof{},
-			Axis:   rsmt2d.Axis(0),
-		},
-	)
 
 	add(errors.New("error"))
 	add(state.Balance{Amount: math.NewInt(42), Denom: "utia"})

@@ -198,22 +198,36 @@ type Module interface {
   after `MsgPayForFibre` submission.
 - `PaymentPromise` is surfaced as a first-class type because it is central to
   both staged and full-service Fibre flows.
-- `Upload` performs the off-chain Fibre upload flow only. It encodes the blob,
-  constructs the payment promise, uploads rows to FSPs, and aggregates
-  validator signatures, but does not submit `MsgPayForFibre`.
-- `Submit` performs the full Fibre upload flow, including payment promise
-  construction, row upload, validator signature aggregation, and
-  `MsgPayForFibre` submission.
+- `Upload` performs the Fibre upload flow optimized for low latency. It encodes
+  the blob, constructs the payment promise, uploads rows to FSPs, and aggregates
+  validator signatures. It should also submit `MsgPayForFibre` in the background
+  to settle the payment, as long as this does not add latency to the Upload call
+  itself. Upload returns as soon as the off-chain upload and signature collection
+  is complete (~1 network round trip), without waiting for on-chain confirmation.
+  This is the preferred method for latency-sensitive callers.
+- `Submit` performs the full Fibre upload flow and waits for on-chain
+  confirmation. It includes payment promise construction, row upload, validator
+  signature aggregation, and `MsgPayForFibre` submission, blocking until the
+  transaction is included in a block. This provides the caller with the
+  confirmation height, at the cost of higher latency (~2x block time).
 - `Get` retrieves and reconstructs the original Fibre blob from FSPs by Fibre
   commitment.
 
 These are Fibre-native operations and should not compete with the blob module's
 chain-oriented APIs.
 
-`Upload` exists for callers that want direct control over the final on-chain
-submission or ordering step, for example to inspect signatures, batch follow-up
-work, submit `MsgPayForFibre` through a separate path, or use an ordering
-mechanism outside Celestia consensus.
+`Upload` exists for callers that prioritize low latency over on-chain
+confirmation. Because it returns after off-chain upload without waiting for
+block inclusion, a caller gets a response in roughly one network round trip to
+FSPs, compared to `Submit` which adds at least one block time for `MsgPayForFibre`
+confirmation. This makes `Upload` the right choice for latency-sensitive
+applications that do not need to know the confirmation height immediately.
+
+`Upload` should submit `MsgPayForFibre` in the background to ensure that the
+Fibre payment is settled without requiring the caller to handle it. This avoids
+relying on a separate timeout agent as the primary payment mechanism and keeps
+the caller's interaction simple: one call, data is available, payment is handled.
+The background submission must not block or delay the Upload response.
 
 #### Escrow account management
 
@@ -261,13 +275,30 @@ Escrow management and Fibre data-plane retrieval are not generic blob concerns.
 Placing them in a dedicated Fibre module keeps the blob API simpler and makes
 the Fibre surface explicit.
 
-### Support both full-service and staged Fibre flows
+### Support both low-latency and confirmed Fibre flows
 
-Some callers will want a single high-level `Submit` operation. Others will want to
-upload rows, collect validator signatures, and decide themselves whether and how
-to order or settle the blob afterwards, including through mechanisms outside
-Celestia consensus. Exposing both `Upload` and `Submit` supports both usage
-patterns without pushing staged Fibre control flow into the blob module.
+Fibre enables two distinct latency profiles:
+
+- **`Upload` (~1 round trip)**: The blob is erasure coded, uploaded to FSPs, and
+  validator signatures are collected. The caller gets a response as soon as the
+  data is available on the DA layer, without waiting for Celestia consensus.
+  `MsgPayForFibre` is submitted in the background to settle the payment. This is
+  the lowest latency path and is the main advantage Fibre offers over the
+  existing `PayForBlob` flow.
+
+- **`Submit` (~2x block time)**: Same as Upload, but blocks until `MsgPayForFibre`
+  is confirmed on-chain. The caller gets the confirmation height, which is
+  needed for applications that require Celestia consensus ordering.
+
+Having both methods avoids forcing latency-sensitive callers to wait for chain
+confirmation they don't need, while still providing a simple single-call path
+for callers that do need ordering or finality.
+
+Note: `Upload` submitting `MsgPayForFibre` in the background is a deliberate
+design choice. The payment must be settled to avoid losing escrow funds, and
+making this automatic removes the burden from callers. This is not the same as
+relying on a timeout agent — the PFF is submitted proactively after every
+upload, the agent is only a backup for edge cases where submission fails.
 
 ### Avoid premature coupling on `blob.Get`
 
