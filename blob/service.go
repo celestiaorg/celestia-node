@@ -60,7 +60,14 @@ type Service struct {
 	shareGetter shwap.Getter
 	// headerGetter fetches header by the provided height
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+	// waitForHeight blocks until the header at the given height is available
+	// in the local store. Used by Subscribe's fromHeight>0 path to follow the
+	// chain forward from a caller-specified starting point (including past
+	// heights, for subscribers that need to resume after a restart).
+	waitForHeight func(context.Context, uint64) (*header.ExtendedHeader, error)
 	// headerSub subscribes to new headers to supply to blob subscriptions.
+	// Used by Subscribe's fromHeight==0 path so callers don't need to know
+	// the current head height upfront.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 	// metrics tracks blob-related metrics
 	metrics *metrics
@@ -70,12 +77,14 @@ func NewService(
 	submitter Submitter,
 	getter shwap.Getter,
 	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	waitForHeight func(context.Context, uint64) (*header.ExtendedHeader, error),
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
 		headerGetter:  headerGetter,
+		waitForHeight: waitForHeight,
 		headerSub:     headerSub,
 		metrics:       nil, // Will be initialized via WithMetrics() if needed
 	}
@@ -101,79 +110,155 @@ type SubscriptionResponse struct {
 	Header *header.RawHeader
 }
 
-// Subscribe returns a channel that will receive SubscriptionResponse objects.
-// The channel will be closed when the context is canceled or the service is stopped.
-// Please note that no errors are returned: underlying operations are retried until successful.
-// Additionally, not reading from the returned channel will cause the stream to close after 16 messages.
-func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan *SubscriptionResponse, error) {
+// Subscribe returns a channel that will receive SubscriptionResponse objects
+// for blobs landing under ns.
+//
+// fromHeight controls the starting point:
+//   - fromHeight == 0: start from the current head via the live header
+//     subscription. Preserves the historical behavior — callers that just
+//     want "follow new blobs" don't need to know the current height.
+//   - fromHeight  > 0: start at that height and step forward one block at
+//     a time using WaitForHeight, which blocks until each successive
+//     header is available in the local store. This lets a subscriber
+//     resume after a restart without missing blobs.
+//
+// The channel is closed when ctx is canceled or the service is stopped.
+// Underlying operations are retried until successful; no error is returned
+// once the subscription is established. Not reading from the returned
+// channel will cause the stream to close after 16 messages.
+func (s *Service) Subscribe(
+	ctx context.Context,
+	ns libshare.Namespace,
+	fromHeight uint64,
+) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
 	}
 
 	log.Infow("subscribing for blobs",
 		"namespaces", ns.String(),
+		"from_height", fromHeight,
 	)
-	headerCh, err := s.headerSub(ctx)
+
+	headers, err := s.headerStream(ctx, fromHeight)
 	if err != nil {
 		return nil, err
 	}
 
 	blobCh := make(chan *SubscriptionResponse, 16)
+	go s.forwardBlobs(ctx, ns, headers, blobCh)
+	return blobCh, nil
+}
+
+// headerStream returns a channel of ExtendedHeaders driving the
+// subscription loop. fromHeight==0 reuses the existing headerSub (live
+// tip); fromHeight>0 iterates WaitForHeight(h) for h = fromHeight,
+// fromHeight+1, ..., so the subscriber can replay history and keep
+// following from a specified point.
+func (s *Service) headerStream(
+	ctx context.Context,
+	fromHeight uint64,
+) (<-chan *header.ExtendedHeader, error) {
+	if fromHeight == 0 {
+		return s.headerSub(ctx)
+	}
+	if s.waitForHeight == nil {
+		return nil, fmt.Errorf("waitForHeight not configured: cannot start subscription from height %d", fromHeight)
+	}
+	out := make(chan *header.ExtendedHeader, 16)
 	go func() {
-		defer close(blobCh)
+		defer close(out)
 
-		for {
-			select {
-			case header, ok := <-headerCh:
-				if ctx.Err() != nil {
-					log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-					return
-				}
-				if !ok {
-					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
-					return
-				}
-				// close subscription before buffer overflows
-				if len(blobCh) == cap(blobCh) {
-					log.Debugw("blobsub: canceling subscription due to buffer overflow from slow reader", "namespace", ns.ID())
-					return
-				}
+		// Merge the user context with the Service's lifecycle context so
+		// Service.Stop cancels the WaitForHeight loop promptly even if the
+		// user context is still alive. Without this, a subscriber holding a
+		// long-lived ctx would block the loop indefinitely after Stop: the
+		// forwardBlobs consumer exits via s.ctx.Done but nobody drains out,
+		// so the channel send or the next waitForHeight never returns.
+		mergedCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		stopPropagate := context.AfterFunc(s.ctx, cancel)
+		defer stopPropagate()
 
-				var blobs []*Blob
-				var err error
-				for {
-					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
-					if ctx.Err() != nil {
-						// context canceled, continuing would lead to unexpected missed heights for the client
-						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-						return
-					}
-					if err == nil {
-						// operation successful, break the loop
-						break
-					}
+		for h := fromHeight; ; h++ {
+			hdr, err := s.waitForHeight(mergedCtx, h)
+			if err != nil {
+				if mergedCtx.Err() == nil {
+					log.Errorw("blobsub: waitForHeight failed", "height", h, "err", err)
 				}
-
-				select {
-				case <-ctx.Done():
-					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
-					return
-				case blobCh <- &SubscriptionResponse{
-					Blobs:  blobs,
-					Height: header.Height(),
-					Header: &header.RawHeader,
-				}:
-				}
-			case <-ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
 				return
-			case <-s.ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to service ctx closing", "namespace", ns.ID())
+			}
+			select {
+			case out <- hdr:
+			case <-mergedCtx.Done():
 				return
 			}
 		}
 	}()
-	return blobCh, nil
+	return out, nil
+}
+
+// forwardBlobs consumes headers from the header stream and emits one
+// SubscriptionResponse per header. Factored out of Subscribe so it is
+// shared by both the live-tip and resume-from-height header sources.
+func (s *Service) forwardBlobs(
+	ctx context.Context,
+	ns libshare.Namespace,
+	headers <-chan *header.ExtendedHeader,
+	out chan<- *SubscriptionResponse,
+) {
+	defer close(out)
+	for {
+		select {
+		case hdr, ok := <-headers:
+			if ctx.Err() != nil {
+				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+				return
+			}
+			if !ok {
+				log.Errorw("header channel closed for subscription", "namespace", ns.ID())
+				return
+			}
+			// Close subscription before buffer overflows — protects the
+			// subscription goroutine against a slow reader starving it
+			// and the chain moving ahead faster than events can drain.
+			if len(out) == cap(out) {
+				log.Debugw("blobsub: canceling subscription due to buffer overflow from slow reader", "namespace", ns.ID())
+				return
+			}
+
+			var blobs []*Blob
+			var err error
+			for {
+				blobs, err = s.getAll(ctx, hdr, []libshare.Namespace{ns})
+				if ctx.Err() != nil {
+					// Context canceled, continuing would lead to unexpected missed heights for the client.
+					log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+					return
+				}
+				if err == nil {
+					break
+				}
+			}
+
+			select {
+			case <-ctx.Done():
+				log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
+				return
+			case out <- &SubscriptionResponse{
+				Blobs:  blobs,
+				Height: hdr.Height(),
+				Header: &hdr.RawHeader,
+			}:
+			}
+		case <-ctx.Done():
+			log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+			return
+		case <-s.ctx.Done():
+			log.Debugw("blobsub: canceling subscription due to service ctx closing", "namespace", ns.ID())
+			return
+		}
+	}
 }
 
 // Submit sends PFB transaction and reports the height at which it was included.
