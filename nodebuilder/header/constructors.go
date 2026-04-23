@@ -103,6 +103,7 @@ func newSyncer[H libhead.Header[H]](
 	opts := []sync.Option{
 		sync.WithParams(cfg.Syncer),
 		sync.WithBlockTime(maxBlockTime),
+		sync.WithRecencyThreshold(maxBlockTime * 3),
 		sync.WithTrustingPeriod(trustingPeriod),
 	}
 	if MetricsEnabled {
