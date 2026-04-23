@@ -9,7 +9,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"google.golang.org/grpc"
 
-	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
+	appfibre "github.com/celestiaorg/celestia-app/v9/fibre"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/fibre"

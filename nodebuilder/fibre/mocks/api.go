@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	fibre "github.com/celestiaorg/celestia-app/v8/fibre"
+	fibre "github.com/celestiaorg/celestia-app/v9/fibre"
 	fibre0 "github.com/celestiaorg/celestia-node/fibre"
 	fibre1 "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	txclient "github.com/celestiaorg/celestia-node/state/txclient"
