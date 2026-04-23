@@ -168,17 +168,29 @@ func (s *Service) headerStream(
 	out := make(chan *header.ExtendedHeader, 16)
 	go func() {
 		defer close(out)
+
+		// Merge the user context with the Service's lifecycle context so
+		// Service.Stop cancels the WaitForHeight loop promptly even if the
+		// user context is still alive. Without this, a subscriber holding a
+		// long-lived ctx would block the loop indefinitely after Stop: the
+		// forwardBlobs consumer exits via s.ctx.Done but nobody drains out,
+		// so the channel send or the next waitForHeight never returns.
+		mergedCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		stopPropagate := context.AfterFunc(s.ctx, cancel)
+		defer stopPropagate()
+
 		for h := fromHeight; ; h++ {
-			hdr, err := s.waitForHeight(ctx, h)
+			hdr, err := s.waitForHeight(mergedCtx, h)
 			if err != nil {
-				if ctx.Err() == nil {
+				if mergedCtx.Err() == nil {
 					log.Errorw("blobsub: waitForHeight failed", "height", h, "err", err)
 				}
 				return
 			}
 			select {
 			case out <- hdr:
-			case <-ctx.Done():
+			case <-mergedCtx.Done():
 				return
 			}
 		}
