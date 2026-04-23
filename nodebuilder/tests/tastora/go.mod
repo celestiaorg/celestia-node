@@ -1,13 +1,13 @@
 module github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 
-go 1.26.1
+go 1.26.2
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v8 v8.0.0-20260319203113-2ec59a0a61e4
+	github.com/celestiaorg/celestia-app/v8 v8.0.3-mocha
 	github.com/celestiaorg/celestia-node v0.23.3
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc4.0.20260318002530-1ca8ff7b42ea
-	github.com/celestiaorg/tastora v0.16.0
+	github.com/celestiaorg/go-square/v3 v3.0.2
+	github.com/celestiaorg/tastora v0.19.0
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
@@ -47,8 +47,8 @@ require (
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.24.2 // indirect
-	github.com/celestiaorg/rsmt2d v0.15.1 // indirect
+	github.com/celestiaorg/nmt v0.24.3 // indirect
+	github.com/celestiaorg/rsmt2d v0.15.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
@@ -67,7 +67,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/gogoproto v1.7.2 // indirect
-	github.com/cosmos/iavl v1.2.6 // indirect
+	github.com/cosmos/iavl v1.2.8 // indirect
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.1 // indirect
 	github.com/cosmos/ibc-go/v8 v8.7.0 // indirect
@@ -83,7 +83,6 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -204,7 +203,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
@@ -294,22 +292,22 @@ require (
 	go.uber.org/mock v0.5.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c // indirect
-	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/term v0.42.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.271.0 // indirect
-	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
+	google.golang.org/genproto v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
@@ -355,17 +353,12 @@ require (
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
-	github.com/RaduBerinde/axisds v0.1.0 // indirect
-	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.8 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
-	github.com/cockroachdb/pebble/v2 v2.1.4 // indirect
-	github.com/cockroachdb/swiss v0.0.0-20251224182025-b0f6560f979b // indirect
 	github.com/consensys/gnark v0.14.0 // indirect
 	github.com/consensys/gnark-crypto v0.19.2 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.4.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/dunglas/httpsfv v1.1.0 // indirect
@@ -376,10 +369,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.72 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
-	github.com/ipfs/go-ds-badger4 v0.1.8 // indirect
-	github.com/ipfs/go-ds-pebble v0.5.10 // indirect
-	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
-	github.com/moby/moby v27.5.1+incompatible // indirect
+	github.com/moby/moby/api v1.54.1 // indirect
+	github.com/moby/moby/client v0.4.0 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
@@ -401,8 +392,8 @@ replace (
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	//github.com/celestiaorg/tastora => ../../tastora
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.0
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.3
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.25
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.1
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
@@ -423,3 +414,7 @@ replace github.com/celestiaorg/celestia-node => ../../..
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
 replace nhooyr.io/websocket => github.com/coder/websocket v1.8.6
+
+replace github.com/docker/go-connections => github.com/docker/go-connections v0.4.0
+
+replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.1.0-rc2

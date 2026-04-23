@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.26.1
+go 1.26.2
 
 require (
 	cosmossdk.io/log v1.6.1
@@ -10,14 +10,14 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v8 v8.0.0-20260319203113-2ec59a0a61e4
+	github.com/celestiaorg/celestia-app/v8 v8.0.3-mocha
 	github.com/celestiaorg/go-header v0.8.5
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc4.0.20260318002530-1ca8ff7b42ea
-	github.com/celestiaorg/nmt v0.24.2
-	github.com/celestiaorg/rsmt2d v0.15.1
-	github.com/cometbft/cometbft v1.0.1
+	github.com/celestiaorg/go-square/v3 v3.0.2
+	github.com/celestiaorg/nmt v0.24.3
+	github.com/celestiaorg/rsmt2d v0.15.2
+	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/dgraph-io/badger/v4 v4.9.1
@@ -73,9 +73,9 @@ require (
 	go.opentelemetry.io/proto/otlp v1.10.0
 	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.49.0
+	golang.org/x/crypto v0.50.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.36.0
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -104,6 +104,7 @@ require (
 	filippo.io/keygen v0.0.0-20260114151900-8e2790ea4c5b // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
@@ -112,8 +113,6 @@ require (
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
-	github.com/RaduBerinde/axisds v0.1.0 // indirect
-	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.12 // indirect
@@ -141,7 +140,6 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bufbuild/protocompile v0.14.1 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
-	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -149,14 +147,12 @@ require (
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
-	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
+	github.com/cockroachdb/datadriven v1.0.3-0.20250407164829-2945557346d5 // indirect
 	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240816210425-c5d0cb0b6fc0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
 	github.com/cockroachdb/pebble v1.1.5 // indirect
-	github.com/cockroachdb/pebble/v2 v2.1.4 // indirect
 	github.com/cockroachdb/redact v1.1.6 // indirect
-	github.com/cockroachdb/swiss v0.0.0-20251224182025-b0f6560f979b // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20250429170803-42689b6311bb // indirect
 	github.com/cometbft/cometbft-db v1.0.4 // indirect
 	github.com/consensys/gnark v0.14.0 // indirect
@@ -167,7 +163,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/gogoproto v1.7.2 // indirect
-	github.com/cosmos/iavl v1.2.6 // indirect
+	github.com/cosmos/iavl v1.2.8 // indirect
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0 // indirect
 	github.com/cosmos/ibc-go/modules/capability v1.0.1 // indirect
 	github.com/cosmos/ibc-go/v8 v8.7.0 // indirect
@@ -251,7 +247,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
-	github.com/ipfs/go-ds-pebble v0.5.10 // indirect
 	github.com/ipfs/go-ipfs-pq v0.0.3 // indirect
 	github.com/ipfs/go-ipld-legacy v0.2.2 // indirect
 	github.com/ipfs/go-peertaskqueue v0.8.2 // indirect
@@ -286,7 +281,6 @@ require (
 	github.com/mikioh/tcpinfo v0.0.0-20190314235526-30a79bb1804b // indirect
 	github.com/mikioh/tcpopt v0.0.0-20190314235656-172688c1accc // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
-	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
@@ -367,17 +361,17 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c // indirect
-	golang.org/x/term v0.41.0 // indirect
+	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.271.0 // indirect
-	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
+	google.golang.org/genproto v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -393,8 +387,8 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.0
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.3
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.25
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.1
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
@@ -418,3 +412,14 @@ replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
 replace github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
 
 replace github.com/cloudwego/base64x => github.com/cloudwego/base64x v0.1.6
+
+// Aligns creack/pty with tastora, where moby/moby/client@v0.4.0 requires
+// v1.1.24. Kept as `replace` rather than a plain `require` because nothing in
+// root imports creack/pty, so `go mod tidy` prunes a plain require entry and
+// MVS falls back to v1.1.9 (from kr/text@v0.2.0), failing go-mod-parity CI.
+//
+// Safe to remove when `go list -m github.com/creack/pty` at repo root
+// naturally resolves to v1.1.24 or higher without this replace — e.g., when
+// kr/text (or another root dep) bumps its creack/pty requirement, or when
+// tastora stops pulling moby/moby/client.
+replace github.com/creack/pty => github.com/creack/pty v1.1.24

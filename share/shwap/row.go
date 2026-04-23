@@ -8,7 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	libshare "github.com/celestiaorg/go-square/v3/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
