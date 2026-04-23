@@ -8,7 +8,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc"
 
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )

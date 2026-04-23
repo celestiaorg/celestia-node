@@ -9,9 +9,9 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	appfibre "github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/state/txclient"
