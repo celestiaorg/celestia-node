@@ -665,7 +665,7 @@ func TestService_Subscribe(t *testing.T) {
 
 	t.Run("successful subscription", func(t *testing.T) {
 		ns := blobs[0].Namespace()
-		subCh, err := service.Subscribe(ctx, ns)
+		subCh, err := service.Subscribe(ctx, ns, 0)
 		require.NoError(t, err)
 
 		for i := uint64(0); i < uint64(len(blobs)); i++ {
@@ -683,7 +683,7 @@ func TestService_Subscribe(t *testing.T) {
 		ns, err := libshare.NewV0Namespace([]byte("nonexist"))
 		require.NoError(t, err)
 
-		subCh, err := service.Subscribe(ctx, ns)
+		subCh, err := service.Subscribe(ctx, ns, 0)
 		require.NoError(t, err)
 
 		// check that empty responses are received (as no matching blobs were found)
@@ -707,7 +707,7 @@ func TestService_Subscribe(t *testing.T) {
 
 		ns := blobs[0].Namespace()
 
-		subCh, err := service.Subscribe(subCtx, ns)
+		subCh, err := service.Subscribe(subCtx, ns, 0)
 		require.NoError(t, err)
 
 		// cancel the subscription context after receiving the first response
@@ -733,7 +733,7 @@ func TestService_Subscribe(t *testing.T) {
 
 	t.Run("graceful shutdown", func(t *testing.T) {
 		ns := blobs[0].Namespace()
-		subCh, err := service.Subscribe(ctx, ns)
+		subCh, err := service.Subscribe(ctx, ns, 0)
 		require.NoError(t, err)
 
 		// cancel the subscription context after receiving the last response
@@ -786,9 +786,9 @@ func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	ns1 := blobs1[0].Namespace()
 	ns2 := blobs2[0].Namespace()
 
-	subCh1, err := service.Subscribe(ctx, ns1)
+	subCh1, err := service.Subscribe(ctx, ns1, 0)
 	require.NoError(t, err)
-	subCh2, err := service.Subscribe(ctx, ns2)
+	subCh2, err := service.Subscribe(ctx, ns2, 0)
 	require.NoError(t, err)
 
 	var i int
@@ -880,6 +880,12 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 		return headers[height-1], nil
 		// return headerStore.GetByHeight(ctx, height)
 	}
+	waitFn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		if height == 0 || int(height) > len(headers) {
+			return nil, fmt.Errorf("height %d out of test range", height)
+		}
+		return headers[height-1], nil
+	}
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		headerChan := make(chan *header.ExtendedHeader, len(headers))
 		defer func() {
@@ -900,7 +906,7 @@ func createServiceWithSub(ctx context.Context, t testing.TB, blobs []*Blob) (*Se
 			nd, err := eds.NamespaceData(ctx, accessor, ns)
 			return nd, err
 		})
-	return NewService(nil, shareGetter, fn, fn2), headers
+	return NewService(nil, shareGetter, fn, waitFn, fn2), headers
 }
 
 func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *Service {
@@ -941,10 +947,13 @@ func createService(ctx context.Context, t testing.TB, shares []libshare.Share) *
 	fn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
 		return headerStore.GetByHeight(ctx, height)
 	}
+	waitFn := func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		return nil, fmt.Errorf("waitForHeight not implemented in createService helper")
+	}
 	fn2 := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
 		return nil, fmt.Errorf("not implemented")
 	}
-	return NewService(nil, shareGetter, fn, fn2)
+	return NewService(nil, shareGetter, fn, waitFn, fn2)
 }
 
 // TestProveCommitmentAllCombinations tests proving all the commitments in a block.

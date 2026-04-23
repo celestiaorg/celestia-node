@@ -14,24 +14,31 @@ import (
 
 func ConstructModule() fx.Option {
 	return fx.Module("blob",
+		// GetByHeight is provided at module scope because other modules
+		// (e.g. nodebuilder/da) depend on this plain func signature.
 		fx.Provide(
 			func(service headerService.Module) func(context.Context, uint64) (*header.ExtendedHeader, error) {
 				return service.GetByHeight
 			},
 		),
-		fx.Provide(
-			func(service headerService.Module) func(context.Context) (<-chan *header.ExtendedHeader, error) {
-				return service.Subscribe
-			},
-		),
+		// WaitForHeight and Subscribe are consumed directly inside the
+		// Service constructor below rather than as separate fx providers,
+		// so fx doesn't have to disambiguate two providers that share the
+		// GetByHeight func signature.
 		fx.Provide(fx.Annotate(
 			func(
 				state state.Module,
 				sGetter shwap.Getter,
-				getByHeightFn func(context.Context, uint64) (*header.ExtendedHeader, error),
-				subscribeFn func(context.Context) (<-chan *header.ExtendedHeader, error),
+				getByHeight func(context.Context, uint64) (*header.ExtendedHeader, error),
+				headerMod headerService.Module,
 			) *blob.Service {
-				return blob.NewService(state, sGetter, getByHeightFn, subscribeFn)
+				return blob.NewService(
+					state,
+					sGetter,
+					getByHeight,
+					headerMod.WaitForHeight,
+					headerMod.Subscribe,
+				)
 			},
 			fx.OnStart(func(ctx context.Context, serv *blob.Service) error {
 				return serv.Start(ctx)

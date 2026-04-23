@@ -151,8 +151,11 @@ func (c *Client) initTxClient(
 	}
 	c.State = core
 
-	// setup blob submission service using core
-	blobSvc := blob.NewService(core, nil, nil, nil)
+	// setup blob submission service using core. Subscribe-related header
+	// accessors are intentionally nil here because Client routes
+	// Blob.Subscribe through the bridge via JSON-RPC (ReadClient.Blob);
+	// this local service only powers Blob.Submit.
+	blobSvc := blob.NewService(core, nil, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
 		_ = core.Stop(ctx)
