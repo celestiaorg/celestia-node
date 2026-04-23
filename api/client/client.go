@@ -195,29 +195,28 @@ func (c *Client) initTxClient(
 	c.Fibre = nodebuilderfibre.NewModule(fibreSvc)
 
 	c.closer = func() error {
-		// Stop the appfibre client first so its validator-state subscription
-		// drains before the underlying gRPC connection is torn down.
-		err = appFibreClient.Stop(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to stop fibre client: %w", err)
+		// Run every shutdown step and collect errors with errors.Join so one
+		// failure doesn't leak the rest of the resources. Order still matters:
+		// appfibre.Client first (its validator-state subscription rides the
+		// gRPC conn), then blob/core/tx-client wrappers, then the gRPC conn
+		// itself.
+		var errs []error
+		if err := appFibreClient.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop fibre client: %w", err))
 		}
-		err = conn.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close grpc connection: %w", err)
+		if err := blobSvc.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop blob service: %w", err))
 		}
-		err = blobSvc.Stop(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to stop blob service: %w", err)
+		if err := core.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop core accessor: %w", err))
 		}
-		err = core.Stop(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to stop core accessor: %w", err)
+		if err := tc.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop tx client: %w", err))
 		}
-		err = tc.Stop(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to stop tx client: %w", err)
+		if err := conn.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close grpc connection: %w", err))
 		}
-		return nil
+		return errors.Join(errs...)
 	}
 	return nil
 }

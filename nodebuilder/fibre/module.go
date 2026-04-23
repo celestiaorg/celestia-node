@@ -18,8 +18,8 @@ type module struct {
 }
 
 // NewModule returns a Module backed by a local *fibre.Service. It is used by
-// bridge/full nodes to expose the Fibre JSON-RPC API, and by api/client.Client
-// to run all Fibre operations locally against a consensus endpoint and FSPs,
+// bridge nodes to expose the Fibre JSON-RPC API, and by api/client.Client to
+// run all Fibre operations locally against a consensus endpoint and FSPs,
 // without routing through a bridge node.
 func NewModule(service *fibre.Service) Module {
 	return &module{

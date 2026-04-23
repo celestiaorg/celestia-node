@@ -135,6 +135,14 @@ func (s *Service) Upload(
 		return nil, nil, err
 	}
 
+	// The goroutine below calls SubmitMessage, which dereferences options
+	// (TxConfig.FeeGranterAddress) without a nil guard. A panic in a detached
+	// goroutine crashes the process, so normalize nil here for both this
+	// Service.Upload path and the async settlement path below.
+	if options == nil {
+		options = txclient.NewTxConfig()
+	}
+
 	// Per ADR-013, Upload settles payment on-chain in the background so the
 	// caller is not blocked on tx inclusion. Errors are logged only; a
 	// follow-up change will add lifecycle tracking to wait for in-flight
@@ -147,6 +155,11 @@ func (s *Service) Upload(
 // asyncSubmitPayForFibre broadcasts MsgPayForFibre for a promise returned by
 // Upload. It runs in its own goroutine with a fresh context so the Upload
 // caller can return (and cancel its context) immediately.
+//
+// TODO: this uses the sync SubmitMessage path (BroadcastTx + ConfirmTx), so
+// the goroutine blocks until chain inclusion. Once QueuedTxClient lands, move
+// to broadcast-sync + poll-status-async so broadcast errors surface to the
+// caller and the background goroutine only polls status.
 func (s *Service) asyncSubmitPayForFibre(
 	promise *appfibre.SignedPaymentPromise,
 	options *txclient.TxConfig,
