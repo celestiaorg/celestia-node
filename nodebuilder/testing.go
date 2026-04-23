@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
-	appfibre "github.com/celestiaorg/celestia-app/v8/fibre"
+	appfibre "github.com/celestiaorg/celestia-app/v9/fibre"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/core"
