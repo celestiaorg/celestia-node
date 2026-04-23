@@ -29,10 +29,7 @@ func ConstructModule(coreCfg *core.Config) fx.Option {
 				}),
 			),
 			newFibreService,
-			fx.Annotate(
-				newModule,
-				fx.As(new(Module)),
-			),
+			NewModule,
 		),
 		fxutil.ProvideIf(!coreCfg.IsEndpointConfigured(), func() (*fibre.Service, Module) {
 			return nil, &stubbedFibreModule{}
