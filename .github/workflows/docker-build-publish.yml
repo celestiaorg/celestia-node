@@ -17,6 +17,7 @@ on:
         type: string
 
 jobs:
+  # build the main celestia-node image.
   docker-security-build:
     permissions:
       contents: write
@@ -24,5 +25,16 @@ jobs:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.6.4 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
+      checkout_ref: ${{ github.event.inputs.ref }}
+    secrets: inherit
+
+  # build the compatibility image for use in cross compatibility tests.
+  docker-compat-build:
+    permissions:
+      contents: write
+      packages: write
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.6.4 # yamllint disable-line rule:line-length
+    with:
+      dockerfile: Dockerfile.compat
       checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
