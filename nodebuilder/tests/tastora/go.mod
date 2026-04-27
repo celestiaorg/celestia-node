@@ -357,8 +357,7 @@ require (
 	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.9 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/celestiaorg/celestia-app/v9 v8.0.3 // indirect
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc4 // indirect
+	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
 	github.com/cockroachdb/pebble/v2 v2.1.4 // indirect
@@ -401,7 +400,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	//github.com/celestiaorg/tastora => ../../tastora
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.25
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.1
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.3
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// broken goleveldb needs to be replaced for the cosmos-sdk and celestia-app
