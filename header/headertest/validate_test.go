@@ -58,7 +58,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			extendedHeader: getExtendedHeader(t, 10),
-			wantErr: "has version 9, this node supports up to version 8. " +
+			wantErr: "has version 10, this node supports up to version 9. " +
 				"Please upgrade to support new version. Note, 0 is not a valid version",
 		},
 	}
