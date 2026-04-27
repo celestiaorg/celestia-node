@@ -18,12 +18,12 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v8/app/errors"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v9/app/errors"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
 var log = logging.Logger("state/txclient")

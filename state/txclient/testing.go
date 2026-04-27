@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 )
 
 func BuildClient(t *testing.T, chainID string, accounts []string, opts ...Option) *TxClient {
