@@ -298,11 +298,13 @@ func TestFibreEscrow(t *testing.T) {
 	cctx := setupConsensus(t, ctx, accounts...)
 	bn, adminToken := bridgeNode(t, ctx, cctx)
 
-	// Override UploadConcurrency via SubmitConfig.Fibre to exercise the new
+	// Override Fibre client tunables via SubmitConfig.Fibre to exercise the
 	// config-exposure plumbing end-to-end. DefaultKeyName and StateAddress are
 	// ignored here — SubmitConfig takes precedence, as documented on the field.
+	// celestia-app removed UploadConcurrency in favour of memory-bounded
+	// uploads; we exercise UploadMemoryBudget + DownloadConcurrency instead.
 	fibreCfg := appfibre.DefaultClientConfig()
-	fibreCfg.UploadConcurrency = 2
+	fibreCfg.UploadMemoryBudget = 64 * 1024 * 1024
 	fibreCfg.DownloadConcurrency = 2
 
 	cfg := Config{
