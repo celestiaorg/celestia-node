@@ -49,7 +49,7 @@ func TestGetProof(t *testing.T) {
 				sh, err := libshare.NewShare(node.RawData()[libshare.NamespaceSize:])
 				require.NoError(t, err)
 				sample := shwap.Sample{
-					Share:     *sh,
+					Share:     sh,
 					Proof:     &proof,
 					ProofType: proofType,
 				}

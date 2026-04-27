@@ -326,7 +326,7 @@ func TestCollectLeavesByNamespace_MultipleRowsContainingSameNamespaceId(t *testi
 			// matches the commonNamespaceData that was copied across almost all data
 			sh, err := libshare.NewShare(node.RawData()[libshare.NamespaceSize:])
 			require.NoError(t, err)
-			assert.Equal(t, commonNamespaceData, *sh)
+			assert.Equal(t, commonNamespaceData, sh)
 		}
 	}
 }
