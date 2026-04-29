@@ -31,6 +31,9 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
+// subscriptionBufferSize defines the size of the buffer for blob subscription channels.
+const subscriptionBufferSize = 16
+
 var (
 	ErrBlobNotFound = errors.New("blob: not found")
 	ErrInvalidProof = errors.New("blob: invalid proof")
@@ -50,6 +53,12 @@ type Submitter interface {
 	SubmitPayForBlob(context.Context, []*libshare.Blob, *state.TxConfig) (*types.TxResponse, error)
 }
 
+// HeaderService provides header access for the blob service.
+type HeaderService interface {
+	GetByHeight(context.Context, uint64) (*header.ExtendedHeader, error)
+	WaitForHeight(context.Context, uint64) (*header.ExtendedHeader, error)
+}
+
 type Service struct {
 	// ctx represents the Service's lifecycle context.
 	ctx    context.Context
@@ -58,8 +67,8 @@ type Service struct {
 	blobSubmitter Submitter
 	// shareGetter retrieves the EDS to fetch all shares from the requested header.
 	shareGetter shwap.Getter
-	// headerGetter fetches header by the provided height
-	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+	// headerServ provides header fetching and waiting capabilities.
+	headerServ HeaderService
 	// headerSub subscribes to new headers to supply to blob subscriptions.
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error)
 	// metrics tracks blob-related metrics
@@ -69,15 +78,14 @@ type Service struct {
 func NewService(
 	submitter Submitter,
 	getter shwap.Getter,
-	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	headerServ HeaderService,
 	headerSub func(ctx context.Context) (<-chan *header.ExtendedHeader, error),
 ) *Service {
 	return &Service{
 		blobSubmitter: submitter,
 		shareGetter:   getter,
-		headerGetter:  headerGetter,
+		headerServ:    headerServ,
 		headerSub:     headerSub,
-		metrics:       nil, // Will be initialized via WithMetrics() if needed
 	}
 }
 
@@ -111,69 +119,146 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 	}
 
 	log.Infow("subscribing for blobs",
-		"namespaces", ns.String(),
+		"namespace", ns.String(),
 	)
 	headerCh, err := s.headerSub(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	blobCh := make(chan *SubscriptionResponse, 16)
+	blobCh := make(chan *SubscriptionResponse, subscriptionBufferSize)
 	go func() {
 		defer close(blobCh)
 
 		for {
 			select {
-			case header, ok := <-headerCh:
-				if ctx.Err() != nil {
-					log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-					return
-				}
-				if !ok {
-					log.Errorw("header channel closed for subscription", "namespace", ns.ID())
-					return
-				}
-				// close subscription before buffer overflows
-				if len(blobCh) == cap(blobCh) {
-					log.Debugw("blobsub: canceling subscription due to buffer overflow from slow reader", "namespace", ns.ID())
-					return
-				}
-
-				var blobs []*Blob
-				var err error
-				for {
-					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
-					if ctx.Err() != nil {
-						// context canceled, continuing would lead to unexpected missed heights for the client
-						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
-						return
-					}
-					if err == nil {
-						// operation successful, break the loop
-						break
-					}
-				}
-
-				select {
-				case <-ctx.Done():
-					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
-					return
-				case blobCh <- &SubscriptionResponse{
-					Blobs:  blobs,
-					Height: header.Height(),
-					Header: &header.RawHeader,
-				}:
-				}
 			case <-ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+				log.Debugw("blobsub: stopping, context canceled", "namespace", ns.ID())
 				return
 			case <-s.ctx.Done():
-				log.Debugw("blobsub: canceling subscription due to service ctx closing", "namespace", ns.ID())
+				log.Debugw("blobsub: stopping, service stopped", "namespace", ns.ID())
+				return
+			case header, ok := <-headerCh:
+				if !ok {
+					log.Errorw("blobsub: header channel closed unexpectedly", "namespace", ns.ID())
+					return
+				}
+				if len(blobCh) == cap(blobCh) {
+					log.Warnw("blobsub: closing subscription, buffer full from slow reader",
+						"namespace", ns.ID())
+					return
+				}
+				if !s.fetchAndSendBlobs(ctx, blobCh, header, ns) {
+					return
+				}
+			}
+		}
+	}()
+	return blobCh, nil
+}
+
+// SubscribeFromStartHeight returns a channel that will receive SubscriptionResponse objects
+// starting from the given startHeight. It sequentially waits for each height to become
+// available and retrieves blobs at that height.
+//
+// Blob retrieval errors are retried until successful.
+// The channel will be closed when the context is canceled or the service is stopped.
+// Not reading from the returned channel will block additional messages.
+func (s *Service) SubscribeFromStartHeight(
+	ctx context.Context,
+	ns libshare.Namespace,
+	startHeight uint64,
+) (<-chan *SubscriptionResponse, error) {
+	if s.ctx == nil {
+		return nil, fmt.Errorf("service has not been started")
+	}
+
+	// startHeight must be > 0 and <= current head.
+	if _, err := s.headerServ.GetByHeight(ctx, startHeight); err != nil {
+		return nil, fmt.Errorf("failed to fetch header at startHeight %d: %w", startHeight, err)
+	}
+
+	log.Infow("subscribing for blobs with start height",
+		"namespace", ns.String(),
+		"startHeight", startHeight,
+	)
+
+	// blobCh is unbounded in the sense that it is never closed due to a full buffer.
+	// When the buffer is full, sends block until the consumer reads.
+	blobCh := make(chan *SubscriptionResponse, subscriptionBufferSize)
+	go func() {
+		defer close(blobCh)
+
+		// cancel ctx when the service stops so WaitForHeight unblocks
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-s.ctx.Done():
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+
+		for height := startHeight; ; height++ {
+			h, err := s.headerServ.WaitForHeight(ctx, height)
+			if err != nil {
+				if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+					log.Errorw("blobsub: failed waiting for header",
+						"namespace", ns.ID(), "height", height, "err", err)
+				}
+				return
+			}
+
+			if !s.fetchAndSendBlobs(ctx, blobCh, h, ns) {
 				return
 			}
 		}
 	}()
 	return blobCh, nil
+}
+
+// fetchAndSendBlobs fetches blobs for the given header and namespace, retrying on error,
+// and sends the response on blobCh. Returns false if the caller should stop.
+func (s *Service) fetchAndSendBlobs(
+	ctx context.Context,
+	blobCh chan *SubscriptionResponse,
+	header *header.ExtendedHeader,
+	ns libshare.Namespace,
+) bool {
+	var blobs []*Blob
+	var err error
+	for {
+		blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
+		if ctx.Err() != nil || s.ctx.Err() != nil {
+			return false
+		}
+		if err == nil {
+			break
+		}
+		log.Debugw("blobsub: retrying blob retrieval",
+			"namespace", ns.ID(), "height", header.Height(), "err", err)
+		select {
+		case <-time.After(100 * time.Millisecond):
+		case <-ctx.Done():
+			return false
+		case <-s.ctx.Done():
+			return false
+		}
+	}
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-s.ctx.Done():
+		return false
+	case blobCh <- &SubscriptionResponse{
+		Blobs:  blobs,
+		Height: header.Height(),
+		Header: &header.RawHeader,
+	}:
+		return true
+	}
 }
 
 // Submit sends PFB transaction and reports the height at which it was included.
@@ -317,7 +402,7 @@ func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libsha
 		"namespaces", namespaces,
 	)
 
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +505,7 @@ func (s *Service) retrieve(
 	)
 
 	span := trace.SpanFromContext(ctx)
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -633,7 +718,7 @@ func (s *Service) GetCommitmentProof(
 		"getting the extended header",
 		"height", height,
 	)
-	header, err := s.headerGetter(ctx, height)
+	header, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
