@@ -103,7 +103,9 @@ func (ss *EDSsser) dumpStat(stats Stats) (err error) {
 		return err
 	}
 
-	defer ss.statsFile.Close()
+	defer func() {
+		err = errors.Join(err, ss.statsFile.Close())
+	}()
 	
 	_, err = ss.statsFile.Write([]byte(stats.String()))
 	if err != nil {
