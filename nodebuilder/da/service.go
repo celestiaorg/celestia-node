@@ -15,7 +15,6 @@ import (
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/blob"
-	"github.com/celestiaorg/celestia-node/header"
 	nodeblob "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -30,8 +29,8 @@ var log = logging.Logger("go-da")
 const heightLen = 8
 
 type Service struct {
-	blobServ     nodeblob.Module
-	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error)
+	blobServ   nodeblob.Module
+	headerServ blob.HeaderService
 }
 
 // SubmitOptions defines options for blob submission using SubmitWithOptions.
@@ -51,11 +50,11 @@ type SubmitOptions struct {
 
 func NewService(
 	blobMod nodeblob.Module,
-	headerGetter func(context.Context, uint64) (*header.ExtendedHeader, error),
+	headerServ blob.HeaderService,
 ) *Service {
 	return &Service{
-		blobServ:     blobMod,
-		headerGetter: headerGetter,
+		blobServ:   blobMod,
+		headerServ: headerServ,
 	}
 }
 
@@ -130,7 +129,7 @@ func (s *Service) GetIDs(ctx context.Context, height uint64, namespace da.Namesp
 	for _, b := range blobs {
 		ids = append(ids, MakeID(height, b.Commitment))
 	}
-	h, err := s.headerGetter(ctx, height)
+	h, err := s.headerServ.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
