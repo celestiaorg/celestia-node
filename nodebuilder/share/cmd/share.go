@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )

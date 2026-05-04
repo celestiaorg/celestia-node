@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
@@ -124,7 +124,7 @@ func (s square) computeAxisHalf(
 			if err != nil {
 				return fmt.Errorf("creating share: %w", err)
 			}
-			shares[i] = *shard
+			shares[i] = shard
 			return nil
 		})
 	}
