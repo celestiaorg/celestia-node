@@ -65,6 +65,10 @@ linters:
           - revive
         text: "var-naming: don't use an underscore in package name"
         path: "share/shwap/p2p/shrex/shrex_getter"
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library package names"
+        path: "rpc"
     paths:
       - third_party$
       - builtin$

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"golang.org/x/sync/errgroup"
+
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 )
@@ -139,6 +141,12 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 	return append(data, ndid.DataNamespace.Bytes()...), nil
 }
 
+// ResponseSize returns the worst-case response size: all ODS rows contain namespace data.
+func (ndid NamespaceDataID) ResponseSize(edsSize int) int {
+	odsLn := edsSize / 2
+	return odsLn * odsLn * libshare.ShareSize
+}
+
 func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	roots, err := acc.AxisRoots(ctx)
 	if err != nil {
@@ -149,13 +157,23 @@ func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (i
 	if err != nil {
 		return nil, fmt.Errorf("failed to get row indexes: %w", err)
 	}
+
 	rows := make(NamespaceData, len(rowIdxs))
 
+	errGroup, ctx := errgroup.WithContext(ctx)
 	for i, idx := range rowIdxs {
-		rows[i], err = acc.RowNamespaceData(ctx, ndid.DataNamespace, idx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process row %d: %w", idx, err)
-		}
+		errGroup.Go(func() error {
+			rowData, err := acc.RowNamespaceData(ctx, ndid.DataNamespace, idx)
+			if err != nil {
+				return fmt.Errorf("failed to process row %d: %w", idx, err)
+			}
+			rows[i] = rowData
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to process rows: %w", err)
 	}
 
 	buf := &bytes.Buffer{}

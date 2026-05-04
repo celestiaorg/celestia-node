@@ -16,7 +16,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
@@ -118,7 +117,6 @@ var p2pConnectBootstrappersCmd = &cobra.Command{
 		app := fx.New(
 			fx.NopLogger,
 			modp2p,
-			fx.Provide(fraud.Unmarshaler),
 			fx.Provide(cmd.Context),
 			fx.Provide(store.Keystore),
 			fx.Provide(store.Datastore),

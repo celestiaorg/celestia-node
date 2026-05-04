@@ -48,6 +48,8 @@ cfg := client.Config{
             TLSEnabled: true,
             AuthToken:  "your_core_auth_token",
         },
+        // Optional: Enable parallel transaction submission with multiple worker accounts
+        // TxWorkerAccounts: 4,
     },
 }
 
@@ -111,6 +113,10 @@ balance, err := celestiaClient.State.Balance(ctx)
 - `DefaultKeyName`: Default key to use for transactions
 - `Network`: Network name (e.g., "mocha-4", "private")
 - `CoreGRPCConfig`: Configuration for Core node connection
+- `TxWorkerAccounts`: (Optional) Number of worker accounts for transaction submission. Default: 0
+  - Value of 0 submits transactions immediately (without a submission queue)
+  - Value of 1 uses synchronous submission (submission queue with default signer as author of transactions)
+  - Value of > 1 uses parallel submission (submission queue with several accounts submitting blobs). Parallel submission is not guaranteed to include blobs in the same order as they were submitted
 
 ### CoreGRPCConfig
 
@@ -125,4 +131,4 @@ balance, err := celestiaClient.State.Balance(ctx)
 
 ## Example
 
-See [example.go](https://github.com/celestiaorg/celestia-node/blob/light-lib/api/client/example/example.go) for a complete example of creating a client, submitting a blob, and retrieving it.
+See [example.go](https://github.com/celestiaorg/celestia-node/blob/main/api/client/example/example.go) for a complete example of creating a client, submitting a blob, and retrieving it.

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
@@ -36,7 +36,7 @@ func TestShareModule(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	sw.SetBootstrapper(t, bridge)
 
-	fullNode := sw.NewFullNode()
+	fullNode := sw.NewBridgeNode()
 	require.NoError(t, fullNode.Start(ctx))
 
 	lightNode := sw.NewLightNode()
