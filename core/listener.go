@@ -27,7 +27,7 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	fetcher *BlockFetcher
+	fetcher Fetcher
 
 	construct          header.ConstructFn
 	store              *store.Store
@@ -48,7 +48,7 @@ type Listener struct {
 
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
-	fetcher *BlockFetcher,
+	fetcher Fetcher,
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
 	store *store.Store,

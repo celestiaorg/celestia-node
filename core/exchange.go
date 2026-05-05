@@ -24,7 +24,7 @@ const concurrencyLimit = 16
 var tracer = otel.Tracer("core")
 
 type Exchange struct {
-	fetcher   *BlockFetcher
+	fetcher   Fetcher
 	store     *store.Store
 	construct header.ConstructFn
 
@@ -40,7 +40,7 @@ type Exchange struct {
 }
 
 func NewExchange(
-	fetcher *BlockFetcher,
+	fetcher Fetcher,
 	store *store.Store,
 	construct header.ConstructFn,
 	opts ...Option,
