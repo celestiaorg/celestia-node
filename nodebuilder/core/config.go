@@ -16,8 +16,10 @@ var MetricsEnabled bool
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	EndpointConfig
-	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints to be used for
-	// transaction submission. Must be provided as `host:port` pairs.
+	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints. They participate
+	// in block-subscription fan-in, point-query fallback, and transaction submission failover —
+	// the primary endpoint above is preferred and additional endpoints are used in declaration
+	// order. Must be provided as `host:port` pairs.
 	AdditionalCoreEndpoints []EndpointConfig
 }
 
@@ -32,6 +34,13 @@ type EndpointConfig struct {
 	// The JSON file must contain a key "x-token" (preferred) or "xtoken" with the authentication token.
 	// If left empty, the client will not include the X-Token in its requests.
 	XTokenPath string
+	// Archival declares operator intent that this endpoint retains full block history.
+	// Runtime probing is still authoritative — this hint only affects routing preference
+	// when probed coverage information is unavailable (e.g. at startup).
+	Archival bool
+	// Label is an optional human-readable identifier used in logs and metrics. If empty,
+	// "host:port" is used.
+	Label string
 }
 
 // DefaultConfig returns default configuration for managing the

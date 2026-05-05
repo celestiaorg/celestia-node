@@ -39,9 +39,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	case node.Bridge:
 		return fx.Module("core",
 			baseComponents,
-			fx.Provide(core.NewBlockFetcher),
+			// provideFetcher returns either a plain *core.BlockFetcher (when only
+			// the primary endpoint is configured) or a *core.MultiBlockFetcher
+			// fronting per-endpoint trackers — both satisfy core.Fetcher.
+			fx.Provide(provideFetcher),
 			fx.Provide(func(
-				fetcher *core.BlockFetcher,
+				fetcher core.Fetcher,
 				store *store.Store,
 				construct header.ConstructFn,
 				p2pEx *headp2p.Exchange[*header.ExtendedHeader],
@@ -74,7 +77,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Invoke(fx.Annotate(
 				func(
 					bcast libhead.Broadcaster[*header.ExtendedHeader],
-					fetcher *core.BlockFetcher,
+					fetcher core.Fetcher,
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *store.Store,

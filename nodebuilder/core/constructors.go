@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
@@ -43,6 +44,15 @@ var (
 )
 
 type AdditionalCoreConns []*grpc.ClientConn
+
+// labelFor returns a non-empty identifier for an endpoint, falling back
+// to host:port when no operator label was supplied.
+func labelFor(cfg EndpointConfig) string {
+	if cfg.Label != "" {
+		return cfg.Label
+	}
+	return net.JoinHostPort(cfg.IP, cfg.Port)
+}
 
 // TODO @renaynay: should we make this reusable so we can have all auth + other features
 // for the estimator service too?
@@ -125,6 +135,74 @@ func additionalCoreEndpointGrpcClients(lc fx.Lifecycle, cfg Config) (AdditionalC
 	}
 
 	return additionalEndpoints, nil
+}
+
+// provideFetcher builds the consensus Fetcher used by Bridge nodes.
+//
+// When only the primary endpoint is configured the returned Fetcher is a
+// plain *core.BlockFetcher — zero overhead, identical to pre-multi-endpoint
+// behaviour. When AdditionalCoreEndpoints is non-empty the returned Fetcher
+// is a *core.MultiBlockFetcher fronting one BlockFetcher and one
+// EndpointTracker per endpoint. Tracker lifecycles are registered on the
+// supplied fx.Lifecycle so probes start before the Listener / Exchange
+// consume the fetcher and stop cleanly on shutdown.
+func provideFetcher(
+	lc fx.Lifecycle,
+	cfg Config,
+	primaryConn *grpc.ClientConn,
+	additionalConns AdditionalCoreConns,
+) (core.Fetcher, error) {
+	primary, err := core.NewBlockFetcher(primaryConn)
+	if err != nil {
+		return nil, fmt.Errorf("nodebuilder/core: building primary block fetcher: %w", err)
+	}
+	if len(additionalConns) == 0 {
+		// Backwards-compatible short-circuit: with a single endpoint, the
+		// MultiBlockFetcher is gratuitous overhead. Return the bare
+		// *BlockFetcher and skip tracker probing entirely.
+		return primary, nil
+	}
+
+	endpoints := []core.EndpointFetcher{makeEndpoint(lc, cfg.EndpointConfig, primary, 0)}
+
+	if len(additionalConns) != len(cfg.AdditionalCoreEndpoints) {
+		// Defensive: the conn slice and config slice must have been built
+		// from the same list. Guard against drift.
+		return nil, fmt.Errorf(
+			"nodebuilder/core: additional conn / config length mismatch (%d vs %d)",
+			len(additionalConns), len(cfg.AdditionalCoreEndpoints),
+		)
+	}
+	for i, conn := range additionalConns {
+		bf, err := core.NewBlockFetcher(conn)
+		if err != nil {
+			return nil, fmt.Errorf("nodebuilder/core: building block fetcher for additional endpoint %d: %w", i, err)
+		}
+		endpoints = append(endpoints, makeEndpoint(lc, cfg.AdditionalCoreEndpoints[i], bf, i+1))
+	}
+
+	mf, err := core.NewMultiBlockFetcher(endpoints)
+	if err != nil {
+		return nil, fmt.Errorf("nodebuilder/core: building multi block fetcher: %w", err)
+	}
+	return mf, nil
+}
+
+// makeEndpoint constructs a tracker for a single endpoint and registers
+// its Run / Stop on the lifecycle. The tracker performs a synchronous
+// initial probe inside Run, so by the time the lifecycle's OnStart hook
+// returns, the tracker has populated coverage state.
+func makeEndpoint(lc fx.Lifecycle, cfg EndpointConfig, bf *core.BlockFetcher, priority int) core.EndpointFetcher {
+	opts := []core.TrackerOption{core.WithTrackerPriority(priority)}
+	if cfg.Archival {
+		opts = append(opts, core.WithTrackerArchivalHint())
+	}
+	tr := core.NewEndpointTracker(labelFor(cfg), bf, opts...)
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error { return tr.Run(ctx) },
+		OnStop:  func(ctx context.Context) error { return tr.Stop(ctx) },
+	})
+	return core.EndpointFetcher{Fetcher: bf, Tracker: tr}
 }
 
 func authInterceptor(xtoken string) grpc.UnaryClientInterceptor {
