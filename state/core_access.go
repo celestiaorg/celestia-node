@@ -143,12 +143,16 @@ func NewCoreAccessor(
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
-	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
-	ca.distributionCli = distributiontypes.NewQueryClient(ca.coreConns[0])
-	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConns[0])
+	// Build a router that fans queries across all configured core conns,
+	// retrying transport-class failures on the next backend. Cosmos SDK
+	// QueryClient constructors accept any grpc.ClientConnInterface, so
+	// this is transparent to all call sites.
+	router := newQueryRouter(ca.coreConns)
+	ca.stakingCli = stakingtypes.NewQueryClient(router)
+	ca.distributionCli = distributiontypes.NewQueryClient(router)
+	ca.feeGrantCli = feegrant.NewQueryClient(router)
 	// create ABCI query client
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
+	ca.abciQueryCli = tmservice.NewServiceClient(router)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get node info: %w", err)
