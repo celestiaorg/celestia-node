@@ -43,6 +43,52 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	}
 }
 
+// TestBlockFetcher_Status verifies that the coalesced Status() method returns
+// all fields populated, and that the IsSyncing/ChainID wrappers stay in sync.
+func TestBlockFetcher_Status(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	t.Cleanup(cancel)
+
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
+
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
+	require.NoError(t, err)
+
+	// wait until at least one block has been produced so that latest_block_*
+	// fields are populated by the consensus node.
+	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
+	require.NoError(t, err)
+	select {
+	case <-newBlockChan:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for first block")
+	}
+
+	status, err := fetcher.Status(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, status)
+
+	assert.Equal(t, chainID, status.ChainID)
+	assert.GreaterOrEqual(t, status.LatestHeight, int64(1))
+	// EarliestHeight should be set on a freshly started node (no pruning).
+	assert.GreaterOrEqual(t, status.EarliestHeight, int64(1))
+	assert.LessOrEqual(t, status.EarliestHeight, status.LatestHeight)
+	assert.False(t, status.LatestBlockTime.IsZero())
+
+	// Wrapper methods must agree with the coalesced view.
+	syncing, err := fetcher.IsSyncing(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, status.CatchingUp, syncing)
+
+	cid, err := fetcher.ChainID(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, status.ChainID, cid)
+}
+
 // TestFetcher_Resubscription ensures that subscription will not stuck in case
 // gRPC server was stopped.
 func TestFetcher_Resubscription(t *testing.T) {

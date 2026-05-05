@@ -210,28 +210,56 @@ func (f *BlockFetcher) receive(
 	}
 }
 
+// Status is a coalesced view of the consensus node's StatusResponse.
+// It exposes everything the rest of celestia-node currently needs without
+// requiring multiple round-trips to the same endpoint.
+type Status struct {
+	ChainID         string
+	CatchingUp      bool
+	EarliestHeight  int64
+	LatestHeight    int64
+	LatestBlockTime time.Time
+}
+
+// Status fetches the full StatusResponse from the consensus node and returns
+// a coalesced view. Callers that only need a single field should still prefer
+// this method when more than one field is needed in the same logical step.
+func (f *BlockFetcher) Status(ctx context.Context) (*Status, error) {
+	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	if err != nil {
+		return nil, err
+	}
+	if resp.NodeInfo == nil {
+		return nil, fmt.Errorf("core/fetcher: node info not available in status response")
+	}
+	return &Status{
+		ChainID:         resp.NodeInfo.Network,
+		CatchingUp:      resp.SyncInfo.CatchingUp,
+		EarliestHeight:  resp.SyncInfo.EarliestBlockHeight,
+		LatestHeight:    resp.SyncInfo.LatestBlockHeight,
+		LatestBlockTime: resp.SyncInfo.LatestBlockTime,
+	}, nil
+}
+
 // IsSyncing returns the sync status of the Core connection: true for
 // syncing, and false for already caught up. It can also return an error
 // in the case of a failed status request.
 func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
-	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	s, err := f.Status(ctx)
 	if err != nil {
 		return false, err
 	}
-	return resp.SyncInfo.CatchingUp, nil
+	return s.CatchingUp, nil
 }
 
 // ChainID returns the chain ID (network name) that the Core node is connected to.
 // This can be used to validate that the node is connected to the correct network.
 func (f *BlockFetcher) ChainID(ctx context.Context) (string, error) {
-	resp, err := f.client.Status(ctx, &coregrpc.StatusRequest{})
+	s, err := f.Status(ctx)
 	if err != nil {
 		return "", err
 	}
-	if resp.NodeInfo == nil {
-		return "", fmt.Errorf("core/fetcher: node info not available in status response")
-	}
-	return resp.NodeInfo.Network, nil
+	return s.ChainID, nil
 }
 
 func (f *BlockFetcher) receiveBlockByHeight(ctx context.Context, streamer coregrpc.BlockAPI_BlockByHeightClient) (
