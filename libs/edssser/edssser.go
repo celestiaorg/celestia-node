@@ -112,6 +112,7 @@ func (ss *EDSsser) dumpStat(stats Stats) (err error) {
 	    return err
 	}
 	return nil
+}	
 
 type Stats struct {
 	TotalWritten                         int
