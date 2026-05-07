@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Check for External Contributor
-        uses: tspascoal/get-user-teams-membership@v3
+        uses: tspascoal/get-user-teams-membership@57e9f42acd78f4d0f496b3be4368fc5f62696662 # v3
         id: teamCheck
         with:
           username: ${{ github.actor }}
@@ -26,7 +26,7 @@ jobs:
       # For issues we want to add a `needs:triage` label if it is unlabeled
       - name: Triage labeling
         if: ${{ github.event_name == 'issues' }}
-        uses: andymckay/labeler@master
+        uses: andymckay/labeler@3a4296e9dcdf9576b0456050db78cfd34853f260 # master @ 2026-04-20 — archived action, replace in follow-up
         with:
           add-labels: "needs:triage"
           ignore-if-labeled: true
@@ -36,7 +36,7 @@ jobs:
       # author is not a member of the node team
       - name: External labeling
         if: ${{ steps.teamCheck.outputs.isTeamMember == 'false' }}
-        uses: andymckay/labeler@master
+        uses: andymckay/labeler@3a4296e9dcdf9576b0456050db78cfd34853f260 # master @ 2026-04-20 — archived action, replace in follow-up
         with:
           add-labels: "external"
           repo-token: ${{ secrets.GITHUB_TOKEN }}

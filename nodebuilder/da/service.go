@@ -11,7 +11,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/go-da"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/blob"

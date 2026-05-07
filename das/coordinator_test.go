@@ -14,7 +14,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 func TestCoordinator(t *testing.T) {
@@ -23,7 +22,7 @@ func TestCoordinator(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
-		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample), nil)
+		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, onceMiddleWare(sampler.sample))
 
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -49,7 +48,7 @@ func TestCoordinator(t *testing.T) {
 		sampler := newMockSampler(testParams.sampleFrom, testParams.networkHead)
 
 		newhead := testParams.networkHead + 200
-		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample, newBroadcastMock(1))
+		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{}, sampler.sample)
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// discover new height
@@ -99,7 +98,6 @@ func TestCoordinator(t *testing.T) {
 			lk.middleWare(
 				order.middleWare(sampler.sample),
 			),
-			newBroadcastMock(1),
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -143,7 +141,7 @@ func TestCoordinator(t *testing.T) {
 
 		lk := newLock(testParams.sampleFrom, testParams.networkHead) // lock all workers before start
 		coordinator := newSamplingCoordinator(testParams.dasParams, getterStub{},
-			lk.middleWare(sampler.sample), newBroadcastMock(1))
+			lk.middleWare(sampler.sample))
 		go coordinator.run(ctx, sampler.checkpoint)
 
 		// discover new height and lock it
@@ -193,7 +191,6 @@ func TestCoordinator(t *testing.T) {
 			testParams.dasParams,
 			getterStub{},
 			onceMiddleWare(sampler.sample),
-			newBroadcastMock(1),
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -235,7 +232,6 @@ func TestCoordinator(t *testing.T) {
 			testParams.dasParams,
 			getterStub{},
 			onceMiddleWare(sampler.sample),
-			newBroadcastMock(1),
 		)
 		go coordinator.run(ctx, sampler.checkpoint)
 
@@ -284,7 +280,6 @@ func TestCoordinator(t *testing.T) {
 			testParams.dasParams,
 			getterStub{},
 			sampleFn,
-			newBroadcastMock(1),
 		)
 
 		go coordinator.run(ctx, ch)
@@ -314,7 +309,6 @@ func BenchmarkCoordinator(b *testing.B) {
 			params,
 			newBenchGetter(),
 			func(ctx context.Context, h *header.ExtendedHeader) error { return nil },
-			newBroadcastMock(1),
 		)
 		go coordinator.run(ctx, checkpoint{
 			SampleFrom:  1,
@@ -617,18 +611,5 @@ func defaultTestParams() testParams {
 		sampleFrom:   1,
 		timeoutDelay: 5 * time.Second,
 		dasParams:    dasParamsDefault,
-	}
-}
-
-func newBroadcastMock(callLimit int) shrexsub.BroadcastFn {
-	var m sync.Mutex
-	return func(ctx context.Context, hash shrexsub.Notification) error {
-		m.Lock()
-		defer m.Unlock()
-		if callLimit == 0 {
-			return errors.New("exceeded mock call limit")
-		}
-		callLimit--
-		return nil
 	}
 }

@@ -13,7 +13,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 var log = logging.Logger("das")
@@ -45,7 +44,6 @@ func NewDASer(
 	hsub libhead.Subscriber[*header.ExtendedHeader],
 	getter libhead.Store[*header.ExtendedHeader],
 	dstore datastore.Datastore,
-	shrexBroadcast shrexsub.BroadcastFn,
 	options ...Option,
 ) (*DASer, error) {
 	d := &DASer{
@@ -66,7 +64,7 @@ func NewDASer(
 		return nil, err
 	}
 
-	d.sampler = newSamplingCoordinator(d.params, getter, d.sample, shrexBroadcast)
+	d.sampler = newSamplingCoordinator(d.params, getter, d.sample)
 	return d, nil
 }
 

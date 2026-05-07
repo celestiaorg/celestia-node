@@ -25,8 +25,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
@@ -247,7 +247,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 
 	result, err := ca.abciQueryCli.ABCIQuery(ctx, req)
 	if err != nil || result.GetCode() != 0 {
-		err = fmt.Errorf("failed to query for balance: %w; result log: %s", err, result.GetLog())
+		err = fmt.Errorf(
+			"failed to query for balance: %w; result log: %s; result code: %d",
+			err, result.GetLog(), result.GetCode(),
+		)
 		return nil, err
 	}
 

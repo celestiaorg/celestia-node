@@ -21,8 +21,8 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 )
 
 const chainID = "private"
