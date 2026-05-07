@@ -45,7 +45,7 @@ func TestMsgIDEquivalency(t *testing.T) {
 		}
 
 		h, _ := header.UnmarshalExtendedHeader(message.Data)
-		if h == nil || h.RawHeader.ValidateBasic() != nil {
+		if h == nil || h.ValidateBasic() != nil {
 			return mID(message.Data)
 		}
 
@@ -73,7 +73,7 @@ func BenchmarkMsgID(b *testing.B) {
 
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = header.MsgID(msg)
 	}
 }

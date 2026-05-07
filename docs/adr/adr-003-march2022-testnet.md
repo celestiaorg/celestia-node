@@ -33,12 +33,6 @@ it only cares that it has a direct RPC connection to a celestia-core node from w
 The name **bridge** was chosen as the purpose of this node type is to provide a mechanism to relay celestia-core blocks
 to the data availability network.
 
-### **Full Node**
-
-A **full** node is the same thing as a **light** node, but instead of performing `LightAvailability` (the process of
-DASing to verify a header is legitimate), it performs `FullAvailability` which downloads enough shares from the network in order
-to fully reconstruct the block and store it, serving shares to the rest of the network.
-
 ### **Light Node**
 
 A **light** node listens for `ExtendedHeader`s from the DA network and performs DAS on the received headers.

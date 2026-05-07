@@ -33,7 +33,7 @@ func (subs *Subscription) Next(ctx context.Context) (Notification, error) {
 		return Notification{}, err
 	}
 
-	log.Debugw("received message", "topic", msg.Message.GetTopic(), "sender", msg.ReceivedFrom)
+	log.Debugw("received message", "topic", msg.GetTopic(), "sender", msg.ReceivedFrom)
 	var pbmsg pb.RecentEDSNotification
 	if err := pbmsg.Unmarshal(msg.Data); err != nil {
 		log.Debugw("unmarshal error", "err", err)

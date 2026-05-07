@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -40,7 +40,7 @@ func TestStoreGetter(t *testing.T) {
 
 				smpls, err := sg.GetSamples(ctx, eh, []shwap.SampleCoords{idx})
 				require.NoError(t, err)
-				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].Share.ToBytes())
+				require.Equal(t, eds.GetCell(uint(i), uint(j)), smpls[0].ToBytes())
 			}
 		}
 

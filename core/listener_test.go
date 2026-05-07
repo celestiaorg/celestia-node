@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	libp2p "github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,8 +46,7 @@ func TestListener(t *testing.T) {
 	t.Cleanup(subs.Cancel)
 
 	// create one block to store as Head in local store and then unsubscribe from block events
-	cfg := DefaultTestConfig()
-	cfg.Genesis.ChainID = testChainID
+	cfg := DefaultTestConfig().WithChainID(testChainID)
 	fetcher, _ := createCoreFetcher(t, cfg)
 
 	eds := createEdsPubSub(ctx, t)
@@ -82,7 +83,10 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 	// create one block to store as Head in local store and then unsubscribe from block events
 	cfg := DefaultTestConfig()
 	cfg.Genesis.ChainID = testChainID
-	fetcher, _ := createCoreFetcher(t, cfg)
+	fetcher, network := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 	eds := createEdsPubSub(ctx, t)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -90,10 +94,12 @@ func TestListenerWithWrongChainRPC(t *testing.T) {
 
 	// create Listener and start listening
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, "wrong-chain-rpc")
-	sub, err := cl.fetcher.SubscribeNewBlockEvent(ctx)
-	require.NoError(t, err)
 
-	assert.Panics(t, func() { cl.listen(ctx, sub) })
+	// Start should fail because the core endpoint chain ID ("private") doesn't match
+	// the expected chain ID ("wrong-chain-rpc")
+	err = cl.Start(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "network mismatch")
 }
 
 // TestListener_DoesNotStoreHistoric tests the (unlikely) case that
@@ -110,6 +116,9 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	cfg := DefaultTestConfig()
 	cfg.Genesis.ChainID = testChainID
 	fetcher, cctx := createCoreFetcher(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
 	eds := createEdsPubSub(ctx, t)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
@@ -119,7 +128,7 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 	opt := WithAvailabilityWindow(time.Nanosecond)
 	cl := createListener(ctx, t, fetcher, ps0, eds, store, testChainID, opt)
 
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	err = cl.Start(ctx)
 	require.NoError(t, err)
@@ -139,9 +148,13 @@ func TestListener_DoesNotStoreHistoric(t *testing.T) {
 }
 
 func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pubsub.PubSub, *pubsub.PubSub) {
-	net, err := mocknet.FullMeshLinked(2)
+	host0, err := libp2p.New()
 	require.NoError(t, err)
-	host0, host1 := net.Hosts()[0], net.Hosts()[1]
+	t.Cleanup(func() { host0.Close() })
+
+	host1, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { host1.Close() })
 
 	// create pubsub for host
 	ps0, err := pubsub.NewGossipSub(context.Background(), host0,
@@ -157,7 +170,7 @@ func createMocknetWithTwoPubsubEndpoints(ctx context.Context, t *testing.T) (*pu
 	sub1, err := host1.EventBus().Subscribe(&event.EvtPeerIdentificationCompleted{})
 	require.NoError(t, err)
 
-	err = net.ConnectAllButSelf()
+	err = host0.Connect(ctx, peer.AddrInfo{ID: host1.ID(), Addrs: host1.Addrs()})
 	require.NoError(t, err)
 
 	// wait on both peer identification events

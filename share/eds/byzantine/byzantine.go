@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/boxo/blockstore"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -48,7 +48,7 @@ func NewErrByzantine(
 			log.Warn("failed to create share", "index", index, "err", err)
 			continue
 		}
-		swp, err := GetShareWithProof(ctx, bGetter, roots, *sh, errByz.Axis, int(errByz.Index), index)
+		swp, err := GetShareWithProof(ctx, bGetter, roots, sh, errByz.Axis, int(errByz.Index), index)
 		if err != nil {
 			log.Warn("requesting proof failed",
 				"errByz", errByz,

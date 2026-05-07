@@ -14,10 +14,13 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	host, port, err := net.SplitHostPort(StartTestNode(t).GRPCClient.Target())
-	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
+
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
 	require.NoError(t, err)
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
@@ -29,10 +32,10 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 			h := newBlockFromChan.Header.Height
 			block, err := fetcher.GetSignedBlock(ctx, h)
 			require.NoError(t, err)
-			assert.Equal(t, newBlockFromChan.Data, *block.Data)
-			assert.Equal(t, newBlockFromChan.Header, *block.Header)
-			assert.Equal(t, newBlockFromChan.Commit, *block.Commit)
-			assert.Equal(t, newBlockFromChan.ValidatorSet, *block.ValidatorSet)
+			assert.Equal(t, newBlockFromChan.Data, block.Data)
+			assert.Equal(t, newBlockFromChan.Header, block.Header)
+			assert.Equal(t, newBlockFromChan.Commit, block.Commit)
+			assert.Equal(t, newBlockFromChan.ValidatorSet, block.ValidatorSet)
 			require.GreaterOrEqual(t, newBlockFromChan.Header.Height, int64(i))
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
@@ -47,8 +50,7 @@ func TestFetcher_Resubscription(t *testing.T) {
 	t.Cleanup(cancel)
 	// run new consensus node
 	cfg := DefaultTestConfig()
-	tn := NewNetwork(t, cfg)
-	require.NoError(t, tn.Start())
+	tn := startNetwork(t, cfg)
 	host, port, err := net.SplitHostPort(tn.GRPCClient.Target())
 	require.NoError(t, err)
 	client := newTestClient(t, host, port)
@@ -83,8 +85,10 @@ func TestFetcher_Resubscription(t *testing.T) {
 
 	// start new consensus node(some components in app can't be restarted)
 	// on the same address and listen for the new blocks
-	tn = NewNetwork(t, cfg)
-	require.NoError(t, tn.Start())
+	tn = startNetwork(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, tn.Stop())
+	})
 	select {
 	case newBlockFromChan := <-newBlockChan:
 		h := newBlockFromChan.Header.Height
@@ -93,5 +97,4 @@ func TestFetcher_Resubscription(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("timeout waiting for block subscription")
 	}
-	require.NoError(t, tn.Stop())
 }

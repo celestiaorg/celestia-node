@@ -2,16 +2,28 @@ package rpc
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
+type CORSConfig struct {
+	Enabled        bool
+	AllowedOrigins []string
+	AllowedHeaders []string
+	AllowedMethods []string
+}
+
 type Config struct {
-	Address  string
-	Port     string
-	SkipAuth bool
+	Address     string
+	Port        string
+	SkipAuth    bool
+	CORS        CORSConfig
+	TLSEnabled  bool
+	TLSCertPath string
+	TLSKeyPath  string
 }
 
 func DefaultConfig() Config {
@@ -20,6 +32,16 @@ func DefaultConfig() Config {
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
 		Port:     defaultPort,
 		SkipAuth: false,
+		CORS:     DefaultCORSConfig(),
+	}
+}
+
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
+		Enabled:        false,
+		AllowedOrigins: []string{},
+		AllowedHeaders: []string{},
+		AllowedMethods: []string{},
 	}
 }
 
@@ -29,8 +51,11 @@ func (cfg *Config) RequestURL() string {
 		return fmt.Sprintf("%s://%s:%s", parts[0], parts[1], cfg.Port)
 	}
 
-	// Default to HTTP if no protocol is specified
-	return fmt.Sprintf("http://%s:%s", cfg.Address, cfg.Port)
+	protocol := "http"
+	if cfg.TLSEnabled {
+		protocol = "https"
+	}
+	return fmt.Sprintf("%s://%s:%s", protocol, cfg.Address, cfg.Port)
 }
 
 func (cfg *Config) Validate() error {
@@ -44,5 +69,18 @@ func (cfg *Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("service/rpc: invalid port: %s", err.Error())
 	}
+
+	if cfg.TLSEnabled {
+		if cfg.TLSCertPath == "" || cfg.TLSKeyPath == "" {
+			return fmt.Errorf("service/rpc: TLS certificate and key paths must be specified when TLS is enabled")
+		}
+		if _, err := os.Stat(cfg.TLSCertPath); err != nil {
+			return fmt.Errorf("service/rpc: TLS certificate file error: %w", err)
+		}
+		if _, err := os.Stat(cfg.TLSKeyPath); err != nil {
+			return fmt.Errorf("service/rpc: TLS key file error: %w", err)
+		}
+	}
+
 	return nil
 }

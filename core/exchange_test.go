@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share"
@@ -24,7 +23,10 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -44,6 +46,7 @@ func TestCoreExchange_RequestHeaders(t *testing.T) {
 	expectedLastHeightInRange := to - 1
 	expectedLenHeaders := to - expectedFirstHeightInRange
 
+	// request headers from height 1 to 20 [2:30)
 	_, err = cctx.WaitForHeightWithTimeout(int64(to), 10*time.Second)
 	require.NoError(t, err)
 
@@ -74,7 +77,10 @@ func TestExchange_DoNotStoreHistoric(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -126,7 +132,10 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 
 	cfg := DefaultTestConfig()
 	fetcher, cctx := createCoreFetcher(t, cfg)
-	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx)
+	t.Cleanup(func() {
+		require.NoError(t, cctx.Stop())
+	})
+	nonEmptyBlocks := generateNonEmptyBlocks(t, ctx, fetcher, cfg, cctx.Context)
 
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
@@ -176,18 +185,20 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	}
 }
 
-func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, testnode.Context) {
-	cctx := StartTestNodeWithConfig(t, cfg)
+func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {
+	t.Helper()
+
+	network := startNetwork(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 	// wait for height 2 in order to be able to start submitting txs (this prevents
 	// flakiness with accessing account state)
-	_, err := cctx.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
+	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	host, port, err := net.SplitHostPort(cctx.GRPCClient.Target())
+	fetcher, err := NewBlockFetcher(network.GRPCClient)
 	require.NoError(t, err)
-	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
-	require.NoError(t, err)
-	return fetcher, cctx
+	return fetcher, network
 }
 
 // fillBlocks fills blocks until the context is canceled.

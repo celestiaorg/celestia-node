@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 	"github.com/cristalhq/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -28,8 +28,6 @@ import (
 	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
-	fraudMock "github.com/celestiaorg/celestia-node/nodebuilder/fraud/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -78,7 +76,7 @@ func TestRPCCallsUnderlyingNode(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedBalance := &state.Balance{
-		Amount: sdk.NewInt(100),
+		Amount: math.NewInt(100),
 		Denom:  "utia",
 	}
 
@@ -128,7 +126,6 @@ func TestRPCCallsTokenExpired(t *testing.T) {
 // api contains all modules that are made available as the node's
 // public API surface
 type api struct {
-	Fraud      fraud.Module
 	Header     header.Module
 	State      statemod.Module
 	Share      share.Module
@@ -136,7 +133,7 @@ type api struct {
 	Node       node.Module
 	P2P        p2p.Module
 	Blob       blob.Module
-	DA         da.Module
+	DA         da.Module //nolint: staticcheck
 	Blobstream blobstream.Module
 }
 
@@ -344,7 +341,6 @@ func setupNodeWithAuthedRPC(t *testing.T,
 	mockAPI := &mockAPI{
 		stateMock.NewMockModule(ctrl),
 		shareMock.NewMockModule(ctrl),
-		fraudMock.NewMockModule(ctrl),
 		headerMock.NewMockModule(ctrl),
 		dasMock.NewMockModule(ctrl),
 		p2pMock.NewMockModule(ctrl),
@@ -357,7 +353,6 @@ func setupNodeWithAuthedRPC(t *testing.T,
 	// given the behavior of fx.Invoke, this invoke will be called last as it is added at the root
 	// level module. For further information, check the documentation on fx.Invoke.
 	invokeRPC := fx.Invoke(func(srv *rpc.Server) {
-		srv.RegisterService("fraud", mockAPI.Fraud, &fraud.API{})
 		srv.RegisterService("das", mockAPI.Das, &das.API{})
 		srv.RegisterService("header", mockAPI.Header, &header.API{})
 		srv.RegisterService("state", mockAPI.State, &statemod.API{})
@@ -368,7 +363,7 @@ func setupNodeWithAuthedRPC(t *testing.T,
 		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
-	nd := nodebuilder.TestNode(t, node.Full, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
+	nd := nodebuilder.TestNode(t, node.Bridge, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
 		return jwtSigner, jwtVerifier, nil
 	}))
 	// start node
@@ -384,7 +379,6 @@ func setupNodeWithAuthedRPC(t *testing.T,
 type mockAPI struct {
 	State      *stateMock.MockModule
 	Share      *shareMock.MockModule
-	Fraud      *fraudMock.MockModule
 	Header     *headerMock.MockModule
 	Das        *dasMock.MockModule
 	P2P        *p2pMock.MockModule

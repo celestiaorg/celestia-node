@@ -19,13 +19,11 @@ import (
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/celestiaorg/celestia-node/api/gateway"
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -55,8 +53,7 @@ type Node struct {
 	AdminSigner   jwt.Signer
 
 	// rpc components
-	RPCServer     *rpc.Server     // not optional
-	GatewayServer *gateway.Server `optional:"true"`
+	RPCServer *rpc.Server // not optional
 
 	// block store
 	EDSStore *store.Store `optional:"true"`
@@ -73,11 +70,10 @@ type Node struct {
 	ShareServ     share.Module  // not optional
 	HeaderServ    header.Module // not optional
 	StateServ     state.Module  // not optional
-	FraudServ     fraud.Module  // not optional
 	BlobServ      blob.Module   // not optional
 	DASer         das.Module    // not optional
 	AdminServ     node.Module   // not optional
-	DAMod         da.Module     // not optional
+	DAMod         da.Module     //nolint: staticcheck // not optional
 	BlobstreamMod blobstream.Module
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop

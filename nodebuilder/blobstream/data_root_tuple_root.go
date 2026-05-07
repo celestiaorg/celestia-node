@@ -6,20 +6,21 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/libs/bytes"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/libs/bytes"
 
 	nodeheader "github.com/celestiaorg/celestia-node/header"
-	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 )
+
+var errHeightZero = fmt.Errorf("height is equal to 0")
 
 // DataRootTupleRoot is the root of the merkle tree created
 // from a set of data root tuples.
-type DataRootTupleRoot bytes.HexBytes
+type DataRootTupleRoot = bytes.HexBytes
 
 // DataRootTupleInclusionProof is the binary merkle
 // inclusion proof of a height to a data commitment.
-type DataRootTupleInclusionProof *merkle.Proof
+type DataRootTupleInclusionProof merkle.Proof
 
 // padBytes Pad bytes to given length
 func padBytes(byt []byte, length int) ([]byte, error) {
@@ -105,7 +106,7 @@ const dataRootTupleRootBlocksLimit = 10_000 // ~27 hours of blocks assuming 10-s
 // the defined set of heights by ensuring the range exists in the chain.
 func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end uint64) error {
 	if start == 0 {
-		return header.ErrHeightZero
+		return errHeightZero
 	}
 	if start >= end {
 		return fmt.Errorf("end block is smaller or equal to the start block")
@@ -116,7 +117,7 @@ func (s *Service) validateDataRootTupleRootRange(ctx context.Context, start, end
 		return fmt.Errorf("the query exceeds the limit of allowed blocks %d", dataRootTupleRootBlocksLimit)
 	}
 
-	currentLocalHeader, err := s.headerServ.LocalHead(ctx)
+	currentLocalHeader, err := s.headerGetter.Head(ctx)
 	if err != nil {
 		return fmt.Errorf("could not get the local head to validate the data root tuple root range: %w", err)
 	}
@@ -170,7 +171,7 @@ func proveDataRootTuples(encodedDataRootTuples [][]byte, rangeStartHeight, heigh
 		return nil, fmt.Errorf("cannot prove an empty list of encoded data root tuples")
 	}
 	if height == 0 || rangeStartHeight == 0 {
-		return nil, header.ErrHeightZero
+		return nil, errHeightZero
 	}
 	_, proofs := merkle.ProofsFromByteSlices(encodedDataRootTuples)
 	return proofs[height-rangeStartHeight], nil
@@ -183,13 +184,13 @@ func (s *Service) fetchEncodedDataRootTuples(ctx context.Context, start, end uin
 	encodedDataRootTuples := make([][]byte, 0, end-start)
 	headers := make([]*nodeheader.ExtendedHeader, 0, end-start)
 
-	startHeader, err := s.headerServ.GetByHeight(ctx, start)
+	startHeader, err := s.headerGetter.GetByHeight(ctx, start)
 	if err != nil {
 		return nil, err
 	}
 	headers = append(headers, startHeader)
 
-	headerRange, err := s.headerServ.GetRangeByHeight(ctx, startHeader, end)
+	headerRange, err := s.headerGetter.GetRangeByHeight(ctx, startHeader, end)
 	if err != nil {
 		return nil, err
 	}

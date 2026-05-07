@@ -17,6 +17,7 @@ func init() {
 		getByHashCmd,
 		getByHeightCmd,
 		syncStateCmd,
+		tailHeadCmd,
 	)
 }
 
@@ -112,6 +113,22 @@ var syncStateCmd = &cobra.Command{
 		defer client.Close()
 
 		header, err := client.Header.SyncState(cmd.Context())
+		return cmdnode.PrintOutput(header, err, nil)
+	},
+}
+
+var tailHeadCmd = &cobra.Command{
+	Use:   "tail",
+	Short: "Returns the current Tail header of the node.",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		header, err := client.Header.Tail(cmd.Context())
 		return cmdnode.PrintOutput(header, err, nil)
 	},
 }

@@ -38,8 +38,10 @@ func Flags() *flag.FlagSet {
 	flags.String(
 		coreXTokenPathFlag,
 		"",
-		"specifies the file path to the JSON file containing the X-Token for gRPC authentication. "+
-			"The JSON file should have a key-value pair where the key is 'x-token' and the value is the authentication token. "+
+		"specifies the directory path containing the JSON file with the X-Token for gRPC authentication. "+
+			"The JSON file can be named either 'xtoken.json' or 'x-token.json'. "+
+			"The JSON file should have a key-value pair where the key is 'x-token' (preferred) or 'xtoken', "+
+			"and the value is the authentication token. "+
 			"NOTE: the path is parsed only if core.tls enabled. "+
 			"If left empty, the client will not include the X-Token in its requests.",
 	)
@@ -59,9 +61,13 @@ func ParseFlags(
 		return nil
 	}
 
+	// Set port from flag if explicitly changed, otherwise preserve config value or use default
 	if cmd.Flag(corePortFlag).Changed {
 		grpc := cmd.Flag(corePortFlag).Value.String()
 		cfg.Port = grpc
+	} else if cfg.Port == "" {
+		// If no config value and flag not changed, use default
+		cfg.Port = DefaultPort
 	}
 
 	enabled, err := cmd.Flags().GetBool(coreTLS)

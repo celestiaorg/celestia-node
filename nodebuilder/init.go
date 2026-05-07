@@ -13,8 +13,8 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -204,7 +204,7 @@ func initRoot(path string) error {
 		return err
 	}
 
-	return os.Remove(f.Name())
+	return os.Remove(filepath.Join(path, ".check"))
 }
 
 // resetDir removes all files from the given directory and reinitializes it

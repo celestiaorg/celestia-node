@@ -10,7 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v9/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -65,6 +66,11 @@ func TestSuiteAccessor(
 			t.Run(fmt.Sprintf("Shares:%s", name), func(t *testing.T) {
 				t.Parallel()
 				testAccessorShares(ctx, t, createAccessor, eds)
+			})
+
+			t.Run(fmt.Sprintf("RangeNamespaceData:%s", name), func(t *testing.T) {
+				t.Parallel()
+				testRangeNamespaceData(ctx, t, createAccessor, size)
 			})
 		}
 	}
@@ -283,6 +289,38 @@ func testAccessorRowNamespaceData(
 	})
 }
 
+func testRangeNamespaceData(
+	ctx context.Context,
+	t *testing.T,
+	createAccessor createAccessor,
+	odsSize int,
+) {
+	sharesAmount := odsSize * odsSize
+	namespace := libshare.RandomNamespace()
+	eds, _ := edstest.RandEDSWithNamespace(t, namespace, sharesAmount, odsSize)
+	acc := createAccessor(t, eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	for startIdx := 0; startIdx < sharesAmount; startIdx++ {
+		from, err := shwap.SampleCoordsFrom1DIndex(startIdx, odsSize)
+		require.NoError(t, err)
+		for endIdx := sharesAmount; endIdx < startIdx; endIdx-- {
+			rngData, err := acc.RangeNamespaceData(ctx, startIdx, endIdx)
+			require.NoError(t, err)
+			to, err := shwap.SampleCoordsFrom1DIndex(endIdx-1, odsSize)
+			require.NoError(t, err)
+			err = rngData.VerifyInclusion(
+				shwap.SampleCoords{Row: from.Row, Col: from.Col},
+				shwap.SampleCoords{Row: to.Row, Col: to.Col},
+				len(dah.RowRoots)/2,
+				dah.RowRoots[from.Row:to.Row+1],
+			)
+			require.NoError(t, err)
+		}
+	}
+}
+
 func testAccessorAxisHalf(
 	ctx context.Context,
 	t *testing.T,
@@ -424,7 +462,7 @@ func BenchGetHalfAxisFromAccessor(
 					require.NoError(b, err)
 
 					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
+					for b.Loop() {
 						size, err := acc.Size(ctx)
 						require.NoError(b, err)
 						_, err = acc.AxisHalf(ctx, axisType, size/2*(squareHalf))
@@ -460,7 +498,7 @@ func BenchGetSampleFromAccessor(
 				require.NoError(b, err, q.String())
 
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					_, err := acc.Sample(ctx, idx)
 					require.NoError(b, err)
 				}

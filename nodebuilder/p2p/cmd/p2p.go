@@ -273,10 +273,8 @@ var blockPeerCmd = &cobra.Command{
 
 		formatter := func(data any) any {
 			err, ok := data.(error)
-			blocked := false
-			if !ok {
-				blocked = true
-			}
+			blocked := !ok
+
 			return struct {
 				Blocked bool   `json:"blocked"`
 				Peer    string `json:"peer"`
@@ -311,10 +309,7 @@ var unblockPeerCmd = &cobra.Command{
 
 		formatter := func(data any) any {
 			err, ok := data.(error)
-			unblocked := false
-			if !ok {
-				unblocked = true
-			}
+			unblocked := !ok
 
 			return struct {
 				Unblocked bool   `json:"unblocked"`
@@ -380,10 +375,8 @@ var protectCmd = &cobra.Command{
 
 		formatter := func(data any) any {
 			err, ok := data.(error)
-			protected := false
-			if !ok {
-				protected = true
-			}
+			protected := !ok
+
 			return struct {
 				Protected bool   `json:"protected"`
 				Peer      string `json:"peer"`
@@ -420,10 +413,8 @@ var unprotectCmd = &cobra.Command{
 
 		formatter := func(data any) any {
 			err, ok := data.(error)
-			unprotected := false
-			if !ok {
-				unprotected = true
-			}
+			unprotected := !ok
+
 			return struct {
 				Unprotected bool   `json:"unprotected"`
 				Peer        string `json:"peer"`

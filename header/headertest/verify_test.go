@@ -1,12 +1,11 @@
 package headertest
 
 import (
-	"errors"
 	"strconv"
 	"testing"
 
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/assert"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-node/header"
 )
@@ -39,7 +38,7 @@ func TestVerify(t *testing.T) {
 		{
 			prepare: func() *header.ExtendedHeader {
 				untrusted := *untrustedAdj
-				untrusted.RawHeader.LastBlockID.Hash = tmrand.Bytes(32)
+				untrusted.LastBlockID.Hash = tmrand.Bytes(32)
 				return &untrusted
 			},
 			err: header.ErrLastHeaderHashMismatch,
@@ -57,7 +56,11 @@ func TestVerify(t *testing.T) {
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			err := trusted.Verify(test.prepare())
-			assert.ErrorIs(t, errors.Unwrap(err), test.err)
+			if test.err == nil {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorIs(t, err, test.err)
 		})
 	}
 }
