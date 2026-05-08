@@ -32,7 +32,7 @@ const hostCacheTTL = time.Minute
 // package depends on. Defined as an interface so tests can supply a stub
 // without implementing the full gRPC ServiceClient.
 type abciQuerier interface {
-	ABCIQuery(ctx context.Context, in *tmservice.ABCIQueryRequest, opts ...grpc.CallOption) (*tmservice.ABCIQueryResponse, error)
+	ABCIQuery(context.Context, *tmservice.ABCIQueryRequest, ...grpc.CallOption) (*tmservice.ABCIQueryResponse, error)
 }
 
 // Client is a [state.Client] implementation that resolves validator sets and

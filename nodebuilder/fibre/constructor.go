@@ -22,7 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
-func ConstructModule(tp node.Type, coreCfg *core.Config) fx.Option {
+func ConstructModule(coreCfg *core.Config) fx.Option {
 	enabled := coreCfg.IsEndpointConfigured()
 	return fx.Module("fibre",
 		fxutil.ProvideIf(enabled,
