@@ -106,13 +106,13 @@ func (ss *EDSsser) dumpStat(stats Stats) (err error) {
 	defer func() {
 		err = errors.Join(err, ss.statsFile.Close())
 	}()
-	
+
 	_, err = ss.statsFile.Write([]byte(stats.String()))
 	if err != nil {
-	    return err
+		return err
 	}
 	return nil
-}	
+}
 
 type Stats struct {
 	TotalWritten                         int
