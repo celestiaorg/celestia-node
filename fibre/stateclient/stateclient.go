@@ -3,8 +3,6 @@ package stateclient
 import (
 	"context"
 	"fmt"
-	"sync"
-	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -22,11 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
-
-// hostCacheTTL bounds how long a successful GetHost lookup is reused without
-// re-querying ABCI. Validator host changes are operator-driven and rare, so a
-// short TTL is enough to absorb burst lookups during upload without staleness.
-const hostCacheTTL = time.Minute
 
 // abciQuerier is the narrow surface of [tmservice.ServiceClient] that this
 // package depends on. Defined as an interface so tests can supply a stub
@@ -53,14 +46,6 @@ type Client struct {
 	prt          *merkle.ProofRuntime
 
 	chainID string
-
-	hostMu    sync.Mutex
-	hostCache map[string]hostCacheEntry
-}
-
-type hostCacheEntry struct {
-	host    validator.Host
-	expires time.Time
 }
 
 // NewClient builds a fibre [state.Client] backed by the local header store and
@@ -78,7 +63,6 @@ func NewClient(
 		network:      network,
 		abciQueryCli: tmservice.NewServiceClient(conn),
 		prt:          prt,
-		hostCache:    make(map[string]hostCacheEntry),
 	}
 }
 
@@ -107,15 +91,8 @@ func (c *Client) GetByHeight(ctx context.Context, height uint64) (validator.Set,
 
 // GetHost resolves a validator's fibre network host via ABCI with merkle proof
 // verification against the trusted AppHash from the local head.
-// Successful lookups are cached for [hostCacheTTL]; misses and errors are not
-// cached so transient failures don't get pinned.
 func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
 	consAddr := sdk.ConsAddress(val.Address.Bytes())
-	cacheKey := consAddr.String()
-	if host, ok := c.lookupHostCache(cacheKey); ok {
-		return host, nil
-	}
-
 	head, err := c.store.Head(ctx)
 	if err != nil {
 		return "", fmt.Errorf("fetch head: %w", err)
@@ -165,31 +142,7 @@ func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Ho
 	if err := info.Unmarshal(value); err != nil {
 		return "", fmt.Errorf("unmarshal FibreProviderInfo: %w", err)
 	}
-	host := validator.Host(info.GetHost())
-	c.storeHostCache(cacheKey, host)
-	return host, nil
-}
-
-func (c *Client) lookupHostCache(key string) (validator.Host, bool) {
-	c.hostMu.Lock()
-	defer c.hostMu.Unlock()
-
-	entry, ok := c.hostCache[key]
-	if !ok {
-		return "", false
-	}
-
-	if time.Now().After(entry.expires) {
-		delete(c.hostCache, key)
-		return "", false
-	}
-	return entry.host, true
-}
-
-func (c *Client) storeHostCache(key string, host validator.Host) {
-	c.hostMu.Lock()
-	c.hostCache[key] = hostCacheEntry{host: host, expires: time.Now().Add(hostCacheTTL)}
-	c.hostMu.Unlock()
+	return validator.Host(info.GetHost()), nil
 }
 
 // ChainID returns the chain ID detected during Start.

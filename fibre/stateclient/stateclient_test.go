@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -38,7 +36,6 @@ func newTestClient(t *testing.T, abci abciQuerier, network p2p.Network) *Client 
 		store:        headertest.NewStore(t),
 		network:      network,
 		abciQueryCli: abci,
-		hostCache:    make(map[string]hostCacheEntry),
 	}
 	return c
 }
@@ -112,27 +109,4 @@ func TestGetHostABCIErrors(t *testing.T) {
 		_, err := c.GetHost(ctx, val)
 		require.ErrorContains(t, err, "missing proof ops")
 	})
-}
-
-func TestGetHostCacheReuse(t *testing.T) {
-	stub := &stubABCI{err: errors.New("must not be called")}
-	c := newTestClient(t, stub, p2p.Private)
-
-	// Pre-seed the cache and verify a lookup returns the cached host without
-	// hitting ABCI.
-	cacheKey := "some-cons-addr"
-	c.storeHostCache(cacheKey, "validator.example:9090")
-
-	got, ok := c.lookupHostCache(cacheKey)
-	require.True(t, ok)
-	assert.EqualValues(t, "validator.example:9090", got)
-	assert.Zero(t, stub.calls)
-}
-
-func TestHostCacheExpiry(t *testing.T) {
-	c := newTestClient(t, &stubABCI{}, p2p.Private)
-	c.hostCache["k"] = hostCacheEntry{host: "stale", expires: time.Now().Add(-time.Second)}
-
-	_, ok := c.lookupHostCache("k")
-	require.False(t, ok)
 }
