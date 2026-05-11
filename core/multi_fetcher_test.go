@@ -22,9 +22,10 @@ type fullFakeFetcher struct {
 	fakeFetcher
 
 	// programmable per-method hooks
-	getSignedBlockFn func(height int64) (*SignedBlock, error)
-	getBlockInfoFn   func(height int64) (*types.Commit, *types.ValidatorSet, error)
-	subFn            func(ctx context.Context) (chan SignedBlock, error)
+	getSignedBlockFn    func(height int64) (*SignedBlock, error)
+	getSignedBlockCtxFn func(ctx context.Context, height int64) (*SignedBlock, error)
+	getBlockInfoFn      func(height int64) (*types.Commit, *types.ValidatorSet, error)
+	subFn               func(ctx context.Context) (chan SignedBlock, error)
 
 	// invocation counters
 	getSignedBlockHits atomic.Int64
@@ -32,8 +33,11 @@ type fullFakeFetcher struct {
 	subscribeHits      atomic.Int64
 }
 
-func (f *fullFakeFetcher) GetSignedBlock(_ context.Context, height int64) (*SignedBlock, error) {
+func (f *fullFakeFetcher) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
 	f.getSignedBlockHits.Add(1)
+	if f.getSignedBlockCtxFn != nil {
+		return f.getSignedBlockCtxFn(ctx, height)
+	}
 	if f.getSignedBlockFn == nil {
 		return nil, errors.New("not configured")
 	}
@@ -132,6 +136,33 @@ func TestMultiFetcher_PrimaryPreferredWhenBothCover(t *testing.T) {
 	assert.Equal(t, int64(0), secondary.getSignedBlockHits.Load())
 }
 
+func TestMultiFetcher_LatestRoutesToHighestHealthyTip(t *testing.T) {
+	primary, secondary := &fullFakeFetcher{}, &fullFakeFetcher{}
+	primary.setStatus(func() (*Status, error) {
+		return &Status{ChainID: "test", EarliestHeight: 1, LatestHeight: 90}, nil
+	})
+	secondary.setStatus(func() (*Status, error) {
+		return &Status{ChainID: "test", EarliestHeight: 1, LatestHeight: 100}, nil
+	})
+	primary.getSignedBlockFn = func(_ int64) (*SignedBlock, error) {
+		t.Fatalf("lagging primary must not serve a latest-height query")
+		return nil, nil
+	}
+	secondary.getSignedBlockFn = func(h int64) (*SignedBlock, error) {
+		require.Equal(t, int64(0), h)
+		b := stubBlock(100, "test")
+		return &b, nil
+	}
+
+	mf := makeRouter(t, "x", primary, secondary)
+	b, err := mf.GetSignedBlock(context.Background(), 0)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	assert.Equal(t, int64(100), b.Header.Height)
+	assert.Equal(t, int64(0), primary.getSignedBlockHits.Load())
+	assert.Equal(t, int64(1), secondary.getSignedBlockHits.Load())
+}
+
 func TestMultiFetcher_FallsBackOnNotFound(t *testing.T) {
 	primary, secondary := &fullFakeFetcher{}, &fullFakeFetcher{}
 	primary.getSignedBlockFn = func(_ int64) (*SignedBlock, error) {
@@ -151,6 +182,31 @@ func TestMultiFetcher_FallsBackOnNotFound(t *testing.T) {
 	// NotFound is not a failure — primary must still be Healthy.
 	assert.True(t, mf.endpoints[0].Tracker.Healthy(),
 		"NotFound must not trip the breaker on the primary")
+}
+
+func TestMultiFetcher_PerEndpointTimeoutLeavesFallbackBudget(t *testing.T) {
+	oldTimeout := defaultEndpointAttemptTimeout
+	defaultEndpointAttemptTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { defaultEndpointAttemptTimeout = oldTimeout })
+
+	primary, secondary := &fullFakeFetcher{}, &fullFakeFetcher{}
+	primary.getSignedBlockCtxFn = func(ctx context.Context, _ int64) (*SignedBlock, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	secondary.getSignedBlockFn = func(h int64) (*SignedBlock, error) {
+		b := stubBlock(h, "test")
+		return &b, nil
+	}
+
+	mf := makeRouter(t, "x", primary, secondary)
+	b, err := mf.GetSignedBlock(context.Background(), 50)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	assert.Equal(t, int64(1), primary.getSignedBlockHits.Load())
+	assert.Equal(t, int64(1), secondary.getSignedBlockHits.Load())
+	assert.Equal(t, 1, mf.endpoints[0].Tracker.Snapshot().ConsecFailures,
+		"endpoint attempt timeout should count against the slow primary")
 }
 
 func TestMultiFetcher_SkipsUncoveredEndpointSilently(t *testing.T) {
@@ -374,6 +430,40 @@ func TestMultiFetcher_SubscribeRefusesHashMismatch(t *testing.T) {
 		time.Second, 10*time.Millisecond)
 }
 
+func TestMultiFetcher_SubscribeWaitsForPrimaryBeforeSecondary(t *testing.T) {
+	oldDelay := defaultSubscriptionGraceDelay
+	defaultSubscriptionGraceDelay = 50 * time.Millisecond
+	t.Cleanup(func() { defaultSubscriptionGraceDelay = oldDelay })
+
+	chPrimary := make(chan SignedBlock, 2)
+	chSecondary := make(chan SignedBlock, 2)
+	primary, secondary := &fullFakeFetcher{}, &fullFakeFetcher{}
+	primary.subFn = func(context.Context) (chan SignedBlock, error) { return chPrimary, nil }
+	secondary.subFn = func(context.Context) (chan SignedBlock, error) { return chSecondary, nil }
+
+	mf := makeRouter(t, "x", primary, secondary)
+	out, err := mf.SubscribeNewBlockEvent(context.Background())
+	require.NoError(t, err)
+
+	chSecondary <- stubBlock(42, "secondary-fork")
+	select {
+	case b := <-out:
+		t.Fatalf("secondary block forwarded before primary grace elapsed: height=%d chain=%s",
+			b.Header.Height, b.Header.ChainID)
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	chPrimary <- stubBlock(42, "primary")
+	first := <-out
+	require.Equal(t, int64(42), first.Header.Height)
+	assert.Equal(t, "primary", first.Header.ChainID)
+
+	close(chPrimary)
+	close(chSecondary)
+	require.Eventually(t, func() bool { return mf.MismatchCount() >= 1 },
+		time.Second, 10*time.Millisecond)
+}
+
 func TestMultiFetcher_SubscribeFailsOnAllEndpointsDown(t *testing.T) {
 	a, b := &fullFakeFetcher{}, &fullFakeFetcher{}
 	a.subFn = func(_ context.Context) (chan SignedBlock, error) { return nil, errors.New("a down") }
@@ -456,4 +546,3 @@ func TestMultiFetcher_GoroutineCleanup(t *testing.T) {
 		t.Fatal("merge goroutines did not exit after ctx cancellation")
 	}
 }
-

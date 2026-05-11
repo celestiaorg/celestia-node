@@ -263,16 +263,16 @@ func (t *EndpointTracker) MarkSuccess() {
 }
 
 // MarkFailure records a generic failure. Once consecFailures reaches the
-// configured threshold the tracker enters cooldown. Cancelled contexts
-// are treated as caller-side and do not count against the budget.
+// configured threshold the tracker enters cooldown. Caller cancellation is
+// treated as caller-side and does not count against the budget; deadline
+// exceeded is counted because MultiBlockFetcher uses per-endpoint attempt
+// deadlines to detect slow endpoints while preserving fallback budget.
 func (t *EndpointTracker) MarkFailure(err error) {
 	if err == nil {
 		return
 	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.Canceled) {
 		// Don't penalise an endpoint for the caller's own cancellation.
-		// True deadline exceeded from the network would manifest as a
-		// gRPC Unavailable; here we get the local context error.
 		return
 	}
 	t.mu.Lock()

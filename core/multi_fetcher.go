@@ -23,6 +23,13 @@ import (
 // reasonable "primary lag, secondary leads" gap.
 const dedupeRingSize = 256
 
+// Tunables are variables so tests can tighten them without sleeping on
+// production-scale durations.
+var (
+	defaultEndpointAttemptTimeout = 10 * time.Second
+	defaultSubscriptionGraceDelay = 500 * time.Millisecond
+)
+
 // EndpointFetcher pairs a single-endpoint Fetcher with its tracker. The
 // tracker drives routing decisions; the Fetcher executes the actual RPC.
 type EndpointFetcher struct {
@@ -77,10 +84,18 @@ func NewMultiBlockFetcher(endpoints []EndpointFetcher) (*MultiBlockFetcher, erro
 func (m *MultiBlockFetcher) MismatchCount() int64 { return m.mismatchCount.Load() }
 
 // routeFor returns endpoints eligible to serve a query for the given
-// height, in priority order. An endpoint is eligible iff:
+// height. For explicit heights, eligible endpoints are returned in
+// priority order. Height 0 means "latest" in the CometBFT APIs, so it is
+// routed by highest observed tip first, with priority as the tie-breaker.
+//
+// For explicit heights, an endpoint is eligible iff:
 //   - the tracker is currently healthy (not in cooldown), and
 //   - the tracker's coverage snapshot includes the height.
 func (m *MultiBlockFetcher) routeFor(height int64) []EndpointFetcher {
+	if height == 0 {
+		return m.routeForLatest()
+	}
+
 	eligible := make([]EndpointFetcher, 0, len(m.endpoints))
 	for _, ep := range m.endpoints {
 		snap := ep.Tracker.Snapshot()
@@ -93,6 +108,33 @@ func (m *MultiBlockFetcher) routeFor(height int64) []EndpointFetcher {
 		eligible = append(eligible, ep)
 	}
 	return eligible
+}
+
+// routeForLatest returns healthy, probed endpoints sorted by highest tip.
+// This lets Head()/height-0 callers follow whichever consensus endpoint is
+// ahead, instead of rejecting height 0 as being below EarliestHeight.
+func (m *MultiBlockFetcher) routeForLatest() []EndpointFetcher {
+	type candidate struct {
+		ep     EndpointFetcher
+		latest int64
+	}
+	candidates := make([]candidate, 0, len(m.endpoints))
+	for _, ep := range m.endpoints {
+		snap := ep.Tracker.Snapshot()
+		if !snap.Healthy || snap.LatestHeight == 0 {
+			continue
+		}
+		candidates = append(candidates, candidate{ep: ep, latest: snap.LatestHeight})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return candidates[i].latest > candidates[j].latest
+	})
+
+	out := make([]EndpointFetcher, 0, len(candidates))
+	for _, c := range candidates {
+		out = append(out, c.ep)
+	}
+	return out
 }
 
 // healthy returns the subset of endpoints currently healthy, in priority
@@ -109,7 +151,7 @@ func (m *MultiBlockFetcher) healthy() []EndpointFetcher {
 
 // markResult routes a query result to the right tracker hook. NotFound is
 // reactive coverage information, not a failure.
-func (m *MultiBlockFetcher) markResult(ep EndpointFetcher, height int64, err error) {
+func (m *MultiBlockFetcher) markResult(ctx context.Context, ep EndpointFetcher, height int64, err error) {
 	if err == nil {
 		ep.Tracker.MarkSuccess()
 		return
@@ -118,12 +160,41 @@ func (m *MultiBlockFetcher) markResult(ep EndpointFetcher, height int64, err err
 		ep.Tracker.MarkNotFound(height)
 		return
 	}
+	if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+		// The caller's request is over; don't penalise an endpoint for work
+		// we explicitly abandoned.
+		return
+	}
 	ep.Tracker.MarkFailure(err)
 }
 
 func (m *MultiBlockFetcher) noEligibleErr(height int64) error {
+	if height == 0 {
+		return fmt.Errorf("multi-fetcher: no healthy endpoint has latest status info "+
+			"(out of %d configured)", len(m.endpoints))
+	}
 	return fmt.Errorf("multi-fetcher: no eligible endpoint covers height %d "+
 		"(out of %d configured)", height, len(m.endpoints))
+}
+
+func (m *MultiBlockFetcher) attemptContext(ctx context.Context, remainingEndpoints int) (context.Context, context.CancelFunc) {
+	timeout := defaultEndpointAttemptTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return context.WithCancel(ctx)
+		}
+		if remainingEndpoints > 0 {
+			perEndpoint := remaining / time.Duration(remainingEndpoints)
+			if perEndpoint > 0 && (timeout <= 0 || perEndpoint < timeout) {
+				timeout = perEndpoint
+			}
+		}
+	}
+	if timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
 }
 
 // GetSignedBlock — primary-preferred fetch within the eligible set.
@@ -133,11 +204,16 @@ func (m *MultiBlockFetcher) GetSignedBlock(ctx context.Context, height int64) (*
 		return nil, m.noEligibleErr(height)
 	}
 	var lastErr error
-	for _, ep := range eligible {
-		b, err := ep.Fetcher.GetSignedBlock(ctx, height)
-		m.markResult(ep, height, err)
+	for i, ep := range eligible {
+		attemptCtx, cancel := m.attemptContext(ctx, len(eligible)-i)
+		b, err := ep.Fetcher.GetSignedBlock(attemptCtx, height)
+		cancel()
+		m.markResult(ctx, ep, height, err)
 		if err == nil {
 			return b, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 		lastErr = err
 	}
@@ -151,11 +227,16 @@ func (m *MultiBlockFetcher) GetBlock(ctx context.Context, height int64) (*Signed
 		return nil, m.noEligibleErr(height)
 	}
 	var lastErr error
-	for _, ep := range eligible {
-		b, err := ep.Fetcher.GetBlock(ctx, height)
-		m.markResult(ep, height, err)
+	for i, ep := range eligible {
+		attemptCtx, cancel := m.attemptContext(ctx, len(eligible)-i)
+		b, err := ep.Fetcher.GetBlock(attemptCtx, height)
+		cancel()
+		m.markResult(ctx, ep, height, err)
 		if err == nil {
 			return b, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 		lastErr = err
 	}
@@ -169,13 +250,18 @@ func (m *MultiBlockFetcher) GetBlockByHash(ctx context.Context, hash libhead.Has
 		return nil, errors.New("multi-fetcher: no healthy endpoints for hash query")
 	}
 	var lastErr error
-	for _, ep := range candidates {
-		b, err := ep.Fetcher.GetBlockByHash(ctx, hash)
+	for i, ep := range candidates {
+		attemptCtx, cancel := m.attemptContext(ctx, len(candidates)-i)
+		b, err := ep.Fetcher.GetBlockByHash(attemptCtx, hash)
+		cancel()
 		// Use 0 as the height key for tracker bookkeeping since the API
 		// doesn't carry one; the tracker accepts NotFound on any height.
-		m.markResult(ep, 0, err)
+		m.markResult(ctx, ep, 0, err)
 		if err == nil {
 			return b, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 		lastErr = err
 	}
@@ -191,11 +277,16 @@ func (m *MultiBlockFetcher) GetBlockInfo(ctx context.Context, height int64) (*ty
 		return nil, nil, m.noEligibleErr(height)
 	}
 	var lastErr error
-	for _, ep := range eligible {
-		commit, valSet, err := ep.Fetcher.GetBlockInfo(ctx, height)
-		m.markResult(ep, height, err)
+	for i, ep := range eligible {
+		attemptCtx, cancel := m.attemptContext(ctx, len(eligible)-i)
+		commit, valSet, err := ep.Fetcher.GetBlockInfo(attemptCtx, height)
+		cancel()
+		m.markResult(ctx, ep, height, err)
 		if err == nil {
 			return commit, valSet, nil
+		}
+		if ctx.Err() != nil {
+			return nil, nil, ctx.Err()
 		}
 		lastErr = err
 	}
@@ -211,11 +302,16 @@ func (m *MultiBlockFetcher) Commit(ctx context.Context, height int64) (*types.Co
 		return nil, m.noEligibleErr(height)
 	}
 	var lastErr error
-	for _, ep := range eligible {
-		c, err := ep.Fetcher.Commit(ctx, height)
-		m.markResult(ep, height, err)
+	for i, ep := range eligible {
+		attemptCtx, cancel := m.attemptContext(ctx, len(eligible)-i)
+		c, err := ep.Fetcher.Commit(attemptCtx, height)
+		cancel()
+		m.markResult(ctx, ep, height, err)
 		if err == nil {
 			return c, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 		lastErr = err
 	}
@@ -229,11 +325,16 @@ func (m *MultiBlockFetcher) ValidatorSet(ctx context.Context, height int64) (*ty
 		return nil, m.noEligibleErr(height)
 	}
 	var lastErr error
-	for _, ep := range eligible {
-		v, err := ep.Fetcher.ValidatorSet(ctx, height)
-		m.markResult(ep, height, err)
+	for i, ep := range eligible {
+		attemptCtx, cancel := m.attemptContext(ctx, len(eligible)-i)
+		v, err := ep.Fetcher.ValidatorSet(attemptCtx, height)
+		cancel()
+		m.markResult(ctx, ep, height, err)
 		if err == nil {
 			return v, nil
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 		lastErr = err
 	}
@@ -324,8 +425,12 @@ func (m *MultiBlockFetcher) ChainID(ctx context.Context) (string, error) {
 func (m *MultiBlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan SignedBlock, error) {
 	out := make(chan SignedBlock, len(m.endpoints))
 
-	var wg sync.WaitGroup
-	subscribed := 0
+	type endpointSubscription struct {
+		ep  EndpointFetcher
+		sub <-chan SignedBlock
+	}
+
+	subs := make([]endpointSubscription, 0, len(m.endpoints))
 	for _, ep := range m.endpoints {
 		// Spawn even for currently-unhealthy endpoints; the underlying
 		// BlockFetcher self-retries and will deliver once the endpoint
@@ -337,17 +442,29 @@ func (m *MultiBlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan Si
 				"endpoint", ep.Tracker.Name(), "err", err)
 			continue
 		}
-		subscribed++
-		wg.Add(1)
-		go func(ep EndpointFetcher, sub <-chan SignedBlock) {
-			defer wg.Done()
-			m.merge(ctx, ep, sub, out)
-		}(ep, sub)
+		subs = append(subs, endpointSubscription{ep: ep, sub: sub})
 	}
 
-	if subscribed == 0 {
+	if len(subs) == 0 {
 		close(out)
 		return nil, errors.New("multi-fetcher: failed to subscribe on any endpoint")
+	}
+
+	primarySubscribed := false
+	for _, sub := range subs {
+		if sub.ep.Tracker == m.endpoints[0].Tracker {
+			primarySubscribed = true
+			break
+		}
+	}
+
+	var wg sync.WaitGroup
+	for _, sub := range subs {
+		wg.Add(1)
+		go func(ep EndpointFetcher, ch <-chan SignedBlock) {
+			defer wg.Done()
+			m.merge(ctx, ep, ch, out, primarySubscribed)
+		}(sub.ep, sub.sub)
 	}
 
 	// Close the output channel once all merge goroutines have exited.
@@ -364,6 +481,7 @@ func (m *MultiBlockFetcher) merge(
 	ep EndpointFetcher,
 	sub <-chan SignedBlock,
 	out chan<- SignedBlock,
+	primarySubscribed bool,
 ) {
 	for {
 		select {
@@ -372,6 +490,15 @@ func (m *MultiBlockFetcher) merge(
 		case b, ok := <-sub:
 			if !ok {
 				return
+			}
+			if m.shouldWaitForPrimary(ep, b.Header.Height, primarySubscribed) {
+				timer := time.NewTimer(defaultSubscriptionGraceDelay)
+				select {
+				case <-timer.C:
+				case <-ctx.Done():
+					timer.Stop()
+					return
+				}
 			}
 			if !m.acceptBlock(ep, b) {
 				continue
@@ -383,6 +510,18 @@ func (m *MultiBlockFetcher) merge(
 			}
 		}
 	}
+}
+
+func (m *MultiBlockFetcher) shouldWaitForPrimary(ep EndpointFetcher, height int64, primarySubscribed bool) bool {
+	if !primarySubscribed || len(m.endpoints) == 0 || defaultSubscriptionGraceDelay <= 0 {
+		return false
+	}
+	primary := m.endpoints[0]
+	if ep.Tracker == primary.Tracker {
+		return false
+	}
+	snap := primary.Tracker.Snapshot()
+	return snap.Healthy && snap.Covers(height)
 }
 
 // acceptBlock decides whether an inbound block from endpoint ep should be

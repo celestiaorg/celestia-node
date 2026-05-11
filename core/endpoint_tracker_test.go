@@ -168,10 +168,14 @@ func TestEndpointTracker_MarkFailure_IgnoresContextCancellation(t *testing.T) {
 	t.Cleanup(func() { _ = tr.Stop(context.Background()) })
 
 	tr.MarkFailure(context.Canceled)
-	tr.MarkFailure(context.DeadlineExceeded)
 	assert.True(t, tr.Healthy(),
 		"caller-side cancellation must not count against the failure budget")
 	assert.Equal(t, 0, tr.Snapshot().ConsecFailures)
+
+	tr.MarkFailure(context.DeadlineExceeded)
+	assert.False(t, tr.Healthy(),
+		"endpoint attempt deadlines must count against the failure budget")
+	assert.Equal(t, 1, tr.Snapshot().ConsecFailures)
 }
 
 func TestEndpointTracker_MarkSuccess_ResetsBreaker(t *testing.T) {
