@@ -78,6 +78,14 @@ func (s *Service) GetRangeByHeight(
 			log.Errorw("getting header range by height", "from", from.Height(), "to", to, "err", err)
 		}
 	}()
+
+	// Enforce the same MaxRangeRequestSize limit as the P2P server.
+	// The store fetches headers in range [from.Height()+1, to), so the count is to - from.Height() - 1.
+	if to > from.Height()+1+libhead.MaxRangeRequestSize {
+		return nil, fmt.Errorf("header/service: requested range exceeds MaxRangeRequestSize (%d)",
+			libhead.MaxRangeRequestSize)
+	}
+
 	log.Infow("getting header range by height", "from", from.Height(), "to", to)
 
 	return s.store.GetRangeByHeight(ctx, from, to)

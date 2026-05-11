@@ -244,10 +244,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	}
 
 	if enableMetrics {
-		opts := []otlpmetrichttp.Option{
-			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
-			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
-		}
+		opts := []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String())}
 		if ok, err := cmd.Flags().GetBool(metricsTlS); err != nil {
 			panic(err)
 		} else if !ok {
@@ -255,17 +252,13 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 
 		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
-	}
 
-	enablep2pMetrics, err := cmd.Flags().GetBool(p2pMetrics)
-	if err != nil {
-		panic(err)
-	}
+		enablep2pMetrics, err := cmd.Flags().GetBool(p2pMetrics)
+		if err != nil {
+			panic(err)
+		}
 
-	if enablep2pMetrics {
-		if !enableMetrics {
-			log.Error("--p2p.metrics used without --metrics being enabled")
-		} else {
+		if enablep2pMetrics {
 			ctx = WithNodeOptions(ctx, modp2p.WithMetrics())
 		}
 	}

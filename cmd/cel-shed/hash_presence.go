@@ -32,6 +32,10 @@ var hashCmd = &cobra.Command{
 			return err
 		}
 
+		if len(args) == 0 {
+			return fmt.Errorf("root hash argument is required")
+		}
+
 		rootHash, err := parseHash(args[0])
 		if err != nil {
 			return err

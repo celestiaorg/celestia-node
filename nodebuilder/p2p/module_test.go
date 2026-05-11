@@ -18,7 +18,7 @@ func testModule(tp node.Type) fx.Option {
 	// TODO(@Wondertan): Most of these can be deduplicated
 	//  by moving Store into the modnode and introducing there a TestModNode module
 	//  that testers would import
-	return fx.Options(
+	opts := fx.Options(
 		fx.NopLogger,
 		ConstructModule(tp, &cfg),
 		fx.Provide(context.Background),
@@ -28,6 +28,7 @@ func testModule(tp node.Type) fx.Option {
 		fx.Provide(keystore.NewMapKeystore),
 		fx.Supply(fx.Annotate(ds_sync.MutexWrap(datastore.NewMapDatastore()), fx.As(new(datastore.Batching)))),
 	)
+	return opts
 }
 
 func TestModuleBuild(t *testing.T) {

@@ -14,8 +14,7 @@ func TestRemoteClient_Status(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
 	cfg := DefaultTestConfig()
-	network := NewNetwork(t, cfg)
-	require.NoError(t, network.Start())
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})
@@ -30,8 +29,7 @@ func TestRemoteClient_StartBlockSubscription_And_GetBlock(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cfg := DefaultTestConfig()
-	network := NewNetwork(t, cfg)
-	require.NoError(t, network.Start())
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})

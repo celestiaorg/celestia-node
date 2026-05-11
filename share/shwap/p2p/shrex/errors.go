@@ -20,3 +20,8 @@ var ErrInternalServer = errors.New("server encountered unexpected error")
 
 // ErrUnsupportedProtocol is returned when the server does not support selected protocol.
 var ErrUnsupportedProtocol = errors.New("unsupported protocol")
+
+// ErrResourceExhausted is returned when the server resets the stream because it has hit
+// a resource limit (stream count or memory). The peer is not misbehaving; it is temporarily
+// overloaded. The request should be retried on a different peer after a backoff.
+var ErrResourceExhausted = errors.New("server resource limit exceeded")

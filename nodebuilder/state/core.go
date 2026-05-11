@@ -10,41 +10,50 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
+
+func newTxClient(
+	cfg Config,
+	keyring keyring.Keyring,
+	keyname AccountName,
+	client *grpc.ClientConn,
+	additionalConns core.AdditionalCoreConns,
+) (*txclient.TxClient, error) {
+	var opts []txclient.Option
+	if len(additionalConns) > 0 {
+		opts = append(opts, txclient.WithAdditionalCoreEndpoints(additionalConns))
+	}
+
+	if cfg.EstimatorAddress != "" {
+		opts = append(opts, txclient.WithEstimatorService(cfg.EstimatorAddress))
+
+		if cfg.EnableEstimatorTLS {
+			opts = append(opts, txclient.WithEstimatorServiceTLS())
+		}
+	}
+
+	if cfg.TxWorkerAccounts > 0 {
+		opts = append(opts, txclient.WithTxWorkerAccounts(cfg.TxWorkerAccounts))
+	}
+
+	return txclient.NewTxClient(keyring, string(keyname), client, opts...)
+}
 
 // coreAccessor constructs a new instance of state.Module over
 // a celestia-core connection.
 func coreAccessor(
-	cfg Config,
+	tc *txclient.TxClient,
 	keyring keyring.Keyring,
 	keyname AccountName,
 	sync *sync.Syncer[*header.ExtendedHeader],
 	network p2p.Network,
 	client *grpc.ClientConn,
-	additionalConns core.AdditionalCoreConns,
 ) (
 	*state.CoreAccessor,
 	Module,
 	error,
 ) {
-	var opts []state.Option
-	if len(additionalConns) > 0 {
-		opts = append(opts, state.WithAdditionalCoreEndpoints(additionalConns))
-	}
-
-	if cfg.EstimatorAddress != "" {
-		opts = append(opts, state.WithEstimatorService(cfg.EstimatorAddress))
-
-		if cfg.EnableEstimatorTLS {
-			opts = append(opts, state.WithEstimatorServiceTLS())
-		}
-	}
-
-	if cfg.TxWorkerAccounts > 0 {
-		opts = append(opts, state.WithTxWorkerAccounts(cfg.TxWorkerAccounts))
-	}
-
-	ca, err := state.NewCoreAccessor(keyring, string(keyname), sync, client, network.String(), nil, opts...)
-
+	ca, err := state.NewCoreAccessor(tc, keyring, string(keyname), sync, client, network.String())
 	return ca, ca, err
 }

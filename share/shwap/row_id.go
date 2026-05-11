@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -137,6 +138,11 @@ func (rid RowID) AppendBinary(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return binary.BigEndian.AppendUint16(data, uint16(rid.RowIndex)), nil
+}
+
+// ResponseSize returns the ODS half-row size in bytes for the given EDS square size.
+func (rid RowID) ResponseSize(edsSize int) int {
+	return edsSize / 2 * libshare.ShareSize
 }
 
 func (rid RowID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {

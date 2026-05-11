@@ -5,7 +5,9 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
+	libhead "github.com/celestiaorg/go-header"
+
+	"github.com/celestiaorg/celestia-node/header"
 )
 
 var _ Module = (*Service)(nil)
@@ -13,12 +15,12 @@ var _ Module = (*Service)(nil)
 var log = logging.Logger("go-blobstream")
 
 type Service struct {
-	headerServ headerServ.Module
+	headerGetter libhead.Getter[*header.ExtendedHeader]
 }
 
-func NewService(headerMod headerServ.Module) *Service {
+func NewService(store libhead.Store[*header.ExtendedHeader]) *Service {
 	return &Service{
-		headerServ: headerMod,
+		headerGetter: store,
 	}
 }
 

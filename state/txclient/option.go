@@ -1,31 +1,31 @@
-package state
+package txclient
 
 import (
 	"google.golang.org/grpc"
 )
 
-type Option func(ca *CoreAccessor)
+type Option func(c *TxClient)
 
 // WithEstimatorService indicates to the CoreAccessor to pass the given address
 // for the estimator service to the TxClient to use for all gas price and usage
 // estimation queries.
 func WithEstimatorService(address string) Option {
-	return func(ca *CoreAccessor) {
-		ca.estimatorServiceAddr = address
+	return func(c *TxClient) {
+		c.estimatorServiceAddr = address
 	}
 }
 
 // WithEstimatorServiceTLS indicates to the CoreAccessor to use TLS for the
 // estimator service connection.
 func WithEstimatorServiceTLS() Option {
-	return func(ca *CoreAccessor) {
-		ca.estimatorServiceTLS = true
+	return func(c *TxClient) {
+		c.estimatorServiceTLS = true
 	}
 }
 
 func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
-	return func(ca *CoreAccessor) {
-		ca.coreConns = append(ca.coreConns, conns...)
+	return func(c *TxClient) {
+		c.coreConns = append(c.coreConns, conns...)
 	}
 }
 
@@ -38,7 +38,7 @@ func WithAdditionalCoreEndpoints(conns []*grpc.ClientConn) Option {
 //     submitting blobs). Parallel submission is not guaranteed to include blobs
 //     in the same order as they were submitted.
 func WithTxWorkerAccounts(workerAccounts int) Option {
-	return func(ca *CoreAccessor) {
-		ca.txWorkerAccounts = workerAccounts
+	return func(c *TxClient) {
+		c.txWorkerAccounts = workerAccounts
 	}
 }

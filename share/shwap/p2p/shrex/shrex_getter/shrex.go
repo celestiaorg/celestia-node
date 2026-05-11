@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -461,6 +461,11 @@ func (sg *Getter) executeRequest(
 			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, shrex.ErrNotFound):
 			getErr = shwap.ErrNotFound
+			setStatus(peers.ResultCooldownPeer)
+		case errors.Is(getErr, shrex.ErrResourceExhausted):
+			// peer is temporarily overloaded, not misbehaving; put it on cooldown so
+			// the peer manager won't hand it out again until it has had time to recover,
+			// then immediately try the next available peer.
 			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, shrex.ErrInvalidResponse):
 			setStatus(peers.ResultBlacklistPeer)

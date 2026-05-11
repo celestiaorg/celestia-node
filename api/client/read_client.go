@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	blobapi "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobstreamapi "github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-	fraudapi "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	headerapi "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	shareapi "github.com/celestiaorg/celestia-node/nodebuilder/share"
 )
@@ -31,7 +30,6 @@ type ReadClient struct {
 	Blob       blobapi.Module
 	Header     headerapi.Module
 	Share      shareapi.Module
-	Fraud      fraudapi.Module
 	Blobstream blobstreamapi.Module
 
 	closer func() error
@@ -87,13 +85,6 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*ReadClient, error) {
 		return nil, fmt.Errorf("failed to initialize header client: %w", err)
 	}
 
-	fraudAPI := fraudapi.API{}
-	fraudCloser, err := jsonrpc.NewClient(
-		ctx, cfg.BridgeDAAddr, "fraud", &fraudAPI.Internal, cfg.HTTPHeader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize fraud client: %w", err)
-	}
-
 	// Initialize blob read client
 	blobAPI := blobapi.API{}
 	blobCloser, err := jsonrpc.NewClient(
@@ -107,7 +98,6 @@ func NewReadClient(ctx context.Context, cfg ReadConfig) (*ReadClient, error) {
 		shareCloser()
 		blobstreamCloser()
 		headerCloser()
-		fraudCloser()
 		blobCloser()
 		return nil
 	}

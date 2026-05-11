@@ -60,7 +60,7 @@ func (c *Client) Get(
 	requestTime := time.Now()
 	n, status, err := c.doRequest(ctx, logger, req, resp, peer)
 	if err != nil {
-		logger.Warnw("requesting data from peer failed", "error", err)
+		logger.Debugw("requesting data from peer failed", "error", err)
 	}
 	c.metrics.observeRequest(ctx, req.Name(), status, time.Since(requestTime))
 	logger.Debugw("requested data",
@@ -84,6 +84,9 @@ func (c *Client) doRequest(
 
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
+		if isResourceExhausted(err) {
+			return 0, statusResourceExhaustedErr, ErrResourceExhausted
+		}
 		return 0, statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
 	defer func() {
@@ -105,6 +108,9 @@ func (c *Client) doRequest(
 	var statusResp shrexpb.Response
 	statusLength, err := serde.Read(stream, &statusResp)
 	if err != nil {
+		if isResourceExhausted(err) {
+			return int64(statusLength), statusResourceExhaustedErr, ErrResourceExhausted
+		}
 		return int64(statusLength),
 			statusReadStatusErr,
 			fmt.Errorf("unexpected error during reading the status from stream: %w", err)

@@ -17,16 +17,19 @@ type status string
 
 const (
 	// statuses used by the client
-	statusOpenStreamErr status = "open_stream_err"
-	statusSendReqErr    status = "send_req_err"
-	statusReadStatusErr status = "read_status_err"
-	statusReadRespErr   status = "read_resp_err"
+	statusOpenStreamErr        status = "open_stream_err"
+	statusSendReqErr           status = "send_req_err"
+	statusReadStatusErr        status = "read_status_err"
+	statusReadRespErr          status = "read_resp_err"
+	statusResourceExhaustedErr status = "resource_exhausted_err"
 
 	// statuses used by the server
-	statusReadReqErr    status = "read_req_err"
-	statusBadRequest    status = "bad_request"
-	statusSendStatusErr status = "send_status_err"
-	statusSendRespErr   status = "send_resp_err"
+	statusReadReqErr        status = "read_req_err"
+	statusBadRequest        status = "bad_request"
+	statusSendStatusErr     status = "send_status_err"
+	statusSendRespErr       status = "send_resp_err"
+	statusResourceExhausted status = "resource_exhausted"
+	statusRateLimited       status = "rate_limited"
 
 	// general statuses that are applied to both the client and the server
 	statusSuccess     status = "success"
@@ -89,8 +92,8 @@ func (m *Metrics) observePayloadServed(
 
 func InitClientMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
-		"shrex_server_total_responses",
-		metric.WithDescription("Total count of sent shrex responses"),
+		"shrex_client_total_requests",
+		metric.WithDescription("Total count of shrex client requests"),
 	)
 	if err != nil {
 		return nil, err
@@ -99,6 +102,7 @@ func InitClientMetrics() (*Metrics, error) {
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_client_request_duration",
 		metric.WithDescription("Time taken to complete a shrex client request"),
+		metric.WithUnit("s"),
 	)
 	if err != nil {
 		return nil, err
@@ -121,6 +125,7 @@ func InitServerMetrics() (*Metrics, error) {
 	requestDuration, err := meter.Float64Histogram(
 		"shrex_server_request_duration",
 		metric.WithDescription("Time taken to handle a shrex client request"),
+		metric.WithUnit("s"),
 	)
 	if err != nil {
 		return nil, err
@@ -129,6 +134,7 @@ func InitServerMetrics() (*Metrics, error) {
 	payloadServedHist, err := meter.Int64Counter(
 		"shrex_payload_served_bytes",
 		metric.WithDescription("Total request data served by shrex server in bytes"),
+		metric.WithUnit("By"),
 	)
 	if err != nil {
 		return nil, err

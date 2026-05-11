@@ -15,7 +15,9 @@ updates:
         update-types:
           - "patch"
   - package-ecosystem: gomod
-    directory: "/"
+    directories:
+      - "/"
+      - "/nodebuilder/tests/tastora"
     schedule:
       interval: weekly
       day: monday

@@ -2,16 +2,17 @@ package blob
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/proof"
 	"github.com/celestiaorg/go-square/merkle"
-	"github.com/celestiaorg/go-square/v3/inclusion"
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/inclusion"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -40,7 +41,7 @@ type CommitmentProof struct {
 }
 
 func (com Commitment) String() string {
-	return string(com)
+	return hex.EncodeToString(com)
 }
 
 // Equal ensures that commitments are the same
@@ -122,7 +123,10 @@ func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) erro
 	// the subtree roots width is defined in ADR-013:
 	//
 	//https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
-	subtreeRootsWidth := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
+	subtreeRootsWidth, err := inclusion.SubTreeWidth(numberOfShares, subtreeRootThreshold)
+	if err != nil {
+		return err
+	}
 
 	// verify the proof of the subtree roots
 	subtreeRootsCursor := 0
@@ -158,6 +162,14 @@ func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) erro
 			)
 		}
 		subtreeRootsCursor += len(ranges)
+	}
+
+	if subtreeRootsCursor != len(commitmentProof.SubtreeRoots) {
+		return fmt.Errorf(
+			"not all subtree roots were verified: verified %d out of %d",
+			subtreeRootsCursor,
+			len(commitmentProof.SubtreeRoots),
+		)
 	}
 
 	// verify row roots to data root proof

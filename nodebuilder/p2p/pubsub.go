@@ -15,11 +15,7 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/celestiaorg/go-fraud"
-	"github.com/celestiaorg/go-fraud/fraudserv"
 	headp2p "github.com/celestiaorg/go-header/p2p"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func init() {
@@ -107,19 +103,12 @@ type pubSubParams struct {
 	Host          hst.Host
 	Bootstrappers Bootstrappers
 	Network       Network
-	Unmarshaler   fraud.ProofUnmarshaler[*header.ExtendedHeader]
 }
 
 func topicScoreParams(params pubSubParams) map[string]*pubsub.TopicScoreParams {
-	mp := map[string]*pubsub.TopicScoreParams{
+	return map[string]*pubsub.TopicScoreParams{
 		headp2p.PubsubTopicID(params.Network.String()): &headp2p.GossibSubScore,
 	}
-
-	for _, pt := range params.Unmarshaler.List() {
-		mp[fraudserv.PubsubTopicID(pt.String(), params.Network.String())] = &fraudserv.GossibSubScore
-	}
-
-	return mp
 }
 
 func peerScoreParams(bootstrappers Bootstrappers, cfg *Config) (*pubsub.PeerScoreParams, error) {

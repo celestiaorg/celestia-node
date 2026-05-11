@@ -17,8 +17,8 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	network := NewNetwork(t, DefaultTestConfig())
-	require.NoError(t, network.Start())
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})
