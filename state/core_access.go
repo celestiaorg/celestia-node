@@ -247,7 +247,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 
 	result, err := ca.abciQueryCli.ABCIQuery(ctx, req)
 	if err != nil || result.GetCode() != 0 {
-		err = fmt.Errorf("failed to query for balance: %w; result log: %s", err, result.GetLog())
+		err = fmt.Errorf(
+			"failed to query for balance: %w; result log: %s; result code: %d",
+			err, result.GetLog(), result.GetCode(),
+		)
 		return nil, err
 	}
 
