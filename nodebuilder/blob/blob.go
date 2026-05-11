@@ -42,17 +42,15 @@ type Module interface {
 		namespace libshare.Namespace,
 		shareCommitment []byte,
 	) (*blob.CommitmentProof, error)
-	// Subscribe to published blobs from the given namespace as they are
-	// included, starting at fromHeight.
-	//
-	// A fromHeight of 0 means "start from the current chain head". A value
-	// greater than zero starts the stream at that block height so a
-	// subscriber can resume after a restart (including replaying past
-	// blocks) without missing blobs.
-	Subscribe(
+	// Subscribe to published blobs from the given namespace as they are included.
+	Subscribe(_ context.Context, _ libshare.Namespace) (<-chan *blob.SubscriptionResponse, error)
+	// SubscribeFromStartHeight subscribes to published blobs from the given namespace,
+	// starting from the given startHeight. It first replays historical blobs from startHeight
+	// to the current head, then streams new blobs as they arrive.
+	SubscribeFromStartHeight(
 		_ context.Context,
 		_ libshare.Namespace,
-		fromHeight uint64,
+		startHeight uint64,
 	) (<-chan *blob.SubscriptionResponse, error)
 }
 
@@ -94,6 +92,10 @@ type API struct {
 			shareCommitment []byte,
 		) (*blob.CommitmentProof, error) `perm:"read"`
 		Subscribe func(
+			context.Context,
+			libshare.Namespace,
+		) (<-chan *blob.SubscriptionResponse, error) `perm:"read"`
+		SubscribeFromStartHeight func(
 			context.Context,
 			libshare.Namespace,
 			uint64,
@@ -149,7 +151,14 @@ func (api *API) Included(
 func (api *API) Subscribe(
 	ctx context.Context,
 	namespace libshare.Namespace,
-	fromHeight uint64,
 ) (<-chan *blob.SubscriptionResponse, error) {
-	return api.Internal.Subscribe(ctx, namespace, fromHeight)
+	return api.Internal.Subscribe(ctx, namespace)
+}
+
+func (api *API) SubscribeFromStartHeight(
+	ctx context.Context,
+	namespace libshare.Namespace,
+	startHeight uint64,
+) (<-chan *blob.SubscriptionResponse, error) {
+	return api.Internal.SubscribeFromStartHeight(ctx, namespace, startHeight)
 }
