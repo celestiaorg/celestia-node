@@ -1,4 +1,4 @@
-package replicatesync
+package replicate
 
 import (
 	"bufio"
@@ -22,7 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
-var log = logging.Logger("cmd-shed/replicate-sync")
+var log = logging.Logger("cmd-shed/replicate")
 
 type entry struct {
 	height     uint64
@@ -38,7 +38,7 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 	if cfg.LogLevel != "" {
-		_ = logging.SetLogLevel("cmd-shed/replicate-sync", cfg.LogLevel)
+		_ = logging.SetLogLevel("cmd-shed/replicate", cfg.LogLevel)
 		_ = logging.SetLogLevel("cmd-shed/replicate/headers", cfg.LogLevel)
 	}
 
