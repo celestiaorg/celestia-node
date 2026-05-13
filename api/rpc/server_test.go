@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -9,12 +10,14 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -393,6 +396,54 @@ func TestServer_NoTLS_PlainHTTP(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	assert.NotNil(t, resp)
+}
+
+// TestRPCServer_RejectsOversizedRequest verifies that the JSON-RPC server
+// rejects request bodies that exceed the configured maximum request size.
+// go-jsonrpc reports an oversized request via an in-band JSON-RPC parse
+// error rather than an HTTP-level 4xx, so we assert on the response body.
+func TestRPCServer_RejectsOversizedRequest(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, signer, verifier)
+
+	ctx := context.Background()
+	require.NoError(t, srv.Start(ctx))
+	t.Cleanup(func() { require.NoError(t, srv.Stop(ctx)) })
+
+	addr := srv.ListenAddr()
+	require.NotEmpty(t, addr)
+
+	// Build a JSON-RPC request body larger than the configured max request
+	// size (maxRequestSizeBytes = 1 MiB). We pad the params with a long
+	// string to exceed the limit.
+	padding := strings.Repeat("a", maxRequestSizeBytes+1024)
+	body := []byte(`{"jsonrpc":"2.0","id":1,"method":"oversized","params":["` + padding + `"]}`)
+	require.Greater(t, int64(len(body)), int64(maxRequestSizeBytes))
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post("http://"+addr, "application/json", bytes.NewReader(body))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	// go-jsonrpc returns an explicit error mentioning the request being
+	// bigger than the maximum allowed.
+	assert.Contains(t, strings.ToLower(string(respBody)), "bigger than maximum",
+		"oversized request should be rejected with a max-size error; got: %s", string(respBody))
+}
+
+// TestRPCServer_HasWriteAndIdleTimeouts asserts that the underlying
+// http.Server is configured with non-zero WriteTimeout and IdleTimeout so
+// that slow or idle clients cannot hold connections open indefinitely.
+func TestRPCServer_HasWriteAndIdleTimeouts(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, signer, verifier)
+
+	assert.NotZero(t, srv.srv.WriteTimeout, "WriteTimeout should be set on the underlying http.Server")
+	assert.NotZero(t, srv.srv.IdleTimeout, "IdleTimeout should be set on the underlying http.Server")
 }
 
 func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {

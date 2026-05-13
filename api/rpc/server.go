@@ -21,6 +21,26 @@ import (
 
 var log = logging.Logger("rpc")
 
+const (
+	// maxRequestSizeBytes caps the size of a single JSON-RPC HTTP request body
+	// accepted by the server. The go-jsonrpc default is 100 MiB, which is
+	// unnecessarily large for legitimate JSON-RPC payloads (including
+	// reasonable batches) and exposes the server to memory pressure from
+	// malicious or buggy clients.
+	maxRequestSizeBytes = 1 << 20 // 1 MiB
+
+	// writeTimeout bounds the time the server will spend writing a response
+	// to a single HTTP request. This prevents a slow or stalled client from
+	// holding server-side resources indefinitely while a response is in
+	// flight.
+	writeTimeout = 30 * time.Second
+
+	// idleTimeout bounds how long the server will keep an idle keep-alive
+	// connection open before closing it. Without an idle timeout a client
+	// could leave many idle connections open indefinitely.
+	idleTimeout = 120 * time.Second
+)
+
 type CORSConfig struct {
 	Enabled        bool
 	AllowedOrigins []string
@@ -59,7 +79,7 @@ func NewServer(
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
-	rpc := jsonrpc.NewServer()
+	rpc := jsonrpc.NewServer(jsonrpc.WithMaxRequestSize(maxRequestSizeBytes))
 	srv := &Server{
 		rpc:          rpc,
 		signer:       signer,
@@ -76,6 +96,11 @@ func NewServer(
 		Handler: srv.newHandlerStack(rpc),
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
+		// bound the time spent writing a response and the lifetime of idle
+		// keep-alive connections so malicious or stalled clients cannot
+		// hold server resources indefinitely.
+		WriteTimeout: writeTimeout,
+		IdleTimeout:  idleTimeout,
 	}
 
 	return srv
