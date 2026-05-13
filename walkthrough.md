@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD010 MD036 -->
 # Celestia Node: A Complete Code Walkthrough
 
 *2026-04-09T21:05:19Z by Showboat 0.6.1*
@@ -739,6 +740,7 @@ Key components in the header module:
 - **P2P Exchange** and **PeerIDStore** -- now provided for both node types in the base components
 
 The type-specific differences:
+
 - **Light**: Wraps the P2P Exchange as the `libhead.Exchange` -- it fetches headers *from* the network
 - **Bridge**: Uses the P2P Subscriber as a `Broadcaster` (publishes headers *to* the network), and supplies the `MakeExtendedHeader` constructor function used by the Core module to build headers from consensus blocks
 
@@ -946,6 +948,7 @@ The module is composed of several sub-component groups:
 **Bridge** nodes get the EDS store and a `bridgeGetter` that fetches shares from the local store. **Light** nodes get a `lightGetter` that fetches from the network.
 
 Availability validators:
+
 - **Light** (`light.ShareAvailability`): Statistical sampling -- randomly samples shares and checks they are retrievable. If enough samples succeed, concludes (with high probability) the data is available.
 - **Bridge** (`full.ShareAvailability`): Downloads the complete data square and verifies it. Uses the EDS store.
 
@@ -1566,31 +1569,35 @@ Here's the complete data flow for each node type:
 
 ### Bridge Node
 
-    Celestia Core (consensus) --gRPC--> BlockFetcher --> Listener
-      |
-      +--> Constructs ExtendedHeader (header + commit + validators + DAH)
-      +--> Stores EDS in Store (ODS + Q4 files)
-      +--> Broadcasts header via P2P PubSub
-      +--> Broadcasts data hash via ShrExSub
-      |
-      +--> RoutingExchange: routes header requests between Core and P2P
-      +--> Serves header requests via ExchangeServer
-      +--> Serves share requests via ShrEx Server
-      +--> DASer validates availability (full.ShareAvailability)
-      +--> Exposes all operations via RPC API
+```text
+Celestia Core (consensus) --gRPC--> BlockFetcher --> Listener
+  |
+  +--> Constructs ExtendedHeader (header + commit + validators + DAH)
+  +--> Stores EDS in Store (ODS + Q4 files)
+  +--> Broadcasts header via P2P PubSub
+  +--> Broadcasts data hash via ShrExSub
+  |
+  +--> RoutingExchange: routes header requests between Core and P2P
+  +--> Serves header requests via ExchangeServer
+  +--> Serves share requests via ShrEx Server
+  +--> DASer validates availability (full.ShareAvailability)
+  +--> Exposes all operations via RPC API
+```
 
 ### Light Node
 
-    P2P Network --PubSub--> Header Subscriber --> Header Syncer --> Header Store
-      |
-      +--> DASer subscribes to new headers
-      +--> Randomly samples shares via ShrEx Client / Bitswap
-      +--> Validates samples via light.ShareAvailability
-      +--> Broadcasts fraud proofs if byzantine behavior detected
-      |
-      +--> Blob service retrieves blobs by fetching namespace data
-      +--> State service queries/submits via optional Core connection
-      +--> Exposes all operations via RPC API
+```text
+P2P Network --PubSub--> Header Subscriber --> Header Syncer --> Header Store
+  |
+  +--> DASer subscribes to new headers
+  +--> Randomly samples shares via ShrEx Client / Bitswap
+  +--> Validates samples via light.ShareAvailability
+  +--> Broadcasts fraud proofs if byzantine behavior detected
+  |
+  +--> Blob service retrieves blobs by fetching namespace data
+  +--> State service queries/submits via optional Core connection
+  +--> Exposes all operations via RPC API
+```
 
 ## Key Architectural Patterns
 
