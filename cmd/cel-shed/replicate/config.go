@@ -1,4 +1,4 @@
-package replicatesync
+package replicate
 
 import (
 	"fmt"
@@ -58,5 +58,5 @@ func (c Config) Validate() error {
 }
 
 func (c Config) workdir() string {
-	return filepath.Join(c.DataDir, ".cel-shed-replicate-sync")
+	return filepath.Join(c.DataDir, ".cel-shed-replicate")
 }
