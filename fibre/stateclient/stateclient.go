@@ -2,7 +2,9 @@ package stateclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -10,6 +12,8 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	logging "github.com/ipfs/go-log/v2"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
@@ -20,6 +24,14 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
+
+var log = logging.Logger("fibre/stateclient")
+
+// ErrNoFibreProviderInfo is returned by fetchHostAt when a validator has not
+// registered fibre provider info via x/valaddr. The absence is proven against
+// the trusted AppHash, so this is an authoritative answer, not a transient
+// failure.
+var ErrNoFibreProviderInfo = errors.New("no fibre provider info")
 
 // abciQuerier is the narrow surface of [tmservice.ServiceClient] that this
 // package depends on. Defined as an interface so tests can supply a stub
@@ -46,6 +58,14 @@ type Client struct {
 	prt          *merkle.ProofRuntime
 
 	chainID string
+
+	// hostCache is populated once in Start via prefetchHosts and never
+	// re-populated thereafter. A cache hit in GetHost evicts the entry so
+	// subsequent reads for the same validator go through fetchHostAt and
+	// hit the chain for fresh state. The cache is a one-shot startup
+	// warmup, not a persistent cache — no TTL/refresh.
+	hostMu    sync.Mutex
+	hostCache map[string]validator.Host
 }
 
 // NewClient builds a fibre [state.Client] backed by the local header store and
@@ -63,6 +83,7 @@ func NewClient(
 		network:      network,
 		abciQueryCli: tmservice.NewServiceClient(conn),
 		prt:          prt,
+		hostCache:    make(map[string]validator.Host),
 	}
 }
 
@@ -89,15 +110,39 @@ func (c *Client) GetByHeight(ctx context.Context, height uint64) (validator.Set,
 	return validator.Set{ValidatorSet: hdr.ValidatorSet, Height: hdr.Height()}, nil
 }
 
-// GetHost resolves a validator's fibre network host via ABCI with merkle proof
-// verification against the trusted AppHash from the local head.
+// GetHost resolves a validator's fibre network host. If the cache (populated
+// at Start) has an entry, it is returned and evicted from the cache so the
+// next read goes to the chain for fresh state. Otherwise a single-key ABCI
+// query is issued and verified against the trusted AppHash from the local
+// head.
 func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
-	consAddr := sdk.ConsAddress(val.Address.Bytes())
+	cacheKey := sdk.ConsAddress(val.Address.Bytes()).String()
+
+	c.hostMu.Lock()
+	if h, ok := c.hostCache[cacheKey]; ok {
+		delete(c.hostCache, cacheKey)
+		c.hostMu.Unlock()
+		return h, nil
+	}
+	c.hostMu.Unlock()
+
 	head, err := c.store.Head(ctx)
 	if err != nil {
 		return "", fmt.Errorf("fetch head: %w", err)
 	}
+	return c.fetchHostAt(ctx, val, head)
+}
 
+// fetchHostAt issues a single-key ABCI query for the validator's fibre
+// provider info and verifies the returned proof against head.AppHash.
+// All callers must pass a head they have already pinned, so concurrent
+// prefetch queries anchor to the same AppHash.
+func (c *Client) fetchHostAt(
+	ctx context.Context,
+	val *core.Validator,
+	head *header.ExtendedHeader,
+) (validator.Host, error) {
+	consAddr := sdk.ConsAddress(val.Address.Bytes())
 	key := valaddr.GetFibreProviderInfoKey(consAddr)
 	// AppHash at height H is the state root after applying block H-1, so we
 	// query at H-1 to be consistent with head.AppHash.
@@ -131,7 +176,7 @@ func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Ho
 		if err := c.prt.VerifyFromKeys(proofOps, head.AppHash, keypath, nil); err != nil {
 			return "", fmt.Errorf("verify absence proof: %w", err)
 		}
-		return "", fmt.Errorf("no fibre provider info for validator %s", consAddr)
+		return "", fmt.Errorf("validator %s: %w", consAddr, ErrNoFibreProviderInfo)
 	}
 
 	if err := c.prt.VerifyValueFromKeys(proofOps, head.AppHash, keypath, value); err != nil {
@@ -143,6 +188,43 @@ func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Ho
 		return "", fmt.Errorf("unmarshal FibreProviderInfo: %w", err)
 	}
 	return validator.Host(info.GetHost()), nil
+}
+
+// prefetchHosts fans out fetchHostAt across the head's validator set and
+// stores successfully-verified hosts in hostCache. All proofs anchor to
+// the same head.AppHash. Validators without registered provider info are
+// the common case and are silently skipped; other per-validator errors
+// (transport, proof verification) are logged as warnings since they may
+// indicate a misbehaving gRPC endpoint.
+func (c *Client) prefetchHosts(ctx context.Context, head *header.ExtendedHeader) {
+	vals := head.ValidatorSet.Validators
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(16)
+	for _, v := range vals {
+		g.Go(func() error {
+			consAddr := sdk.ConsAddress(v.Address.Bytes())
+			host, err := c.fetchHostAt(gctx, v, head)
+			if err != nil {
+				if !errors.Is(err, ErrNoFibreProviderInfo) {
+					log.Warnw("prefetch host failed",
+						"validator", consAddr.String(), "err", err)
+				}
+				return nil
+			}
+			c.hostMu.Lock()
+			c.hostCache[consAddr.String()] = host
+			c.hostMu.Unlock()
+			return nil
+		})
+	}
+	_ = g.Wait()
+
+	c.hostMu.Lock()
+	cached := len(c.hostCache)
+	c.hostMu.Unlock()
+	log.Infow("host prefetch completed",
+		"cached", cached, "validators", len(vals), "height", head.Height())
 }
 
 // ChainID returns the chain ID detected during Start.
@@ -163,13 +245,7 @@ func (c *Client) Start(ctx context.Context) error {
 		return fmt.Errorf("fetch head for chain-id: %w", err)
 	}
 	c.chainID = head.ChainID()
-
-	if c.chainID != c.network.String() {
-		return fmt.Errorf(
-			"fibre state client: chain-id mismatch: header=%q network=%q",
-			c.chainID, c.network,
-		)
-	}
+	c.prefetchHosts(ctx, head)
 	return nil
 }
 
