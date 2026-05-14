@@ -41,6 +41,9 @@ func Run(ctx context.Context, cfg Config) error {
 		_ = logging.SetLogLevel("cmd-shed/replicate", cfg.LogLevel)
 		_ = logging.SetLogLevel("cmd-shed/replicate/headers", cfg.LogLevel)
 	}
+	if cfg.Recover {
+		return recoverMissing(ctx, cfg)
+	}
 
 	headerProg := headers.NewProgress()
 	if err := headers.Run(ctx, headers.Config{
@@ -53,6 +56,10 @@ func Run(ctx context.Context, cfg Config) error {
 		RequestTimeout: cfg.RequestTimeout,
 	}, headerProg); err != nil {
 		return fmt.Errorf("headers: %w", err)
+	}
+	if cfg.HeadersOnly {
+		log.Infow("headers done", "headers_stored", headerProg.Stored())
+		return nil
 	}
 
 	hstore, closeStore, err := openHeaderStore(ctx, cfg.DataDir)
