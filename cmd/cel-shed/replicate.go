@@ -25,6 +25,9 @@ const (
 	flagConcurrency    = "concurrency"
 	flagRequestTimeout = "request-timeout"
 	flagVerify         = "verify"
+	flagRecover        = "recover"
+	flagRecoverMax     = "recover-max-height"
+	flagHeadersOnly    = "headers-only"
 )
 
 func init() {
@@ -52,6 +55,12 @@ func init() {
 		"timeout for each header request attempt")
 	replicateCmd.Flags().Bool(flagVerify, false,
 		"after replication, verify copied block height links in the selected range")
+	replicateCmd.Flags().Bool(flagRecover, false,
+		"scan for all missing heights up to --recover-max-height and recover them with one rsync files-from")
+	replicateCmd.Flags().Uint64(flagRecoverMax, 0,
+		"maximum height to scan in recover mode")
+	replicateCmd.Flags().Bool(flagHeadersOnly, false,
+		"replicate headers only and skip block rsync/link publishing")
 
 	_ = replicateCmd.MarkFlagRequired(flagDataDir)
 }
@@ -82,6 +91,9 @@ func readReplicateFlags(cmd *cobra.Command) (replicate.Config, error) {
 	concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
 	reqTimeout, _ := cmd.Flags().GetDuration(flagRequestTimeout)
 	verify, _ := cmd.Flags().GetBool(flagVerify)
+	recover, _ := cmd.Flags().GetBool(flagRecover)
+	recoverMax, _ := cmd.Flags().GetUint64(flagRecoverMax)
+	headersOnly, _ := cmd.Flags().GetBool(flagHeadersOnly)
 
 	expanded, err := homedir.Expand(filepath.Clean(dataDir))
 	if err != nil {
@@ -110,5 +122,8 @@ func readReplicateFlags(cmd *cobra.Command) (replicate.Config, error) {
 		RequestTimeout: reqTimeout,
 		LogLevel:       logLevel,
 		Verify:         verify,
+		Recover:        recover,
+		RecoverMax:     recoverMax,
+		HeadersOnly:    headersOnly,
 	}, nil
 }
