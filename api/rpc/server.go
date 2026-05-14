@@ -15,6 +15,8 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rs/cors"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
@@ -24,16 +26,22 @@ var log = logging.Logger("rpc")
 const (
 	// maxRequestSizeBytes caps the size of a single JSON-RPC HTTP request body
 	// accepted by the server. The go-jsonrpc default is 100 MiB, which is
-	// unnecessarily large for legitimate JSON-RPC payloads (including
-	// reasonable batches) and exposes the server to memory pressure from
-	// malicious or buggy clients.
-	maxRequestSizeBytes = 1 << 20 // 1 MiB
+	// unnecessarily large for legitimate JSON-RPC payloads and exposes the
+	// server to memory pressure from malicious or buggy clients.
+	//
+	// The cap is derived from appconsts.MaxTxSize (the hard per-tx limit
+	// enforced by celestia-app's CheckTx/ProcessProposal) with a 2x factor
+	// to cover base64 expansion of binary blob data (~1.37x) plus JSON
+	// envelope overhead and small request batches.
+	maxRequestSizeBytes = appconsts.MaxTxSize * 2 // 16 MiB
 
 	// writeTimeout bounds the time the server will spend writing a response
-	// to a single HTTP request. This prevents a slow or stalled client from
-	// holding server-side resources indefinitely while a response is in
-	// flight.
-	writeTimeout = 30 * time.Second
+	// to a single HTTP request, including time the handler is still
+	// computing. State-changing RPCs such as blob.Submit do not return
+	// until the transaction is included in a block, which on a congested
+	// mempool can span multiple block intervals, so the bound is set well
+	// above a typical web-request timeout.
+	writeTimeout = 5 * time.Minute
 
 	// idleTimeout bounds how long the server will keep an idle keep-alive
 	// connection open before closing it. Without an idle timeout a client
@@ -79,7 +87,7 @@ func NewServer(
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
-	rpc := jsonrpc.NewServer(jsonrpc.WithMaxRequestSize(maxRequestSizeBytes))
+	rpc := jsonrpc.NewServer(jsonrpc.WithMaxRequestSize(int64(maxRequestSizeBytes)))
 	srv := &Server{
 		rpc:          rpc,
 		signer:       signer,
