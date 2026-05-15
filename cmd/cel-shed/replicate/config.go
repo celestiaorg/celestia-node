@@ -24,25 +24,19 @@ type Config struct {
 	RequestTimeout time.Duration
 	LogLevel       string
 	Verify         bool
-	Recover        bool
-	RecoverMax     uint64
-	HeadersOnly    bool
 }
 
 func (c Config) Validate() error {
-	if c.Recover && c.HeadersOnly {
-		return fmt.Errorf("recover and headers-only cannot both be set")
-	}
-	if !c.HeadersOnly && strings.TrimSpace(c.RemoteHost) == "" {
+	if strings.TrimSpace(c.RemoteHost) == "" {
 		return fmt.Errorf("remote-host is required")
 	}
-	if !c.HeadersOnly && strings.TrimSpace(c.RemoteBlocks) == "" {
+	if strings.TrimSpace(c.RemoteBlocks) == "" {
 		return fmt.Errorf("remote-blocks is required")
 	}
-	if !c.HeadersOnly && !filepath.IsAbs(c.RemoteBlocks) {
+	if !filepath.IsAbs(c.RemoteBlocks) {
 		return fmt.Errorf("remote-blocks must be absolute, got %q", c.RemoteBlocks)
 	}
-	if !c.Recover && strings.TrimSpace(c.Source) == "" {
+	if strings.TrimSpace(c.Source) == "" {
 		return fmt.Errorf("source multiaddr is required")
 	}
 	if strings.TrimSpace(c.DataDir) == "" {
@@ -57,14 +51,7 @@ func (c Config) Validate() error {
 	if c.RequestTimeout < time.Second {
 		return fmt.Errorf("request-timeout must be >= 1s, got %s", c.RequestTimeout)
 	}
-	if c.Recover {
-		if c.RecoverMax == 0 {
-			return fmt.Errorf("recover-max-height is required in recover mode")
-		}
-		if c.FromHeight != 0 && c.FromHeight > c.RecoverMax {
-			return fmt.Errorf("from-height (%d) must be <= recover-max-height (%d)", c.FromHeight, c.RecoverMax)
-		}
-	} else if c.FromHeight != 0 && c.ToHeight != 0 && c.FromHeight > c.ToHeight {
+	if c.FromHeight != 0 && c.ToHeight != 0 && c.FromHeight > c.ToHeight {
 		return fmt.Errorf("from-height (%d) must be <= to-height (%d)", c.FromHeight, c.ToHeight)
 	}
 	return nil
