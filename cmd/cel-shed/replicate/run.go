@@ -107,8 +107,15 @@ func Run(ctx context.Context, cfg Config) error {
 			return err
 		}
 		log.Infow("rsync batch", "from", start, "to", end, "files_from", filesFrom)
-		if err := runRsync(ctx, cfg, filesFrom); err != nil {
-			return err
+		if rsyncErr := runRsync(ctx, cfg, filesFrom); rsyncErr != nil {
+			missing := missingEntries(entries)
+			missingFile, err := appendMissing(cfg, missing)
+			if err != nil {
+				return fmt.Errorf("record missing entries: %w", err)
+			}
+			log.Warnw("rsync failed; recording missing entries and continuing",
+				"from", start, "to", end, "missing", len(missing), "file", missingFile, "err", rsyncErr)
+			continue
 		}
 		if err := publishBatch(ctx, entries); err != nil {
 			return err
@@ -273,6 +280,43 @@ func runRsync(ctx context.Context, cfg Config, filesFrom string) error {
 		return fmt.Errorf("rsync: %w", err)
 	}
 	return nil
+}
+
+// missingEntries returns the subset of entries whose local hash file is
+// absent after a rsync attempt.
+func missingEntries(entries []entry) []entry {
+	missing := make([]entry, 0)
+	for _, e := range entries {
+		ok, err := validHashFile(e.localHash)
+		if err == nil && !ok {
+			missing = append(missing, e)
+		}
+	}
+	return missing
+}
+
+// appendMissing appends one line per missing entry ("<height>\t<hashPath>") to
+// <workdir>/missing.txt and returns the file path.
+func appendMissing(cfg Config, missing []entry) (string, error) {
+	if err := os.MkdirAll(cfg.workdir(), 0o755); err != nil {
+		return "", fmt.Errorf("ensure workdir: %w", err)
+	}
+	file := filepath.Join(cfg.workdir(), "missing.txt")
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return "", fmt.Errorf("open missing log: %w", err)
+	}
+	defer f.Close()
+	bw := bufio.NewWriter(f)
+	for _, e := range missing {
+		if _, err := fmt.Fprintf(bw, "%d\t%s\n", e.height, e.hashPath); err != nil {
+			return "", fmt.Errorf("write missing log: %w", err)
+		}
+	}
+	if err := bw.Flush(); err != nil {
+		return "", fmt.Errorf("flush missing log: %w", err)
+	}
+	return file, nil
 }
 
 func publishBatch(ctx context.Context, entries []entry) error {
