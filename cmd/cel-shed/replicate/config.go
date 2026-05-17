@@ -19,6 +19,7 @@ type Config struct {
 	Network        modp2p.Network
 	FromHeight     uint64
 	ToHeight       uint64
+	ScanFromHeight uint64
 	BatchSize      uint64
 	Concurrency    int
 	RequestTimeout time.Duration
@@ -53,6 +54,9 @@ func (c Config) Validate() error {
 	}
 	if c.FromHeight != 0 && c.ToHeight != 0 && c.FromHeight > c.ToHeight {
 		return fmt.Errorf("from-height (%d) must be <= to-height (%d)", c.FromHeight, c.ToHeight)
+	}
+	if c.ScanFromHeight != 0 && c.ToHeight != 0 && c.ScanFromHeight > c.ToHeight {
+		return fmt.Errorf("scan-from-height (%d) must be <= to-height (%d)", c.ScanFromHeight, c.ToHeight)
 	}
 	return nil
 }
