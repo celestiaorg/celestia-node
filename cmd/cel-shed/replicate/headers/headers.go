@@ -49,7 +49,7 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 	}
 	log.Infow("opened node store", "elapsed", time.Since(openStart).Round(time.Second))
 
-	h, err := newReplicatorHost()
+	h, err := NewReplicatorHost()
 	if err != nil {
 		return fmt.Errorf("new libp2p host: %w", err)
 	}

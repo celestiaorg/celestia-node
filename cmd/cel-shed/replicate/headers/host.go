@@ -8,9 +8,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 )
 
-// newReplicatorHost spins up an ephemeral libp2p host with no listeners. The
+// NewReplicatorHost spins up an ephemeral libp2p host with no listeners. The
 // replicator only dials outbound to the trusted source peer.
-func newReplicatorHost() (host.Host, error) {
+func NewReplicatorHost() (host.Host, error) {
 	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return nil, err
