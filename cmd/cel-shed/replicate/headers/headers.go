@@ -36,6 +36,8 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 		)
 	}
 
+	log.Infow("opening node store", "data_dir", cfg.DataDir)
+	openStart := time.Now()
 	nodeStore, err := nodebuilder.OpenStore(cfg.DataDir, nil)
 	if err != nil {
 		return fmt.Errorf("open node store: %w", err)
@@ -45,6 +47,7 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 	if err != nil {
 		return fmt.Errorf("open datastore: %w", err)
 	}
+	log.Infow("opened node store", "elapsed", time.Since(openStart).Round(time.Second))
 
 	h, err := newReplicatorHost()
 	if err != nil {
@@ -59,12 +62,15 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 	h.Peerstore().AddAddrs(srcInfo.ID, srcInfo.Addrs, peerstore.PermanentAddrTTL)
 	h.ConnManager().Protect(srcInfo.ID, "replicate-headers-source")
 
+	log.Infow("dialing source", "peer", srcInfo.ID)
+	dialStart := time.Now()
 	connectCtx, connectCancel := context.WithTimeout(ctx, 30*time.Second)
 	if err := h.Connect(connectCtx, *srcInfo); err != nil {
 		connectCancel()
 		return fmt.Errorf("connect to source %s: %w", srcInfo.ID, err)
 	}
 	connectCancel()
+	log.Infow("connected to source", "elapsed", time.Since(dialStart).Round(time.Second))
 
 	exchange, err := libhead_p2p.NewExchange[*header.ExtendedHeader](
 		h,
@@ -85,6 +91,8 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 		_ = exchange.Stop(stopCtx)
 	}()
 
+	log.Infow("starting header store")
+	hstoreStart := time.Now()
 	hstore, err := libhead_store.NewStore[*header.ExtendedHeader](
 		ds,
 		libhead_store.WithWriteBatchSize(1024),
@@ -95,6 +103,7 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 	if err := hstore.Start(ctx); err != nil {
 		return fmt.Errorf("start header store: %w", err)
 	}
+	log.Infow("header store started", "elapsed", time.Since(hstoreStart).Round(time.Second))
 	hstoreStopped := false
 	stopHStore := func() error {
 		if hstoreStopped {
@@ -110,10 +119,13 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 	}
 	defer stopHStore()
 
+	log.Infow("fetching source head")
+	headStart := time.Now()
 	srcHead, err := exchange.Head(ctx)
 	if err != nil {
 		return fmt.Errorf("fetch source head: %w", err)
 	}
+	log.Infow("got source head", "height", srcHead.Height(), "elapsed", time.Since(headStart).Round(time.Second))
 	if srcHead.ChainID() != cfg.Network.String() {
 		return fmt.Errorf("network mismatch: network=%s but source chain-id=%s",
 			cfg.Network, srcHead.ChainID())
@@ -124,7 +136,9 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 		return err
 	}
 	prog.SetTargetHeight(targetHeight)
+	log.Infow("resolved header range", "start", startHeight, "target", targetHeight)
 	if startHeight > targetHeight {
+		log.Infow("headers already at or beyond target; nothing to fetch")
 		return nil
 	}
 
