@@ -42,6 +42,8 @@ func Run(ctx context.Context, cfg Config) error {
 		_ = logging.SetLogLevel("cmd-shed/replicate/headers", cfg.LogLevel)
 	}
 
+	log.Infow("starting header phase", "data_dir", cfg.DataDir, "from_height", cfg.FromHeight, "to_height", cfg.ToHeight)
+	headerPhaseStart := time.Now()
 	headerProg := headers.NewProgress()
 	if err := headers.Run(ctx, headers.Config{
 		Source:         cfg.Source,
@@ -54,12 +56,16 @@ func Run(ctx context.Context, cfg Config) error {
 	}, headerProg); err != nil {
 		return fmt.Errorf("headers: %w", err)
 	}
+	log.Infow("header phase done", "elapsed", time.Since(headerPhaseStart).Round(time.Second))
 
+	log.Infow("opening header store")
+	openStart := time.Now()
 	hstore, closeStore, err := openHeaderStore(ctx, cfg.DataDir)
 	if err != nil {
 		return err
 	}
 	defer closeStore()
+	log.Infow("opened header store", "elapsed", time.Since(openStart).Round(time.Second))
 
 	head, err := hstore.Head(ctx)
 	if err != nil {
@@ -80,10 +86,13 @@ func Run(ctx context.Context, cfg Config) error {
 	if scanFrom == 0 {
 		scanFrom = 1
 	}
+	log.Infow("scanning for first incomplete block", "from", scanFrom, "to", target)
+	scanStart := time.Now()
 	from, ok, err := firstIncomplete(ctx, hstore, cfg.DataDir, scanFrom, target)
 	if err != nil {
 		return err
 	}
+	log.Infow("scan complete", "elapsed", time.Since(scanStart).Round(time.Second), "found_gap", ok, "first_incomplete", from)
 	if !ok {
 		log.Infow("blocks already complete", "through_height", target)
 		if cfg.Verify {
@@ -177,6 +186,8 @@ func firstIncomplete(
 	dataDir string,
 	from, to uint64,
 ) (uint64, bool, error) {
+	const logEvery = 100_000
+	startedAt := time.Now()
 	for height := from; height <= to; height++ {
 		if err := ctx.Err(); err != nil {
 			return 0, false, err
@@ -191,6 +202,10 @@ func firstIncomplete(
 		}
 		if !ok {
 			return height, true, nil
+		}
+		if (height-from+1)%logEvery == 0 {
+			log.Infow("scan progress", "checked_to_height", height, "remaining", to-height,
+				"elapsed", time.Since(startedAt).Round(time.Second))
 		}
 	}
 	return 0, false, nil
