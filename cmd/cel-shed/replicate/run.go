@@ -82,7 +82,10 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("target height %d is above local header head %d", target, head.Height())
 	}
 
-	scanFrom := cfg.FromHeight
+	scanFrom := cfg.ScanFromHeight
+	if scanFrom == 0 {
+		scanFrom = cfg.FromHeight
+	}
 	if scanFrom == 0 {
 		scanFrom = 1
 	}

@@ -20,6 +20,7 @@ const (
 	flagNetwork        = "network"
 	flagFromHeight     = "from-height"
 	flagToHeight       = "to-height"
+	flagScanFromHeight = "scan-from-height"
 	flagBatchSize      = "batch-size"
 	flagLogLevel       = "log-level"
 	flagConcurrency    = "concurrency"
@@ -39,9 +40,11 @@ func init() {
 	replicateCmd.Flags().String(flagNetwork, "mainnet",
 		"network: mainnet | mocha | arabica | private")
 	replicateCmd.Flags().Uint64(flagFromHeight, 0,
-		"start height; 0 means scan from genesis for first missing block link")
+		"header sync start height; 0 means resume from stored header head + 1")
 	replicateCmd.Flags().Uint64(flagToHeight, 0,
 		"stop height (inclusive); 0 means source's current head at start")
+	replicateCmd.Flags().Uint64(flagScanFromHeight, 0,
+		"block scan start height; 0 means scan from genesis for first missing block link")
 	replicateCmd.Flags().Uint64(flagBatchSize, replicate.DefaultBatchSize,
 		"number of heights per sequential rsync batch")
 	replicateCmd.Flags().String(flagLogLevel, "warn",
@@ -77,6 +80,7 @@ func readReplicateFlags(cmd *cobra.Command) (replicate.Config, error) {
 	networkStr, _ := cmd.Flags().GetString(flagNetwork)
 	fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
 	toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+	scanFromHeight, _ := cmd.Flags().GetUint64(flagScanFromHeight)
 	batchSize, _ := cmd.Flags().GetUint64(flagBatchSize)
 	logLevel, _ := cmd.Flags().GetString(flagLogLevel)
 	concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
@@ -105,6 +109,7 @@ func readReplicateFlags(cmd *cobra.Command) (replicate.Config, error) {
 		Network:        net,
 		FromHeight:     fromHeight,
 		ToHeight:       toHeight,
+		ScanFromHeight: scanFromHeight,
 		BatchSize:      batchSize,
 		Concurrency:    concurrency,
 		RequestTimeout: reqTimeout,
