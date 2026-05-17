@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -14,11 +15,16 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 
+	libhead_p2p "github.com/celestiaorg/go-header/p2p"
+
 	"github.com/celestiaorg/celestia-node/cmd/cel-shed/replicate/headers"
+	"github.com/celestiaorg/celestia-node/header"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
+	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
@@ -30,7 +36,6 @@ type ShrexFetchConfig struct {
 	MissingFile      string
 	FromHeight       uint64
 	ToHeight         uint64
-	OutDir           string
 	Peers            []string
 	Concurrency      int
 	RequestTimeout   time.Duration
@@ -61,6 +66,9 @@ func (c ShrexFetchConfig) Validate() error {
 		if c.FromHeight > c.ToHeight {
 			return fmt.Errorf("from-height (%d) must be <= to-height (%d)", c.FromHeight, c.ToHeight)
 		}
+		if c.FromHeight <= 1 {
+			return fmt.Errorf("from-height must be > 1 (anchor needs height-1)")
+		}
 		if c.MissingFile != "" {
 			return fmt.Errorf("--missing-file and --from-height/--to-height are mutually exclusive")
 		}
@@ -77,37 +85,24 @@ func (c ShrexFetchConfig) workdir() string {
 	return filepath.Join(c.DataDir, ".cel-shed-replicate")
 }
 
-// RunShrexFetch fetches ODS bytes for a set of heights via shrex.
+// RunShrexFetch fetches ODS bytes for a set of heights via shrex and writes
+// them to <data-dir>/blocks/<HASH>.ods, then creates the height link at
+// <data-dir>/blocks/heights/<height>.ods — same layout as `replicate`.
 //
 // Input modes (mutually exclusive):
-//   - missing.txt mode (default): each line `<height>\t<hashPath>`; bytes saved
-//     to `<data-dir>/<hashPath>` (typically `<data-dir>/blocks/<HASH>.ods`).
-//   - range mode: --from-height/--to-height enumerate the range; bytes saved to
-//     `<out-dir>/<height>.ods` (default out-dir: `<data-dir>/blocks/by-height/`).
+//   - missing.txt mode (default): each line `<height>\t<hashPath>`; hash comes
+//     from the hashPath column.
+//   - range mode: --from-height/--to-height; headers (and hashes) are fetched
+//     from the same peer pool via libhead p2p exchange.
 //
-// Heights that fail to fetch are written to missing.remaining.txt. The header
-// store is NOT consulted; wire bytes are written verbatim.
+// Heights that fail to fetch are written to missing.remaining.txt. The local
+// header store is NOT opened.
 func RunShrexFetch(ctx context.Context, cfg ShrexFetchConfig) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
 	if cfg.LogLevel != "" {
 		_ = logging.SetLogLevel("cmd-shed/replicate", cfg.LogLevel)
-	}
-
-	items, missingPath, err := buildItems(cfg)
-	if err != nil {
-		return err
-	}
-	if missingPath != "" {
-		log.Infow("loaded missing list", "file", missingPath, "count", len(items))
-	} else {
-		log.Infow("range mode", "from", cfg.FromHeight, "to", cfg.ToHeight,
-			"out_dir", rangeOutDir(cfg), "count", len(items))
-	}
-	if len(items) == 0 {
-		log.Infow("nothing to fetch")
-		return nil
 	}
 
 	h, err := headers.NewReplicatorHost()
@@ -149,6 +144,20 @@ func RunShrexFetch(ctx context.Context, cfg ShrexFetchConfig) error {
 			return fmt.Errorf("waiting for %d archival peers: %w", cfg.MinPeers, err)
 		}
 		log.Infow("discovery ready", "peers", pool.size())
+	}
+
+	items, missingPath, err := buildItems(ctx, h, cfg, pool)
+	if err != nil {
+		return err
+	}
+	if missingPath != "" {
+		log.Infow("loaded missing list", "file", missingPath, "count", len(items))
+	} else {
+		log.Infow("range prepared", "from", cfg.FromHeight, "to", cfg.ToHeight, "count", len(items))
+	}
+	if len(items) == 0 {
+		log.Infow("nothing to fetch")
+		return nil
 	}
 
 	clientParams := shrex.DefaultClientParameters()
@@ -214,26 +223,16 @@ func RunShrexFetch(ctx context.Context, cfg ShrexFetchConfig) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			if info, err := os.Lstat(it.outPath); err == nil && info.Mode().IsRegular() && info.Size() > 0 {
-				log.Infow("already on disk; skipping", "height", it.height, "path", it.outPath)
-				counter.Lock()
-				fetched++
-				counter.Unlock()
-				return
-			}
-
-			fetchStart := time.Now()
-			ok, attempts, bytesGot, lastErr := fetchToDisk(ctx, client, pool, cfg, it)
+			ok, attempts, bytesGot, alreadyOnDisk, lastErr := fetchAndPublish(ctx, client, pool, cfg, it)
 			if !ok {
-				log.Warnw("fetch failed all peers",
-					"height", it.height, "attempts", attempts, "last_err", lastErr)
-				recordRemaining(remainingW, remainingMu, it.height, it.hashPath)
+				log.Warnw("fetch failed",
+					"height", it.entry.height, "attempts", attempts, "last_err", lastErr)
+				recordRemaining(remainingW, remainingMu, it.entry.height, it.hashPath)
 				counter.Lock()
 				failed++
 				counter.Unlock()
 				return
 			}
-			fetchElapsed := time.Since(fetchStart)
 			counter.Lock()
 			fetched++
 			totalBytes += int64(bytesGot)
@@ -241,11 +240,13 @@ func RunShrexFetch(ctx context.Context, cfg ShrexFetchConfig) error {
 			snapFetched := fetched
 			counter.Unlock()
 			runElapsed := time.Since(startedAt)
-			log.Infow("fetched and persisted",
-				"height", it.height, "path", it.outPath,
-				"bytes", bytesGot, "attempts", attempts,
-				"elapsed", fetchElapsed.Round(time.Millisecond),
-				"mb_per_s", mbPerSec(int64(bytesGot), fetchElapsed),
+			log.Infow("fetched and published",
+				"height", it.entry.height,
+				"path", it.entry.localHash,
+				"link", it.entry.localLink,
+				"bytes", bytesGot,
+				"already_on_disk", alreadyOnDisk,
+				"attempts", attempts,
 				"avg_mb_per_s", mbPerSec(snapBytes, runElapsed),
 				"fetched_total", snapFetched,
 				"bytes_total", snapBytes,
@@ -272,8 +273,7 @@ func RunShrexFetch(ctx context.Context, cfg ShrexFetchConfig) error {
 	return nil
 }
 
-// mbPerSec returns the throughput in MB/s (decimal megabytes), rounded to 2
-// decimal places. Returns 0 for non-positive elapsed.
+// mbPerSec returns throughput in decimal MB/s, rounded to 2 decimal places.
 func mbPerSec(bytes int64, elapsed time.Duration) float64 {
 	if elapsed <= 0 {
 		return 0
@@ -283,79 +283,55 @@ func mbPerSec(bytes int64, elapsed time.Duration) float64 {
 	return float64(int64(rate*100)) / 100
 }
 
-// fetchItem represents one unit of work for shrex-fetch: a height, the
-// absolute on-disk path to write to, and the optional hashPath (only set when
-// derived from missing.txt; used for missing.remaining.txt formatting).
+// fetchItem is one unit of work for shrex-fetch.
 type fetchItem struct {
-	height   uint64
-	outPath  string
-	hashPath string
+	entry    entry
+	hashPath string // "blocks/<HASH>.ods"; for missing.remaining.txt formatting
 }
 
-// rangeOutDir returns the directory used for range-mode output: --out-dir if
-// set, else `<data-dir>/blocks/by-height/`.
-func rangeOutDir(cfg ShrexFetchConfig) string {
-	if cfg.OutDir != "" {
-		return cfg.OutDir
-	}
-	return filepath.Join(cfg.DataDir, "blocks", "by-height")
-}
-
-// buildItems prepares the list of heights to fetch and their output paths.
-// Returns (items, missingPath) — missingPath is "" in range mode.
-func buildItems(cfg ShrexFetchConfig) ([]fetchItem, string, error) {
-	if cfg.FromHeight != 0 && cfg.ToHeight != 0 {
-		outDir := rangeOutDir(cfg)
-		items := make([]fetchItem, 0, cfg.ToHeight-cfg.FromHeight+1)
-		for h := cfg.FromHeight; h <= cfg.ToHeight; h++ {
-			items = append(items, fetchItem{
-				height:  h,
-				outPath: filepath.Join(outDir, fmt.Sprintf("%d.ods", h)),
-			})
-		}
-		return items, "", nil
-	}
-
-	missingPath := cfg.MissingFile
-	if missingPath == "" {
-		missingPath = filepath.Join(cfg.workdir(), "missing.txt")
-	}
-	items, err := readMissingItems(missingPath, cfg.DataDir)
-	if err != nil {
-		return nil, "", fmt.Errorf("read missing list: %w", err)
-	}
-	return items, missingPath, nil
-}
-
-// fetchToDisk requests the EDS wire bytes for the given height from peers in
-// the pool (retrying across peers until success or all peers exhausted) and
-// writes the raw bytes to `outPath` (`<outPath>.tmp` -> fsync -> rename).
-// Returns (success, attempts, bytesWritten, lastErr).
-func fetchToDisk(
+// fetchAndPublish fetches the EDS bytes for the given height from peers,
+// writes them to entry.localHash, and publishes the height link.
+// Returns (success, attempts, bytesWritten, alreadyOnDisk, lastErr).
+func fetchAndPublish(
 	ctx context.Context,
 	client *shrex.Client,
 	pool *peerPool,
 	cfg ShrexFetchConfig,
 	it fetchItem,
-) (bool, int, int, error) {
-	edsID, err := shwap.NewEdsID(it.height)
+) (bool, int, int, bool, error) {
+	e := it.entry
+
+	if e.empty {
+		if err := publish(e); err != nil {
+			return false, 0, 0, false, fmt.Errorf("publish empty: %w", err)
+		}
+		return true, 0, 0, true, nil
+	}
+
+	if info, err := os.Lstat(e.localHash); err == nil && info.Mode().IsRegular() && info.Size() > 0 {
+		if err := publish(e); err != nil {
+			return false, 0, 0, false, fmt.Errorf("publish existing: %w", err)
+		}
+		return true, 0, 0, true, nil
+	}
+
+	edsID, err := shwap.NewEdsID(e.height)
 	if err != nil {
-		return false, 0, 0, fmt.Errorf("new eds id: %w", err)
+		return false, 0, 0, false, fmt.Errorf("new eds id: %w", err)
 	}
 
 	tried := make(map[peer.ID]struct{})
 	var lastErr error
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
-			return false, attempt, 0, err
+			return false, attempt, 0, false, err
 		}
 		p, ok := pool.pickExcluding(tried)
 		if !ok {
-			return false, attempt, 0, lastErr
+			return false, attempt, 0, false, lastErr
 		}
 		tried[p] = struct{}{}
 
-		log.Infow("shrex get start", "height", it.height, "peer", p, "attempt", attempt+1)
 		reqCtx, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
 		buff := bytes.NewBuffer(nil)
 		getStart := time.Now()
@@ -364,27 +340,27 @@ func fetchToDisk(
 		if err != nil {
 			lastErr = err
 			log.Infow("shrex get failed",
-				"height", it.height, "peer", p,
+				"height", e.height, "peer", p,
 				"elapsed", time.Since(getStart).Round(time.Millisecond),
 				"err", err)
 			continue
 		}
-		log.Infow("shrex get ok",
-			"height", it.height, "peer", p,
-			"bytes", buff.Len(),
-			"elapsed", time.Since(getStart).Round(time.Millisecond))
 
-		if err := writeBytesAtomic(it.outPath, buff.Bytes()); err != nil {
+		if err := writeBytesAtomic(e.localHash, buff.Bytes()); err != nil {
 			lastErr = fmt.Errorf("write: %w", err)
-			log.Warnw("write failed", "height", it.height, "path", it.outPath, "err", err)
+			log.Warnw("write failed", "height", e.height, "path", e.localHash, "err", err)
 			continue
 		}
-		return true, attempt + 1, buff.Len(), nil
+		if err := publish(e); err != nil {
+			lastErr = fmt.Errorf("publish: %w", err)
+			log.Warnw("publish failed", "height", e.height, "err", err)
+			continue
+		}
+		return true, attempt + 1, buff.Len(), false, nil
 	}
 }
 
 // writeBytesAtomic writes data to <path>.tmp, fsyncs, and renames to <path>.
-// Creates parent directories as needed.
 func writeBytesAtomic(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -409,6 +385,116 @@ func writeBytesAtomic(path string, data []byte) error {
 	return os.Rename(tmp, path)
 }
 
+// buildItems prepares the list of heights to fetch with their full entries.
+// Returns (items, missingPath) — missingPath is "" in range mode.
+func buildItems(
+	ctx context.Context,
+	h host.Host,
+	cfg ShrexFetchConfig,
+	pool *peerPool,
+) ([]fetchItem, string, error) {
+	if cfg.FromHeight != 0 && cfg.ToHeight != 0 {
+		items, err := buildItemsRange(ctx, h, cfg, pool)
+		return items, "", err
+	}
+
+	missingPath := cfg.MissingFile
+	if missingPath == "" {
+		missingPath = filepath.Join(cfg.workdir(), "missing.txt")
+	}
+	items, err := readMissingItems(missingPath, cfg.DataDir)
+	if err != nil {
+		return nil, "", fmt.Errorf("read missing list: %w", err)
+	}
+	return items, missingPath, nil
+}
+
+// buildItemsRange fetches headers for [from..to] from the peer pool via
+// libhead's p2p exchange and converts them into fetchItems.
+func buildItemsRange(
+	ctx context.Context,
+	h host.Host,
+	cfg ShrexFetchConfig,
+	pool *peerPool,
+) ([]fetchItem, error) {
+	peers := pool.snapshot()
+	if len(peers) == 0 {
+		return nil, fmt.Errorf("no peers available for header exchange")
+	}
+	log.Infow("starting header exchange for range",
+		"peers", len(peers), "from", cfg.FromHeight, "to", cfg.ToHeight)
+
+	exchange, err := libhead_p2p.NewExchange[*header.ExtendedHeader](
+		h, peers, nil,
+		libhead_p2p.WithNetworkID[libhead_p2p.ClientParameters](cfg.Network.String()),
+		libhead_p2p.WithChainID(cfg.Network.String()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("new header exchange: %w", err)
+	}
+	if err := exchange.Start(ctx); err != nil {
+		return nil, fmt.Errorf("start header exchange: %w", err)
+	}
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = exchange.Stop(stopCtx)
+	}()
+
+	anchorReqCtx, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+	anchor, err := exchange.GetByHeight(anchorReqCtx, cfg.FromHeight-1)
+	cancel()
+	if err != nil {
+		return nil, fmt.Errorf("anchor %d: %w", cfg.FromHeight-1, err)
+	}
+
+	const chunk = uint64(64)
+	hdrs := make([]*header.ExtendedHeader, 0, cfg.ToHeight-cfg.FromHeight+1)
+	for cur := cfg.FromHeight; cur <= cfg.ToHeight; {
+		toExcl := cur + chunk
+		if toExcl > cfg.ToHeight+1 {
+			toExcl = cfg.ToHeight + 1
+		}
+		reqCtx, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+		batch, err := exchange.GetRangeByHeight(reqCtx, anchor, toExcl)
+		cancel()
+		if err != nil {
+			return nil, fmt.Errorf("get range %d..%d: %w", cur, toExcl-1, err)
+		}
+		if len(batch) == 0 {
+			return nil, fmt.Errorf("empty header batch at %d", cur)
+		}
+		hdrs = append(hdrs, batch...)
+		anchor = batch[len(batch)-1]
+		cur = toExcl
+		log.Infow("fetched header chunk", "from", batch[0].Height(), "to", anchor.Height())
+	}
+
+	items := make([]fetchItem, 0, len(hdrs))
+	for _, hdr := range hdrs {
+		hash := share.DataHash(hdr.DAH.Hash())
+		items = append(items, fetchItem{
+			entry:    entryFromHash(cfg.DataDir, hdr.Height(), hash),
+			hashPath: "blocks/" + hash.String() + ".ods",
+		})
+	}
+	return items, nil
+}
+
+// entryFromHash builds a replicate-compatible entry from a height and hash.
+func entryFromHash(dataDir string, height uint64, hash share.DataHash) entry {
+	hex := hash.String()
+	return entry{
+		height:     height,
+		hashPath:   "blocks/" + hex + ".ods",
+		localHash:  filepath.Join(dataDir, "blocks", hex+".ods"),
+		localLink:  filepath.Join(dataDir, "blocks", "heights", fmt.Sprintf("%d.ods", height)),
+		linkTarget: "../" + hex + ".ods",
+		empty:      hash.IsEmptyEDS(),
+	}
+}
+
+// readMissingItems parses missing.txt lines (`<height>\t<hashPath>`) into fetchItems.
 func readMissingItems(path, dataDir string) ([]fetchItem, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -434,14 +520,33 @@ func readMissingItems(path, dataDir string) ([]fetchItem, error) {
 		if _, dup := seen[h]; dup {
 			continue
 		}
+		hashHex := extractHashFromPath(fields[1])
+		if hashHex == "" {
+			log.Warnw("malformed hashPath; skipping", "line", line)
+			continue
+		}
+		hashBytes, err := hex.DecodeString(hashHex)
+		if err != nil || len(hashBytes) != share.DataHashSize {
+			log.Warnw("malformed hash; skipping", "hash", hashHex, "err", err)
+			continue
+		}
 		seen[h] = struct{}{}
 		items = append(items, fetchItem{
-			height:   h,
-			outPath:  filepath.Join(dataDir, fields[1]),
+			entry:    entryFromHash(dataDir, h, share.DataHash(hashBytes)),
 			hashPath: fields[1],
 		})
 	}
 	return items, sc.Err()
+}
+
+// extractHashFromPath turns "blocks/ABC123.ods" into "ABC123". Returns "" if
+// the path doesn't match that shape.
+func extractHashFromPath(p string) string {
+	base := filepath.Base(p)
+	if !strings.HasSuffix(base, ".ods") {
+		return ""
+	}
+	return strings.TrimSuffix(base, ".ods")
 }
 
 func recordRemaining(w *bufio.Writer, mu *sync.Mutex, height uint64, hashPath string) {
@@ -454,17 +559,14 @@ func recordRemaining(w *bufio.Writer, mu *sync.Mutex, height uint64, hashPath st
 	_, _ = fmt.Fprintf(w, "%d\t%s\n", height, hashPath)
 }
 
-// peerPool is a thread-safe set of peer IDs for round-robin selection,
-// with notification on additions.
+// peerPool is a thread-safe set of peer IDs for round-robin selection.
 type peerPool struct {
 	mu     sync.Mutex
 	peers  []peer.ID
 	notify []chan struct{}
 }
 
-func newPeerPool() *peerPool {
-	return &peerPool{}
-}
+func newPeerPool() *peerPool { return &peerPool{} }
 
 func (p *peerPool) add(id peer.ID) {
 	p.mu.Lock()
@@ -500,8 +602,14 @@ func (p *peerPool) size() int {
 	return len(p.peers)
 }
 
-// pickExcluding returns a peer not present in `exclude`. Returns false if all
-// known peers are excluded.
+func (p *peerPool) snapshot() peer.IDSlice {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make(peer.IDSlice, len(p.peers))
+	copy(out, p.peers)
+	return out
+}
+
 func (p *peerPool) pickExcluding(exclude map[peer.ID]struct{}) (peer.ID, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

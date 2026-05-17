@@ -27,7 +27,6 @@ const (
 	flagRequestTimeout   = "request-timeout"
 	flagVerify           = "verify"
 	flagMissingFile      = "missing-file"
-	flagOutDir           = "out-dir"
 	flagPeers            = "peers"
 	flagMinPeers         = "min-peers"
 	flagDiscoveryTimeout = "discovery-timeout"
@@ -109,8 +108,6 @@ func init() {
 		"range mode: start height (inclusive); requires --to-height; mutually exclusive with --missing-file")
 	shrexFetchCmd.Flags().Uint64(flagToHeight, 0,
 		"range mode: stop height (inclusive); requires --from-height; mutually exclusive with --missing-file")
-	shrexFetchCmd.Flags().String(flagOutDir, "",
-		"range-mode output directory; default <data-dir>/blocks/by-height/. Files written as <height>.ods")
 	shrexFetchCmd.Flags().StringSlice(flagPeers, nil,
 		"explicit shrex peer multiaddrs (each must include /p2p/<peer-id>); if empty, discover archival peers via DHT")
 	shrexFetchCmd.Flags().Int(flagConcurrency, 4,
@@ -134,7 +131,6 @@ func readShrexFetchFlags(cmd *cobra.Command) (replicate.ShrexFetchConfig, error)
 	missingFile, _ := cmd.Flags().GetString(flagMissingFile)
 	fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
 	toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
-	outDir, _ := cmd.Flags().GetString(flagOutDir)
 	peers, _ := cmd.Flags().GetStringSlice(flagPeers)
 	concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
 	reqTimeout, _ := cmd.Flags().GetDuration(flagRequestTimeout)
@@ -163,7 +159,6 @@ func readShrexFetchFlags(cmd *cobra.Command) (replicate.ShrexFetchConfig, error)
 		MissingFile:      missingFile,
 		FromHeight:       fromHeight,
 		ToHeight:         toHeight,
-		OutDir:           outDir,
 		Peers:            peers,
 		Concurrency:      concurrency,
 		RequestTimeout:   reqTimeout,
