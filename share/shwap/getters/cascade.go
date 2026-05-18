@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -45,11 +45,12 @@ func NewCascadeGetter(getters []shwap.Getter) *CascadeGetter {
 // GetSamples gets samples from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHeader,
 	indices []shwap.SampleCoords,
-) ([]shwap.Sample, error) {
+) (_ []shwap.Sample, err error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-samples", trace.WithAttributes(
+		attribute.Int64("height", int64(hdr.Height())),
 		attribute.Int("amount", len(indices)),
 	))
-	defer span.End()
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) ([]shwap.Sample, error) {
 		return get.GetSamples(ctx, hdr, indices)
@@ -61,9 +62,11 @@ func (cg *CascadeGetter) GetSamples(ctx context.Context, hdr *header.ExtendedHea
 // GetEDS gets a full EDS from any of registered shwap.Getters in cascading order.
 func (cg *CascadeGetter) GetEDS(
 	ctx context.Context, header *header.ExtendedHeader,
-) (*rsmt2d.ExtendedDataSquare, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-eds")
-	defer span.End()
+) (_ *rsmt2d.ExtendedDataSquare, err error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-eds", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+	))
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) (*rsmt2d.ExtendedDataSquare, error) {
 		return get.GetEDS(ctx, header)
@@ -74,9 +77,16 @@ func (cg *CascadeGetter) GetEDS(
 
 // GetRow gets row shares from any of registered shwap.Getters in cascading
 // order.
-func (cg *CascadeGetter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIdx int) (shwap.Row, error) {
-	ctx, span := tracer.Start(ctx, "cascade/get-row")
-	defer span.End()
+func (cg *CascadeGetter) GetRow(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	rowIdx int,
+) (_ shwap.Row, err error) {
+	ctx, span := tracer.Start(ctx, "cascade/get-row", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
+		attribute.Int("rowIndex", rowIdx),
+	))
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.Row, error) {
 		return get.GetRow(ctx, header, rowIdx)
@@ -90,11 +100,12 @@ func (cg *CascadeGetter) GetNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	namespace libshare.Namespace,
-) (shwap.NamespaceData, error) {
+) (_ shwap.NamespaceData, err error) {
 	ctx, span := tracer.Start(ctx, "cascade/get-shares-by-namespace", trace.WithAttributes(
+		attribute.Int64("height", int64(header.Height())),
 		attribute.String("namespace", namespace.String()),
 	))
-	defer span.End()
+	defer utils.SetStatusAndEnd(span, err)
 
 	get := func(ctx context.Context, get shwap.Getter) (shwap.NamespaceData, error) {
 		return get.GetNamespaceData(ctx, header, namespace)
@@ -107,15 +118,16 @@ func (cg *CascadeGetter) GetRangeNamespaceData(
 	ctx context.Context,
 	header *header.ExtendedHeader,
 	from, to int,
-) (shwap.RangeNamespaceData, error) {
+) (_ shwap.RangeNamespaceData, err error) {
 	ctx, span := tracer.Start(
 		ctx,
 		"cascade/get-shares-range",
 		trace.WithAttributes(
+			attribute.Int64("height", int64(header.Height())),
 			attribute.Int("from", from),
 			attribute.Int("to", to),
 		))
-	defer span.End()
+	defer utils.SetStatusAndEnd(span, err)
 
 	if from < 0 || to < 0 {
 		return shwap.RangeNamespaceData{},
@@ -146,10 +158,7 @@ func cascadeGetters[V any](
 	getters []shwap.Getter,
 	get func(context.Context, shwap.Getter) (V, error),
 ) (V, error) {
-	var (
-		zero V
-		err  error
-	)
+	var zero V
 
 	if len(getters) == 0 {
 		return zero, errors.New("no getters provided")
@@ -158,11 +167,6 @@ func cascadeGetters[V any](
 	ctx, span := tracer.Start(ctx, "cascade", trace.WithAttributes(
 		attribute.Int("total-getters", len(getters)),
 	))
-	defer func() {
-		if err != nil {
-			utils.SetStatusAndEnd(span, errors.New("all getters failed"))
-		}
-	}()
 
 	minTimeout := time.Duration(0)
 	_, ok := ctx.Deadline()
@@ -172,6 +176,8 @@ func cascadeGetters[V any](
 		minTimeout = time.Minute
 	}
 
+	// will compile errors from getters in the case they all fail
+	var gettersErr error
 	for i, getter := range getters {
 		log.Debugf("cascade: launching getter #%d", i)
 		span.AddEvent("getter launched", trace.WithAttributes(attribute.Int("getter_idx", i)))
@@ -179,28 +185,35 @@ func cascadeGetters[V any](
 		// we split the timeout between left getters
 		// once async cascadegetter is implemented, we can remove this
 		getCtx, cancel := utils.CtxWithSplitTimeout(ctx, len(getters)-i, minTimeout)
-		val, getErr := get(getCtx, getter)
+		val, err := get(getCtx, getter)
 		cancel()
-		if getErr == nil {
+		if err == nil {
+			utils.SetStatusAndEnd(span, nil)
 			return val, nil
 		}
-
-		if errors.Is(getErr, shwap.ErrOperationNotSupported) {
+		if errors.Is(err, shwap.ErrOperationNotSupported) {
 			continue
 		}
+		gettersErr = errors.Join(gettersErr, err)
 
-		span.RecordError(getErr, trace.WithAttributes(attribute.Int("getter_idx", i)))
+		log.Debugw("cascade: getter failed", "getter_idx", i, "error", err)
+		span.RecordError(err, trace.WithAttributes(attribute.Int("getter_idx", i)))
+
 		var byzantineErr *byzantine.ErrByzantine
-		if errors.As(getErr, &byzantineErr) {
+		if errors.As(err, &byzantineErr) {
 			// short circuit if byzantine error was detected (to be able to handle it correctly
 			// and create the BEFP)
+			utils.SetStatusAndEnd(span, byzantineErr)
 			return zero, byzantineErr
 		}
 
-		err = errors.Join(err, getErr)
 		if ctx.Err() != nil {
-			return zero, err
+			utils.SetStatusAndEnd(span, ctx.Err())
+			return zero, ctx.Err()
 		}
 	}
+
+	err := fmt.Errorf("all getters failed: %w", gettersErr)
+	utils.SetStatusAndEnd(span, err)
 	return zero, err
 }

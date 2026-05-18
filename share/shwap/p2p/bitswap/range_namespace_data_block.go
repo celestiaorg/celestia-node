@@ -29,7 +29,7 @@ func init() {
 		rangeNamespaceDataMultihashCode,
 		rangeNamespaceDataCodec,
 		maxRangeSize,
-		shwap.RangeNamespaceDataIDSize,
+		shwap.RangeNamespaceDataIDV0Size,
 		func(cid cid.Cid) (Block, error) {
 			return EmptyRangeNamespaceDataBlockFromCID(cid)
 		},
@@ -38,7 +38,7 @@ func init() {
 
 // RangeNamespaceDataBlock is a Bitswap compatible block for Shwap's RangeNamespaceData container.
 type RangeNamespaceDataBlock struct {
-	ID shwap.RangeNamespaceDataID
+	ID shwap.RangeNamespaceDataIDV0
 
 	Container shwap.RangeNamespaceData
 }
@@ -48,7 +48,11 @@ func NewEmptyRangeNamespaceDataBlock(
 	height uint64,
 	from, to, odsSize int,
 ) (*RangeNamespaceDataBlock, error) {
-	id, err := shwap.NewRangeNamespaceDataID(shwap.EdsID{Height: height}, from, to, odsSize)
+	edsID, err := shwap.NewEdsID(height)
+	if err != nil {
+		return nil, err
+	}
+	id, err := shwap.NewRangeNamespaceDataIDV0(edsID, from, to, odsSize)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,7 @@ func EmptyRangeNamespaceDataBlockFromCID(cid cid.Cid) (*RangeNamespaceDataBlock,
 		return nil, err
 	}
 
-	rndid, err := shwap.RangeNamespaceDataIDFromBinary(rngidData)
+	rndid, err := shwap.RangeNamespaceDataIDV0FromBinary(rngidData)
 	if err != nil {
 		return nil, fmt.Errorf("unmarhalling RangeNamespaceDataBlock: %w", err)
 	}
@@ -75,7 +79,7 @@ func (rndb *RangeNamespaceDataBlock) CID() cid.Cid {
 }
 
 func (rndb *RangeNamespaceDataBlock) Height() uint64 {
-	return rndb.ID.Height
+	return rndb.ID.Height()
 }
 
 func (rndb *RangeNamespaceDataBlock) Marshal() ([]byte, error) {
@@ -108,9 +112,9 @@ func (rndb *RangeNamespaceDataBlock) UnmarshalFn(root *share.AxisRoots) Unmarsha
 		if !rndb.Container.IsEmpty() {
 			return nil
 		}
-		rndid, err := shwap.RangeNamespaceDataIDFromBinary(idData)
+		rndid, err := shwap.RangeNamespaceDataIDV0FromBinary(idData)
 		if err != nil {
-			return fmt.Errorf("unmarhaling RangeNamespaceDataID: %w", err)
+			return fmt.Errorf("unmarhaling RangeNamespaceDataIDV0: %w", err)
 		}
 
 		odsSize := len(root.RowRoots) / 2

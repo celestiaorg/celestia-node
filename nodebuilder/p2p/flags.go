@@ -99,10 +99,10 @@ func parseNetworkFromEnv() (Network, error) {
 			"store!\n\n")
 		// ensure at least custom network is set
 		params := strings.Split(custom, ":")
-		if len(params) == 0 {
-			return network, fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
+		netID := strings.TrimSpace(params[0])
+		if netID == "" {
+			return "", fmt.Errorf("params: must provide at least <network_ID> to use a custom network")
 		}
-		netID := params[0]
 		network = Network(netID)
 		addCustomNetwork(network)
 		// check if genesis hash provided and register it if exists
@@ -117,7 +117,7 @@ func parseNetworkFromEnv() (Network, error) {
 			bs := strings.Split(bootstrappers, ",")
 			_, err := parseAddrInfos(bs)
 			if err != nil {
-				return DefaultNetwork, fmt.Errorf("params: env %s: contains invalid multiaddress", EnvCustomNetwork)
+				return "", fmt.Errorf("params: env %s: contains invalid multiaddress", EnvCustomNetwork)
 			}
 			bootstrapList[Network(netID)] = bs
 		}

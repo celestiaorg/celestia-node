@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -63,8 +63,8 @@ func (s *stubEdsAccessorCloser) Sample(context.Context, shwap.SampleCoords) (shw
 	return shwap.Sample{}, nil
 }
 
-func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (AxisHalf, error) {
-	return AxisHalf{}, nil
+func (s *stubEdsAccessorCloser) AxisHalf(context.Context, rsmt2d.Axis, int) (shwap.AxisHalf, error) {
+	return shwap.AxisHalf{}, nil
 }
 
 func (s *stubEdsAccessorCloser) RowNamespaceData(

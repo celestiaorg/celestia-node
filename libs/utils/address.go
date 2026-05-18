@@ -19,6 +19,14 @@ func NormalizeAddress(addr string) string {
 	return addr
 }
 
+func NormalizeGRPCAddress(addr string) string {
+	addr = NormalizeAddress(addr)
+	if idx := strings.Index(addr, "/"); idx != -1 {
+		addr = addr[:idx]
+	}
+	return addr
+}
+
 // SanitizeAddr trims leading protocol scheme and port from the given
 // IP address or hostname if present.
 func SanitizeAddr(addr string) (string, error) {

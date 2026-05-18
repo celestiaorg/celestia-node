@@ -11,17 +11,18 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-// TestConstructModule_DASBridgeStub verifies that a bridge node implements a stub daser that
-// returns an error and empty das.SamplingStats
-func TestConstructModule_DASBridgeStub(t *testing.T) {
+// TestConstructModule_DASDisabledStub verifies that when DAS is disabled, it implements a stub
+// daser that returns an error and empty das.SamplingStats
+func TestConstructModule_DASDisabledStub(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	var mod Module
 
-	cfg := DefaultConfig(node.Bridge)
+	cfg := DefaultConfig(node.Light)
+	cfg.Enabled = false // Explicitly disable DAS
 	app := fxtest.New(t,
-		ConstructModule(node.Bridge, &cfg),
+		ConstructModule(&cfg),
 		fx.Populate(&mod)).
 		RequireStart()
 	defer app.RequireStop()

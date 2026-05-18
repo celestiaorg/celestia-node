@@ -11,7 +11,6 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/availability"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
 
 type jobType string
@@ -26,10 +25,9 @@ type worker struct {
 	lock  sync.Mutex
 	state workerState
 
-	getter    libhead.Getter[*header.ExtendedHeader]
-	sampleFn  sampleFn
-	broadcast shrexsub.BroadcastFn
-	metrics   *metrics
+	getter   libhead.Getter[*header.ExtendedHeader]
+	sampleFn sampleFn
+	metrics  *metrics
 }
 
 // workerState contains important information about the state of a
@@ -54,14 +52,12 @@ type job struct {
 func newWorker(j job,
 	getter libhead.Getter[*header.ExtendedHeader],
 	sample sampleFn,
-	broadcast shrexsub.BroadcastFn,
 	metrics *metrics,
 ) worker {
 	return worker{
-		getter:    getter,
-		sampleFn:  sample,
-		broadcast: broadcast,
-		metrics:   metrics,
+		getter:   getter,
+		sampleFn: sample,
+		metrics:  metrics,
 		state: workerState{
 			curr: j.from,
 			result: result{
@@ -146,18 +142,7 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	}
 
 	logout := log.Debugw
-
-	// notify network about availability of new block data (note: only full nodes can notify)
 	if w.state.jobType == recentJob {
-		err = w.broadcast(ctx, shrexsub.Notification{
-			DataHash: h.DataHash.Bytes(),
-			Height:   h.Height(),
-		})
-		if err != nil {
-			log.Warn("failed to broadcast availability message",
-				"height", h.Height(), "hash", h.Hash(), "err", err)
-		}
-
 		logout = log.Infow
 	}
 

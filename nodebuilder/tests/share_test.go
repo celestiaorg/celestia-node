@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/client"
 	"github.com/celestiaorg/celestia-node/blob"
@@ -36,7 +36,7 @@ func TestShareModule(t *testing.T) {
 	require.NoError(t, bridge.Start(ctx))
 	sw.SetBootstrapper(t, bridge)
 
-	fullNode := sw.NewFullNode()
+	fullNode := sw.NewBridgeNode()
 	require.NoError(t, fullNode.Start(ctx))
 
 	lightNode := sw.NewLightNode()
@@ -109,7 +109,7 @@ func TestShareModule(t *testing.T) {
 				requestCoords := []shwap.SampleCoords{coords}
 				for _, client := range clients {
 					// request from the first quadrant using the blob coordinates.
-					samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
+					samples, err := client.Share.GetSamples(ctx, hdr.Height(), requestCoords)
 					require.NoError(t, err)
 					err = samples[0].Verify(dah, coords.Row, coords.Col)
 					require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestShareModule(t *testing.T) {
 				requestCoords := []shwap.SampleCoords{coords}
 				for _, client := range clients {
 					// getting the last sample from the eds(from quadrant 4).
-					samples, err := client.Share.GetSamples(ctx, hdr, requestCoords)
+					samples, err := client.Share.GetSamples(ctx, hdr.Height(), requestCoords)
 					require.NoError(t, err)
 					err = samples[0].Verify(dah, coords.Row, coords.Col)
 					require.NoError(t, err)

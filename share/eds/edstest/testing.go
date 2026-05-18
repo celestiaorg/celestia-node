@@ -7,17 +7,16 @@ import (
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/da"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
-	"github.com/celestiaorg/celestia-app/v5/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v5/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v5/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v5/x/blob/types"
-	libSquare "github.com/celestiaorg/go-square/v2"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/da"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
@@ -131,17 +130,10 @@ func GenerateTestBlock(
 		blobSize,
 	)
 
-	txs := make(coretypes.Txs, 0)
+	txs := make(coretypes.Txs, 0) //nolint:prealloc
 	txs = append(txs, coreTxs...)
-	square, err := libSquare.Construct(
-		txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound,
-		appconsts.SubtreeRootThreshold,
-	)
-	require.NoError(t, err)
 
-	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(libshare.ToBytes(square))
+	eds, err := da.ConstructEDS(txs.ToSliceOfBytes(), appconsts.Version, -1)
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle
@@ -160,10 +152,10 @@ func createTestBlobTransactions(
 	t *testing.T,
 	numberOfTransactions, size int,
 ) ([]libshare.Namespace, []*blobtypes.MsgPayForBlobs, []*libshare.Blob, []coretypes.Tx) {
-	nss := make([]libshare.Namespace, 0)
-	msgs := make([]*blobtypes.MsgPayForBlobs, 0)
-	blobs := make([]*libshare.Blob, 0)
-	coreTxs := make([]coretypes.Tx, 0)
+	nss := make([]libshare.Namespace, 0, numberOfTransactions)
+	msgs := make([]*blobtypes.MsgPayForBlobs, 0, numberOfTransactions)
+	blobs := make([]*libshare.Blob, 0, numberOfTransactions)
+	coreTxs := make([]coretypes.Tx, 0, numberOfTransactions)
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	keyring := testfactory.TestKeyring(config.Codec, accountName)
 	account := user.NewAccount(accountName, 0, 0)
@@ -191,7 +183,9 @@ func createTestBlobTransaction(
 	ns := libshare.RandomBlobNamespace()
 	account := signer.Account(accountName)
 	msg, b := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(account.Address().String(), ns, size)
-	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{b})
+	blob, err := libshare.NewBlob(ns, b.Data(), b.ShareVersion(), b.Signer())
+	require.NoError(t, err)
+	cTx, _, err := signer.CreatePayForBlobs(accountName, []*libshare.Blob{blob})
 	require.NoError(t, err)
 	return ns, msg, b, cTx
 }

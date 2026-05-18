@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	RequestWindow = 30 * 24 * time.Hour
-	StorageWindow = RequestWindow + time.Hour
+	SamplingWindow = 7 * 24 * time.Hour // Ref: CIP-036
+	RequestWindow  = SamplingWindow
+	StorageWindow  = RequestWindow + time.Hour
 )
 
 var ErrOutsideSamplingWindow = errors.New("timestamp outside sampling window")

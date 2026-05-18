@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -68,9 +68,9 @@ func (c *closeOnce) AxisHalf(
 	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
-) (AxisHalf, error) {
+) (shwap.AxisHalf, error) {
 	if c.closed.Load() {
-		return AxisHalf{}, errAccessorClosed
+		return shwap.AxisHalf{}, errAccessorClosed
 	}
 	return c.f.AxisHalf(ctx, axisType, axisIdx)
 }

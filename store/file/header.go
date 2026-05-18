@@ -98,6 +98,9 @@ func (h *headerV0) ReadFrom(r io.Reader) (int64, error) {
 	if n != headerVOSize {
 		return 0, fmt.Errorf("headerV0 ReadFrom: read %d bytes, expected %d", len(bytesHeader), headerVOSize)
 	}
+	if len(bytesHeader) == 0 {
+		return 0, fmt.Errorf("headerV0 ReadFrom: empty header")
+	}
 
 	h.fileVersion = fileVersion(bytesHeader[0])
 	h.shareSize = binary.LittleEndian.Uint16(bytesHeader[28:30])

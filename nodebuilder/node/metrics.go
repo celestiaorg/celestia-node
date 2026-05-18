@@ -16,13 +16,13 @@ var log = logging.Logger("module/node")
 
 var meter = otel.Meter("node")
 
-var (
-	timeStarted time.Time
-	nodeStarted bool
-)
-
 // WithMetrics registers node metrics.
 func WithMetrics(lc fx.Lifecycle) error {
+	var (
+		timeStarted time.Time
+		nodeStarted bool
+	)
+
 	nodeStartTS, err := meter.Int64ObservableGauge(
 		"node_start_ts",
 		metric.WithDescription("timestamp when the node was started"),

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/shwap"
@@ -50,14 +50,15 @@ func (f validation) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.S
 	return f.Accessor.Sample(ctx, idx)
 }
 
-func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (AxisHalf, error) {
+func (f validation) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	size, err := f.Size(ctx)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("getting size: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("getting size: %w", err)
 	}
+
 	_, err = shwap.NewRowID(1, axisIdx, size)
 	if err != nil {
-		return AxisHalf{}, fmt.Errorf("axis half validation: %w", err)
+		return shwap.AxisHalf{}, fmt.Errorf("axis half validation: %w", err)
 	}
 	return f.Accessor.AxisHalf(ctx, axisType, axisIdx)
 }

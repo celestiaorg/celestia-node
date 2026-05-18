@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/celestiaorg/celestia-app/v5/pkg/da"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v9/pkg/da"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -68,7 +68,7 @@ func RowsWithNamespace(root *AxisRoots, namespace libshare.Namespace) (idxs []in
 			idxs = append(idxs, i)
 		}
 	}
-	return
+	return idxs, nil
 }
 
 // RootHashForCoordinates returns the root hash for the given coordinates.

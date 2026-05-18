@@ -26,8 +26,8 @@ func (s *Service) WithMetrics() error {
 		return err
 	}
 
-	failedPrunes, err := meter.Int64ObservableGauge("prnr_failed_counter",
-		metric.WithDescription("pruner failed prunes counter"))
+	failedPrunes, err := meter.Int64ObservableGauge("prnr_failed_prunes_amount",
+		metric.WithDescription("current number of headers failed to prune"))
 	if err != nil {
 		return err
 	}
@@ -39,8 +39,12 @@ func (s *Service) WithMetrics() error {
 	}
 
 	callback := func(_ context.Context, observer metric.Observer) error {
-		observer.ObserveInt64(lastPruned, int64(s.checkpoint.LastPrunedHeight))
-		observer.ObserveInt64(failedPrunes, int64(len(s.checkpoint.FailedHeaders)))
+		s.checkpointMu.Lock()
+		if s.checkpoint != nil {
+			observer.ObserveInt64(lastPruned, int64(s.checkpoint.LastPrunedHeight))
+			observer.ObserveInt64(failedPrunes, int64(len(s.checkpoint.FailedHeaders)))
+		}
+		s.checkpointMu.Unlock()
 		return nil
 	}
 

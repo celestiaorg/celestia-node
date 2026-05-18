@@ -3,8 +3,8 @@ package nodebuilder
 import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
+	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
-	"github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -15,7 +15,6 @@ import (
 // PackageToAPI maps a package to its API struct. Currently only used for
 // method discovery for openrpc spec generation
 var PackageToAPI = map[string]any{
-	"fraud":      &fraud.API{},
 	"state":      &state.API{},
 	"share":      &share.API{},
 	"header":     &header.API{},
@@ -24,4 +23,5 @@ var PackageToAPI = map[string]any{
 	"blob":       &blob.API{},
 	"node":       &node.API{},
 	"blobstream": &blobstream.API{},
+	"da":         &da.API{},
 }

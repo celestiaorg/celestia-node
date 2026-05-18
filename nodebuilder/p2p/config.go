@@ -61,7 +61,7 @@ func DefaultConfig(tp node.Type) Config {
 			"/ip6/::/tcp/2121",
 		},
 		MutualPeers:  []string{},
-		PeerExchange: tp == node.Bridge || tp == node.Full,
+		PeerExchange: tp == node.Bridge,
 		ConnManager:  defaultConnManagerConfig(tp),
 	}
 }

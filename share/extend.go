@@ -3,7 +3,7 @@ package share
 import (
 	"fmt"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
 var codec = DefaultRSMT2DCodec()

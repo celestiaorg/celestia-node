@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"sync"
@@ -18,30 +17,38 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	v2bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v2"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	logging "github.com/ipfs/go-log/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v5/app"
-	"github.com/celestiaorg/celestia-app/v5/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v5/app/errors"
-	"github.com/celestiaorg/celestia-app/v5/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v5/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
+
+var tracer = otel.Tracer("state/service")
 
 var (
 	ErrInvalidAmount = errors.New("state: amount must be greater than zero")
+	ErrInvalidHeight = errors.New("state: height must be positive and fit in int64")
 	log              = logging.Logger("state")
 )
+
+type TxConfig = txclient.TxConfig
+
+type TxClient interface {
+	SubmitMessage(context.Context, sdktypes.Msg, *txclient.TxConfig) (*user.TxResponse, error)
+	SubmitPayForBlob(context.Context, []*libshare.Blob, sdktypes.AccAddress, *txclient.TxConfig) (*user.TxResponse, error)
+}
 
 // CoreAccessor implements service over a gRPC connection
 // with a celestia-core node.
@@ -49,8 +56,9 @@ type CoreAccessor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	txClient TxClient
+
 	keyring keyring.Keyring
-	client  *user.TxClient
 
 	// TODO @renaynay: clean this up -- only one!!!!
 	defaultSignerAccount string
@@ -58,18 +66,15 @@ type CoreAccessor struct {
 
 	getter libhead.Head[*header.ExtendedHeader]
 
-	stakingCli   stakingtypes.QueryClient
-	feeGrantCli  feegrant.QueryClient
-	abciQueryCli tmservice.ServiceClient
+	stakingCli      stakingtypes.QueryClient
+	distributionCli distributiontypes.QueryClient
+	feeGrantCli     feegrant.QueryClient
+	abciQueryCli    tmservice.ServiceClient
 
 	prt *merkle.ProofRuntime
 
-	coreConns []*grpc.ClientConn
-	network   string
-
-	estimatorServiceAddr string
-	estimatorServiceTLS  bool
-	estimatorConn        *grpc.ClientConn
+	coreConn *grpc.ClientConn
+	network  string
 
 	// these fields are mutatable and thus need to be protected by a mutex
 	lock            sync.Mutex
@@ -81,12 +86,12 @@ type CoreAccessor struct {
 // constructs and returns a new CoreAccessor (state service) with the active
 // connection.
 func NewCoreAccessor(
+	client TxClient,
 	keyring keyring.Keyring,
 	keyname string,
 	getter libhead.Head[*header.ExtendedHeader],
 	conn *grpc.ClientConn,
 	network string,
-	opts ...Option,
 ) (*CoreAccessor, error) {
 	// create verifier
 	prt := merkle.DefaultProofRuntime()
@@ -103,29 +108,26 @@ func NewCoreAccessor(
 	}
 
 	ca := &CoreAccessor{
+		txClient:             client,
 		keyring:              keyring,
 		defaultSignerAccount: keyname,
 		defaultSignerAddress: addr,
 		getter:               getter,
 		prt:                  prt,
-		coreConns:            []*grpc.ClientConn{conn},
+		coreConn:             conn,
 		network:              network,
 	}
-
-	for _, opt := range opts {
-		opt(ca)
-	}
-
 	return ca, nil
 }
 
 func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.ctx, ca.cancel = context.WithCancel(context.Background())
 	// create the staking query client
-	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConns[0])
-	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConns[0])
+	ca.stakingCli = stakingtypes.NewQueryClient(ca.coreConn)
+	ca.distributionCli = distributiontypes.NewQueryClient(ca.coreConn)
+	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
 	// create ABCI query client
-	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConns[0])
+	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
 	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get node info: %w", err)
@@ -135,26 +137,11 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	if defaultNetwork != ca.network {
 		return fmt.Errorf("wrong network in core.ip endpoint, expected %s, got %s", ca.network, defaultNetwork)
 	}
-
-	err = ca.setupTxClient(ctx)
-	if err != nil {
-		log.Warn(err)
-	}
-
 	return nil
 }
 
 func (ca *CoreAccessor) Stop(_ context.Context) error {
 	ca.cancel()
-
-	if ca.estimatorConn != nil {
-		err := ca.estimatorConn.Close()
-		if err != nil {
-			return err
-		}
-		ca.estimatorConn = nil
-	}
-
 	return nil
 }
 
@@ -165,72 +152,70 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	ctx context.Context,
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
-) (*TxResponse, error) {
-	if len(libBlobs) == 0 {
-		return nil, errors.New("state: no blobs provided")
+) (_ *TxResponse, err error) {
+	span := trace.SpanFromContext(ctx)
+	// span will be set to noopSpan if SubmitPayForBlob is called directly
+	if !span.SpanContext().IsValid() {
+		ctx, span = tracer.Start(ctx, "state/submit")
+		defer func() {
+			utils.SetStatusAndEnd(span, err)
+		}()
 	}
 
-	client, err := ca.getTxClient(ctx)
-	if err != nil {
+	if len(libBlobs) == 0 {
+		err = errors.New("state: no blobs provided")
 		return nil, err
 	}
 
-	var feeGrant user.TxOption
-	if cfg.FeeGranterAddress() != "" {
-		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
-		if err != nil {
-			return nil, err
+	span.SetAttributes(
+		attribute.Int("amount", len(libBlobs)),
+		attribute.Float64("gas-price", cfg.GasPrice()),
+		attribute.Int64("gas-limit", int64(cfg.GasLimit())),
+		attribute.String("signer", cfg.SignerAddress()),
+		attribute.String("fee-granter", cfg.FeeGranterAddress()),
+		attribute.String("key-name", cfg.KeyName()),
+		attribute.Int("tx-priority", int(cfg.TxPriority())),
+	)
+
+	ids := make([]string, len(libBlobs))
+	dataLengths := make([]int, len(libBlobs))
+	for i := range libBlobs {
+		if err := libBlobs[i].Namespace().ValidateForBlob(); err != nil {
+			return nil, fmt.Errorf("not allowed namespace %s were used to build the blob", libBlobs[i].Namespace().ID())
 		}
-		feeGrant = user.SetFeeGranter(granter)
+
+		ids[i] = libBlobs[i].Namespace().String()
+		dataLengths[i] = libBlobs[i].DataLen()
 	}
 
-	gas := cfg.GasLimit()
-	if gas == 0 {
-		blobSizes := make([]uint32, len(libBlobs))
-		for i, blob := range libBlobs {
-			blobSizes[i] = uint32(len(blob.Data()))
-		}
-		gas = ca.estimateGasForBlobs(blobSizes)
-	}
+	span.SetAttributes(attribute.StringSlice("namespaces", ids))
+	span.SetAttributes(attribute.IntSlice("blob-data-lengths", dataLengths))
 
-	// get tx signer account name
+	// get signer address
 	author, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
-		return nil, err
-	}
-	account := ca.client.AccountByAddress(ctx, author)
-	if account == nil {
-		return nil, fmt.Errorf("account for signer %s not found", author)
+		return nil, fmt.Errorf("failed to get tx author address: %w", err)
 	}
 
-	gasPrice, err := ca.estimateGasPrice(ctx, cfg)
+	response, err := ca.txClient.SubmitPayForBlob(ctx, libBlobs, author, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
-	if feeGrant != nil {
-		opts = append(opts, feeGrant)
+	// metrics should only be counted on a successful PFB tx
+	if response.Code == 0 {
+		ca.markSuccessfulPFB()
 	}
 
-	response, err := client.SubmitPayForBlobWithAccount(ctx, account.Name(), libBlobs, opts...)
-	if err == nil {
-		// metrics should only be counted on a successful PFB tx
-		if response.Code == 0 {
-			ca.markSuccessfulPFB()
-		}
-		return convertToSdkTxResponse(response), nil
-	}
-	// TODO @renaynay: use new rachid named func
-	if apperrors.IsInsufficientFee(err) {
-		if cfg.isGasPriceSet {
-			return nil, fmt.Errorf("failed to submit blobs due to insufficient gas price in txconfig: %w", err)
-		}
-		return nil, fmt.Errorf("failed to submit blobs due to insufficient estimated "+
-			"gas price %f: %w", gasPrice, err)
-	}
-
-	return nil, fmt.Errorf("failed to submit blobs: %w", err)
+	resp := convertToSdkTxResponse(response)
+	span.SetAttributes(
+		attribute.Int64("height", resp.Height),
+		attribute.String("hash", resp.TxHash),
+		attribute.Int("code", int(resp.Code)),
+		attribute.Int64("gas-wanted", resp.GasWanted),
+		attribute.Int64("gas-used", resp.GasUsed),
+	)
+	return resp, nil
 }
 
 func (ca *CoreAccessor) AccountAddress(context.Context) (Address, error) {
@@ -262,7 +247,10 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 
 	result, err := ca.abciQueryCli.ABCIQuery(ctx, req)
 	if err != nil || result.GetCode() != 0 {
-		err = fmt.Errorf("failed to query for balance: %w; result log: %s", err, result.GetLog())
+		err = fmt.Errorf(
+			"failed to query for balance: %w; result log: %s; result code: %d",
+			err, result.GetLog(), result.GetCode(),
+		)
 		return nil, err
 	}
 
@@ -320,7 +308,7 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -331,7 +319,11 @@ func (ca *CoreAccessor) Transfer(
 
 	coins := sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, amount))
 	msg := banktypes.NewMsgSend(signer, addr, coins)
-	return ca.submitMsg(ctx, msg, cfg)
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
 }
 
 func (ca *CoreAccessor) CancelUnbondingDelegation(
@@ -341,8 +333,11 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
+	}
+	if height.IsNil() || !height.IsPositive() || !height.IsInt64() {
+		return nil, ErrInvalidHeight
 	}
 
 	signer, err := ca.getTxAuthorAccAddress(cfg)
@@ -352,7 +347,11 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 
 	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
 	msg := stakingtypes.NewMsgCancelUnbondingDelegation(signer.String(), valAddr.String(), height.Int64(), coins)
-	return ca.submitMsg(ctx, msg, cfg)
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
 }
 
 func (ca *CoreAccessor) BeginRedelegate(
@@ -362,7 +361,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -373,7 +372,12 @@ func (ca *CoreAccessor) BeginRedelegate(
 
 	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
 	msg := stakingtypes.NewMsgBeginRedelegate(signer.String(), srcValAddr.String(), dstValAddr.String(), coins)
-	return ca.submitMsg(ctx, msg, cfg)
+
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
 }
 
 func (ca *CoreAccessor) Undelegate(
@@ -382,7 +386,7 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -393,7 +397,12 @@ func (ca *CoreAccessor) Undelegate(
 
 	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
 	msg := stakingtypes.NewMsgUndelegate(signer.String(), delAddr.String(), coins)
-	return ca.submitMsg(ctx, msg, cfg)
+
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
 }
 
 func (ca *CoreAccessor) Delegate(
@@ -402,7 +411,7 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
-	if amount.IsNil() || amount.Int64() <= 0 {
+	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
 
@@ -413,7 +422,41 @@ func (ca *CoreAccessor) Delegate(
 
 	coins := sdktypes.NewCoin(appconsts.BondDenom, amount)
 	msg := stakingtypes.NewMsgDelegate(signer.String(), delAddr.String(), coins)
-	return ca.submitMsg(ctx, msg, cfg)
+
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
+}
+
+func (ca *CoreAccessor) WithdrawDelegatorReward(
+	ctx context.Context,
+	valAddr ValAddress,
+	cfg *TxConfig,
+) (*TxResponse, error) {
+	signer, err := ca.getTxAuthorAccAddress(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := distributiontypes.NewMsgWithdrawDelegatorReward(signer.String(), valAddr.String())
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
+}
+
+func (ca *CoreAccessor) QueryDelegationRewards(
+	ctx context.Context,
+	valAddr ValAddress,
+) (*distributiontypes.QueryDelegationRewardsResponse, error) {
+	delAddr := ca.defaultSignerAddress
+	return ca.distributionCli.DelegationRewards(ctx, &distributiontypes.QueryDelegationRewardsRequest{
+		DelegatorAddress: delAddr.String(),
+		ValidatorAddress: valAddr.String(),
+	})
 }
 
 func (ca *CoreAccessor) QueryDelegation(
@@ -472,7 +515,12 @@ func (ca *CoreAccessor) GrantFee(
 	if err != nil {
 		return nil, err
 	}
-	return ca.submitMsg(ctx, msg, cfg)
+
+	response, err := ca.txClient.SubmitMessage(ctx, msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
 }
 
 func (ca *CoreAccessor) RevokeGrantFee(
@@ -486,7 +534,12 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	}
 
 	msg := feegrant.NewMsgRevokeAllowance(granter, grantee)
-	return ca.submitMsg(ctx, &msg, cfg)
+
+	response, err := ca.txClient.SubmitMessage(ctx, &msg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return convertToSdkTxResponse(response), nil
 }
 
 func (ca *CoreAccessor) LastPayForBlob() int64 {
@@ -508,80 +561,6 @@ func (ca *CoreAccessor) markSuccessfulPFB() {
 	ca.payForBlobCount++
 }
 
-func (ca *CoreAccessor) setupTxClient(ctx context.Context) error {
-	if ca.client != nil {
-		return nil
-	}
-
-	opts := []user.Option{user.WithDefaultAddress(ca.defaultSignerAddress)}
-	if ca.estimatorServiceAddr != "" {
-		estimatorConn, err := setupEstimatorConnection(ctx, ca.estimatorServiceAddr, ca.estimatorServiceTLS)
-		if err != nil {
-			return err
-		}
-
-		opts = append(opts, user.WithEstimatorService(estimatorConn))
-		ca.estimatorConn = estimatorConn
-	}
-
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	if len(ca.coreConns) > 1 {
-		opts = append(opts, user.WithAdditionalCoreEndpoints(ca.coreConns[1:]))
-	}
-
-	client, err := user.SetupTxClient(ctx, ca.keyring, ca.coreConns[0], encCfg, opts...)
-	if err != nil {
-		return fmt.Errorf("failed to setup a tx client: %w", err)
-	}
-
-	ca.client = client
-	return nil
-}
-
-func (ca *CoreAccessor) getTxClient(ctx context.Context) (*user.TxClient, error) {
-	if ca.client == nil {
-		err := ca.setupTxClient(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ca.client, nil
-}
-
-func (ca *CoreAccessor) submitMsg(
-	ctx context.Context,
-	msg sdktypes.Msg,
-	cfg *TxConfig,
-) (*TxResponse, error) {
-	client, err := ca.getTxClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	txConfig := make([]user.TxOption, 0)
-	if cfg.FeeGranterAddress() != "" {
-		granter, err := parseAccAddressFromString(cfg.FeeGranterAddress())
-		if err != nil {
-			return nil, fmt.Errorf("getting granter: %w", err)
-		}
-		txConfig = append(txConfig, user.SetFeeGranter(granter))
-	}
-
-	gasPrice, gas, err := ca.estimateGasPriceAndUsage(ctx, cfg, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
-
-	resp, err := client.SubmitTx(ctx, []sdktypes.Msg{msg}, txConfig...)
-	if err != nil {
-		return nil, err
-	}
-	return convertToSdkTxResponse(resp), err
-}
-
 // getTxAuthorAccAddress attempts to return the account address of the intended
 // author of the transaction.
 // TODO @renaynay:
@@ -593,45 +572,12 @@ func (ca *CoreAccessor) submitMsg(
 func (ca *CoreAccessor) getTxAuthorAccAddress(cfg *TxConfig) (AccAddress, error) {
 	switch {
 	case cfg.SignerAddress() != "":
-		return parseAccAddressFromString(cfg.SignerAddress())
+		return txclient.ParseAccAddressFromString(cfg.SignerAddress())
 	case cfg.KeyName() != "" && cfg.KeyName() != ca.defaultSignerAccount:
-		return parseAccountKey(ca.keyring, cfg.KeyName())
+		return txclient.ParseAccountKey(ca.keyring, cfg.KeyName())
 	default:
 		return ca.defaultSignerAddress, nil
 	}
-}
-
-func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
-	log.Infow("setting up estimator connection", "address", addr)
-
-	interceptor := grpc_retry.UnaryClientInterceptor(
-		grpc_retry.WithMax(5),
-		grpc_retry.WithCodes(codes.Unavailable),
-		grpc_retry.WithBackoff(
-			grpc_retry.BackoffExponentialWithJitter(time.Second, 2.0)),
-	)
-	grpcOpts := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(interceptor),
-	}
-
-	if tlsEnabled {
-		grpcOpts = append(grpcOpts,
-			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})),
-		)
-	} else {
-		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-
-	conn, err := grpc.NewClient(addr, grpcOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("state: failed to set up grpc connection to estimator address %s: %w", addr, err)
-	}
-
-	conn.Connect()
-	if !conn.WaitForStateChange(ctx, connectivity.Ready) {
-		return nil, errors.New("couldn't connect to core endpoint")
-	}
-	return conn, nil
 }
 
 // convertToTxResponse converts the user.TxResponse to sdk.TxResponse.

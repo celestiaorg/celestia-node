@@ -20,19 +20,21 @@ import (
 )
 
 var (
-	LogLevelFlag        = "log.level"
-	LogLevelModuleFlag  = "log.level.module"
-	pprofFlag           = "pprof"
-	tracingFlag         = "tracing"
-	tracingEndpointFlag = "tracing.endpoint"
-	tracingTlS          = "tracing.tls"
-	metricsFlag         = "metrics"
-	metricsEndpointFlag = "metrics.endpoint"
-	metricsTlS          = "metrics.tls"
-	p2pMetrics          = "p2p.metrics"
-	pyroscopeFlag       = "pyroscope"
-	pyroscopeTracing    = "pyroscope.tracing"
-	pyroscopeEndpoint   = "pyroscope.endpoint"
+	LogLevelFlag               = "log.level"
+	LogLevelModuleFlag         = "log.level.module"
+	pprofFlag                  = "pprof"
+	tracingFlag                = "tracing"
+	tracingEndpointFlag        = "tracing.endpoint"
+	tracingTlS                 = "tracing.tls"
+	metricsFlag                = "metrics"
+	metricsEndpointFlag        = "metrics.endpoint"
+	metricsTlS                 = "metrics.tls"
+	p2pMetrics                 = "p2p.metrics"
+	pyroscopeFlag              = "pyroscope"
+	pyroscopeTracing           = "pyroscope.tracing"
+	pyroscopeEndpoint          = "pyroscope.endpoint"
+	pyroscopeBasicAuthUser     = "pyroscope.basic-auth.user"
+	pyroscopeBasicAuthPassword = "pyroscope.basic-auth.password" //nolint:gosec
 )
 
 // MiscFlags gives a set of hardcoded miscellaneous flags.
@@ -118,6 +120,18 @@ and their lower-case forms`,
 		"Sets HTTP endpoint for Pyroscope profiles to be exported to. Depends on '--pyroscope'",
 	)
 
+	flags.String(
+		pyroscopeBasicAuthUser,
+		"",
+		"Sets basic auth user for Pyroscope. Both must be non-empty to enable auth. Depends on '--pyroscope'",
+	)
+
+	flags.String(
+		pyroscopeBasicAuthPassword,
+		"",
+		"Sets basic auth password for Pyroscope. Both must be non-empty to enable auth. Depends on '--pyroscope'",
+	)
+
 	return flags
 }
 
@@ -125,7 +139,7 @@ and their lower-case forms`,
 func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, error) {
 	logLevel := cmd.Flag(LogLevelFlag).Value.String()
 	if logLevel != "" {
-		level, err := logging.LevelFromString(logLevel)
+		level, err := logging.Parse(logLevel)
 		if err != nil {
 			return ctx, fmt.Errorf("cmd: while parsing '%s': %w", LogLevelFlag, err)
 		}
@@ -183,6 +197,8 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		ctx = WithNodeOptions(ctx,
 			nodebuilder.WithPyroscope(
 				cmd.Flag(pyroscopeEndpoint).Value.String(),
+				cmd.Flag(pyroscopeBasicAuthUser).Value.String(),
+				cmd.Flag(pyroscopeBasicAuthPassword).Value.String(),
 				NodeType(ctx),
 			),
 		)
@@ -228,10 +244,7 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 	}
 
 	if enableMetrics {
-		opts := []otlpmetrichttp.Option{
-			otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
-			otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String()),
-		}
+		opts := []otlpmetrichttp.Option{otlpmetrichttp.WithEndpoint(cmd.Flag(metricsEndpointFlag).Value.String())}
 		if ok, err := cmd.Flags().GetBool(metricsTlS); err != nil {
 			panic(err)
 		} else if !ok {
@@ -239,17 +252,13 @@ func ParseMiscFlags(ctx context.Context, cmd *cobra.Command) (context.Context, e
 		}
 
 		ctx = WithNodeOptions(ctx, nodebuilder.WithMetrics(opts, NodeType(ctx)))
-	}
 
-	enablep2pMetrics, err := cmd.Flags().GetBool(p2pMetrics)
-	if err != nil {
-		panic(err)
-	}
+		enablep2pMetrics, err := cmd.Flags().GetBool(p2pMetrics)
+		if err != nil {
+			panic(err)
+		}
 
-	if enablep2pMetrics {
-		if !enableMetrics {
-			log.Error("--p2p.metrics used without --metrics being enabled")
-		} else {
+		if enablep2pMetrics {
 			ctx = WithNodeOptions(ctx, modp2p.WithMetrics())
 		}
 	}

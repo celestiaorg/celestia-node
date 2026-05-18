@@ -10,8 +10,6 @@ import (
 
 // coordinatorState represents the current state of sampling process
 type coordinatorState struct {
-	// sampleFrom is the height from which the DASer will start sampling
-	sampleFrom uint64
 	// samplingRange is the maximum amount of headers processed in one job.
 	samplingRange uint64
 
@@ -50,7 +48,6 @@ type retryAttempt struct {
 // newCoordinatorState initiates state for samplingCoordinator
 func newCoordinatorState(params Parameters) coordinatorState {
 	return coordinatorState{
-		sampleFrom:    params.SampleFrom,
 		samplingRange: params.SamplingRange,
 		inProgress:    make(map[int]func() workerState),
 		retryStrategy: newRetryStrategy(exponentialBackoff(
@@ -61,8 +58,6 @@ func newCoordinatorState(params Parameters) coordinatorState {
 		failed:        make(map[uint64]retryAttempt),
 		inRetry:       make(map[uint64]retryAttempt),
 		nextJobID:     0,
-		next:          params.SampleFrom,
-		networkHead:   params.SampleFrom,
 		catchUpDoneCh: make(chan struct{}),
 	}
 }
@@ -149,10 +144,6 @@ func (s *coordinatorState) isNewHead(newHead uint64) bool {
 }
 
 func (s *coordinatorState) updateHead(newHead uint64) {
-	if s.networkHead == s.sampleFrom {
-		log.Infow("found first header, starting sampling")
-	}
-
 	oldHead := s.networkHead
 	s.networkHead = newHead
 

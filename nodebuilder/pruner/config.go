@@ -6,8 +6,8 @@ type Config struct {
 	EnableService bool
 }
 
-func DefaultConfig() Config {
-	return Config{
+func DefaultConfig() *Config {
+	return &Config{
 		EnableService: true,
 	}
 }

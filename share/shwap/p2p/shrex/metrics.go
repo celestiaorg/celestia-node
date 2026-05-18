@@ -2,7 +2,7 @@ package shrex
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -11,57 +11,130 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
-var meter = otel.Meter("shrex/eds")
+var meter = otel.Meter("shrex")
 
 type status string
 
 const (
-	StatusBadRequest  status = "bad_request"
-	StatusSendRespErr status = "send_resp_err"
-	StatusSendReqErr  status = "send_req_err"
-	StatusReadRespErr status = "read_resp_err"
-	StatusInternalErr status = "internal_err"
-	StatusNotFound    status = "not_found"
-	StatusTimeout     status = "timeout"
-	StatusSuccess     status = "success"
-	StatusRateLimited status = "rate_limited"
+	// statuses used by the client
+	statusOpenStreamErr        status = "open_stream_err"
+	statusSendReqErr           status = "send_req_err"
+	statusReadStatusErr        status = "read_status_err"
+	statusReadRespErr          status = "read_resp_err"
+	statusResourceExhaustedErr status = "resource_exhausted_err"
+
+	// statuses used by the server
+	statusReadReqErr        status = "read_req_err"
+	statusBadRequest        status = "bad_request"
+	statusSendStatusErr     status = "send_status_err"
+	statusSendRespErr       status = "send_resp_err"
+	statusResourceExhausted status = "resource_exhausted"
+	statusRateLimited       status = "rate_limited"
+
+	// general statuses that are applied to both the client and the server
+	statusSuccess     status = "success"
+	statusNotFound    status = "not_found"
+	statusInternalErr status = "internal_err"
 )
 
 type Metrics struct {
 	totalRequestCounter metric.Int64Counter
+	requestDuration     metric.Float64Histogram
+	// payloadServed will aggregate the total payload served
+	// by the shrex server
+	payloadServed metric.Int64Counter
 }
 
-// ObserveRequests increments the total number of requests sent with the given status as an
+// observeRequest increments the total number of requests sent with the given status as an
 // attribute.
-func (m *Metrics) ObserveRequests(ctx context.Context, count int64, status status) {
+func (m *Metrics) observeRequest(
+	ctx context.Context,
+	requestName string,
+	status status,
+	duration time.Duration,
+) {
 	if m == nil {
 		return
 	}
+
 	ctx = utils.ResetContextOnError(ctx)
-	m.totalRequestCounter.Add(ctx, count,
-		metric.WithAttributes(
-			attribute.String("status", string(status)),
-		))
+
+	opt := metric.WithAttributes(
+		attribute.String("protocol", requestName),
+		attribute.String("status", string(status)),
+	)
+
+	m.totalRequestCounter.Add(ctx, 1, opt)
+	m.requestDuration.Record(ctx, duration.Seconds(), opt)
 }
 
-func InitClientMetrics(protocol string) (*Metrics, error) {
+// observePayloadServed records the size of the payload served by the shrex
+// server for successful requests only
+func (m *Metrics) observePayloadServed(
+	ctx context.Context,
+	requestName string,
+	status status,
+	payloadSize int,
+) {
+	if m == nil || payloadSize == 0 {
+		return
+	}
+
+	// if the request was unsuccessful, assume it's a partial response
+	// this attribute can be used to filter successful throughput vs total
+	incomplete := status != statusSuccess
+
+	m.payloadServed.Add(ctx, int64(payloadSize), metric.WithAttributes(
+		attribute.String("protocol", requestName),
+		attribute.Bool("incomplete", incomplete),
+	))
+}
+
+func InitClientMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
-		fmt.Sprintf("shrex_%s_client_total_requests", protocol),
-		metric.WithDescription(fmt.Sprintf("Total count of sent shrex/%s requests", protocol)),
+		"shrex_client_total_requests",
+		metric.WithDescription("Total count of shrex client requests"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	requestDuration, err := meter.Float64Histogram(
+		"shrex_client_request_duration",
+		metric.WithDescription("Time taken to complete a shrex client request"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return nil, err
+	}
 	return &Metrics{
+		requestDuration:     requestDuration,
 		totalRequestCounter: totalRequestCounter,
 	}, nil
 }
 
-func InitServerMetrics(protocol string) (*Metrics, error) {
+func InitServerMetrics() (*Metrics, error) {
 	totalRequestCounter, err := meter.Int64Counter(
-		fmt.Sprintf("shrex_%s_server_total_responses", protocol),
-		metric.WithDescription(fmt.Sprintf("Total count of sent shrex/%s responses", protocol)),
+		"shrex_server_total_responses",
+		metric.WithDescription("Total count of sent shrex responses"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	requestDuration, err := meter.Float64Histogram(
+		"shrex_server_request_duration",
+		metric.WithDescription("Time taken to handle a shrex client request"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	payloadServedHist, err := meter.Int64Counter(
+		"shrex_payload_served_bytes",
+		metric.WithDescription("Total request data served by shrex server in bytes"),
+		metric.WithUnit("By"),
 	)
 	if err != nil {
 		return nil, err
@@ -69,5 +142,7 @@ func InitServerMetrics(protocol string) (*Metrics, error) {
 
 	return &Metrics{
 		totalRequestCounter: totalRequestCounter,
+		requestDuration:     requestDuration,
+		payloadServed:       payloadServedHist,
 	}, nil
 }

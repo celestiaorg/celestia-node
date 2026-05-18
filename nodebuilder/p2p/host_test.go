@@ -17,8 +17,8 @@ func TestUserAgent(t *testing.T) {
 		{
 			name:     "Testnet",
 			net:      "testnet",
-			tp:       node.Full,
-			expected: "celestia-node/testnet/full/v1.0.0/abcdefg",
+			tp:       node.Bridge,
+			expected: "celestia-node/testnet/bridge/v1.0.0/abcdefg",
 			build: &node.BuildInfo{
 				SemanticVersion: "v1.0.0",
 				LastCommit:      "abcdefg",

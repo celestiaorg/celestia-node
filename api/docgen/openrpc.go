@@ -163,9 +163,9 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 	// remove the default implementation from the method descriptions
 	appReflector.FnGetMethodDescription = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
 		if v, ok := permissions[m.Name]; ok {
-			return "Auth level: " + v, nil
+			return "Auth level: " + v + ". Requests must include the HTTP header: Authorization: Bearer <token>.", nil
 		}
-		return "", nil // noComment
+		return "", nil
 	}
 
 	appReflector.FnGetMethodName = func(
@@ -192,6 +192,23 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 		return &meta_schema.Examples{
 			meta_schema.AlwaysTrue(v),
 		}, nil
+	}
+
+	appReflector.FnGetMethodDeprecated = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (bool, error) {
+		commentKey := extractPackageNameFromAPIMethod(m) + m.Name
+		comment, ok := comments[commentKey]
+		if !ok {
+			return false, nil
+		}
+
+		lines := strings.Split(comment, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "Deprecated:") {
+				return true, nil
+			}
+		}
+		return false, nil
 	}
 
 	d.WithReflector(appReflector)

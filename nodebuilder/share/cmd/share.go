@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
-	libshare "github.com/celestiaorg/go-square/v2/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
@@ -17,7 +19,21 @@ func init() {
 		getSharesByNamespaceCmd,
 		getShare,
 		getEDS,
+		getRange,
 	)
+}
+
+// parseIndex parses s as a non-negative int (a share index or dimension).
+// It rejects negative values and values that overflow int on the current platform.
+func parseIndex(s string) (int, error) {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("must be non-negative, got %d", n)
+	}
+	return n, nil
 }
 
 var Cmd = &cobra.Command{
@@ -104,17 +120,17 @@ var getShare = &cobra.Command{
 			return err
 		}
 
-		row, err := strconv.ParseInt(args[1], 10, 64)
+		row, err := parseIndex(args[1])
 		if err != nil {
-			return err
+			return fmt.Errorf("row: %w", err)
 		}
 
-		col, err := strconv.ParseInt(args[2], 10, 64)
+		col, err := parseIndex(args[2])
 		if err != nil {
-			return err
+			return fmt.Errorf("col: %w", err)
 		}
 
-		s, err := client.Share.GetShare(cmd.Context(), height, int(row), int(col))
+		s, err := client.Share.GetShare(cmd.Context(), height, row, col)
 
 		formatter := func(data any) any {
 			sh, ok := data.(libshare.Share)
@@ -154,5 +170,38 @@ var getEDS = &cobra.Command{
 
 		shares, err := client.Share.GetEDS(cmd.Context(), height)
 		return cmdnode.PrintOutput(shares, err, nil)
+	},
+}
+
+var getRange = &cobra.Command{
+	Use:   "get-range [height] [start] [end(exclusive)]",
+	Short: "Gets a range of shares from the given height within the given ODS indexes",
+	Args:  cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		height, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			return err
+		}
+		start, err := parseIndex(args[1])
+		if err != nil {
+			return fmt.Errorf("start: %w", err)
+		}
+		end, err := parseIndex(args[2])
+		if err != nil {
+			return fmt.Errorf("end: %w", err)
+		}
+
+		if start >= end {
+			return errors.New("start index must be less than end index")
+		}
+
+		rng, err := client.Share.GetRange(cmd.Context(), height, start, end)
+		return cmdnode.PrintOutput(rng, err, nil)
 	},
 }

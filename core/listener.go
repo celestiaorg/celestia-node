@@ -6,19 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cometbft/cometbft/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 	"github.com/celestiaorg/celestia-node/store"
 )
-
-var tracer = otel.Tracer("core/listener")
 
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
@@ -87,9 +86,13 @@ func NewListener(
 }
 
 // Start kicks off the Listener listener loop.
-func (cl *Listener) Start(context.Context) error {
+func (cl *Listener) Start(ctx context.Context) error {
 	if cl.cancel != nil {
 		return fmt.Errorf("listener: already started")
+	}
+
+	if err := cl.verifyChainID(ctx); err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -102,6 +105,28 @@ func (cl *Listener) Start(context.Context) error {
 	}
 
 	go cl.listen(ctx, subs)
+	return nil
+}
+
+// verifyChainID checks that the core endpoint is on the expected network
+// before starting the listener. This prevents connecting to a wrong network.
+func (cl *Listener) verifyChainID(ctx context.Context) error {
+	if cl.chainID == "" {
+		return nil
+	}
+
+	networkID, err := cl.fetcher.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("listener: fetching chain ID from core endpoint: %w", err)
+	}
+
+	if networkID != cl.chainID {
+		return fmt.Errorf(
+			"listener: core endpoint network mismatch: expected %q, got %q",
+			cl.chainID, networkID,
+		)
+	}
+
 	return nil
 }
 
@@ -126,7 +151,7 @@ func (cl *Listener) Stop(ctx context.Context) error {
 // listen kicks off a loop, listening for new block events from Core,
 // generating ExtendedHeaders and broadcasting them to the header-sub
 // gossipsub network.
-func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSignedBlock) {
+func (cl *Listener) listen(ctx context.Context, sub <-chan SignedBlock) {
 	defer close(cl.closed)
 	defer log.Info("listener: listening stopped")
 	timeout := time.NewTimer(cl.listenerTimeout)
@@ -166,33 +191,42 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan types.EventDataSigned
 	}
 }
 
-func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataSignedBlock) error {
-	ctx, span := tracer.Start(ctx, "handle-new-signed-block")
-	defer span.End()
+func (cl *Listener) handleNewSignedBlock(ctx context.Context, b SignedBlock) error {
+	var err error
+
+	ctx, span := tracer.Start(ctx, "listener/handleNewSignedBlock")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
 
-	eds, err := extendBlock(&b.Data)
+	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
 		return fmt.Errorf("extending block data: %w", err)
 	}
 
 	// generate extended header
-	eh, err := cl.construct(&b.Header, &b.Commit, &b.ValidatorSet, eds)
+	eh, err := cl.construct(b.Header, b.Commit, b.ValidatorSet, eds)
 	if err != nil {
 		panic(fmt.Errorf("making extended header: %w", err))
 	}
+	span.AddEvent("listener: constructed extended header",
+		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
+	)
 
 	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
 	if err != nil {
 		return fmt.Errorf("storing EDS: %w", err)
 	}
+	span.AddEvent("listener: stored square")
 
 	syncing, err := cl.fetcher.IsSyncing(ctx)
 	if err != nil {
 		return fmt.Errorf("getting sync state: %w", err)
 	}
+	span.AddEvent("listener: fetched sync state")
 
 	// notify network of new EDS hash only if core is already synced
 	if !syncing {
@@ -203,7 +237,7 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b types.EventDataS
 		if err != nil && !errors.Is(err, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
 				"height", b.Header.Height,
-				"hash", b.Header.Hash(), "err", err) // TODO: hash or datahash?
+				"datahash", eh.DAH.String(), "err", err)
 		}
 	}
 

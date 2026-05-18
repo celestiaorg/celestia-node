@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,8 +17,8 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	t.Cleanup(cancel)
 
-	network := NewNetwork(t, DefaultTestConfig())
-	require.NoError(t, network.Start())
+	cfg := DefaultTestConfig()
+	network := startNetwork(t, cfg)
 	t.Cleanup(func() {
 		require.NoError(t, network.Stop())
 	})
@@ -43,7 +42,7 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
-	var nextBlock types.EventDataSignedBlock
+	var nextBlock SignedBlock
 	select {
 	case nextBlock = <-newBlockChan:
 	case <-ctx.Done():
