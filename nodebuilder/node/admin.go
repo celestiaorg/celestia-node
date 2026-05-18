@@ -30,13 +30,13 @@ func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
 // Info contains information related to the administrative
 // node.
 type Info struct {
-	Type       string `json:"type"`
+	Type       Type   `json:"type"`
 	APIVersion string `json:"api_version"`
 }
 
 func (m *module) Info(context.Context) (Info, error) {
 	return Info{
-		Type:       m.tp.String(),
+		Type:       m.tp,
 		APIVersion: APIVersion,
 	}, nil
 }

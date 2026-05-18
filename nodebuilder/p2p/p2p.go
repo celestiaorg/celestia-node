@@ -43,7 +43,7 @@ type Module interface {
 	// Info returns address information about the host.
 	Info(context.Context) (peer.AddrInfo, error)
 	// Network returns the host's network/chain ID.
-	Network(context.Context) (string, error)
+	Network(context.Context) (Network, error)
 	// Peers returns connected peers.
 	Peers(context.Context) ([]peer.ID, error)
 	// PeerInfo returns a small slice of information Peerstore has on the
@@ -139,8 +139,8 @@ func (m *module) Info(context.Context) (peer.AddrInfo, error) {
 	return *libhost.InfoFromHost(m.host), nil
 }
 
-func (m *module) Network(context.Context) (string, error) {
-	return m.networkID.String(), nil
+func (m *module) Network(context.Context) (Network, error) {
+	return m.networkID, nil
 }
 
 func (m *module) Peers(context.Context) ([]peer.ID, error) {
@@ -266,7 +266,7 @@ func (m *module) ConnectionState(_ context.Context, peer peer.ID) ([]ConnectionS
 type API struct {
 	Internal struct {
 		Info                 func(context.Context) (peer.AddrInfo, error)                         `perm:"admin"`
-		Network              func(context.Context) (string, error)                                `perm:"admin"`
+		Network              func(context.Context) (Network, error)                               `perm:"admin"`
 		Peers                func(context.Context) ([]peer.ID, error)                             `perm:"admin"`
 		PeerInfo             func(ctx context.Context, id peer.ID) (peer.AddrInfo, error)         `perm:"admin"`
 		Connect              func(ctx context.Context, pi peer.AddrInfo) error                    `perm:"admin"`
@@ -294,7 +294,7 @@ func (api *API) Info(ctx context.Context) (peer.AddrInfo, error) {
 	return api.Internal.Info(ctx)
 }
 
-func (api *API) Network(ctx context.Context) (string, error) {
+func (api *API) Network(ctx context.Context) (Network, error) {
 	return api.Internal.Network(ctx)
 }
 

@@ -219,10 +219,10 @@ func (mr *MockModuleMockRecorder) NATStatus(arg0 interface{}) *gomock.Call {
 }
 
 // Network mocks base method.
-func (m *MockModule) Network(arg0 context.Context) (string, error) {
+func (m *MockModule) Network(arg0 context.Context) (p2p.Network, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Network", arg0)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(p2p.Network)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
