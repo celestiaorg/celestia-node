@@ -7,13 +7,12 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
 
-	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/fxutil"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	modfraud "github.com/celestiaorg/celestia-node/nodebuilder/fraud"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 var log = logging.Logger("module/state")
@@ -29,26 +28,33 @@ func ConstructModule(tp node.Type, cfg *Config, coreCfg *core.Config) fx.Option 
 		fx.Provide(func(ks keystore.Keystore) (keyring.Keyring, AccountName, error) {
 			return Keyring(*cfg, ks)
 		}),
-		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(), fx.Annotate(
-			coreAccessor,
-			fx.OnStart(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
-			) error {
-				return breaker.Start(ctx)
-			}),
-			fx.OnStop(func(ctx context.Context,
-				breaker *modfraud.ServiceBreaker[*state.CoreAccessor, *header.ExtendedHeader],
-			) error {
-				return breaker.Stop(ctx)
-			}),
-		)),
+		fxutil.ProvideIf(coreCfg.IsEndpointConfigured(),
+			fx.Annotate(
+				newTxClient,
+				fx.OnStart(func(ctx context.Context, tc *txclient.TxClient) error {
+					return tc.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, tc *txclient.TxClient) error {
+					return tc.Stop(ctx)
+				}),
+			),
+			fx.Annotate(
+				coreAccessor,
+				fx.OnStart(func(ctx context.Context, ca *state.CoreAccessor) error {
+					return ca.Start(ctx)
+				}),
+				fx.OnStop(func(ctx context.Context, ca *state.CoreAccessor) error {
+					return ca.Stop(ctx)
+				}),
+			),
+		),
 		fxutil.ProvideIf(!coreCfg.IsEndpointConfigured(), func() (*state.CoreAccessor, Module) {
 			return nil, &stubbedStateModule{}
 		}),
 	)
 
 	switch tp {
-	case node.Light, node.Full, node.Bridge:
+	case node.Light, node.Bridge:
 		return fx.Module(
 			"state",
 			baseComponents,

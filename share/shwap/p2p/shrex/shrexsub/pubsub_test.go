@@ -6,24 +6,33 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/libs/rand"
+	libp2p "github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
 	pb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub/pb"
 )
 
 func TestPubSub(t *testing.T) {
-	h, err := mocknet.FullMeshConnected(2)
-	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	t.Cleanup(cancel)
 
-	pSub1, err := NewPubSub(ctx, h.Hosts()[0], "test")
+	h0, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { h0.Close() })
+
+	h1, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { h1.Close() })
+
+	err = h0.Connect(ctx, peer.AddrInfo{ID: h1.ID(), Addrs: h1.Addrs()})
 	require.NoError(t, err)
 
-	pSub2, err := NewPubSub(ctx, h.Hosts()[1], "test")
+	pSub1, err := NewPubSub(ctx, h0, "test")
+	require.NoError(t, err)
+
+	pSub2, err := NewPubSub(ctx, h1, "test")
 	require.NoError(t, err)
 	err = pSub2.AddValidator(
 		func(ctx context.Context, p peer.ID, n Notification) pubsub.ValidationResult {

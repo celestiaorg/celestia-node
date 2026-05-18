@@ -38,7 +38,7 @@ type Config struct {
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
-	commonConfig := &Config{
+	return &Config{
 		Node:   node.DefaultConfig(tp),
 		Core:   core.DefaultConfig(),
 		State:  state.DefaultConfig(),
@@ -46,16 +46,7 @@ func DefaultConfig(tp node.Type) *Config {
 		RPC:    rpc.DefaultConfig(),
 		Share:  share.DefaultConfig(tp),
 		Header: header.DefaultConfig(tp),
-	}
-
-	switch tp {
-	case node.Bridge:
-		return commonConfig
-	case node.Light, node.Full:
-		commonConfig.DASer = das.DefaultConfig(tp)
-		return commonConfig
-	default:
-		panic("node: invalid node type")
+		DASer:  das.DefaultConfig(tp),
 	}
 }
 

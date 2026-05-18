@@ -18,7 +18,7 @@ import (
 
 func TestPutLoad(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer t.Cleanup(cancel)
+	t.Cleanup(cancel)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 
@@ -34,7 +34,7 @@ func TestPutLoad(t *testing.T) {
 // corruption and reset itself on construction.
 func TestCorruptedPidstore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer t.Cleanup(cancel)
+	t.Cleanup(cancel)
 
 	ds := sync.MutexWrap(datastore.NewMapDatastore())
 

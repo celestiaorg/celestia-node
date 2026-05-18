@@ -26,8 +26,9 @@ func getAdminClient(ctx context.Context, nd *nodebuilder.Node, t *testing.T) *cl
 	jwt, err := authtoken.NewSignedJWT(signer, []auth.Permission{"public", "read", "write", "admin"}, time.Minute)
 	require.NoError(t, err)
 
-	client, err := client.NewClient(ctx, listenAddr, jwt)
+	client, err := client.NewClient(context.WithoutCancel(ctx), listenAddr, jwt)
 	require.NoError(t, err)
+	t.Cleanup(client.Close)
 
 	return client
 }

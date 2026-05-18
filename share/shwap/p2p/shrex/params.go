@@ -34,9 +34,6 @@ type ServerParams struct {
 
 	// HandleRequestTimeout defines the deadline for handling request.
 	HandleRequestTimeout time.Duration
-
-	// ConcurrencyLimit is the maximum number of concurrently handled streams
-	ConcurrencyLimit int
 }
 
 func DefaultClientParameters() *ClientParams {
@@ -55,7 +52,6 @@ func DefaultServerParameters() *ServerParams {
 			WriteTimeout: time.Minute,
 		},
 		HandleRequestTimeout: time.Minute,
-		ConcurrencyLimit:     10,
 	}
 }
 
@@ -81,9 +77,6 @@ func (s *ServerParams) Validate() error {
 	}
 	if s.HandleRequestTimeout <= 0 {
 		return fmt.Errorf("invalid handle request timeout: %v, %s", s.HandleRequestTimeout, errSuffix)
-	}
-	if s.ConcurrencyLimit <= 0 {
-		return fmt.Errorf("invalid concurrency limit: %s", errSuffix)
 	}
 	return nil
 }

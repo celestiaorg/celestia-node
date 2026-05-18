@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -49,7 +49,7 @@ func TestGetProof(t *testing.T) {
 				sh, err := libshare.NewShare(node.RawData()[libshare.NamespaceSize:])
 				require.NoError(t, err)
 				sample := shwap.Sample{
-					Share:     *sh,
+					Share:     sh,
 					Proof:     &proof,
 					ProofType: proofType,
 				}

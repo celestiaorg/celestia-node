@@ -7,6 +7,8 @@ import (
 	"cosmossdk.io/math"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 // Balance is an alias to the Coin type from Cosmos-SDK.
@@ -56,3 +58,33 @@ func (a Address) MarshalJSON() ([]byte, error) {
 	// The address is marshaled into a simple string value
 	return []byte("\"" + a.String() + "\""), nil
 }
+
+// Backward-compatible aliases for txClient types and functions.
+type ConfigOption = txclient.ConfigOption
+
+type TxPriority = txclient.TxPriority
+
+type Option = txclient.Option
+
+var (
+	NewTxConfig           = txclient.NewTxConfig
+	WithGas               = txclient.WithGas
+	WithGasPrice          = txclient.WithGasPrice
+	WithKeyName           = txclient.WithKeyName
+	WithSignerAddress     = txclient.WithSignerAddress
+	WithFeeGranterAddress = txclient.WithFeeGranterAddress
+	WithMaxGasPrice       = txclient.WithMaxGasPrice
+	WithTxPriority        = txclient.WithTxPriority
+	DefaultGasPrice       = txclient.DefaultGasPrice
+	DefaultMaxGasPrice    = txclient.DefaultMaxGasPrice
+	TxPriorityLow         = txclient.TxPriorityLow
+	TxPriorityMedium      = txclient.TxPriorityMedium
+	TxPriorityHigh        = txclient.TxPriorityHigh
+
+	ErrGasPriceExceedsLimit = txclient.ErrGasPriceExceedsLimit
+
+	WithEstimatorService        = txclient.WithEstimatorService
+	WithEstimatorServiceTLS     = txclient.WithEstimatorServiceTLS
+	WithAdditionalCoreEndpoints = txclient.WithAdditionalCoreEndpoints
+	WithTxWorkerAccounts        = txclient.WithTxWorkerAccounts
+)

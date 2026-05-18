@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 )
 
@@ -28,7 +28,7 @@ func GetShare(
 	if err != nil {
 		return libshare.Share{}, err
 	}
-	return *sh, nil
+	return sh, nil
 }
 
 // GetShares walks the tree of a given root and puts shares into the given 'put' func.
@@ -70,7 +70,7 @@ func GetSharesByNamespace(
 			if err != nil {
 				return nil, nil, err
 			}
-			shares[i] = *sh
+			shares[i] = sh
 		}
 	}
 	return shares, data.Proof(), nil

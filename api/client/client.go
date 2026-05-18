@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	stateapi "github.com/celestiaorg/celestia-node/nodebuilder/state"
 	"github.com/celestiaorg/celestia-node/state"
+	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
 var log = logging.Logger("celestia-client")
@@ -27,6 +28,15 @@ type SubmitConfig struct {
 	DefaultKeyName string
 	Network        p2p.Network
 	CoreGRPCConfig CoreGRPCConfig
+	// TxWorkerAccounts is used for queued submission. It defines how many accounts the
+	// TxClient uses for PayForBlob submissions.
+	//   - Value of 0 submits transactions immediately (without a submission queue).
+	//   - Value of 1 uses synchronous submission (submission queue with default
+	//     signer as author of transactions).
+	//   - Value of > 1 uses parallel submission (submission queue with several accounts
+	//     submitting blobs). Parallel submission is not guaranteed to include blobs
+	//     in the same order as they were submitted.
+	TxWorkerAccounts int
 }
 
 func (cfg Config) Validate() error {
@@ -40,6 +50,11 @@ func (cfg SubmitConfig) Validate() error {
 	if cfg.DefaultKeyName == "" {
 		return errors.New("default key name should not be empty")
 	}
+
+	if cfg.TxWorkerAccounts < 0 {
+		return fmt.Errorf("worker accounts must be non-negative")
+	}
+
 	return cfg.CoreGRPCConfig.Validate()
 }
 
@@ -90,8 +105,23 @@ func (c *Client) initTxClient(
 	conn *grpc.ClientConn,
 	kr keyring.Keyring,
 ) error {
+	var opts []txclient.Option
+	if submitCfg.TxWorkerAccounts > 0 {
+		opts = append(opts, txclient.WithTxWorkerAccounts(submitCfg.TxWorkerAccounts))
+	}
+
 	// key is specified. Set up core accessor and txClient
+	tc, err := txclient.NewTxClient(kr, submitCfg.DefaultKeyName, conn, opts...)
+	if err != nil {
+		return err
+	}
+	err = tc.Start(ctx)
+	if err != nil {
+		return err
+	}
+
 	core, err := state.NewCoreAccessor(
+		tc,
 		kr,
 		submitCfg.DefaultKeyName,
 		trustedHeadGetter{remote: c.Header},
@@ -99,10 +129,12 @@ func (c *Client) initTxClient(
 		submitCfg.Network.String(),
 	)
 	if err != nil {
+		_ = tc.Stop(ctx)
 		return err
 	}
 	err = core.Start(ctx)
 	if err != nil {
+		_ = tc.Stop(ctx)
 		return err
 	}
 	c.State = core
@@ -111,6 +143,8 @@ func (c *Client) initTxClient(
 	blobSvc := blob.NewService(core, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
+		_ = core.Stop(ctx)
+		_ = tc.Stop(ctx)
 		return err
 	}
 	c.Blob = &blobSubmitClient{
@@ -123,13 +157,17 @@ func (c *Client) initTxClient(
 		if err != nil {
 			return fmt.Errorf("failed to close grpc connection: %w", err)
 		}
+		err = blobSvc.Stop(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to stop blob service: %w", err)
+		}
 		err = core.Stop(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to stop core accessor: %w", err)
 		}
-		err = blobSvc.Stop(ctx)
+		err = tc.Stop(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to stop blob service: %w", err)
+			return fmt.Errorf("failed to stop tx client: %w", err)
 		}
 		return nil
 	}

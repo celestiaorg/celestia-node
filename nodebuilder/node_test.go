@@ -25,7 +25,6 @@ func TestLifecycle(t *testing.T) {
 		tp node.Type
 	}{
 		{tp: node.Bridge},
-		{tp: node.Full},
 		{tp: node.Light},
 	}
 
@@ -73,7 +72,6 @@ func TestLifecycle_WithMetrics(t *testing.T) {
 		coreExpected bool
 	}{
 		{tp: node.Bridge},
-		{tp: node.Full},
 		{tp: node.Light},
 	}
 

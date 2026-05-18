@@ -42,12 +42,12 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 	)
 
 	switch tp {
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		return fx.Module(
 			"share",
 			baseComponents,
 			edsStoreComponents(cfg),
-			fx.Provide(bridgeAndFullGetter),
+			fx.Provide(bridgeGetter),
 		)
 	case node.Light:
 		return fx.Module(
@@ -77,7 +77,7 @@ func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
 				),
 			),
 		)
-	case node.Full, node.Bridge:
+	case node.Bridge:
 		return fx.Options(
 			opts,
 			fx.Provide(
@@ -140,15 +140,6 @@ func shrexComponents(tp node.Type, cfg *Config) fx.Option {
 				return func(context.Context, shrexsub.Notification) error {
 					return nil
 				}
-			}),
-		)
-	case node.Full:
-		return fx.Options(
-			opts,
-			shrexServerComponents(cfg),
-			fx.Provide(store.NewGetter),
-			fx.Provide(func(shrexSub *shrexsub.PubSub) shrexsub.BroadcastFn {
-				return shrexSub.Broadcast
 			}),
 		)
 	case node.Bridge:
@@ -227,7 +218,7 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 				}),
 			)),
 		)
-	case node.Bridge, node.Full:
+	case node.Bridge:
 		return fx.Options(
 			fx.Provide(func(
 				s *store.Store,

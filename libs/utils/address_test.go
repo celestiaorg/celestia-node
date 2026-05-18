@@ -75,3 +75,28 @@ func TestValidateAddr(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeGRPCAddress(t *testing.T) {
+	tests := []struct {
+		addr string
+		want string
+	}{
+		{addr: "https://your-quicknode-url.celestia-mocha.quiknode.pro:9090", want: "your-quicknode-url.celestia-mocha.quiknode.pro:9090"},
+		{addr: "http://localhost:9090", want: "localhost:9090"},
+		{addr: "https://host.example.com:9090/some/path", want: "host.example.com:9090"},
+		{addr: "host.example.com:9090/some/path", want: "host.example.com:9090"},
+		{addr: "localhost:9090", want: "localhost:9090"},
+		{addr: "localhost", want: "localhost"},
+		{addr: "https://localhost", want: "localhost"},
+		{addr: "tcp://localhost:9090", want: "localhost:9090"},
+		{addr: "[::1]:9090", want: "[::1]:9090"},
+		{addr: "https://[::1]:9090", want: "[::1]:9090"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.addr, func(t *testing.T) {
+			got := NormalizeGRPCAddress(tt.addr)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

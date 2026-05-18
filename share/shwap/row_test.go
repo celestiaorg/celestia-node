@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libshare "github.com/celestiaorg/go-square/v3/share"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
@@ -95,7 +95,7 @@ func TestRowValidateNegativeCases(t *testing.T) {
 	for i := range incorrectShares {
 		shr, err := libshare.NewShare(eds.GetCell(uint(i), 0))
 		require.NoError(t, err)
-		incorrectShares[i] = *shr
+		incorrectShares[i] = shr
 	}
 	invalidRow := Row{shares: incorrectShares, side: Left}
 	err = invalidRow.Verify(root, 0)
@@ -144,7 +144,7 @@ func BenchmarkRowValidate(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = row.Verify(root, 0)
 	}
 }
