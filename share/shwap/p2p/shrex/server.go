@@ -23,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-var tracer = otel.Tracer("shrex/server")
+var tracer = otel.Tracer("shrex")
 
 // Server implements Server side of shrex protocol to serve data to remote
 // peers.
@@ -109,7 +109,7 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 		var status status
 
 		ctx, span := tracer.Start(ctx, "shrex/server/handle",
-			trace.WithAttributes(attribute.String("request name", requestID.Name())),
+			trace.WithAttributes(attribute.String("request.name", requestID.Name())),
 		)
 		defer func() {
 			var err error
@@ -124,7 +124,8 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 		if err := s.Scope().SetService(serviceName); err != nil {
 			log.Warnw("server: failed to attach stream to shrex service scope", "err", err)
 			s.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
-			srv.metrics.observeRequest(ctx, requestID.Name(), statusResourceExhausted, time.Since(handleTime))
+			status = statusResourceExhausted
+			srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
 			return
 		}
 
@@ -134,11 +135,13 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 		// rateLimiter is nil when CELESTIA_SHREX_DISABLE_RATE_LIMITING=1.
 		if srv.rateLimiter != nil && !srv.rateLimiter.Allow(remoteIP(s)) {
 			s.ResetWithError(network.StreamRateLimited) //nolint:errcheck
-			srv.metrics.observeRequest(ctx, requestID.Name(), statusRateLimited, time.Since(handleTime))
+			status = statusRateLimited
+			srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
 			return
 		}
 
-		status, size := srv.handleDataRequest(ctx, requestID, s)
+		var size int
+		status, size = srv.handleDataRequest(ctx, requestID, s)
 
 		srv.metrics.observeRequest(ctx, requestID.Name(), status, time.Since(handleTime))
 		srv.metrics.observePayloadServed(ctx, requestID.Name(), status, size)
@@ -221,13 +224,6 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
 
-	size, err := file.Size(ctx)
-	if err != nil {
-		logger.Errorf("getting file size %w", err)
-		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
-	}
-	span.AddEvent("got file from store", trace.WithAttributes(attribute.Int("ODS size", size)))
-
 	defer utils.CloseAndLog(log, "file", file)
 	// get the actual EDS size to compute an exact memory reservation before reading.
 	edsSize, err := file.Size(ctx)
@@ -235,6 +231,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		logger.Errorf("getting EDS size %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
+	span.AddEvent("got file from store", trace.WithAttributes(attribute.Int("eds.size", edsSize)))
 
 	// reserve memory before reading from the accessor so the resource manager
 	// can reject the request if the budget is exhausted.
@@ -264,7 +261,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		logger.Errorw("send data", "err", err)
 		return statusSendRespErr, writtenStatus + int(written)
 	}
-	span.AddEvent("wrote response to stream", trace.WithAttributes(attribute.Int64("bytes written", written)))
+	span.AddEvent("wrote response to stream", trace.WithAttributes(attribute.Int64("bytes.written", written)))
 	logger.Debugw("wrote data to stream", "size", written)
 	return statusSuccess, writtenStatus + int(written)
 }

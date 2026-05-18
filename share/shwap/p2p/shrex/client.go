@@ -130,13 +130,13 @@ func (c *Client) doRequest(
 	case shrexpb.Status_OK:
 	case shrexpb.Status_NOT_FOUND:
 		err = ErrNotFound
-		return int64(statusLength), statusNotFound, ErrNotFound
+		return int64(statusLength), statusNotFound, err
 	case shrexpb.Status_INTERNAL:
 		err = ErrInternalServer
-		return int64(statusLength), statusInternalErr, ErrInternalServer
+		return int64(statusLength), statusInternalErr, err
 	default:
 		err = ErrInvalidRequest
-		return int64(statusLength), statusReadRespErr, ErrInvalidResponse
+		return int64(statusLength), statusReadRespErr, err
 	}
 
 	bytesRead, err := resp.ReadFrom(stream)
