@@ -8,6 +8,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
@@ -82,6 +84,12 @@ func (c *Client) doRequest(
 	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ReadTimeout)
 	defer cancel()
 
+	var err error
+	ctx, span := tracer.Start(ctx, "shrex/client/request")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
+
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
 		if isResourceExhausted(err) {
@@ -99,6 +107,7 @@ func (c *Client) doRequest(
 	if err != nil {
 		return 0, statusSendReqErr, fmt.Errorf("writing request: %w", err)
 	}
+	span.AddEvent("wrote request to stream")
 
 	err = stream.CloseWrite()
 	if err != nil {
@@ -115,24 +124,31 @@ func (c *Client) doRequest(
 			statusReadStatusErr,
 			fmt.Errorf("unexpected error during reading the status from stream: %w", err)
 	}
+	span.AddEvent("read status from stream")
 
 	switch statusResp.Status {
 	case shrexpb.Status_OK:
 	case shrexpb.Status_NOT_FOUND:
-		return int64(statusLength), statusNotFound, ErrNotFound
+		err = ErrNotFound
+		return int64(statusLength), statusNotFound, err
 	case shrexpb.Status_INTERNAL:
-		return int64(statusLength), statusInternalErr, ErrInternalServer
+		err = ErrInternalServer
+		return int64(statusLength), statusInternalErr, err
 	default:
-		return int64(statusLength), statusReadRespErr, ErrInvalidResponse
+		err = ErrInvalidRequest
+		return int64(statusLength), statusReadRespErr, err
 	}
 
-	dataLength, err := resp.ReadFrom(stream)
+	bytesRead, err := resp.ReadFrom(stream)
 	st := statusSuccess
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 		st = statusReadRespErr
 	}
-	return int64(statusLength) + dataLength, st, err
+
+	span.AddEvent("read response from stream",
+		trace.WithAttributes(attribute.Int64("size", bytesRead)))
+	return int64(statusLength) + bytesRead, st, err
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogger, stream network.Stream) {
