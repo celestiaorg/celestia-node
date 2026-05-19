@@ -15,23 +15,37 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rs/cors"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
 var log = logging.Logger("rpc")
 
-// TODO(@Wondertan): Expose in config if requested
 const (
-	// maxRequestSize is 5 MiB, significantly lower than go-jsonrpc's 100 MiB default.
-	maxRequestSize = 5 << 20
+	// maxRequestSize bounds JSON-RPC request bodies. Sized as 2× appconsts.MaxTxSize
+	// to cover base64 + JSON envelope overhead (~1.5×) on a worst-case blob.Submit,
+	// which packs all blobs into a single PFB tx capped at MaxTxSize.
+	maxRequestSize = int64(appconsts.MaxTxSize * 2)
 	// maxConcurrentConns caps simultaneous connections to bound goroutine/FD usage.
 	maxConcurrentConns = 500
-	// maxRequestsPerSecond is the per-IP sustained rate.
-	maxRequestsPerSecond = 100
-	// maxRequestBurst is the per-IP burst allowance.
-	maxRequestBurst = 200
 )
+
+// RateLimitConfig configures per-IP rate limiting based on the connection's
+// remote address. When the node runs behind a reverse proxy, RemoteAddr is
+// the proxy's address, so all clients share one bucket — in that case keep
+// this disabled and apply rate limiting at the proxy instead.
+type RateLimitConfig struct {
+	// Enabled toggles the per-IP rate limit middleware.
+	Enabled bool
+	// RequestsPerSec is the sustained per-IP request rate; requests above
+	// this rate (after burst is drained) get 429 Too Many Requests.
+	RequestsPerSec int
+	// Burst is the per-IP burst allowance — the bucket size that absorbs
+	// short spikes before sustained rate kicks in.
+	Burst int
+}
 
 type CORSConfig struct {
 	Enabled        bool
@@ -46,9 +60,10 @@ type Server struct {
 	listener     net.Listener
 	authDisabled bool
 
-	started    atomic.Bool
-	cancelFunc context.CancelFunc
-	corsConfig CORSConfig
+	started      atomic.Bool
+	cancelFunc   context.CancelFunc
+	corsConfig   CORSConfig
+	rateLimitCfg RateLimitConfig
 
 	tlsEnabled  bool
 	tlsCertPath string
@@ -69,6 +84,7 @@ func NewServer(
 	authDisabled bool,
 	corsConfig CORSConfig,
 	tlsConfig TLSConfig,
+	rateLimitCfg RateLimitConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
@@ -84,6 +100,7 @@ func NewServer(
 		authDisabled: authDisabled,
 		cancelFunc:   cancel,
 		corsConfig:   corsConfig,
+		rateLimitCfg: rateLimitCfg,
 		tlsEnabled:   tlsConfig.Enabled,
 		tlsCertPath:  tlsConfig.CertPath,
 		tlsKeyPath:   tlsConfig.KeyPath,
@@ -95,7 +112,7 @@ func NewServer(
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
+		WriteTimeout:      5 * time.Minute, // 5m covers long unary calls
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1 MiB
 	}
@@ -104,7 +121,7 @@ func NewServer(
 }
 
 // newHandlerStack returns wrapped rpc related handlers.
-// Middleware order (outermost first): rate-limit → conn-limit → CORS/auth → RPC handler.
+// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → RPC handler.
 func (s *Server) newHandlerStack(ctx context.Context, core http.Handler) http.Handler {
 	var h http.Handler
 	switch {
@@ -117,9 +134,12 @@ func (s *Server) newHandlerStack(ctx context.Context, core http.Handler) http.Ha
 		h = s.authHandler(core)
 	}
 
-	// Apply connection and rate limiting as outermost layers.
 	h = connLimit(maxConcurrentConns, h)
-	h = rateLimit(ctx, maxRequestsPerSecond, maxRequestBurst, h)
+	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
+	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
+	if s.rateLimitCfg.Enabled {
+		h = rateLimit(ctx, s.rateLimitCfg.RequestsPerSec, s.rateLimitCfg.Burst, h)
+	}
 	return h
 }
 

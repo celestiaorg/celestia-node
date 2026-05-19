@@ -20,7 +20,7 @@ func connLimit(maxConns int, next http.Handler) http.Handler {
 			defer func() { <-sem }()
 			next.ServeHTTP(w, r)
 		default:
-			log.Warnw("connection limit reached, rejecting request", "remote", r.RemoteAddr)
+			log.Debugw("connection limit reached, rejecting request", "remote", r.RemoteAddr)
 			http.Error(w, "server busy, try again later", http.StatusServiceUnavailable)
 		}
 	})
@@ -74,7 +74,8 @@ func rateLimit(ctx context.Context, rps, burst int, next http.Handler) http.Hand
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := extractIP(r)
 		if !getLimiter(ip).Allow() {
-			log.Warnw("rate limit exceeded", "ip", ip)
+			// Debug-level to avoid log amplification under sustained rate-limit hits.
+			log.Debugw("rate limit exceeded", "ip", ip)
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}

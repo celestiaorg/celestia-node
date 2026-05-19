@@ -69,7 +69,7 @@ func TestServer_HandlerStackSelection(t *testing.T) {
 				AllowedHeaders: []string{"Content-Type"},
 			}
 
-			server := NewServer("localhost", "0", tt.authDisabled, corsConfig, TLSConfig{}, signer, verifier)
+			server := NewServer("localhost", "0", tt.authDisabled, corsConfig, TLSConfig{}, RateLimitConfig{}, signer, verifier)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -113,7 +113,7 @@ func TestServer_AuthDisabledOverridesCORS(t *testing.T) {
 		AllowedHeaders: []string{"Content-Type"},
 	}
 
-	server := NewServer("localhost", "0", true, restrictiveCORS, TLSConfig{}, signer, verifier)
+	server := NewServer("localhost", "0", true, restrictiveCORS, TLSConfig{}, RateLimitConfig{}, signer, verifier)
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -179,7 +179,7 @@ func TestServer_CORSConfigurationPassing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", false, tt.corsConfig, TLSConfig{}, signer, verifier)
+			server := NewServer("localhost", "0", false, tt.corsConfig, TLSConfig{}, RateLimitConfig{}, signer, verifier)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -234,7 +234,16 @@ func TestServer_AuthMiddleware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", tt.authDisabled, CORSConfig{}, TLSConfig{}, signer, verifier)
+			server := NewServer(
+				"localhost",
+				"0",
+				tt.authDisabled,
+				CORSConfig{},
+				TLSConfig{},
+				RateLimitConfig{},
+				signer,
+				verifier,
+			)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -290,7 +299,16 @@ func TestServer_VerifyAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", tt.authDisabled, CORSConfig{}, TLSConfig{}, signer, verifier)
+			server := NewServer(
+				"localhost",
+				"0",
+				tt.authDisabled,
+				CORSConfig{},
+				TLSConfig{},
+				RateLimitConfig{},
+				signer,
+				verifier,
+			)
 
 			permissions, err := server.verifyAuth(context.Background(), tt.token)
 
@@ -307,7 +325,7 @@ func TestServer_VerifyAuth(t *testing.T) {
 // TestServer_StartStop tests server lifecycle
 func TestServer_StartStop(t *testing.T) {
 	signer, verifier := createTestJWT(t)
-	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, signer, verifier)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
 
 	ctx := context.Background()
 
@@ -339,7 +357,7 @@ func TestServer_TLS(t *testing.T) {
 		Enabled:  true,
 		CertPath: certFile,
 		KeyPath:  keyFile,
-	}, signer, verifier)
+	}, RateLimitConfig{}, signer, verifier)
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
@@ -378,7 +396,7 @@ func TestServer_TLS(t *testing.T) {
 func TestServer_NoTLS_PlainHTTP(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
-	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, signer, verifier)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
