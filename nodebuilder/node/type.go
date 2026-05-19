@@ -1,6 +1,8 @@
 package node
 
 import (
+	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 )
@@ -32,6 +34,28 @@ func (t Type) String() string {
 		return "unknown"
 	}
 	return typeToString[t]
+}
+
+// MarshalJSON encodes Type as its string representation.
+func (t Type) MarshalJSON() ([]byte, error) {
+	if !t.IsValid() {
+		return nil, fmt.Errorf("invalid node type %d", t)
+	}
+	return json.Marshal(t.String())
+}
+
+// UnmarshalJSON decodes Type from its string representation.
+func (t *Type) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	parsed := ParseType(s)
+	if !parsed.IsValid() {
+		return fmt.Errorf("invalid node type %q", s)
+	}
+	*t = parsed
+	return nil
 }
 
 // IsValid reports whether the Type is valid.
