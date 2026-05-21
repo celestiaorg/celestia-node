@@ -50,6 +50,12 @@ func StartTestNode(t *testing.T) testnode.Context {
 // StartTestNodeWithConfig starts Tendermint and Celestia App tandem with custom configuration.
 func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Context {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	// Wait until the chain has produced a block before returning; without this,
+	// callers that immediately query the chain (e.g. CoreAccessor.Start →
+	// GetNodeInfo) race the first block and fail with "celestia-app is not
+	// ready". Mirrors the pattern in state/txclient/testing.go.
+	_, err := cctx.WaitForHeight(int64(2))
+	require.NoError(t, err)
 	// we want to test over remote http client,
 	// so we are as close to the real environment as possible,
 	// however, it might be useful to use a local tendermint client
@@ -60,6 +66,10 @@ func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Contex
 // StartTestNodeWithConfigAndClient initializes a test node with default configuration and a WebSocket HTTP client.
 func StartTestNodeWithConfigAndClient(t *testing.T) (testnode.Context, *cmthttp.HTTP) {
 	cctx, rpcAddr, _ := testnode.NewNetwork(t, DefaultTestConfig())
+	// Mirror StartTestNodeWithConfig: wait until the chain has produced a
+	// block so callers do not race the first block.
+	_, err := cctx.WaitForHeight(int64(2))
+	require.NoError(t, err)
 	wsClient, err := cmthttp.New(rpcAddr, "/websocket")
 	if err != nil {
 		panic(err)
