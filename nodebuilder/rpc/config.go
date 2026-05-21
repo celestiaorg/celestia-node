@@ -118,6 +118,9 @@ func (cfg *Config) Validate() error {
 		if cfg.RateLimit.RequestsPerSec <= 0 || cfg.RateLimit.Burst <= 0 {
 			return fmt.Errorf("service/rpc: rate limit RequestsPerSec and Burst must be > 0")
 		}
+		if cfg.RateLimit.CacheSize <= 0 {
+			return fmt.Errorf("service/rpc: rate limit CacheSize must be > 0")
+		}
 	}
 
 	return nil
