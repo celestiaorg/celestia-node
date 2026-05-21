@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
@@ -32,6 +34,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
@@ -128,7 +131,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
-	resp, err := ca.abciQueryCli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
+	resp, err := waitForAppReady(ctx, ca.abciQueryCli)
 	if err != nil {
 		return fmt.Errorf("failed to get node info: %w", err)
 	}
@@ -588,4 +591,32 @@ func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 		TxHash: resp.TxHash,
 		Height: resp.Height,
 	}
+}
+
+func waitForAppReady(ctx context.Context, cli tmservice.ServiceClient) (*tmservice.GetNodeInfoResponse, error) {
+	for {
+		resp, err := cli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
+		if err == nil {
+			return resp, nil
+		}
+		if !isAppNotReady(err) {
+			return nil, err // wrong network / auth / dial — fail fast
+		}
+		select {
+		case <-time.After(p2p.BlockTime):
+		case <-ctx.Done():
+			return nil, fmt.Errorf("celestia-app not ready: %w", err)
+		}
+	}
+}
+
+// isAppNotReady matches celestia-app's "please wait for first block" startup
+// signal — sdk codespace "sdk" code 26 (ErrInvalidHeight) thrown by ABCIInfo
+// before the app multistore commits.
+func isAppNotReady(err error) bool {
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	return strings.Contains(s.Message(), "please wait for first block")
 }

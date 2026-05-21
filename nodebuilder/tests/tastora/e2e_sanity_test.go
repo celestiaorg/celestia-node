@@ -58,6 +58,12 @@ func (s *E2ESanityTestSuite) SetupSuite() {
 	s.framework.NewLightNode(ctx)
 }
 
+func (s *E2ESanityTestSuite) TearDownSuite() {
+	if s.framework != nil {
+		s.framework.Cleanup()
+	}
+}
+
 // TestBasicDASFlow validates basic Data Availability Sampling functionality on a single bridge node
 func (s *E2ESanityTestSuite) TestBasicDASFlow() {
 	ctx, cancel := s.withTimeout()
