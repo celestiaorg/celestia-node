@@ -62,6 +62,43 @@ func TestProtoDecodersRejectMalformedInput(t *testing.T) {
 		_, err := shwap.RangeNamespaceDataFromProto(nil)
 		require.Error(t, err)
 	})
+
+	t.Run("RangeNamespaceDataFromProto/empty inner row", func(t *testing.T) {
+		_, err := shwap.RangeNamespaceDataFromProto(&pb.RangeNamespaceData{
+			Shares: []*pb.RowShares{{Shares: nil}},
+		})
+		require.Error(t, err)
+	})
+}
+
+// TestParseNamespaceRejectsEmptyShares guards ParseNamespace against malformed
+// 2D share slices that would otherwise panic at rawShares[0][0]. Even if a
+// decoder one day forgets to enforce non-empty rows, ParseNamespace must not
+// panic on an empty outer slice or an empty first row.
+func TestParseNamespaceRejectsEmptyShares(t *testing.T) {
+	t.Run("empty outer slice", func(t *testing.T) {
+		_, err := shwap.ParseNamespace(nil, 0, 1)
+		require.Error(t, err)
+	})
+
+	t.Run("empty first row", func(t *testing.T) {
+		_, err := shwap.ParseNamespace([][]libshare.Share{nil}, 0, 1)
+		require.Error(t, err)
+	})
+}
+
+// TestVerifyInclusionRejectsEmptyRow guards RangeNamespaceData.VerifyInclusion
+// against manually constructed values with an empty inner row. Even if a future
+// caller bypasses RangeNamespaceDataFromProto, verifyShares must reject the
+// input before any indexing on shares[0][0]-like sites.
+func TestVerifyInclusionRejectsEmptyRow(t *testing.T) {
+	rngdata := shwap.RangeNamespaceData{
+		Shares: [][]libshare.Share{nil},
+	}
+	from := shwap.SampleCoords{Row: 0, Col: 0}
+	to := shwap.SampleCoords{Row: 0, Col: 0}
+	err := rngdata.VerifyInclusion(from, to, 2, [][]byte{{0x00}})
+	require.Error(t, err)
 }
 
 // TestSampleReadFromRejectsNilShare simulates what shrex.Client.Get does after

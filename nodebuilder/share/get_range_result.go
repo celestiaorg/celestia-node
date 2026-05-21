@@ -48,6 +48,10 @@ func newGetRangeResult(
 	endRow := (endIndex - 1) / odsSize
 	numRows := endRow - startRow + 1
 
+	if len(rngdata.Shares) != numRows {
+		return nil, errors.New("range data row count does not match requested range")
+	}
+
 	nmtProofs := make([]*nmt.Proof, numRows)
 	nmtProofs[0] = rngdata.FirstIncompleteRowProof
 	if startRow != endRow {
