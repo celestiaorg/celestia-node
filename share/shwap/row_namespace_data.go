@@ -102,6 +102,9 @@ func RowNamespaceDataFromShares(
 
 // RowNamespaceDataFromProto constructs RowNamespaceData out of its protobuf representation.
 func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, error) {
+	if row == nil {
+		return RowNamespaceData{}, errors.New("pb row is nil")
+	}
 	shares, err := SharesFromProto(row.GetShares())
 	if err != nil {
 		return RowNamespaceData{}, err

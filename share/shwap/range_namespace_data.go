@@ -291,9 +291,12 @@ func (rngdata *RangeNamespaceData) IsEmpty() bool {
 }
 
 func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData, error) {
-	shares := make([][]libshare.Share, len(nd.Shares))
+	if nd == nil {
+		return RangeNamespaceData{}, errors.New("pb RangeNamespaceData is nil")
+	}
+	shares := make([][]libshare.Share, len(nd.GetShares()))
 
-	for i, shr := range nd.Shares {
+	for i, shr := range nd.GetShares() {
 		shrs, err := SharesFromProto(shr.GetShares())
 		if err != nil {
 			return RangeNamespaceData{}, err
@@ -303,8 +306,8 @@ func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData,
 
 	return RangeNamespaceData{
 		Shares:                  shares,
-		FirstIncompleteRowProof: pbNmtToNmtProof(nd.FirstIncompleteRowProof),
-		LastIncompleteRowProof:  pbNmtToNmtProof(nd.LastIncompleteRowProof),
+		FirstIncompleteRowProof: pbNmtToNmtProof(nd.GetFirstIncompleteRowProof()),
+		LastIncompleteRowProof:  pbNmtToNmtProof(nd.GetLastIncompleteRowProof()),
 	}, nil
 }
 

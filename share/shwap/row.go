@@ -64,7 +64,10 @@ func RowFromEDS(eds *rsmt2d.ExtendedDataSquare, rowIdx int, side RowSide) (Row, 
 
 // RowFromProto converts a protobuf Row to a Row structure.
 func RowFromProto(r *pb.Row) (Row, error) {
-	shrs, err := SharesFromProto(r.SharesHalf)
+	if r == nil {
+		return Row{}, fmt.Errorf("received nil Row")
+	}
+	shrs, err := SharesFromProto(r.GetSharesHalf())
 	if err != nil {
 		return Row{}, err
 	}
