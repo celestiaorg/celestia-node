@@ -28,6 +28,10 @@ type RateLimitConfig struct {
 	// Burst is the per-IP burst allowance — the bucket size that absorbs
 	// short spikes before sustained rate kicks in.
 	Burst int
+	// CacheSize is the max number of per-IP buckets retained.
+	// When exceeded, the least-recently-seen IP is evicted (and gets a fresh
+	// burst on its next request). Bounds memory under unique-IP floods.
+	CacheSize int
 }
 
 type Config struct {
@@ -60,6 +64,7 @@ func DefaultRateLimitConfig() RateLimitConfig {
 		Enabled:        false,
 		RequestsPerSec: 100,
 		Burst:          200,
+		CacheSize:      8192,
 	}
 }
 

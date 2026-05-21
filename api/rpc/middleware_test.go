@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -11,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testRemoteAddr = "1.2.3.4:1234"
+const (
+	testRemoteAddr = "1.2.3.4:1234"
+	testCacheSize  = 8
+)
 
 func TestConnLimit_AllowsWithinLimit(t *testing.T) {
 	handler := connLimit(2, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +74,7 @@ func TestConnLimit_ReleasesSlotAfterRequest(t *testing.T) {
 }
 
 func TestRateLimit_AllowsWithinLimit(t *testing.T) {
-	handler := rateLimit(context.Background(), 100, 10, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := rateLimit(100, 10, testCacheSize, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -84,7 +86,7 @@ func TestRateLimit_AllowsWithinLimit(t *testing.T) {
 }
 
 func TestRateLimit_RejectsOverBurst(t *testing.T) {
-	handler := rateLimit(context.Background(), 1, 3, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := rateLimit(1, 3, testCacheSize, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -103,7 +105,7 @@ func TestRateLimit_RejectsOverBurst(t *testing.T) {
 }
 
 func TestRateLimit_DifferentIPsIndependent(t *testing.T) {
-	handler := rateLimit(context.Background(), 1, 1, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := rateLimit(1, 1, testCacheSize, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -122,6 +124,35 @@ func TestRateLimit_DifferentIPsIndependent(t *testing.T) {
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req2)
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestRateLimit_EvictedIPGetsFreshBurst verifies that when the LRU cache fills
+// up and an IP's limiter is evicted, the IP gets a brand-new bucket (full burst)
+// on its next request — not the old, exhausted state.
+func TestRateLimit_EvictedIPGetsFreshBurst(t *testing.T) {
+	const cacheSize = 2
+	handler := rateLimit(1, 1, cacheSize, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	do := func(remoteAddr string) int {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.RemoteAddr = remoteAddr
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		return w.Code
+	}
+
+	// Drain IP A's burst.
+	assert.Equal(t, http.StatusOK, do("1.1.1.1:1"))
+	assert.Equal(t, http.StatusTooManyRequests, do("1.1.1.1:1"))
+
+	// Fill the cache past capacity with two more IPs, evicting A.
+	assert.Equal(t, http.StatusOK, do("2.2.2.2:1"))
+	assert.Equal(t, http.StatusOK, do("3.3.3.3:1"))
+
+	// A is evicted — next request from A should get a fresh limiter, not 429.
+	assert.Equal(t, http.StatusOK, do("1.1.1.1:1"))
 }
 
 func TestExtractIP(t *testing.T) {

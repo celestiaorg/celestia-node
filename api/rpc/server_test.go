@@ -75,7 +75,7 @@ func TestServer_HandlerStackSelection(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			})
 
-			handler := server.newHandlerStack(context.Background(), testHandler)
+			handler := server.newHandlerStack(testHandler)
 
 			// Test OPTIONS request (CORS preflight)
 			req := httptest.NewRequest("OPTIONS", "/", nil)
@@ -119,7 +119,7 @@ func TestServer_AuthDisabledOverridesCORS(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := server.newHandlerStack(context.Background(), testHandler)
+	handler := server.newHandlerStack(testHandler)
 
 	// Test with different origin than configured
 	req := httptest.NewRequest("OPTIONS", "/", nil)
@@ -185,7 +185,7 @@ func TestServer_CORSConfigurationPassing(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			})
 
-			handler := server.newHandlerStack(context.Background(), testHandler)
+			handler := server.newHandlerStack(testHandler)
 
 			req := httptest.NewRequest("OPTIONS", "/", nil)
 			req.Header.Set("Origin", tt.testOrigin)
@@ -249,7 +249,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			})
 
-			handler := server.newHandlerStack(context.Background(), testHandler)
+			handler := server.newHandlerStack(testHandler)
 
 			req := httptest.NewRequest("GET", "/", nil)
 			if tt.token != "" {

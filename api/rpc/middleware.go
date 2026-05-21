@@ -1,12 +1,10 @@
 package rpc
 
 import (
-	"context"
 	"net"
 	"net/http"
-	"sync"
-	"time"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	"golang.org/x/time/rate"
 )
 
@@ -28,47 +26,20 @@ func connLimit(maxConns int, next http.Handler) http.Handler {
 
 // rateLimit returns middleware that enforces per-IP rate limiting.
 // Requests exceeding the limit receive 429 Too Many Requests.
-// The background cleanup goroutine exits when ctx is canceled.
-func rateLimit(ctx context.Context, rps, burst int, next http.Handler) http.Handler {
-	var mu sync.Mutex
-	type entry struct {
-		limiter  *rate.Limiter
-		lastSeen time.Time
+func rateLimit(rps, burst, cacheSize int, next http.Handler) http.Handler {
+	cache, err := lru.New[string, *rate.Limiter](cacheSize)
+	if err != nil {
+		panic(err)
 	}
-	limiters := make(map[string]*entry)
+
 	rateL := rate.Limit(rps)
-
-	// Evict stale entries in the background.
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				mu.Lock()
-				for ip, e := range limiters {
-					if time.Since(e.lastSeen) > 10*time.Minute {
-						delete(limiters, ip)
-					}
-				}
-				mu.Unlock()
-			}
-		}
-	}()
-
 	getLimiter := func(ip string) *rate.Limiter {
-		mu.Lock()
-		defer mu.Unlock()
-		e, ok := limiters[ip]
+		limiter, ok := cache.Get(ip)
 		if !ok {
-			l := rate.NewLimiter(rateL, burst)
-			limiters[ip] = &entry{limiter: l, lastSeen: time.Now()}
-			return l
+			limiter = rate.NewLimiter(rateL, burst)
+			cache.Add(ip, limiter)
 		}
-		e.lastSeen = time.Now()
-		return e.limiter
+		return limiter
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

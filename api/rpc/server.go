@@ -45,6 +45,10 @@ type RateLimitConfig struct {
 	// Burst is the per-IP burst allowance — the bucket size that absorbs
 	// short spikes before sustained rate kicks in.
 	Burst int
+	// CacheSize is the max number of per-IP buckets retained.
+	// When exceeded, the least-recently-seen IP is evicted (and gets a fresh
+	// burst on its next request). Bounds memory under unique-IP floods.
+	CacheSize int
 }
 
 type CORSConfig struct {
@@ -61,7 +65,6 @@ type Server struct {
 	authDisabled bool
 
 	started      atomic.Bool
-	cancelFunc   context.CancelFunc
 	corsConfig   CORSConfig
 	rateLimitCfg RateLimitConfig
 
@@ -92,13 +95,11 @@ func NewServer(
 		jsonrpc.WithMaxRequestSize(maxRequestSize),
 	)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	srv := &Server{
 		rpc:          rpc,
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
-		cancelFunc:   cancel,
 		corsConfig:   corsConfig,
 		rateLimitCfg: rateLimitCfg,
 		tlsEnabled:   tlsConfig.Enabled,
@@ -108,7 +109,7 @@ func NewServer(
 
 	srv.srv = &http.Server{
 		Addr:    net.JoinHostPort(address, port),
-		Handler: srv.newHandlerStack(ctx, rpc),
+		Handler: srv.newHandlerStack(rpc),
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -122,7 +123,7 @@ func NewServer(
 
 // newHandlerStack returns wrapped rpc related handlers.
 // Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → RPC handler.
-func (s *Server) newHandlerStack(ctx context.Context, core http.Handler) http.Handler {
+func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 	var h http.Handler
 	switch {
 	case s.authDisabled:
@@ -138,7 +139,7 @@ func (s *Server) newHandlerStack(ctx context.Context, core http.Handler) http.Ha
 	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
 	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
 	if s.rateLimitCfg.Enabled {
-		h = rateLimit(ctx, s.rateLimitCfg.RequestsPerSec, s.rateLimitCfg.Burst, h)
+		h = rateLimit(s.rateLimitCfg.RequestsPerSec, s.rateLimitCfg.Burst, s.rateLimitCfg.CacheSize, h)
 	}
 	return h
 }
@@ -231,7 +232,6 @@ func (s *Server) Stop(ctx context.Context) error {
 		log.Warn("cannot stop server: already stopped")
 		return nil
 	}
-	s.cancelFunc()
 	err := s.srv.Shutdown(ctx)
 	if err != nil {
 		return err
