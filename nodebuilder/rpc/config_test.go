@@ -18,6 +18,7 @@ func TestDefaultConfig(t *testing.T) {
 			AllowedHeaders: []string{},
 			AllowedMethods: []string{},
 		},
+		RateLimit: DefaultRateLimitConfig(),
 	}
 
 	assert.Equal(t, expected, DefaultConfig())
