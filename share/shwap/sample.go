@@ -57,6 +57,9 @@ func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, idx Sample
 
 // SampleFromProto converts a protobuf Sample back into its domain model equivalent.
 func SampleFromProto(s *pb.Sample) (Sample, error) {
+	if s == nil {
+		return Sample{}, errors.New("pb sample is nil")
+	}
 	proof := nmt.NewInclusionProof(
 		int(s.GetProof().GetStart()),
 		int(s.GetProof().GetEnd()),

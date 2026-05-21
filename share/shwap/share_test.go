@@ -38,6 +38,11 @@ func TestProtoDecodersRejectMalformedInput(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("SampleFromProto/nil", func(t *testing.T) {
+		_, err := shwap.SampleFromProto(nil)
+		require.Error(t, err)
+	})
+
 	t.Run("SampleFromProto/nil share field", func(t *testing.T) {
 		_, err := shwap.SampleFromProto(&pb.Sample{Share: nil})
 		require.Error(t, err)
