@@ -777,8 +777,8 @@ github.com/ipfs/go-ipld-format v0.6.3 h1:9/lurLDTotJpZSuL++gh3sTdmcFhVkCwsgx2+rA
 github.com/ipfs/go-ipld-format v0.6.3/go.mod h1:74ilVN12NXVMIV+SrBAyC05UJRk0jVvGqdmrcYZvCBk=
 github.com/ipfs/go-ipld-legacy v0.2.2 h1:DThbqCPVLpWBcGtU23KDLiY2YRZZnTkXQyfz8aOfBkQ=
 github.com/ipfs/go-ipld-legacy v0.2.2/go.mod h1:hhkj+b3kG9b2BcUNw8IFYAsfeNo8E3U7eYlWeAOPyDU=
-github.com/ipfs/go-log/v2 v2.9.1 h1:3JXwHWU31dsCpvQ+7asz6/QsFJHqFr4gLgQ0FWteujk=
-github.com/ipfs/go-log/v2 v2.9.1/go.mod h1:evFx7sBiohUN3AG12mXlZBw5hacBQld3ZPHrowlJYoo=
+github.com/ipfs/go-log/v2 v2.9.2 h1:O/5BB0elpkRILvT24rCJ5976wWd7u0nJ436T3rdYdc4=
+github.com/ipfs/go-log/v2 v2.9.2/go.mod h1:RziRwwXWhndlk8L75RnEe0zeAYaq2heKtEMc3jqUov0=
 github.com/ipfs/go-metrics-interface v0.3.0 h1:YwG7/Cy4R94mYDUuwsBfeziJCVm9pBMJ6q/JR9V40TU=
 github.com/ipfs/go-metrics-interface v0.3.0/go.mod h1:OxxQjZDGocXVdyTPocns6cOLwHieqej/jos7H4POwoY=
 github.com/ipfs/go-metrics-prometheus v0.1.0 h1:bApWOHkrH3VTBHzTHrZSfq4n4weOZDzZFxUXv+HyKcA=
@@ -909,8 +909,8 @@ github.com/mattn/go-isatty v0.0.3/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNx
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
-github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
-github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw4=
+github.com/mattn/go-isatty v0.0.22/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/mattn/go-runewidth v0.0.2/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
