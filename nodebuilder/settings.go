@@ -31,6 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	modprune "github.com/celestiaorg/celestia-node/nodebuilder/pruner"
+	modrpc "github.com/celestiaorg/celestia-node/nodebuilder/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
@@ -114,6 +115,7 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(node.WithMetrics),
 		fx.Invoke(share.WithDiscoveryMetrics),
 		fx.Invoke(share.WithBlockStoreMetrics),
+		fx.Invoke(modrpc.WithMetrics),
 	)
 
 	samplingMetrics := fx.Options(
