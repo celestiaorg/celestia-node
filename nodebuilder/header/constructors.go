@@ -22,7 +22,7 @@ import (
 
 // maxBlockTime is the upper bound of expected block production time.
 // Used for syncer tail height estimation to ensure the tail stays within the pruning
-// window despite block time variance (real block times on mocha avg ~6.14s vs nominal 6s).
+// window despite block time variance (real block times on mocha avg ~3s).
 const maxBlockTime = 4 * time.Second
 
 // newP2PExchange constructs a new Exchange for headers.
