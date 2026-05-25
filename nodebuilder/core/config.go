@@ -16,8 +16,16 @@ var MetricsEnabled bool
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	EndpointConfig
-	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints to be used for
-	// transaction submission. Must be provided as `host:port` pairs.
+	// AdditionalCoreEndpoints lists extra Celestia-Core endpoints beyond the primary one.
+	// They serve two purposes: load-balancing transaction submission (see nodebuilder/state),
+	// and acting as additional block sources fanned into a MultiSource so the bridge ingests
+	// new blocks from every endpoint concurrently and tolerates any single one failing
+	// (see core.MultiSource and newCoreFetcher).
+	//
+	// Configurable only via the config file — there is intentionally no CLI flag. Each entry is
+	// a full EndpointConfig (IP, Port, TLSEnabled, XTokenPath): the primary endpoint keeps its
+	// --core.* flags for quick start, while this structured, possibly-secured list belongs in
+	// config rather than being flattened into flags.
 	AdditionalCoreEndpoints []EndpointConfig
 }
 

@@ -27,8 +27,7 @@ func TestMakeExtendedHeaderForEmptyBlock(t *testing.T) {
 		require.NoError(t, network.Stop())
 	})
 
-	fetcher, err := NewBlockFetcher(network.GRPCClient)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(network.GRPCClient)
 	sub, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	dataBlock := <-sub

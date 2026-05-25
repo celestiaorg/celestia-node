@@ -40,6 +40,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		return fx.Module("core",
 			baseComponents,
 			fx.Provide(core.NewBlockFetcher),
+			fx.Provide(newCoreFetcher),
 			fx.Provide(func(
 				fetcher *core.BlockFetcher,
 				store *store.Store,
@@ -74,7 +75,7 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			fx.Invoke(fx.Annotate(
 				func(
 					bcast libhead.Broadcaster[*header.ExtendedHeader],
-					fetcher *core.BlockFetcher,
+					fetcher core.Fetcher,
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *store.Store,

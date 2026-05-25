@@ -32,10 +32,7 @@ var constructFromCoreCmd = &cobra.Command{
 			panic(err)
 		}
 
-		fetcher, err := core.NewBlockFetcher(conn)
-		if err != nil {
-			panic(err)
-		}
+		fetcher := core.NewBlockFetcher(conn)
 
 		height, err := strconv.Atoi(args[1])
 		if err != nil {

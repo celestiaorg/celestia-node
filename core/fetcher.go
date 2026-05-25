@@ -35,10 +35,10 @@ type BlockFetcher struct {
 }
 
 // NewBlockFetcher returns a new `BlockFetcher`.
-func NewBlockFetcher(conn *grpc.ClientConn) (*BlockFetcher, error) {
+func NewBlockFetcher(conn *grpc.ClientConn) *BlockFetcher {
 	return &BlockFetcher{
 		client: coregrpc.NewBlockAPIClient(conn),
-	}, nil
+	}
 }
 
 // GetBlockInfo queries Core for additional block information, like Commit and ValidatorSet.
@@ -167,6 +167,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan SignedB
 			err = f.receive(ctx, signedBlockCh, subscription)
 			if err != nil {
 				log.Warnw("fetcher: error receiving new height", "err", err.Error())
+				_ = subscription.CloseSend() // inform client that the subscription won't be used anymore
 				continue
 			}
 		}
@@ -217,6 +218,22 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return resp.SyncInfo.CatchingUp, nil
+}
+
+// Verify checks the core endpoint is on the expected network. The expected
+// chain ID must be set: a node must know which network it serves.
+func (f *BlockFetcher) Verify(ctx context.Context, expected string) error {
+	if expected == "" {
+		return fmt.Errorf("core/fetcher: expected chain ID must be configured")
+	}
+	id, err := f.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("core/fetcher: fetching chain ID: %w", err)
+	}
+	if id != expected {
+		return fmt.Errorf("core/fetcher: network mismatch: expected %q, got %q", expected, id)
+	}
+	return nil
 }
 
 // ChainID returns the chain ID (network name) that the Core node is connected to.

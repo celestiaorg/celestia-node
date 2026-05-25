@@ -196,8 +196,7 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Netw
 	// flakiness with accessing account state)
 	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	fetcher, err := NewBlockFetcher(network.GRPCClient)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(network.GRPCClient)
 	return fetcher, network
 }
 

@@ -20,8 +20,7 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 		require.NoError(t, network.Stop())
 	})
 
-	fetcher, err := NewBlockFetcher(network.GRPCClient)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(network.GRPCClient)
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
@@ -54,8 +53,7 @@ func TestFetcher_Resubscription(t *testing.T) {
 	host, port, err := net.SplitHostPort(tn.GRPCClient.Target())
 	require.NoError(t, err)
 	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(client)
 
 	// subscribe to the channel to get new blocks
 	// and try to get one block

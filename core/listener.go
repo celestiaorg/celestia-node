@@ -19,6 +19,28 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
+// Fetcher abstracts the core block source consumed by the Listener. It is
+// satisfied both by a single *BlockFetcher and by a *MultiSource, which fans
+// several core endpoints into one new-block stream for resilience.
+type Fetcher interface {
+	// Verify checks the source is on the expected network before any blocks are
+	// consumed. The expected chain ID must be set — a node must know its network,
+	// so an empty one is an error. A MultiSource may prune sources on the wrong
+	// network here; it errors if none remain usable.
+	Verify(ctx context.Context, expected string) error
+	// SubscribeNewBlockEvent returns a channel of newly produced blocks.
+	SubscribeNewBlockEvent(ctx context.Context) (chan SignedBlock, error)
+	// ChainID returns the network/chain ID of the source.
+	ChainID(ctx context.Context) (string, error)
+	// IsSyncing reports whether the source is still catching up to the head.
+	IsSyncing(ctx context.Context) (bool, error)
+}
+
+var (
+	_ Fetcher = (*BlockFetcher)(nil)
+	_ Fetcher = (*MultiSource)(nil)
+)
+
 // Listener is responsible for listening to Core for
 // new block events and converting new Core blocks into
 // the main data structure used in the Celestia DA network:
@@ -27,7 +49,7 @@ import (
 // broadcasts the new `ExtendedHeader` to the header-sub gossipsub
 // network.
 type Listener struct {
-	fetcher *BlockFetcher
+	fetcher Fetcher
 
 	construct          header.ConstructFn
 	store              *store.Store
@@ -48,7 +70,7 @@ type Listener struct {
 
 func NewListener(
 	bcast libhead.Broadcaster[*header.ExtendedHeader],
-	fetcher *BlockFetcher,
+	fetcher Fetcher,
 	hashBroadcaster shrexsub.BroadcastFn,
 	construct header.ConstructFn,
 	store *store.Store,
@@ -91,7 +113,7 @@ func (cl *Listener) Start(ctx context.Context) error {
 		return fmt.Errorf("listener: already started")
 	}
 
-	if err := cl.verifyChainID(ctx); err != nil {
+	if err := cl.fetcher.Verify(ctx, cl.chainID); err != nil {
 		return err
 	}
 
@@ -105,28 +127,6 @@ func (cl *Listener) Start(ctx context.Context) error {
 	}
 
 	go cl.listen(ctx, subs)
-	return nil
-}
-
-// verifyChainID checks that the core endpoint is on the expected network
-// before starting the listener. This prevents connecting to a wrong network.
-func (cl *Listener) verifyChainID(ctx context.Context) error {
-	if cl.chainID == "" {
-		return nil
-	}
-
-	networkID, err := cl.fetcher.ChainID(ctx)
-	if err != nil {
-		return fmt.Errorf("listener: fetching chain ID from core endpoint: %w", err)
-	}
-
-	if networkID != cl.chainID {
-		return fmt.Errorf(
-			"listener: core endpoint network mismatch: expected %q, got %q",
-			cl.chainID, networkID,
-		)
-	}
-
 	return nil
 }
 
@@ -164,14 +164,6 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan SignedBlock) {
 				return
 			}
 
-			if cl.chainID != "" && b.Header.ChainID != cl.chainID {
-				// stop node if there is a critical issue with the block subscription
-				panic(fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
-					" received %s. blockHeight: %d blockHash: %x.",
-					cl.chainID, b.Header.ChainID, b.Header.Height, b.Header.Hash()),
-				)
-			}
-
 			log.Debugw("listener: new block from core", "height", b.Header.Height)
 
 			err := cl.handleNewSignedBlock(ctx, b)
@@ -201,6 +193,32 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b SignedBlock) err
 	span.SetAttributes(
 		attribute.Int64("height", b.Header.Height),
 	)
+
+	// Multiple core sources (see MultiSource) fan the same height in N times.
+	// Skip a height already in the store. Keying on the store (not an in-memory
+	// watermark) means out-of-order blocks from a lagging source are still
+	// processed, and any failure below returns without storing so another
+	// source's copy retries the height. Historic blocks outside the
+	// availability window are intentionally not stored, so their duplicates are
+	// reprocessed per source; redundant header broadcasts are deduped by
+	// gossipsub message IDs.
+	if has, hasErr := cl.store.HasByHeight(ctx, uint64(b.Header.Height)); hasErr == nil && has {
+		log.Debugw("listener: skipping already-processed height", "height", b.Header.Height)
+		return nil
+	}
+
+	// chainID is checked only after the dedup gate, so a wrong-chain block
+	// reaches it only when this source won the race for a height no other
+	// source has stored yet. A duplicate from a slow misconfigured endpoint is
+	// deduped away above and never panics; we crash only if the *fastest* source
+	// for some height is on the wrong network — a critical misconfiguration we
+	// must not silently ingest.
+	if cl.chainID != "" && b.Header.ChainID != cl.chainID {
+		panic(fmt.Sprintf("listener: received block with unexpected chain ID: expected %s,"+
+			" received %s. blockHeight: %d blockHash: %x.",
+			cl.chainID, b.Header.ChainID, b.Header.Height, b.Header.Hash()),
+		)
+	}
 
 	eds, err := da.ConstructEDS(b.Data.Txs.ToSliceOfBytes(), b.Header.Version.App, -1)
 	if err != nil {
