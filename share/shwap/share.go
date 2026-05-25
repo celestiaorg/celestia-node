@@ -1,6 +1,7 @@
 package shwap
 
 import (
+	"errors"
 	"fmt"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -9,11 +10,10 @@ import (
 )
 
 // ShareFromProto converts a protobuf Share object to the application's internal share
-// representation. It returns nil if the input protobuf Share is nil, ensuring safe handling of nil
-// values.
+// representation. Returns an error if the input is nil or contains invalid data
 func ShareFromProto(s *pb.Share) (libshare.Share, error) {
 	if s == nil {
-		return libshare.Share{}, nil
+		return libshare.Share{}, errors.New("pb share is nil")
 	}
 	sh, err := libshare.NewShare(s.Data)
 	if err != nil {

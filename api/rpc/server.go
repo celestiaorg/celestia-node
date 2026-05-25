@@ -15,11 +15,41 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rs/cors"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
 var log = logging.Logger("rpc")
+
+const (
+	// maxRequestSize bounds JSON-RPC request bodies. Sized as 2× appconsts.MaxTxSize
+	// to cover base64 + JSON envelope overhead (~1.5×) on a worst-case blob.Submit,
+	// which packs all blobs into a single PFB tx capped at MaxTxSize.
+	maxRequestSize = int64(appconsts.MaxTxSize * 2)
+	// maxConcurrentConns caps simultaneous connections to bound goroutine/FD usage.
+	maxConcurrentConns = 500
+)
+
+// RateLimitConfig configures per-IP rate limiting based on the connection's
+// remote address. When the node runs behind a reverse proxy, RemoteAddr is
+// the proxy's address, so all clients share one bucket — in that case keep
+// this disabled and apply rate limiting at the proxy instead.
+type RateLimitConfig struct {
+	// Enabled toggles the per-IP rate limit middleware.
+	Enabled bool
+	// RequestsPerSec is the sustained per-IP request rate; requests above
+	// this rate (after burst is drained) get 429 Too Many Requests.
+	RequestsPerSec int
+	// Burst is the per-IP burst allowance — the bucket size that absorbs
+	// short spikes before sustained rate kicks in.
+	Burst int
+	// CacheSize is the max number of per-IP buckets retained.
+	// When exceeded, the least-recently-seen IP is evicted (and gets a fresh
+	// burst on its next request). Bounds memory under unique-IP floods.
+	CacheSize int
+}
 
 type CORSConfig struct {
 	Enabled        bool
@@ -34,8 +64,9 @@ type Server struct {
 	listener     net.Listener
 	authDisabled bool
 
-	started    atomic.Bool
-	corsConfig CORSConfig
+	started      atomic.Bool
+	corsConfig   CORSConfig
+	rateLimitCfg RateLimitConfig
 
 	tlsEnabled  bool
 	tlsCertPath string
@@ -56,16 +87,21 @@ func NewServer(
 	authDisabled bool,
 	corsConfig CORSConfig,
 	tlsConfig TLSConfig,
+	rateLimitCfg RateLimitConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
-	rpc := jsonrpc.NewServer()
+	rpc := jsonrpc.NewServer(
+		jsonrpc.WithMaxRequestSize(maxRequestSize),
+	)
+
 	srv := &Server{
 		rpc:          rpc,
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
 		corsConfig:   corsConfig,
+		rateLimitCfg: rateLimitCfg,
 		tlsEnabled:   tlsConfig.Enabled,
 		tlsCertPath:  tlsConfig.CertPath,
 		tlsKeyPath:   tlsConfig.KeyPath,
@@ -76,23 +112,36 @@ func NewServer(
 		Handler: srv.newHandlerStack(rpc),
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      5 * time.Minute, // 5m covers long unary calls
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MiB
 	}
 
 	return srv
 }
 
-// newHandlerStack returns wrapped rpc related handlers
+// newHandlerStack returns wrapped rpc related handlers.
+// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
-	if s.authDisabled {
+	var h http.Handler
+	switch {
+	case s.authDisabled:
 		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
-		return s.corsAny(core)
+		h = s.corsAny(core)
+	case s.corsConfig.Enabled:
+		h = s.corsWithConfig(s.authHandler(core))
+	default:
+		h = s.authHandler(core)
 	}
 
-	if s.corsConfig.Enabled {
-		return s.corsWithConfig(s.authHandler(core))
+	h = connLimit(maxConcurrentConns, h)
+	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
+	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
+	if s.rateLimitCfg.Enabled {
+		h = rateLimit(s.rateLimitCfg.RequestsPerSec, s.rateLimitCfg.Burst, s.rateLimitCfg.CacheSize, h)
 	}
-
-	return s.authHandler(core)
+	return h
 }
 
 // verifyAuth is the RPC server's auth middleware. This middleware is only

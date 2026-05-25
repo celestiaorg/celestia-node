@@ -16,6 +16,24 @@ type CORSConfig struct {
 	AllowedMethods []string
 }
 
+// RateLimitConfig configures per-IP rate limiting on the RPC server. The
+// limit is keyed by the connection's remote address, so behind a reverse
+// proxy all clients share a single bucket — keep this disabled in that
+// setup and apply rate limiting at the proxy instead.
+type RateLimitConfig struct {
+	Enabled bool
+	// RequestsPerSec is the sustained per-IP request rate; requests above
+	// this rate (after burst is drained) get 429 Too Many Requests.
+	RequestsPerSec int
+	// Burst is the per-IP burst allowance — the bucket size that absorbs
+	// short spikes before sustained rate kicks in.
+	Burst int
+	// CacheSize is the max number of per-IP buckets retained.
+	// When exceeded, the least-recently-seen IP is evicted (and gets a fresh
+	// burst on its next request). Bounds memory under unique-IP floods.
+	CacheSize int
+}
+
 type Config struct {
 	Address     string
 	Port        string
@@ -24,15 +42,29 @@ type Config struct {
 	TLSEnabled  bool
 	TLSCertPath string
 	TLSKeyPath  string
+	RateLimit   RateLimitConfig
 }
 
 func DefaultConfig() Config {
 	return Config{
 		Address: defaultBindAddress,
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		Port:     defaultPort,
-		SkipAuth: false,
-		CORS:     DefaultCORSConfig(),
+		Port:      defaultPort,
+		SkipAuth:  false,
+		CORS:      DefaultCORSConfig(),
+		RateLimit: DefaultRateLimitConfig(),
+	}
+}
+
+// DefaultRateLimitConfig disables rate limiting by default; production
+// deployments typically run behind a reverse proxy that handles rate
+// limiting correctly (with the real client IP).
+func DefaultRateLimitConfig() RateLimitConfig {
+	return RateLimitConfig{
+		Enabled:        false,
+		RequestsPerSec: 100,
+		Burst:          200,
+		CacheSize:      8192,
 	}
 }
 
@@ -79,6 +111,15 @@ func (cfg *Config) Validate() error {
 		}
 		if _, err := os.Stat(cfg.TLSKeyPath); err != nil {
 			return fmt.Errorf("service/rpc: TLS key file error: %w", err)
+		}
+	}
+
+	if cfg.RateLimit.Enabled {
+		if cfg.RateLimit.RequestsPerSec <= 0 || cfg.RateLimit.Burst <= 0 {
+			return fmt.Errorf("service/rpc: rate limit RequestsPerSec and Burst must be > 0")
+		}
+		if cfg.RateLimit.CacheSize <= 0 {
+			return fmt.Errorf("service/rpc: rate limit CacheSize must be > 0")
 		}
 	}
 

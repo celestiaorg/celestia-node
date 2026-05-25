@@ -49,5 +49,10 @@ func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
 		Enabled:  cfg.TLSEnabled,
 		CertPath: cfg.TLSCertPath,
 		KeyPath:  cfg.TLSKeyPath,
+	}, rpc.RateLimitConfig{
+		Enabled:        cfg.RateLimit.Enabled,
+		RequestsPerSec: cfg.RateLimit.RequestsPerSec,
+		Burst:          cfg.RateLimit.Burst,
+		CacheSize:      cfg.RateLimit.CacheSize,
 	}, signer, verifier)
 }

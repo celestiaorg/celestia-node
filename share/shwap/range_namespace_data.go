@@ -183,6 +183,11 @@ func (rngdata *RangeNamespaceData) verifyShares(
 	if len(expectedRoots) != len(shares) {
 		return fmt.Errorf("mismatched row roots: expected %d vs got %d", len(shares), len(expectedRoots))
 	}
+	for i, row := range shares {
+		if len(row) == 0 {
+			return fmt.Errorf("empty shares at row %d", i)
+		}
+	}
 	if rngdata.FirstIncompleteRowProof != nil && rngdata.FirstIncompleteRowProof.Start() != from.Col {
 		return fmt.Errorf(
 			"first col share index mismatch: expected %d vs got %d", from.Col, rngdata.FirstIncompleteRowProof.Start(),
@@ -291,20 +296,26 @@ func (rngdata *RangeNamespaceData) IsEmpty() bool {
 }
 
 func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData, error) {
-	shares := make([][]libshare.Share, len(nd.Shares))
+	if nd == nil {
+		return RangeNamespaceData{}, errors.New("pb RangeNamespaceData is nil")
+	}
+	shares := make([][]libshare.Share, len(nd.GetShares()))
 
-	for i, shr := range nd.Shares {
+	for i, shr := range nd.GetShares() {
 		shrs, err := SharesFromProto(shr.GetShares())
 		if err != nil {
 			return RangeNamespaceData{}, err
+		}
+		if len(shrs) == 0 {
+			return RangeNamespaceData{}, fmt.Errorf("empty shares at row %d", i)
 		}
 		shares[i] = shrs
 	}
 
 	return RangeNamespaceData{
 		Shares:                  shares,
-		FirstIncompleteRowProof: pbNmtToNmtProof(nd.FirstIncompleteRowProof),
-		LastIncompleteRowProof:  pbNmtToNmtProof(nd.LastIncompleteRowProof),
+		FirstIncompleteRowProof: pbNmtToNmtProof(nd.GetFirstIncompleteRowProof()),
+		LastIncompleteRowProof:  pbNmtToNmtProof(nd.GetLastIncompleteRowProof()),
 	}, nil
 }
 
@@ -410,6 +421,10 @@ func ParseNamespace(rawShares [][]libshare.Share, startShare, endShare int) (lib
 		return libshare.Namespace{}, fmt.Errorf(
 			"end share %d cannot be lower or equal to the starting share %d", endShare, startShare,
 		)
+	}
+
+	if len(rawShares) == 0 || len(rawShares[0]) == 0 {
+		return libshare.Namespace{}, errors.New("empty shares")
 	}
 
 	sharesAmount := 0

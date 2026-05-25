@@ -21,6 +21,7 @@ var (
 	tlsEnabledFlag         = "rpc.tls"
 	tlsCertPathFlag        = "rpc.tls-cert"
 	tlsKeyPathFlag         = "rpc.tls-key"
+	rateLimitFlag          = "rpc.rate-limit"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -83,6 +84,12 @@ func Flags() *flag.FlagSet {
 		tlsKeyPathFlag,
 		"",
 		"Path to TLS private key file (PEM format)",
+	)
+
+	flags.Bool(
+		rateLimitFlag,
+		false,
+		"Enable per-IP rate limiting on RPC server. Leave disabled when running behind a reverse proxy",
 	)
 
 	return flags
@@ -181,6 +188,13 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 			"TLS cert/key paths provided but TLS is not enabled. Set --%s=true to apply these settings",
 			tlsEnabledFlag,
 		)
+	}
+
+	if val, err := cmd.Flags().GetBool(rateLimitFlag); err != nil {
+		return err
+	} else if val {
+		log.Info("RPC rate limiting enabled (--rpc.rate-limit)")
+		cfg.RateLimit.Enabled = true
 	}
 
 	return nil
