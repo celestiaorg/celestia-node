@@ -7,7 +7,7 @@ require (
 	github.com/celestiaorg/celestia-app/v9 v9.0.0-arabica
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
-	github.com/celestiaorg/tastora v0.19.0
+	github.com/celestiaorg/tastora v0.20.0
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
