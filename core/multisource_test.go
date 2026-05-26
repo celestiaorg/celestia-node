@@ -92,7 +92,7 @@ func TestMultiSource_SubscribeFanIn(t *testing.T) {
 	chB <- blockAt(1)
 	chA <- blockAt(2)
 
-	got := []int64{}
+	got := make([]int64, 0, 3)
 	for range 3 {
 		b, ok := recv(t, out)
 		require.True(t, ok)
@@ -304,7 +304,7 @@ func TestMultiSource_SingleSource(t *testing.T) {
 			}
 		}()
 
-		var got []int64
+		got := make([]int64, 0, 5)
 		for range 5 {
 			b, ok := recv(t, out)
 			require.True(t, ok)
