@@ -20,7 +20,9 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/pruner"
+	modshare "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	"github.com/celestiaorg/celestia-node/nodebuilder/tests/swamp"
+	corepruner "github.com/celestiaorg/celestia-node/pruner"
 	"github.com/celestiaorg/celestia-node/share"
 	full_avail "github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
@@ -48,7 +50,7 @@ func TestArchivalBlobSync(t *testing.T) {
 		bsize  = 16
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
@@ -60,7 +62,7 @@ func TestArchivalBlobSync(t *testing.T) {
 	err := archivalBN.Start(ctx)
 	require.NoError(t, err)
 
-	archivalFN := sw.NewBridgeNode()
+	archivalFN := sw.NewBridgeNode(fx.Replace(&pruner.Config{EnableService: false}))
 	err = archivalFN.Start(ctx)
 	require.NoError(t, err)
 	sw.SetBootstrapper(t, archivalFN)
@@ -76,6 +78,17 @@ func TestArchivalBlobSync(t *testing.T) {
 	testAvailWindow := time.Millisecond
 	prunerOpts := fx.Options(
 		fx.Replace(testAvailWindow),
+		// shrink the pruner's availability window so every already-synced
+		// block becomes eligible for pruning. The shrex getter decorator below
+		// uses the plain time.Duration, but the pruner Service keys off the
+		// distinct modshare.Window type, which otherwise stays at the multi-day
+		// StorageWindow and never prunes within the test.
+		fx.Replace(modshare.Window(testAvailWindow)),
+		// run the prune cycle frequently so pruning nodes deterministically
+		// drop blocks shortly after syncing them. The default 30s cycle only
+		// fires once at startup (before sync completes) within the test window,
+		// which made this test flaky on slower/loaded CI machines.
+		fx.Replace([]corepruner.Option{corepruner.WithPruneCycle(100 * time.Millisecond)}),
 		fx.Decorate(func(
 			client *shrex.Client,
 			managers map[string]*peers.Manager,
@@ -145,15 +158,21 @@ func TestArchivalBlobSync(t *testing.T) {
 		})
 	}
 
-	// ensure pruned FNs don't have the blocks associated
-	// with the historical blobs
-	for _, pruned := range pruningFulls {
-		for _, b := range archivalBlobs {
-			has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
-			require.NoError(t, err)
-			assert.False(t, has)
+	// ensure pruned nodes don't have the blocks associated
+	// with the historical blobs. Pruning is asynchronous (runs on a cycle),
+	// so poll until every pruning node has dropped all archival heights.
+	require.Eventually(t, func() bool {
+		for _, pruned := range pruningFulls {
+			for _, b := range archivalBlobs {
+				has, err := pruned.EDSStore.HasByHeight(ctx, b.height)
+				require.NoError(t, err)
+				if has {
+					return false
+				}
+			}
 		}
-	}
+		return true
+	}, time.Second*20, time.Millisecond*100, "pruning nodes did not prune archival blocks")
 
 	ln := sw.NewLightNode(prunerOpts)
 	err = ln.Start(ctx)

@@ -40,6 +40,9 @@ func ConstructModule(tp node.Type) fx.Option {
 		// supply the default config, which can only be overridden by
 		// passing the `--archival` flag
 		fx.Supply(cfg),
+		// default (empty) set of pruner options; tests may override this
+		// provider via fx.Replace to e.g. shorten the prune cycle
+		fx.Provide(func() []pruner.Option { return nil }),
 		fx.Provide(func(cfg *Config) node.ArchivalMode {
 			return node.ArchivalMode(!cfg.EnableService)
 		}),

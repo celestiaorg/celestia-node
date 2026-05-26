@@ -21,7 +21,7 @@ func newPrunerService(
 	getter libhead.Store[*header.ExtendedHeader],
 	_ *syncerAnchor,
 	ds datastore.Batching,
-	opts ...pruner.Option,
+	opts []pruner.Option,
 ) (*pruner.Service, error) {
 	serv, err := pruner.NewService(p, window.Duration(), getter, ds, p2p.BlockTime, opts...)
 	if err != nil {
