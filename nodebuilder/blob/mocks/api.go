@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	blob "github.com/celestiaorg/celestia-node/blob"
-	state "github.com/celestiaorg/celestia-node/state"
+	txclient "github.com/celestiaorg/celestia-node/state/txclient"
 	share "github.com/celestiaorg/go-square/v4/share"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -113,7 +113,7 @@ func (mr *MockModuleMockRecorder) Included(arg0, arg1, arg2, arg3, arg4 interfac
 }
 
 // Submit mocks base method.
-func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 *state.TxConfig) (uint64, error) {
+func (m *MockModule) Submit(arg0 context.Context, arg1 []*blob.Blob, arg2 *txclient.TxConfig) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Submit", arg0, arg1, arg2)
 	ret0, _ := ret[0].(uint64)
@@ -128,16 +128,31 @@ func (mr *MockModuleMockRecorder) Submit(arg0, arg1, arg2 interface{}) *gomock.C
 }
 
 // Subscribe mocks base method.
-func (m *MockModule) Subscribe(arg0 context.Context, arg1 share.Namespace, arg2 uint64) (<-chan *blob.SubscriptionResponse, error) {
+func (m *MockModule) Subscribe(arg0 context.Context, arg1 share.Namespace) (<-chan *blob.SubscriptionResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Subscribe", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Subscribe", arg0, arg1)
 	ret0, _ := ret[0].(<-chan *blob.SubscriptionResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockModuleMockRecorder) Subscribe(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockModuleMockRecorder) Subscribe(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockModule)(nil).Subscribe), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockModule)(nil).Subscribe), arg0, arg1)
+}
+
+// SubscribeFromStartHeight mocks base method.
+func (m *MockModule) SubscribeFromStartHeight(arg0 context.Context, arg1 share.Namespace, arg2 uint64) (<-chan *blob.SubscriptionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeFromStartHeight", arg0, arg1, arg2)
+	ret0, _ := ret[0].(<-chan *blob.SubscriptionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SubscribeFromStartHeight indicates an expected call of SubscribeFromStartHeight.
+func (mr *MockModuleMockRecorder) SubscribeFromStartHeight(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeFromStartHeight", reflect.TypeOf((*MockModule)(nil).SubscribeFromStartHeight), arg0, arg1, arg2)
 }

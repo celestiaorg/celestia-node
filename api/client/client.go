@@ -155,7 +155,7 @@ func (c *Client) initTxClient(
 	// accessors are intentionally nil here because Client routes
 	// Blob.Subscribe through the bridge via JSON-RPC (ReadClient.Blob);
 	// this local service only powers Blob.Submit.
-	blobSvc := blob.NewService(core, nil, nil, nil, nil)
+	blobSvc := blob.NewService(core, nil, nil, nil)
 	err = blobSvc.Start(ctx)
 	if err != nil {
 		_ = core.Stop(ctx)
