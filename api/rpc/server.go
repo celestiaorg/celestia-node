@@ -14,6 +14,8 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 
@@ -131,9 +133,18 @@ func NewServer(
 // newHandlerStack returns wrapped rpc related handlers.
 // Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → metrics → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
-	// metrics middleware wraps the innermost handler so it observes every
-	// request that reaches the RPC layer. s.metrics may be nil (no-op).
-	h := s.metrics.instrument(core)
+	// otelhttp records HTTP request-level metrics (duration, request/response
+	// sizes, active requests, status) and — unlike a hand-rolled wrapper —
+	// preserves the http.Hijacker that websocket upgrades rely on (it wraps the
+	// writer via httpsnoop). Connection- and method-level signals live in
+	// rpcMetrics. s.metrics may be nil (metrics disabled) → no wrapping.
+	h := core
+	if s.metrics != nil {
+		h = otelhttp.NewHandler(core, "rpc",
+			// metrics only: suppress the per-request span otelhttp would emit.
+			otelhttp.WithTracerProvider(noop.NewTracerProvider()),
+		)
+	}
 	switch {
 	case s.authDisabled:
 		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
