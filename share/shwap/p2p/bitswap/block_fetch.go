@@ -218,11 +218,11 @@ func (h *hasher) write(data []byte) error {
 	// NOTE: Bitswap may call hasher.Write concurrently, which may call unmarshall concurrently
 	// this we need this synchronization.
 	entry.Lock()
+	defer entry.Unlock()
 	err = entry.UnmarshalFn(container, id)
 	if err != nil {
 		return fmt.Errorf("verifying and unmarshalling container data: %w", err)
 	}
-	entry.Unlock()
 
 	// set the id as resulting sum
 	// it's required for the sum to match the requested ID

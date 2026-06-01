@@ -140,6 +140,18 @@ func (s Sample) Verify(roots *share.AxisRoots, rowIdx, colIdx int) error {
 	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
+	switch s.ProofType {
+	case rsmt2d.Row:
+		if s.Proof.Start() != colIdx || s.Proof.End() != colIdx+1 {
+			return fmt.Errorf("%w: row proof Start/End = %d/%d, want %d/%d",
+				ErrFailedVerification, s.Proof.Start(), s.Proof.End(), colIdx, colIdx+1)
+		}
+	case rsmt2d.Col:
+		if s.Proof.Start() != rowIdx || s.Proof.End() != rowIdx+1 {
+			return fmt.Errorf("%w: col proof Start/End = %d/%d, want %d/%d",
+				ErrFailedVerification, s.Proof.Start(), s.Proof.End(), rowIdx, rowIdx+1)
+		}
+	}
 	if !s.verifyInclusion(roots, rowIdx, colIdx) {
 		return ErrFailedVerification
 	}

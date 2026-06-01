@@ -77,6 +77,35 @@ func TestSampleNegativeVerifyInclusion(t *testing.T) {
 	require.ErrorIs(t, err, shwap.ErrFailedVerification)
 }
 
+// TestSampleColumnSubstitution demonstrates PROTOCO-1823: Sample.Verify does not
+// bind the proof's column to the requested column. A sample built for (row 0, col 1)
+// is accepted when the caller requested (row 0, col 0). Both coordinates live in the
+// same row and the same (non-parity) quadrant, so the row root and namespace selection
+// still match. This test asserts the CORRECT behavior (rejection) and therefore fails
+// on current code, proving the vulnerability.
+func TestSampleColumnSubstitution(t *testing.T) {
+	const odsSize = 8
+	randEDS := edstest.RandEDS(t, odsSize)
+	root, err := share.NewAxisRoots(randEDS)
+	require.NoError(t, err)
+	inMem := eds.Rsmt2D{ExtendedDataSquare: randEDS}
+
+	const requestedRow, requestedCol = 0, 0
+	const servedCol = 1 // attacker substitutes a different column in the same row
+
+	// Build a valid sample+proof for a DIFFERENT column in the same row.
+	served, err := inMem.SampleForProofAxis(shwap.SampleCoords{Row: requestedRow, Col: servedCol}, rsmt2d.Row)
+	require.NoError(t, err)
+
+	// The proof genuinely opens column 1, not the requested column 0.
+	require.Equal(t, servedCol, served.Proof.Start())
+
+	// Verifying against the REQUESTED coordinate (row 0, col 0) must be rejected.
+	err = served.Verify(root, requestedRow, requestedCol)
+	require.ErrorIs(t, err, shwap.ErrFailedVerification,
+		"Sample.Verify accepted a proof for col %d when col %d was requested", servedCol, requestedCol)
+}
+
 func TestSampleProtoEncoding(t *testing.T) {
 	const odsSize = 8
 	randEDS := edstest.RandEDS(t, odsSize)
