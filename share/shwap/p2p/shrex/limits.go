@@ -60,58 +60,79 @@ const serviceBaseStreams = 128
 // available RAM, keeping stream and memory limits self-consistent.
 const autoscaleMemUnit = 1024 * 1024 * 1024 // 1 GiB in bytes
 
-// minSimultaneousPeers is the minimum number of peers the server should be
-// able to serve at full per-peer stream concurrency at the same time. It drives
-// the service-level per-peer stream cap:
-//
-//	servicePeerStreams = streamIncrease / minSimultaneousPeers
-//
-// A higher value gives each individual peer fewer streams but allows more peers
-// to be served in parallel. 4 is a conservative floor that prevents a single
-// peer from monopolising the service stream budget.
-const minSimultaneousPeers = 4
+// Per-peer service-scope limits autoscale with available RAM instead of being
+// fixed. The previous fixed-cap-of-8 starved demanding clients on public bridge
+// nodes regardless of how much memory the host had. The new values give each
+// peer enough concurrency to run a full DAS round plus namespace queries
+// without piling up rejections, while still bounding any single peer's share
+// of the global service budget.
+const (
+	// servicePeerBaseStreams is the per-peer stream floor on a low-memory host.
+	servicePeerBaseStreams = 48
+	// servicePeerStreamIncrease is added to the per-peer stream cap per 1 GiB
+	// of available RAM (the rcmgr autoscale unit, = 1/8 of total RAM). On a
+	// 125 GiB box this adds ~93 on top of the base, for ~141 streams per peer.
+	servicePeerStreamIncrease = 6
+	// servicePeerBaseMemory is the per-peer memory floor in bytes.
+	servicePeerBaseMemory = 512 * 1024 * 1024
+	// servicePeerMemoryIncrease is added to the per-peer memory cap per 1 GiB
+	// of available RAM. On a 125 GiB box this gives ~1.5 GiB per peer.
+	servicePeerMemoryIncrease = 64 * 1024 * 1024
+	// globalLimitMultiplier scales the autoscaled service-global ceiling. A
+	// public-facing bridge with plenty of RAM should accept much more aggregate
+	// shrex traffic than a small private node; 2× preserves the original shape
+	// of the formula while doubling the absolute ceiling.
+	globalLimitMultiplier = 2
+)
 
 // peerStreamsPerProtocol is the maximum number of concurrent inbound streams a
 // single peer may open per shrex request type. These limits fire at stream
-// creation (protocol scope) and are based on realistic client concurrency:
+// creation (protocol scope) and are sized for a public-facing bridge node that
+// serves many demanding light clients:
 //
 //   - SampleID: a light node runs 16 DAS workers that may each request 16
 //     samples simultaneously, so up to 256 parallel streams target a single
 //     bridge node in the worst case.
-//   - NamespaceDataID / RangeNamespaceDataID / RowID: clients issue at most a
-//     handful of parallel queries per block; 16 is a generous ceiling.
-//   - EdsID: one request per block-sync cycle; 8 provides ample headroom.
+//   - NamespaceDataID / RangeNamespaceDataID / RowID: a single namespace query
+//     opens one stream per EDS row touched, so wide blocks with large
+//     namespaces drive concurrency into the dozens. 128 keeps a full namespace
+//     query from being chopped up across multiple round-trips.
+//   - EdsID: heavier per-stream than the rest; 16 lets the bridge serve a few
+//     clients concurrently without starving the sample/nd traffic that shares
+//     the per-peer service-scope budget.
 //
-// These per-protocol per-peer values are intentionally higher than the
-// service-level per-peer cap (servicePeerStreams), which is capacity-derived to
-// ensure fairness across multiple simultaneous peers. The two limits serve
-// different roles: protocol limits enforce workload-driven ceilings per request
-// type; the service limit enforces overall fairness.
+// The service-level per-peer cap (servicePeerBaseStreams + autoscale) bounds
+// total concurrency across all request types from the same peer.
 var peerStreamsPerProtocol = map[string]int{
 	(&shwap.SampleID{}).Name():             256,
-	(&shwap.NamespaceDataID{}).Name():      16,
-	(&shwap.RangeNamespaceDataID{}).Name(): 16,
-	(&shwap.RowID{}).Name():                16,
-	(&shwap.EdsID{}).Name():                8,
+	(&shwap.NamespaceDataID{}).Name():      128,
+	(&shwap.RangeNamespaceDataID{}).Name(): 128,
+	(&shwap.RowID{}).Name():                128,
+	(&shwap.EdsID{}).Name():                16,
 }
 
 // SetResourceLimits registers shrex resource limits into cfg for both the
 // shrex service and each per-protocol handler.
 //
 // Service limits (AddServiceLimit / AddServicePeerLimit):
-//   - Global totals scale with RAM via BaseLimitIncrease.
-//   - Per-peer cap is fixed and capacity-derived: streamIncrease / minSimultaneousPeers.
-//     On a machine where maxResponseSize = 32 MiB this gives streamIncrease = 32,
-//     so servicePeerStreams = 8. Each peer can open up to 8 concurrent streams
-//     across all request types, guaranteeing at least 4 peers can be fully served
-//     in parallel before the service stream budget is exhausted.
+//   - Global totals scale with RAM via BaseLimitIncrease, multiplied by
+//     globalLimitMultiplier so a public-facing bridge with plenty of RAM can
+//     accept much more aggregate shrex traffic before hitting the global cap.
+//   - Per-peer cap also autoscales (servicePeerBaseStreams + per-GiB increase).
+//     On a 125 GiB host this gives ~141 streams
+//     and ~1.5 GiB memory per peer — enough for a full DAS round plus namespace
+//     queries from a single demanding client.
 //   - Memory is tracked at this scope because ReserveMemory is called inside the
-//     handler after SetService; the budget is maxResponseSize per stream.
+//     handler after SetService. The per-peer memory budget is intentionally not
+//     pre-allocated for worst-case EDS-per-stream; the realistic mix is
+//     dominated by tiny sample/nd responses, and EDS-heavy peers will still be
+//     rejected once their actual reservations exceed the cap.
 //
 // Protocol limits (AddProtocolLimit / AddProtocolPeerLimit):
 //   - Global totals mirror the service limits so the ceilings are consistent.
 //   - Per-peer caps come from peerStreamsPerProtocol and reflect per-type client
-//     concurrency (e.g. 256 for SampleID to accommodate a full DAS round).
+//     concurrency (256 SampleID for full DAS rounds, 128 nd-family for wide
+//     namespace queries, 16 EDS for heavy block pulls).
 //   - No memory is tracked here; that is handled exclusively at the service scope.
 func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 	if disableResourceLimits {
@@ -136,29 +157,32 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 	baseMemory := int64(serviceBaseStreams) * maxMem
 	increaseMemory := int64(streamIncrease) * maxMem
 
-	// servicePeerStreams is the per-peer service-level stream cap. Derived from
-	// capacity so that minSimultaneousPeers peers can all be fully served at once.
-	servicePeerStreams := streamIncrease / minSimultaneousPeers
-	servicePeerMem := int64(servicePeerStreams) * maxMem
-
 	globalBase := rcmgr.BaseLimit{
 		Streams:        serviceBaseStreams,
 		StreamsInbound: serviceBaseStreams,
 		Memory:         baseMemory,
 	}
+	// globalLimitMultiplier doubles the autoscaled global ceiling so a public
+	// bridge can fan out shrex traffic across many peers without the global cap
+	// firing before the per-peer cap.
 	globalIncrease := rcmgr.BaseLimitIncrease{
-		Streams:        streamIncrease,
-		StreamsInbound: streamIncrease,
-		Memory:         increaseMemory,
+		Streams:        streamIncrease * globalLimitMultiplier,
+		StreamsInbound: streamIncrease * globalLimitMultiplier,
+		Memory:         increaseMemory * globalLimitMultiplier,
 	}
 	peerBase := rcmgr.BaseLimit{
-		Streams:        servicePeerStreams,
-		StreamsInbound: servicePeerStreams,
-		Memory:         servicePeerMem,
+		Streams:        servicePeerBaseStreams,
+		StreamsInbound: servicePeerBaseStreams,
+		Memory:         servicePeerBaseMemory,
+	}
+	peerIncrease := rcmgr.BaseLimitIncrease{
+		Streams:        servicePeerStreamIncrease,
+		StreamsInbound: servicePeerStreamIncrease,
+		Memory:         servicePeerMemoryIncrease,
 	}
 
 	cfg.AddServiceLimit(serviceName, globalBase, globalIncrease)
-	cfg.AddServicePeerLimit(serviceName, peerBase, rcmgr.BaseLimitIncrease{})
+	cfg.AddServicePeerLimit(serviceName, peerBase, peerIncrease)
 
 	// Protocol limits enforce stream counts only. Memory is omitted because
 	// ReserveMemory is called inside the handler (after SetService), so all
