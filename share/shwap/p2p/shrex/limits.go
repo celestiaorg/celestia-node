@@ -83,6 +83,14 @@ const (
 	// shrex traffic than a small private node; 2× preserves the original shape
 	// of the formula while doubling the absolute ceiling.
 	globalLimitMultiplier = 2
+	// protocolPeerMemoryMultiplier sizes the per-(protocol, peer) memory budget
+	// as a multiple of the per-peer service-scope budget. Memory accounting for
+	// shrex is intentionally enforced at the service scope (see ReserveMemory in
+	// the handler). Leaving protocol-peer memory unset resolves to 0, which makes
+	// rcmgr reject every reservation at this inner scope before service scope is
+	// even checked. Sizing it strictly above the service-peer cap keeps service
+	// scope as the real binding budget while preventing this false rejection.
+	protocolPeerMemoryMultiplier = 4
 )
 
 // peerStreamsPerProtocol is the maximum number of concurrent inbound streams a
@@ -195,16 +203,29 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		perPeer := rcmgr.BaseLimit{
 			Streams:        n,
 			StreamsInbound: n,
+			// Sized above service-peer so that scope (not this one) is the
+			// binding memory budget. See protocolPeerMemoryMultiplier doc.
+			Memory: servicePeerBaseMemory * protocolPeerMemoryMultiplier,
+		}
+		perPeerIncrease := rcmgr.BaseLimitIncrease{
+			Memory: servicePeerMemoryIncrease * protocolPeerMemoryMultiplier,
 		}
 		protoBase := rcmgr.BaseLimit{
 			Streams:        serviceBaseStreams,
 			StreamsInbound: serviceBaseStreams,
+			// Same reasoning as perPeer.Memory above: leaving Memory unset
+			// resolves to 0 and makes rcmgr reject every memory reservation
+			// at this scope before service-global is even checked. Sized
+			// strictly above the service-global ceiling so service scope
+			// remains the binding memory budget for shrex.
+			Memory: baseMemory * protocolPeerMemoryMultiplier,
 		}
 		protoIncrease := rcmgr.BaseLimitIncrease{
 			Streams:        streamIncrease,
 			StreamsInbound: streamIncrease,
+			Memory:         increaseMemory * protocolPeerMemoryMultiplier,
 		}
 		cfg.AddProtocolLimit(protoID, protoBase, protoIncrease)
-		cfg.AddProtocolPeerLimit(protoID, perPeer, rcmgr.BaseLimitIncrease{})
+		cfg.AddProtocolPeerLimit(protoID, perPeer, perPeerIncrease)
 	}
 }
