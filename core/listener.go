@@ -229,7 +229,12 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan BlockEvent) {
 // skip the expensive processing below; redundant header broadcasts are deduped
 // by gossipsub message IDs.
 func (cl *Listener) handleNewBlockEvent(ctx context.Context, ev BlockEvent) error {
-	if has, err := cl.store.HasByHeight(ctx, uint64(ev.Height)); err == nil && has {
+	has, err := cl.store.HasByHeight(ctx, uint64(ev.Height))
+	if err != nil {
+		log.Errorw("listener: error checking block height in store", "height", ev.Height, "err", err)
+		return nil
+	}
+	if has {
 		log.Debugw("listener: skipping already-processed height", "height", ev.Height)
 		return nil
 	}
