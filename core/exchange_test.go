@@ -245,8 +245,11 @@ func generateNonEmptyBlocks(
 	i := 0
 	for i < 20 {
 		select {
-		case b, ok := <-sub:
+		case ev, ok := <-sub:
 			require.True(t, ok)
+
+			b, err := fetcher.GetSignedBlock(generateCtx, ev.Height)
+			require.NoError(t, err)
 
 			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
 				continue

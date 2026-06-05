@@ -9,9 +9,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-// taggedSource pairs a source with its endpoint address (conn.Target)
+// taggedSource pairs a source endpoint with its address (conn.Target)
 type taggedSource struct {
-	fetcher Fetcher
+	fetcher blockSource
 	addr    string
 }
 
@@ -39,17 +39,21 @@ func newMultiSource(sources ...taggedSource) *MultiSource {
 	return &MultiSource{sources: sources}
 }
 
-// Verify checks every source against the expected network. A source that is
-// definitively on the wrong chain is pruned (and logged with its address); a
-// source that could not be reached is kept, so it may join once it comes up — a
-// wrong-chain block from it later is caught by the Listener's per-block backstop.
-// It errors if no source could be confirmed on the expected network, so a fully
-// misconfigured or unreachable set refuses to start. The expected chain ID must
-// be set: a node must know which network it serves.
+// Verify checks every source against the expected network and keeps only those
+// that confirmed the expected chain ID. Both wrong-chain AND unreachable
+// sources are pruned (logged with their address): sources are operator-curated
+// endpoints, so an endpoint that cannot vouch for its network at startup has no
+// business in the active set — letting it join later would defer a wrong-chain
+// failure to a mid-run panic instead of a startup log. The operator restores a
+// pruned endpoint by fixing it and restarting. It errors if no source could be
+// confirmed, so a fully misconfigured or unreachable set refuses to start. The
+// expected chain ID must be set: a node must know which network it serves.
 //
 // Verify mutates m.sources and is safe only because Listener.Start calls it
 // synchronously before SubscribeNewBlockEvent spawns goroutines and before
-// ChainID/IsSyncing run. Calling it concurrently with those would race.
+// ChainID/IsSyncingFrom run. Calling it concurrently with those would race —
+// and pruning after subscription would shift the source indices that in-flight
+// BlockEvents route GetSignedBlockFrom/IsSyncingFrom by.
 func (m *MultiSource) Verify(ctx context.Context, expected string) error {
 	if expected == "" {
 		return fmt.Errorf("multisource: expected chain ID must be configured")
@@ -74,42 +78,42 @@ func (m *MultiSource) Verify(ctx context.Context, expected string) error {
 	// Assemble the surviving set sequentially: deterministic and free of shared
 	// mutation now that all goroutines have returned.
 	kept := make([]taggedSource, 0, len(m.sources))
-	confirmed := 0
 	for i, src := range m.sources {
 		switch {
 		case errs[i] != nil:
-			log.Warnw("multisource: could not verify chain ID, keeping source",
+			log.Errorw("multisource: dropping unverifiable source",
 				"source", src.addr, "err", errs[i])
-			kept = append(kept, src)
 		case ids[i] != expected:
 			log.Errorw("multisource: dropping endpoint on wrong network",
 				"source", src.addr, "expected", expected, "received", ids[i])
 		default:
-			confirmed++
 			kept = append(kept, src)
 		}
 	}
 	m.sources = kept
-	if confirmed == 0 {
+	if len(kept) == 0 {
 		return fmt.Errorf("multisource: no source confirmed on expected network %q", expected)
 	}
 	return nil
 }
 
-// SubscribeNewBlockEvent fans every source's new-block subscription into one
-// channel, closed once all source goroutines exit (i.e. ctx is canceled).
-func (m *MultiSource) SubscribeNewBlockEvent(ctx context.Context) (chan SignedBlock, error) {
-	// One buffer slot per source: each can deposit a block without blocking the
+// SubscribeNewBlockEvent fans every source's subscription into one channel,
+// closed once all source goroutines exit (i.e. ctx is canceled). It forwards
+// BlockEvents, not full blocks: each event is tagged with its source so the
+// consumer fetches the block once from the announcing peer via
+// GetSignedBlockFrom instead of every source downloading it independently.
+func (m *MultiSource) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEvent, error) {
+	// One buffer slot per source: each can deposit an event without blocking the
 	// others, beyond which the ctx-guarded send applies backpressure.
-	out := make(chan SignedBlock, len(m.sources))
+	out := make(chan BlockEvent, len(m.sources))
 
 	var wg sync.WaitGroup
-	for _, src := range m.sources {
+	for i, src := range m.sources {
 		wg.Add(1)
-		go func(s taggedSource) {
+		go func(i int, s taggedSource) {
 			defer wg.Done()
-			m.subscribe(ctx, s, out)
-		}(src)
+			m.subscribe(ctx, i, s, out)
+		}(i, src)
 	}
 
 	// Close the fan-in channel only after every source goroutine has stopped, so
@@ -122,10 +126,12 @@ func (m *MultiSource) SubscribeNewBlockEvent(ctx context.Context) (chan SignedBl
 	return out, nil
 }
 
-// subscribe subscribes to a single source and forwards its blocks into out until
-// the source's channel closes or ctx is canceled. Staying subscribed across
-// transient endpoint errors is the underlying fetcher's responsibility.
-func (m *MultiSource) subscribe(ctx context.Context, src taggedSource, out chan<- SignedBlock) {
+// subscribe subscribes to a single source and forwards its heights into out,
+// tagging each with the source's index so GetSignedBlockFrom can fetch from the
+// announcing peer, until the source's channel closes or ctx is canceled.
+// Staying subscribed across transient endpoint errors is the underlying
+// fetcher's responsibility.
+func (m *MultiSource) subscribe(ctx context.Context, idx int, src taggedSource, out chan<- BlockEvent) {
 	sub, err := src.fetcher.SubscribeNewBlockEvent(ctx)
 	if err != nil {
 		log.Warnw("multisource: subscribe failed", "source", src.addr, "err", err)
@@ -135,18 +141,37 @@ func (m *MultiSource) subscribe(ctx context.Context, src taggedSource, out chan<
 		select {
 		case <-ctx.Done():
 			return
-		case blk, ok := <-sub:
+		case ev, ok := <-sub:
 			if !ok {
 				log.Debugw("multisource: source subscription closed", "source", src.addr)
 				return
 			}
 			select {
-			case out <- blk:
+			case out <- BlockEvent{Height: ev.Height, source: idx, addr: src.addr}:
 			case <-ctx.Done():
 				return
 			}
 		}
 	}
+}
+
+// GetSignedBlockFrom fetches the block for the event from the single source
+// that announced it — the fastest peer to notify this height, a fresh signal
+// it's the most responsive peer. It does ONE thing and does not fall back to
+// other sources: an error is returned as-is. Resilience is the fan-in's job —
+// the same height is announced by other sources, and since a failed fetch
+// stores nothing, the Listener re-fetches it from whichever source's duplicate
+// event arrives next.
+func (m *MultiSource) GetSignedBlockFrom(ctx context.Context, ev BlockEvent) (*SignedBlock, error) {
+	if ev.source < 0 || ev.source >= len(m.sources) {
+		return nil, fmt.Errorf("multisource: invalid source index %d for height %d", ev.source, ev.Height)
+	}
+	src := m.sources[ev.source]
+	blk, err := src.fetcher.GetSignedBlock(ctx, ev.Height)
+	if err != nil {
+		return nil, fmt.Errorf("multisource: source %s: %w", src.addr, err)
+	}
+	return blk, nil
 }
 
 // ChainID returns the chain ID from the first responsive source. All sources
@@ -164,55 +189,21 @@ func (m *MultiSource) ChainID(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("multisource: no source returned chain ID: %w", errs)
 }
 
-// IsSyncing reports whether core should be treated as still catching up. All
-// sources are queried concurrently and it returns false (not syncing) as soon
-// as any source reports it is synced — so the Listener broadcasts to the
-// network whenever at least one source is caught up — canceling the rest. If
-// every reachable source reports syncing it returns true; only if no source
-// could be reached does it return an error.
-func (m *MultiSource) IsSyncing(ctx context.Context) (bool, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	type result struct {
-		syncing bool
-		err     error
+// IsSyncingFrom reports whether the source that announced the event is still
+// catching up. Sync state is per-source: the same peer that announced and
+// served the block answers whether it is a fresh head or a catch-up replay —
+// another source being caught up says nothing about this block. Like
+// GetSignedBlockFrom, it does not fall back to other sources: the Listener
+// calls it before storing the height, so on error the duplicate announcement
+// from another source retries the height whole.
+func (m *MultiSource) IsSyncingFrom(ctx context.Context, ev BlockEvent) (bool, error) {
+	if ev.source < 0 || ev.source >= len(m.sources) {
+		return false, fmt.Errorf("multisource: invalid source index %d for height %d", ev.source, ev.Height)
 	}
-	ch := make(chan result, len(m.sources))
-	for _, src := range m.sources {
-		go func(s taggedSource) {
-			syncing, err := s.fetcher.IsSyncing(ctx)
-			if err != nil {
-				err = fmt.Errorf("%s: %w", s.addr, err)
-			}
-			select {
-			case ch <- result{syncing, err}:
-			case <-ctx.Done():
-			}
-		}(src)
+	src := m.sources[ev.source]
+	syncing, err := src.fetcher.IsSyncing(ctx)
+	if err != nil {
+		return false, fmt.Errorf("multisource: source %s: %w", src.addr, err)
 	}
-
-	var (
-		errs    error
-		anyResp bool
-	)
-	for range m.sources {
-		select {
-		case r := <-ch:
-			if r.err != nil {
-				errs = errors.Join(errs, r.err)
-				continue
-			}
-			anyResp = true
-			if !r.syncing {
-				return false, nil // at least one source is caught up
-			}
-		case <-ctx.Done():
-			return true, ctx.Err()
-		}
-	}
-	if !anyResp {
-		return true, fmt.Errorf("multisource: no source returned sync state: %w", errs)
-	}
-	return true, nil // every reachable source is still syncing
+	return syncing, nil
 }

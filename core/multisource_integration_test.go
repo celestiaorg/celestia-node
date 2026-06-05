@@ -67,12 +67,13 @@ func TestMultiSource_Integration_Verify(t *testing.T) {
 		require.Error(t, ms.Verify(ctx, "not-"+testChainID))
 	})
 
-	t.Run("unreachable source is kept when another is confirmed", func(t *testing.T) {
+	t.Run("unreachable source is pruned even when another is confirmed", func(t *testing.T) {
 		vctx, vcancel := context.WithTimeout(ctx, 10*time.Second)
 		defer vcancel()
 		ms := NewMultiSource(good, deadGRPCClient(t))
 		require.NoError(t, ms.Verify(vctx, testChainID))
-		assert.Len(t, ms.sources, 2, "unreachable endpoint kept so it can join later")
+		require.Len(t, ms.sources, 1,
+			"an endpoint that cannot vouch for its network must not enter the active set")
 	})
 }
 
@@ -84,7 +85,7 @@ func TestMultiSource_Integration_FanInToleratesDeadSource(t *testing.T) {
 	_, network := createCoreFetcher(t, cfg)
 
 	// One live endpoint, one dead one: the live source must keep delivering real
-	// blocks while the dead source's fetcher retries in the background.
+	// heights while the dead source's fetcher retries in the background.
 	ms := NewMultiSource(network.GRPCClient, deadGRPCClient(t))
 	out, err := ms.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
@@ -92,13 +93,12 @@ func TestMultiSource_Integration_FanInToleratesDeadSource(t *testing.T) {
 	var last int64
 	for range 3 {
 		select {
-		case b := <-out:
-			require.NotNil(t, b.Header)
-			assert.Greater(t, b.Header.Height, int64(0))
-			assert.Greater(t, b.Header.Height, last, "live source delivers heights in order")
-			last = b.Header.Height
+		case ev := <-out:
+			assert.Greater(t, ev.Height, int64(0))
+			assert.Greater(t, ev.Height, last, "live source delivers heights in order")
+			last = ev.Height
 		case <-ctx.Done():
-			t.Fatal("no blocks from the live source while the other endpoint is dead")
+			t.Fatal("no heights from the live source while the other endpoint is dead")
 		}
 	}
 }

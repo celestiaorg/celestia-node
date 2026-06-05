@@ -29,8 +29,8 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	// read once from channel to generate next block
 	var h int64
 	select {
-	case evt := <-newBlockChan:
-		h = evt.Header.Height
+	case ev := <-newBlockChan:
+		h = ev.Height
 	case <-ctx.Done():
 		require.NoError(t, ctx.Err())
 	}
@@ -41,9 +41,11 @@ func TestBlockFetcherHeaderValues(t *testing.T) {
 	valSet, err := fetcher.ValidatorSet(ctx, h)
 	require.NoError(t, err)
 	// get next block
-	var nextBlock SignedBlock
+	var nextBlock *SignedBlock
 	select {
-	case nextBlock = <-newBlockChan:
+	case nextEv := <-newBlockChan:
+		nextBlock, err = fetcher.GetSignedBlock(ctx, nextEv.Height)
+		require.NoError(t, err)
 	case <-ctx.Done():
 		require.NoError(t, ctx.Err())
 	}

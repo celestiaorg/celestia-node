@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,11 +27,14 @@ type fakeSource struct {
 
 	// subFn produces the channel/error for each SubscribeNewBlockEvent call,
 	// indexed by call number, to simulate (re)subscription.
-	subFn    func(call int) (chan SignedBlock, error)
+	subFn    func(call int) (chan BlockEvent, error)
 	subCalls int
+
+	// getFn serves GetSignedBlock.
+	getFn func(ctx context.Context, height int64) (*SignedBlock, error)
 }
 
-func (f *fakeSource) SubscribeNewBlockEvent(context.Context) (chan SignedBlock, error) {
+func (f *fakeSource) SubscribeNewBlockEvent(context.Context) (chan BlockEvent, error) {
 	f.mu.Lock()
 	call := f.subCalls
 	f.subCalls++
@@ -42,6 +46,22 @@ func (f *fakeSource) SubscribeNewBlockEvent(context.Context) (chan SignedBlock, 
 	return fn(call)
 }
 
+func (f *fakeSource) GetSignedBlock(ctx context.Context, height int64) (*SignedBlock, error) {
+	f.mu.Lock()
+	fn := f.getFn
+	f.mu.Unlock()
+	if fn == nil {
+		return nil, errors.New("fakeSource: getFn not set")
+	}
+	return fn(ctx, height)
+}
+
+// GetSignedBlockFrom satisfies the Fetcher interface; a leaf fakeSource has a
+// single source, so it just fetches by height.
+func (f *fakeSource) GetSignedBlockFrom(ctx context.Context, ev BlockEvent) (*SignedBlock, error) {
+	return f.GetSignedBlock(ctx, ev.Height)
+}
+
 func (f *fakeSource) ChainID(context.Context) (string, error) { return f.chainID, f.chainIDErr }
 
 // Verify is unused by MultiSource (which verifies sources via ChainID) but
@@ -50,7 +70,13 @@ func (f *fakeSource) Verify(context.Context, string) error { return nil }
 
 func (f *fakeSource) IsSyncing(context.Context) (bool, error) { return f.syncing, f.syncingErr }
 
-func tagged(addr string, f Fetcher) taggedSource {
+// IsSyncingFrom satisfies the Fetcher interface; a leaf fakeSource has a
+// single source, so it just reports its own status.
+func (f *fakeSource) IsSyncingFrom(ctx context.Context, _ BlockEvent) (bool, error) {
+	return f.IsSyncing(ctx)
+}
+
+func tagged(addr string, f blockSource) taggedSource {
 	return taggedSource{fetcher: f, addr: addr}
 }
 
@@ -58,29 +84,29 @@ func blockAt(h int64) SignedBlock {
 	return SignedBlock{Header: &types.Header{Height: h}}
 }
 
-func recv(t *testing.T, ch <-chan SignedBlock) (SignedBlock, bool) {
+func recv(t *testing.T, ch <-chan BlockEvent) (BlockEvent, bool) {
 	t.Helper()
 	select {
-	case b, ok := <-ch:
-		return b, ok
+	case ev, ok := <-ch:
+		return ev, ok
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting on channel")
-		return SignedBlock{}, false
+		return BlockEvent{}, false
 	}
 }
 
 // neverDelivers returns a channel that is never written to or closed, so a
 // source "stays subscribed" until ctx is canceled.
-func neverDelivers() chan SignedBlock { return make(chan SignedBlock) }
+func neverDelivers() chan BlockEvent { return make(chan BlockEvent) }
 
 func TestMultiSource_SubscribeFanIn(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	chA := make(chan SignedBlock)
-	chB := make(chan SignedBlock)
-	srcA := &fakeSource{subFn: func(int) (chan SignedBlock, error) { return chA, nil }}
-	srcB := &fakeSource{subFn: func(int) (chan SignedBlock, error) { return chB, nil }}
+	chA := make(chan BlockEvent)
+	chB := make(chan BlockEvent)
+	srcA := &fakeSource{subFn: func(int) (chan BlockEvent, error) { return chA, nil }}
+	srcB := &fakeSource{subFn: func(int) (chan BlockEvent, error) { return chB, nil }}
 
 	ms := newMultiSource(tagged("srcA", srcA), tagged("srcB", srcB))
 	out, err := ms.SubscribeNewBlockEvent(ctx)
@@ -88,15 +114,15 @@ func TestMultiSource_SubscribeFanIn(t *testing.T) {
 
 	// Both sources emit the same height (duplicate) plus one extra; MultiSource
 	// forwards everything — dedup is the consumer's job.
-	chA <- blockAt(1)
-	chB <- blockAt(1)
-	chA <- blockAt(2)
+	chA <- BlockEvent{Height: 1}
+	chB <- BlockEvent{Height: 1}
+	chA <- BlockEvent{Height: 2}
 
 	got := make([]int64, 0, 3)
 	for range 3 {
-		b, ok := recv(t, out)
+		ev, ok := recv(t, out)
 		require.True(t, ok)
-		got = append(got, b.Header.Height)
+		got = append(got, ev.Height)
 	}
 	slices.Sort(got)
 	assert.Equal(t, []int64{1, 1, 2}, got)
@@ -110,7 +136,7 @@ func TestMultiSource_SubscribeFanIn(t *testing.T) {
 func TestMultiSource_CancelClosesOut(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 
-	src := &fakeSource{subFn: func(int) (chan SignedBlock, error) { return neverDelivers(), nil }}
+	src := &fakeSource{subFn: func(int) (chan BlockEvent, error) { return neverDelivers(), nil }}
 	ms := newMultiSource(tagged("src", src))
 
 	out, err := ms.SubscribeNewBlockEvent(ctx)
@@ -128,10 +154,10 @@ func TestMultiSource_ClosedSourceDoesNotCloseOut(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	dead := make(chan SignedBlock)
-	live := make(chan SignedBlock)
-	deadSrc := &fakeSource{subFn: func(int) (chan SignedBlock, error) { return dead, nil }}
-	liveSrc := &fakeSource{subFn: func(int) (chan SignedBlock, error) { return live, nil }}
+	dead := make(chan BlockEvent)
+	live := make(chan BlockEvent)
+	deadSrc := &fakeSource{subFn: func(int) (chan BlockEvent, error) { return dead, nil }}
+	liveSrc := &fakeSource{subFn: func(int) (chan BlockEvent, error) { return live, nil }}
 
 	ms := newMultiSource(tagged("dead", deadSrc), tagged("live", liveSrc))
 	out, err := ms.SubscribeNewBlockEvent(ctx)
@@ -139,10 +165,10 @@ func TestMultiSource_ClosedSourceDoesNotCloseOut(t *testing.T) {
 
 	// One source ends; the other must keep working and out must stay open.
 	close(dead)
-	live <- blockAt(9)
-	b, ok := recv(t, out)
+	live <- BlockEvent{Height: 9}
+	ev, ok := recv(t, out)
 	require.True(t, ok)
-	assert.Equal(t, int64(9), b.Header.Height)
+	assert.Equal(t, int64(9), ev.Height)
 }
 
 func TestMultiSource_ChainID(t *testing.T) {
@@ -175,47 +201,85 @@ func TestMultiSource_ChainID(t *testing.T) {
 	})
 }
 
-func TestMultiSource_IsSyncing(t *testing.T) {
+func TestMultiSource_GetSignedBlockFrom(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("not syncing if any source is caught up", func(t *testing.T) {
+	// announcing source serves the block at index 1.
+	t.Run("fetches from the announcing source", func(t *testing.T) {
+		wrongSrc := &fakeSource{getFn: func(context.Context, int64) (*SignedBlock, error) {
+			return nil, errors.New("not the announcer; must not be called")
+		}}
+		announcer := &fakeSource{getFn: func(_ context.Context, h int64) (*SignedBlock, error) {
+			b := blockAt(h)
+			return &b, nil
+		}}
+		ms := newMultiSource(tagged("wrong", wrongSrc), tagged("announcer", announcer))
+
+		b, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 7, source: 1})
+		require.NoError(t, err)
+		assert.Equal(t, int64(7), b.Header.Height)
+	})
+
+	// SRP: no fallback. If the announcing source fails, the error propagates and
+	// the OTHER source is NOT tried — the fan-in re-announces the height and the
+	// Listener retries from there.
+	t.Run("announcer failure propagates without trying others", func(t *testing.T) {
+		var otherCalled atomic.Bool
+		other := &fakeSource{getFn: func(context.Context, int64) (*SignedBlock, error) {
+			otherCalled.Store(true)
+			b := blockAt(9)
+			return &b, nil
+		}}
+		down := &fakeSource{getFn: func(context.Context, int64) (*SignedBlock, error) {
+			return nil, errors.New("down")
+		}}
+		ms := newMultiSource(tagged("other", other), tagged("down", down))
+
+		_, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 9, source: 1}) // source 1 = down
+		require.Error(t, err)
+		assert.False(t, otherCalled.Load(), "must not fall back to another source")
+	})
+
+	t.Run("out-of-range source index errors", func(t *testing.T) {
+		ms := newMultiSource(tagged("only", &fakeSource{}))
+		_, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 1, source: 5})
+		require.Error(t, err)
+	})
+}
+
+func TestMultiSource_IsSyncingFrom(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("routes to the announcing source", func(t *testing.T) {
 		ms := newMultiSource(
-			tagged("a", &fakeSource{syncing: true}),
-			tagged("b", &fakeSource{syncing: false}), // caught up
+			tagged("caught-up", &fakeSource{syncing: false}),
+			tagged("catching-up", &fakeSource{syncing: true}),
 		)
-		syncing, err := ms.IsSyncing(ctx)
+
+		// the catching-up source announced: its replayed block must be treated
+		// as syncing even though the other source is caught up.
+		syncing, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 7, source: 1})
+		require.NoError(t, err)
+		assert.True(t, syncing)
+
+		syncing, err = ms.IsSyncingFrom(ctx, BlockEvent{Height: 8, source: 0})
 		require.NoError(t, err)
 		assert.False(t, syncing)
 	})
 
-	t.Run("syncing if every source is syncing", func(t *testing.T) {
+	t.Run("no fallback: announcing source's error surfaces even if another is fine", func(t *testing.T) {
 		ms := newMultiSource(
-			tagged("a", &fakeSource{syncing: true}),
-			tagged("b", &fakeSource{syncing: true}),
+			tagged("healthy", &fakeSource{syncing: false}),
+			tagged("down", &fakeSource{syncingErr: errors.New("down")}),
 		)
-		syncing, err := ms.IsSyncing(ctx)
-		require.NoError(t, err)
-		assert.True(t, syncing)
-	})
-
-	t.Run("a single reachable syncing source wins over an errored one", func(t *testing.T) {
-		ms := newMultiSource(
-			tagged("a", &fakeSource{syncingErr: errors.New("down")}),
-			tagged("b", &fakeSource{syncing: true}),
-		)
-		syncing, err := ms.IsSyncing(ctx)
-		require.NoError(t, err)
-		assert.True(t, syncing)
-	})
-
-	t.Run("errors only when no source is reachable", func(t *testing.T) {
-		ms := newMultiSource(
-			tagged("a", &fakeSource{syncingErr: errors.New("a")}),
-			tagged("b", &fakeSource{syncingErr: errors.New("b")}),
-		)
-		syncing, err := ms.IsSyncing(ctx)
+		_, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 9, source: 1})
 		require.Error(t, err)
-		assert.True(t, syncing, "defaults to syncing when unknown")
+	})
+
+	t.Run("out-of-range source index errors", func(t *testing.T) {
+		ms := newMultiSource(tagged("only", &fakeSource{}))
+		_, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 1, source: 5})
+		require.Error(t, err)
 	})
 }
 
@@ -246,13 +310,15 @@ func TestMultiSource_Verify(t *testing.T) {
 		assert.Equal(t, "good", ms.sources[0].addr)
 	})
 
-	t.Run("unreachable source is kept when another is confirmed good", func(t *testing.T) {
+	t.Run("unreachable source is pruned even when another is confirmed good", func(t *testing.T) {
 		ms := newMultiSource(
 			tagged("good", &fakeSource{chainID: "mocha-4"}),
 			tagged("down", &fakeSource{chainIDErr: errors.New("unreachable")}),
 		)
 		require.NoError(t, ms.Verify(ctx, "mocha-4"))
-		assert.Len(t, ms.sources, 2, "unreachable source kept so it can join later")
+		require.Len(t, ms.sources, 1,
+			"a source that cannot vouch for its network must not enter the active set")
+		assert.Equal(t, "good", ms.sources[0].addr)
 	})
 
 	t.Run("errors when every reachable source is on the wrong chain", func(t *testing.T) {
@@ -277,15 +343,15 @@ func TestMultiSource_Verify(t *testing.T) {
 
 // TestMultiSource_SingleSource pins the contract that a MultiSource wrapping a
 // single endpoint behaves like the bare BlockFetcher the Listener consumed
-// before MultiSource existed: blocks pass through unchanged and in order, and
+// before MultiSource existed: heights pass through unchanged and in order, and
 // ChainID/IsSyncing mirror the one source.
 func TestMultiSource_SingleSource(t *testing.T) {
-	t.Run("forwards every block in order", func(t *testing.T) {
+	t.Run("forwards every height in order", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
-		in := make(chan SignedBlock)
-		src := &fakeSource{subFn: func(call int) (chan SignedBlock, error) {
+		in := make(chan BlockEvent)
+		src := &fakeSource{subFn: func(call int) (chan BlockEvent, error) {
 			if call == 0 {
 				return in, nil
 			}
@@ -300,15 +366,15 @@ func TestMultiSource_SingleSource(t *testing.T) {
 		// exactly as delivered — same as reading the BlockFetcher channel directly.
 		go func() {
 			for h := int64(1); h <= 5; h++ {
-				in <- blockAt(h)
+				in <- BlockEvent{Height: h}
 			}
 		}()
 
 		got := make([]int64, 0, 5)
 		for range 5 {
-			b, ok := recv(t, out)
+			ev, ok := recv(t, out)
 			require.True(t, ok)
-			got = append(got, b.Header.Height)
+			got = append(got, ev.Height)
 		}
 		assert.Equal(t, []int64{1, 2, 3, 4, 5}, got, "single source must preserve delivery order")
 	})
@@ -324,30 +390,27 @@ func TestMultiSource_SingleSource(t *testing.T) {
 		require.Error(t, err, "a failing single source must surface as an error, like the bare fetcher")
 	})
 
-	t.Run("isSyncing passthrough", func(t *testing.T) {
+	t.Run("isSyncingFrom passthrough", func(t *testing.T) {
 		ctx := context.Background()
+		ev := BlockEvent{Height: 1, source: 0}
 
-		syncing, err := newMultiSource(tagged("only", &fakeSource{syncing: true})).IsSyncing(ctx)
+		syncing, err := newMultiSource(tagged("only", &fakeSource{syncing: true})).IsSyncingFrom(ctx, ev)
 		require.NoError(t, err)
 		assert.True(t, syncing)
 
-		syncing, err = newMultiSource(tagged("only", &fakeSource{syncing: false})).IsSyncing(ctx)
+		syncing, err = newMultiSource(tagged("only", &fakeSource{syncing: false})).IsSyncingFrom(ctx, ev)
 		require.NoError(t, err)
 		assert.False(t, syncing)
 
-		// On error the bare BlockFetcher returns (false, err) while MultiSource
-		// returns (true, err); the bool is irrelevant because handleNewSignedBlock
-		// bails on err != nil before reading it. What matters is that the error
-		// still propagates, which it does.
-		_, err = newMultiSource(tagged("only", &fakeSource{syncingErr: errors.New("down")})).IsSyncing(ctx)
-		require.Error(t, err)
+		_, err = newMultiSource(tagged("only", &fakeSource{syncingErr: errors.New("down")})).IsSyncingFrom(ctx, ev)
+		require.Error(t, err, "a failing single source must surface as an error, like the bare fetcher")
 	})
 
 	t.Run("source subscribe error closes out", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
-		src := &fakeSource{subFn: func(int) (chan SignedBlock, error) {
+		src := &fakeSource{subFn: func(int) (chan BlockEvent, error) {
 			return nil, errors.New("subscribe boom")
 		}}
 		ms := newMultiSource(tagged("only", src))
