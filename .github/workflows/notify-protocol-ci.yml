@@ -16,6 +16,10 @@ on:
     branches:
       - main
 
+# The notifier only calls an external Slack webhook; it needs no GITHUB_TOKEN
+# scopes.
+permissions: {}
+
 jobs:
   notify:
     name: Notify Slack
@@ -23,7 +27,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v3.0.3
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
         with:
           webhook: ${{ secrets.PROTOCOL_CI_SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
