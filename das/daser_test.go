@@ -168,9 +168,9 @@ func createMockGetterAndSub(
 	numSub int,
 	tail ...*header.ExtendedHeader,
 ) (libhead.Store[*header.ExtendedHeader], libhead.Subscriber[*header.ExtendedHeader]) {
-	hsuite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
+	hsuite := headertest.NewTestSuite(t, headertest.WithBlockTime(time.Nanosecond))
 	if len(tail) > 0 {
-		hsuite = headertest.NewTestSuite(t, headertest.WithBlockTime(1), headertest.WithTail(tail[0]))
+		hsuite = headertest.NewTestSuite(t, headertest.WithBlockTime(time.Nanosecond), headertest.WithTail(tail[0]))
 	}
 
 	store := headertest.NewCustomStore(t, hsuite, numGetter)
