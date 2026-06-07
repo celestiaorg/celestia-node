@@ -19,7 +19,7 @@ func TestRoutingExchange_GetByHeight_AlwaysUsesCore(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
@@ -44,7 +44,7 @@ func TestRoutingExchange_GetRangeByHeight_AllInWindow(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
@@ -71,7 +71,7 @@ func TestRoutingExchange_GetRangeByHeight_AllOutsideWindow(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
@@ -97,7 +97,7 @@ func TestRoutingExchange_GetRangeByHeight_Split(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
@@ -129,7 +129,7 @@ func TestRoutingExchange_Head_AlwaysUsesCore(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(5)
 	coreEx.head = headers[4]
 	p2pEx.head = headers[4]
@@ -155,7 +155,7 @@ func TestRoutingExchange_CalculateCutoffHeight(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(10)
 	for _, h := range headers {
 		coreEx.addHeader(h)
@@ -203,7 +203,7 @@ func TestRoutingExchange_Get_TriesCoreFirst(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(5)
 	for _, h := range headers {
 		coreEx.addHeader(h)
@@ -226,7 +226,7 @@ func TestRoutingExchange_Get_FallsBackToP2P(t *testing.T) {
 	coreEx := newMockExchange()
 	p2pEx := newMockExchange()
 
-	suite := headertest.NewTestSuiteDefaults(t)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(1))
 	headers := suite.GenExtendedHeaders(5)
 	// Only add to p2p, not core
 	for _, h := range headers {

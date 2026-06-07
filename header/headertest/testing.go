@@ -45,7 +45,7 @@ type TestSuite struct {
 }
 
 func NewStore(t *testing.T) libhead.Store[*header.ExtendedHeader] {
-	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t, 3, 0), 10)
+	return headertest.NewStore[*header.ExtendedHeader](t, NewTestSuite(t), 10)
 }
 
 func NewCustomStore(
@@ -56,50 +56,62 @@ func NewCustomStore(
 	return headertest.NewStore[*header.ExtendedHeader](t, generator, numHeaders)
 }
 
-// NewTestSuite setups a new test suite with a given number of validators.
-func NewTestSuite(t *testing.T, numValidators int, blockTime time.Duration) *TestSuite {
-	valSet, vals := RandValidatorSet(numValidators, 10)
-	return &TestSuite{
-		t:         t,
-		vals:      vals,
-		valSet:    valSet,
-		blockTime: blockTime,
-		startTime: time.Now(),
+// defaultNumValidators is the number of validators NewTestSuite generates by
+// default when WithValidators is not provided.
+const defaultNumValidators = 3
+
+// defaultVotingPower is the voting power assigned to every validator generated
+// for a TestSuite.
+const defaultVotingPower = 10
+
+// Option configures a TestSuite.
+type Option func(*TestSuite)
+
+// WithValidators sets the number of validators in the suite's validator set.
+func WithValidators(numValidators int) Option {
+	return func(ts *TestSuite) {
+		ts.valSet, ts.vals = RandValidatorSet(numValidators, defaultVotingPower)
 	}
 }
 
-func NewTestSuiteWithGenesisTime(t *testing.T, startTime time.Time, blockTime time.Duration) *TestSuite {
-	valSet, vals := RandValidatorSet(3, 1)
-	return &TestSuite{
-		t:         t,
-		vals:      vals,
-		valSet:    valSet,
-		blockTime: blockTime,
-		startTime: startTime,
+// WithBlockTime sets the spacing between generated block timestamps. When left
+// at zero (the default), generated headers are timestamped with the current
+// time instead of a fixed interval.
+func WithBlockTime(blockTime time.Duration) Option {
+	return func(ts *TestSuite) {
+		ts.blockTime = blockTime
 	}
 }
 
-func NewTestSuiteDefaults(t *testing.T) *TestSuite {
-	valSet, vals := RandValidatorSet(3, 1)
-	return &TestSuite{
-		t:         t,
-		vals:      vals,
-		valSet:    valSet,
-		blockTime: 1,
-		startTime: time.Now(),
+// WithStartTime sets the genesis timestamp of the suite.
+func WithStartTime(startTime time.Time) Option {
+	return func(ts *TestSuite) {
+		ts.startTime = startTime
 	}
 }
 
-func NewTestSuiteWithTail(t *testing.T, tail *header.ExtendedHeader) *TestSuite {
-	valSet, vals := RandValidatorSet(3, 1)
-	return &TestSuite{
+// WithTail sets the tail header the suite starts generating from.
+func WithTail(tail *header.ExtendedHeader) Option {
+	return func(ts *TestSuite) {
+		ts.tail = tail
+	}
+}
+
+// NewTestSuite sets up a new TestSuite for generating a chain of Headers.
+// By default it uses 3 validators, the current time as genesis and no
+// block-time spacing. Pass Options to override these defaults.
+func NewTestSuite(t *testing.T, opts ...Option) *TestSuite {
+	valSet, vals := RandValidatorSet(defaultNumValidators, defaultVotingPower)
+	ts := &TestSuite{
 		t:         t,
 		vals:      vals,
 		valSet:    valSet,
-		blockTime: 1,
 		startTime: time.Now(),
-		tail:      tail,
 	}
+	for _, opt := range opts {
+		opt(ts)
+	}
+	return ts
 }
 
 func (s *TestSuite) genesis() *header.ExtendedHeader {
