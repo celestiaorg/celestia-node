@@ -46,8 +46,8 @@ type SubmitConfig struct {
 	// appfibre.DefaultClientConfig() is used. DefaultKeyName and StateAddress
 	// are always taken from SubmitConfig.DefaultKeyName and
 	// CoreGRPCConfig.Addr respectively, so callers can safely set only the
-	// knobs they care about (UploadConcurrency, DownloadConcurrency,
-	// StateClientFn, Log, Tracer, Meter, Clock, etc.).
+	// knobs they care about (RPCTimeout, MaxMessageSize, StateClientFn, Log,
+	// Tracer, Meter, Clock, etc.).
 	Fibre *appfibre.ClientConfig
 }
 

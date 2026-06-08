@@ -65,6 +65,7 @@ func (s *Service) Submit(
 	log.Infow("submitting blob", "namespace", ns.ID(), "data-size", len(data))
 
 	blob, err := appfibre.NewBlob(data, appfibre.DefaultBlobConfigV0())
+	defer blob.Free()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,9 +127,11 @@ func (s *Service) Upload(
 	log.Infow("uploading blob", "namespace", ns.ID(), "data-size", len(data))
 
 	blob, err := appfibre.NewBlob(data, appfibre.DefaultBlobConfigV0())
+	defer blob.Free()
 	if err != nil {
 		return nil, nil, err
 	}
+
 	promise, err := s.upload(ctx, ns, blob)
 	if err != nil {
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
@@ -197,7 +200,8 @@ func (s *Service) asyncSubmitPayForFibre(
 	)
 }
 
-func (s *Service) Download(ctx context.Context, blobID appfibre.BlobID) (*appfibre.Blob, error) {
+// Download retrieves a blob by ID and returns its raw data.
+func (s *Service) Download(ctx context.Context, blobID appfibre.BlobID) ([]byte, error) {
 	if s == nil {
 		return nil, ErrClientNotAvailable
 	}
@@ -206,8 +210,15 @@ func (s *Service) Download(ctx context.Context, blobID appfibre.BlobID) (*appfib
 	if err != nil {
 		return nil, fmt.Errorf("invalid blob ID: %w", err)
 	}
+	blob, err := s.fibreClient.Download(ctx, blobID)
+	defer blob.Free()
+	if err != nil {
+		return nil, fmt.Errorf("download blob: %w", err)
+	}
 
-	return s.fibreClient.Download(ctx, blobID)
+	data := make([]byte, len(blob.Data()))
+	copy(data, blob.Data())
+	return data, nil
 }
 
 func (s *Service) upload(
