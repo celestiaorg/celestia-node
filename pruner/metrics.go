@@ -70,7 +70,7 @@ func (m *metrics) close() error {
 	return m.clientReg.Unregister()
 }
 
-func (m *metrics) observePrune(ctx context.Context, failed bool) {
+func (m *metrics) observePrune(ctx context.Context, edsSize int, failed bool) {
 	if m == nil {
 		return
 	}
@@ -78,5 +78,6 @@ func (m *metrics) observePrune(ctx context.Context, failed bool) {
 		ctx = context.Background()
 	}
 	m.prunedCounter.Add(ctx, 1, metric.WithAttributes(
-		attribute.Bool("failed", failed)))
+		attribute.Bool("failed", failed),
+		attribute.Int("eds_size", edsSize)))
 }
