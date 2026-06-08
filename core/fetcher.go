@@ -159,15 +159,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan SignedB
 
 			subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 			if err != nil {
-				// try re-subscribe in case of any errors. gRPC retry interceptor has its
-				// own backoff for transient codes, but we still need a guard here to avoid
-				// a hot loop on persistent failures (e.g. core fully down).
 				log.Warnw("fetcher: failed to subscribe to new block events", "err", err)
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(time.Second):
-				}
 				continue
 			}
 
@@ -175,11 +167,6 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan SignedB
 			err = f.receive(ctx, signedBlockCh, subscription)
 			if err != nil {
 				log.Warnw("fetcher: error receiving new height", "err", err.Error())
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(time.Second):
-				}
 				continue
 			}
 		}
