@@ -79,12 +79,12 @@ func (m *module) Upload(
 }
 
 func (m *module) Download(ctx context.Context, blobID appfibre.BlobID) (*GetBlobResult, error) {
-	blob, err := m.service.Download(ctx, blobID)
+	data, err := m.service.Download(ctx, blobID)
 	if err != nil {
 		return nil, err
 	}
 	return &GetBlobResult{
-		Data: blob.Data(),
+		Data: data,
 	}, nil
 }
 

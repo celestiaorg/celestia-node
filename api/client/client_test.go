@@ -298,12 +298,11 @@ func TestFibreEscrow(t *testing.T) {
 	cctx := setupConsensus(t, ctx, accounts...)
 	bn, adminToken := bridgeNode(t, ctx, cctx)
 
-	// Override UploadConcurrency via SubmitConfig.Fibre to exercise the new
+	// Override a fibre knob via SubmitConfig.Fibre to exercise the
 	// config-exposure plumbing end-to-end. DefaultKeyName and StateAddress are
 	// ignored here — SubmitConfig takes precedence, as documented on the field.
 	fibreCfg := appfibre.DefaultClientConfig()
-	fibreCfg.UploadConcurrency = 2
-	fibreCfg.DownloadConcurrency = 2
+	fibreCfg.RPCTimeout = 45 * time.Second
 
 	cfg := Config{
 		ReadConfig: ReadConfig{
