@@ -232,10 +232,12 @@ func (cl *Listener) handleNewBlockEvent(ctx context.Context, ev BlockEvent) erro
 	has, err := cl.store.HasByHeight(ctx, uint64(ev.Height))
 	if err != nil {
 		log.Errorw("listener: error checking block height in store", "height", ev.Height, "err", err)
+		cl.metrics.blockEvent(ctx, ev.addr, "store_error")
 		return nil
 	}
 	if has {
 		log.Debugw("listener: skipping already-processed height", "height", ev.Height)
+		cl.metrics.blockEvent(ctx, ev.addr, "duplicate")
 		return nil
 	}
 
@@ -246,6 +248,7 @@ func (cl *Listener) handleNewBlockEvent(ctx context.Context, ev BlockEvent) erro
 	b, err := cl.fetcher.GetSignedBlockFrom(fetchCtx, ev)
 	cancel()
 	if err != nil {
+		cl.metrics.blockEvent(ctx, ev.addr, "fetch_error")
 		return fmt.Errorf("fetching signed block at height %d: %w", ev.Height, err)
 	}
 
@@ -258,6 +261,7 @@ func (cl *Listener) handleNewBlockEvent(ctx context.Context, ev BlockEvent) erro
 	if !cl.archival && !availability.IsWithinWindow(b.Header.Time, cl.availabilityWindow) {
 		log.Debugw("listener: skipping historic block outside availability window",
 			"height", ev.Height, "source", ev.addr)
+		cl.metrics.blockEvent(ctx, ev.addr, "historic")
 		return nil
 	}
 
@@ -270,10 +274,16 @@ func (cl *Listener) handleNewBlockEvent(ctx context.Context, ev BlockEvent) erro
 	syncing, err := cl.fetcher.IsSyncingFrom(syncCtx, ev)
 	cancel()
 	if err != nil {
+		cl.metrics.blockEvent(ctx, ev.addr, "sync_error")
 		return fmt.Errorf("getting sync state for height %d: %w", ev.Height, err)
 	}
 
-	return cl.handleNewSignedBlock(ctx, ev, b, syncing)
+	if err := cl.handleNewSignedBlock(ctx, ev, b, syncing); err != nil {
+		cl.metrics.blockEvent(ctx, ev.addr, "process_error")
+		return err
+	}
+	cl.metrics.blockEvent(ctx, ev.addr, "processed")
+	return nil
 }
 
 func (cl *Listener) handleNewSignedBlock(ctx context.Context, ev BlockEvent, b *SignedBlock, syncing bool) error {

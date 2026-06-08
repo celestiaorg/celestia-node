@@ -29,6 +29,8 @@ type listenerMetrics struct {
 
 	headerSubPublishedInst       metric.Int64Counter
 	headerSubPublishDurationInst metric.Float64Histogram
+
+	blockEventsInst metric.Int64Counter
 }
 
 func newListenerMetrics() (*listenerMetrics, error) {
@@ -93,6 +95,19 @@ func newListenerMetrics() (*listenerMetrics, error) {
 		"header_sub_publish_duration_seconds",
 		metric.WithDescription("duration of HeaderSub Broadcast() call (seconds)"),
 		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	m.blockEventsInst, err = meter.Int64Counter(
+		"core_block_events_total",
+		metric.WithDescription(
+			"new-block events from core sources, labeled by `source` (announcing endpoint) and "+
+				"`result`: duplicate = skipped by store dedup; processed = stored & broadcast; "+
+				"historic = dropped outside availability window; "+
+				"fetch_error/sync_error/process_error/store_error = failed",
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -169,6 +184,21 @@ func (m *listenerMetrics) blockProcessed(ctx context.Context, blockTime time.Tim
 			lag = 0
 		}
 		m.coreToDaLagInst.Record(ctx, lag)
+	})
+}
+
+// blockEvent records the terminal outcome of a single new-block event from a
+// core source. Every BlockEvent funnels into exactly one `result`, so
+// rate(processed) is throughput and rate(duplicate) quantifies the redundant
+// downloads the fan-in dedup saved (≈ N-1 per height with N healthy sources).
+// `source` is the announcing endpoint, so per-source rates expose which
+// configured source actually contributes and which only ever loses the race.
+func (m *listenerMetrics) blockEvent(ctx context.Context, source, result string) {
+	m.observe(ctx, func(ctx context.Context) {
+		m.blockEventsInst.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("source", source),
+			attribute.String("result", result),
+		))
 	})
 }
 
