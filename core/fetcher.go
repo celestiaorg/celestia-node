@@ -159,8 +159,6 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan SignedB
 
 			subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 			if err != nil {
-				// try re-subscribe in case of any errors that can come during subscription. gRPC
-				// retry mechanism has a back off on retries, so we don't need timers anymore.
 				log.Warnw("fetcher: failed to subscribe to new block events", "err", err)
 				continue
 			}

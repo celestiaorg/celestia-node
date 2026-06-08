@@ -14,6 +14,8 @@ import (
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 
@@ -74,6 +76,8 @@ type Server struct {
 
 	signer   jwt.Signer
 	verifier jwt.Verifier
+
+	metrics *rpcMetrics
 }
 
 type TLSConfig struct {
@@ -91,12 +95,7 @@ func NewServer(
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
-	rpc := jsonrpc.NewServer(
-		jsonrpc.WithMaxRequestSize(maxRequestSize),
-	)
-
 	srv := &Server{
-		rpc:          rpc,
 		signer:       signer,
 		verifier:     verifier,
 		authDisabled: authDisabled,
@@ -107,9 +106,19 @@ func NewServer(
 		tlsKeyPath:   tlsConfig.KeyPath,
 	}
 
+	// The tracer closure reads srv.metrics lazily: WithMetrics may run after
+	// NewServer, and traceMethod is nil-safe. So we wire the hook now once
+	// and let metrics get populated later.
+	srv.rpc = jsonrpc.NewServer(
+		jsonrpc.WithMaxRequestSize(maxRequestSize),
+		jsonrpc.WithTracer(func(method string, params, results []reflect.Value, err error) {
+			srv.metrics.traceMethod(method, params, results, err)
+		}),
+	)
+
 	srv.srv = &http.Server{
 		Addr:    net.JoinHostPort(address, port),
-		Handler: srv.newHandlerStack(rpc),
+		Handler: srv.newHandlerStack(srv.rpc),
 		// the amount of time allowed to read request headers. set to the default 2 seconds
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -122,17 +131,28 @@ func NewServer(
 }
 
 // newHandlerStack returns wrapped rpc related handlers.
-// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → RPC handler.
+// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → metrics → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
-	var h http.Handler
+	// otelhttp records HTTP request-level metrics (duration, request/response
+	// sizes, active requests, status) and — unlike a hand-rolled wrapper —
+	// preserves the http.Hijacker that websocket upgrades rely on (it wraps the
+	// writer via httpsnoop). Connection- and method-level signals live in
+	// rpcMetrics. s.metrics may be nil (metrics disabled) → no wrapping.
+	h := core
+	if s.metrics != nil {
+		h = otelhttp.NewHandler(core, "rpc",
+			// metrics only: suppress the per-request span otelhttp would emit.
+			otelhttp.WithTracerProvider(noop.NewTracerProvider()),
+		)
+	}
 	switch {
 	case s.authDisabled:
 		log.Warn("auth disabled, allowing all origins, methods and headers for CORS")
-		h = s.corsAny(core)
+		h = s.corsAny(h)
 	case s.corsConfig.Enabled:
-		h = s.corsWithConfig(s.authHandler(core))
+		h = s.corsWithConfig(s.authHandler(h))
 	default:
-		h = s.authHandler(core)
+		h = s.authHandler(h)
 	}
 
 	h = connLimit(maxConcurrentConns, h)
@@ -142,6 +162,20 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 		h = rateLimit(s.rateLimitCfg.RequestsPerSec, s.rateLimitCfg.Burst, s.rateLimitCfg.CacheSize, h)
 	}
 	return h
+}
+
+// WithMetrics enables OTel metrics on the RPC server. Must be called before
+// Start, since it rebuilds the handler stack to install the metrics middleware
+// and registers an http.Server.ConnState hook for connection-level gauges.
+func (s *Server) WithMetrics() error {
+	m, err := newMetrics()
+	if err != nil {
+		return err
+	}
+	s.metrics = m
+	s.srv.Handler = s.newHandlerStack(s.rpc)
+	s.srv.ConnState = m.onConnState
+	return nil
 }
 
 // verifyAuth is the RPC server's auth middleware. This middleware is only

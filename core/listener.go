@@ -242,11 +242,15 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, b SignedBlock) err
 	}
 
 	// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
+	bcastStart := time.Now()
 	err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
+	cl.metrics.headerPublished(ctx, time.Since(bcastStart), syncing, err)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Errorw("listener: broadcasting next header",
 			"height", b.Header.Height,
 			"err", err)
 	}
+
+	cl.metrics.blockProcessed(ctx, b.Header.Time)
 	return nil
 }
