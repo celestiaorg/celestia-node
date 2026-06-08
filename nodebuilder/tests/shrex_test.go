@@ -104,10 +104,15 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 		btime         = time.Millisecond * 300
 		bsize         = 16
 		amountOfFulls = 5
-		testTimeout   = time.Second * 20
+		// advertiseInterval is how often full nodes re-advertise themselves for
+		// discovery. It must stay short and independent of the overall test
+		// budget so the light node can find all amountOfFulls peers quickly —
+		// previously this was tied to the (tiny) test timeout, starving
+		// discovery and causing the test to hang waiting for data.
+		advertiseInterval = time.Second * 2
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), swamp.DefaultTestTimeout)
 	t.Cleanup(cancel)
 
 	sw := swamp.NewSwamp(t, swamp.WithBlockTime(btime))
@@ -123,7 +128,7 @@ func TestShrexFromLightsWithBadFulls(t *testing.T) {
 	fulls := make([]*nodebuilder.Node, 0, amountOfFulls)
 	for i := 0; i < amountOfFulls; i++ {
 		cfg := sw.DefaultTestConfig(node.Bridge)
-		setTimeInterval(cfg, testTimeout)
+		setTimeInterval(cfg, advertiseInterval)
 		full := sw.NewNodeWithConfig(node.Bridge, cfg, replaceShrexServer(cfg, ndHandler), replaceShareGetter())
 		fulls = append(fulls, full)
 	}

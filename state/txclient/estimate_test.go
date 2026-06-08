@@ -3,7 +3,6 @@ package txclient
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"testing"
 
@@ -16,7 +15,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 )
 
 const (
@@ -180,17 +178,19 @@ func (m *mockEstimatorServer) stop() {
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	t.Helper()
 
-	freePort := testnode.MustGetFreePort()
-	addr := fmt.Sprintf(":%d", freePort)
-	net, err := net.Listen("tcp", addr)
+	// Bind directly to an OS-assigned port instead of probing for a free port
+	// and binding it later. The probe-then-bind pattern (testnode.MustGetFreePort)
+	// leaves a TOCTOU window in which another concurrent test can grab the port,
+	// surfacing flaky "bind: address already in use" failures on CI.
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	grpcServer := grpc.NewServer()
-	mes := &mockEstimatorServer{srv: grpcServer, addr: addr}
+	mes := &mockEstimatorServer{srv: grpcServer, addr: lis.Addr().String()}
 	gasestimation.RegisterGasEstimatorServer(grpcServer, mes)
 
 	go func() {
-		err := grpcServer.Serve(net)
+		err := grpcServer.Serve(lis)
 		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			panic(err)
 		}

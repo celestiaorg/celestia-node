@@ -25,6 +25,16 @@ func TestRetriever_ByzantineError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
+	// A single quadrant is not enough to reconstruct (and thus detect the
+	// Byzantine data), so the retriever must request additional quadrants. With
+	// the default RetrieveQuadrantTimeout (30s) the next quadrant is requested
+	// only after the context deadline, leaving the test flaky and dependent on
+	// other tests mutating this global. Use a small timeout to make it
+	// deterministic.
+	prevTimeout := RetrieveQuadrantTimeout
+	RetrieveQuadrantTimeout = time.Millisecond * 500
+	t.Cleanup(func() { RetrieveQuadrantTimeout = prevTimeout })
+
 	bserv := ipld.NewMemBlockservice()
 	shares := edstest.RandEDS(t, width).Flattened()
 	_, err := ipld.ImportShares(ctx, shares, bserv)
