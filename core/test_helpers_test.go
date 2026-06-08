@@ -45,9 +45,9 @@ func isAddressInUseError(err error) bool {
 // reallocateTestNodePorts assigns fresh free ports to all network addresses in cfg,
 // replacing the ones allocated at config-creation time that may now be taken.
 func reallocateTestNodePorts(cfg *testnode.Config) {
-	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
+	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
+	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
+	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetDeterministicPort())
+	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
 }
