@@ -106,6 +106,42 @@ func TestValidate(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		{
+			name: "duplicate additional endpoints (same ip:port)",
+			cfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
+				AdditionalCoreEndpoints: []EndpointConfig{
+					{
+						IP:   "248.249.255.138",
+						Port: "4040",
+					},
+					{
+						IP:   "248.249.255.138",
+						Port: "4040",
+					},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "additional endpoint duplicates the primary",
+			cfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "127.0.0.1",
+					Port: DefaultPort,
+				},
+				AdditionalCoreEndpoints: []EndpointConfig{
+					{
+						IP:   "127.0.0.1",
+						Port: DefaultPort,
+					},
+				},
+			},
+			expectErr: true,
+		},
 	}
 
 	for _, tt := range tests {

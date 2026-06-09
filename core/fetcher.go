@@ -26,16 +26,16 @@ type SignedBlock struct {
 
 // BlockEvent is a new-block notification carrying the height plus which source
 // announced it. The block body is fetched on demand via GetSignedBlockFrom,
-// which prefers the announcing source — the peer fastest to notify this height,
-// a fresh signal that it's the most responsive peer.
+// which routes to the announcing source — the peer fastest to notify this
+// height, a fresh signal that it's the most responsive peer.
 type BlockEvent struct {
 	Height int64
-	// source is the index of the MultiSource source that delivered this height
-	// first. It is internal routing: zero and ignored for a single BlockFetcher.
-	source int
-	// addr is the announcing source's endpoint address, carried so the Listener
-	// can name the offending source if its block is rejected (wrong chain or
-	// inconsistent data) — making "remove the bad source" actionable.
+	// addr is the announcing source's endpoint address (conn.Target) and doubles
+	// as its id: MultiSource resolves GetSignedBlockFrom/IsSyncingFrom back to the
+	// announcing source by addr, and the Listener uses it to name the offending
+	// source if its block is rejected (wrong chain or inconsistent data) — making
+	// "remove the bad source" actionable. A single BlockFetcher sets it too but
+	// ignores it on fetch, having only one source.
 	addr string
 }
 

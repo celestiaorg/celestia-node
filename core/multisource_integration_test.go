@@ -39,13 +39,21 @@ func deadGRPCClient(t *testing.T) *grpc.ClientConn {
 	return conn
 }
 
-// secondClientTo opens a second gRPC connection to the same node as conn, so a
-// MultiSource can fan two real subscriptions in from one chain.
+// secondClientTo opens a second gRPC connection to the same backend as conn but
+// under a distinct target string (the passthrough scheme dials the endpoint
+// literally), so MultiSource keys it as a separate source by addr instead of
+// collapsing it into conn. One real node thus stands in for two distinct
+// endpoints fanning the same heights — the realistic shape MultiSource expects,
+// since two connections to one addr are rejected as duplicates upstream.
 func secondClientTo(t *testing.T, conn *grpc.ClientConn) *grpc.ClientConn {
 	t.Helper()
 	host, port, err := net.SplitHostPort(conn.Target())
 	require.NoError(t, err)
-	return newTestClient(t, host, port)
+	target := "passthrough:///" + net.JoinHostPort(host, port)
+	c, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+	return c
 }
 
 func TestMultiSource_Integration_Verify(t *testing.T) {

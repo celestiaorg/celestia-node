@@ -215,7 +215,7 @@ func TestMultiSource_GetSignedBlockFrom(t *testing.T) {
 		}}
 		ms := newMultiSource(tagged("wrong", wrongSrc), tagged("announcer", announcer))
 
-		b, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 7, source: 1})
+		b, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 7, addr: "announcer"})
 		require.NoError(t, err)
 		assert.Equal(t, int64(7), b.Header.Height)
 	})
@@ -235,14 +235,14 @@ func TestMultiSource_GetSignedBlockFrom(t *testing.T) {
 		}}
 		ms := newMultiSource(tagged("other", other), tagged("down", down))
 
-		_, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 9, source: 1}) // source 1 = down
+		_, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 9, addr: "down"})
 		require.Error(t, err)
 		assert.False(t, otherCalled.Load(), "must not fall back to another source")
 	})
 
-	t.Run("out-of-range source index errors", func(t *testing.T) {
+	t.Run("unknown source addr errors", func(t *testing.T) {
 		ms := newMultiSource(tagged("only", &fakeSource{}))
-		_, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 1, source: 5})
+		_, err := ms.GetSignedBlockFrom(ctx, BlockEvent{Height: 1, addr: "nonexistent"})
 		require.Error(t, err)
 	})
 }
@@ -258,11 +258,11 @@ func TestMultiSource_IsSyncingFrom(t *testing.T) {
 
 		// the catching-up source announced: its replayed block must be treated
 		// as syncing even though the other source is caught up.
-		syncing, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 7, source: 1})
+		syncing, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 7, addr: "catching-up"})
 		require.NoError(t, err)
 		assert.True(t, syncing)
 
-		syncing, err = ms.IsSyncingFrom(ctx, BlockEvent{Height: 8, source: 0})
+		syncing, err = ms.IsSyncingFrom(ctx, BlockEvent{Height: 8, addr: "caught-up"})
 		require.NoError(t, err)
 		assert.False(t, syncing)
 	})
@@ -272,13 +272,13 @@ func TestMultiSource_IsSyncingFrom(t *testing.T) {
 			tagged("healthy", &fakeSource{syncing: false}),
 			tagged("down", &fakeSource{syncingErr: errors.New("down")}),
 		)
-		_, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 9, source: 1})
+		_, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 9, addr: "down"})
 		require.Error(t, err)
 	})
 
-	t.Run("out-of-range source index errors", func(t *testing.T) {
+	t.Run("unknown source addr errors", func(t *testing.T) {
 		ms := newMultiSource(tagged("only", &fakeSource{}))
-		_, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 1, source: 5})
+		_, err := ms.IsSyncingFrom(ctx, BlockEvent{Height: 1, addr: "nonexistent"})
 		require.Error(t, err)
 	})
 }
@@ -307,7 +307,8 @@ func TestMultiSource_Verify(t *testing.T) {
 		)
 		require.NoError(t, ms.Verify(ctx, "mocha-4"))
 		require.Len(t, ms.sources, 1)
-		assert.Equal(t, "good", ms.sources[0].addr)
+		_, ok := ms.sources["good"]
+		assert.True(t, ok, "the surviving source must be the good one")
 	})
 
 	t.Run("unreachable source is pruned even when another is confirmed good", func(t *testing.T) {
@@ -318,7 +319,8 @@ func TestMultiSource_Verify(t *testing.T) {
 		require.NoError(t, ms.Verify(ctx, "mocha-4"))
 		require.Len(t, ms.sources, 1,
 			"a source that cannot vouch for its network must not enter the active set")
-		assert.Equal(t, "good", ms.sources[0].addr)
+		_, ok := ms.sources["good"]
+		assert.True(t, ok, "the surviving source must be the good one")
 	})
 
 	t.Run("errors when every reachable source is on the wrong chain", func(t *testing.T) {
@@ -392,7 +394,7 @@ func TestMultiSource_SingleSource(t *testing.T) {
 
 	t.Run("isSyncingFrom passthrough", func(t *testing.T) {
 		ctx := context.Background()
-		ev := BlockEvent{Height: 1, source: 0}
+		ev := BlockEvent{Height: 1, addr: "only"}
 
 		syncing, err := newMultiSource(tagged("only", &fakeSource{syncing: true})).IsSyncingFrom(ctx, ev)
 		require.NoError(t, err)
