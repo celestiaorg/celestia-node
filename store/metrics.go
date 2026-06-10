@@ -17,18 +17,20 @@ const (
 	failedKey = "failed"
 	withQ4Key = "with_q4"
 	sizeKey   = "eds_size"
+	layoutKey = "layout"
 )
 
 var meter = otel.Meter("store")
 
 type metrics struct {
-	put         metric.Float64Histogram
-	putExists   metric.Int64Counter
-	get         metric.Float64Histogram
-	has         metric.Float64Histogram
-	removeODSQ4 metric.Float64Histogram
-	removeQ4    metric.Float64Histogram
-	unreg       func() error
+	put            metric.Float64Histogram
+	putExists      metric.Int64Counter
+	get            metric.Float64Histogram
+	has            metric.Float64Histogram
+	removeODSQ4    metric.Float64Histogram
+	removeQ4       metric.Float64Histogram
+	bytesReclaimed metric.Int64Counter
+	unreg          func() error
 }
 
 func (s *Store) WithMetrics() error {
@@ -73,13 +75,24 @@ func (s *Store) WithMetrics() error {
 		return err
 	}
 
+	bytesReclaimed, err := meter.Int64Counter("eds_store_bytes_reclaimed_total",
+		metric.WithDescription(
+			"bytes reclaimed from disk by EDS file removal, labeled by `layout` "+
+				"(odsq4 = ODS+Q4 pair, q4 = Q4 only)",
+		),
+		metric.WithUnit("By"))
+	if err != nil {
+		return err
+	}
+
 	s.metrics = &metrics{
-		put:         put,
-		putExists:   putExists,
-		get:         get,
-		has:         has,
-		removeODSQ4: removeODSQ4,
-		removeQ4:    removeQ4,
+		put:            put,
+		putExists:      putExists,
+		get:            get,
+		has:            has,
+		removeODSQ4:    removeODSQ4,
+		removeQ4:       removeQ4,
+		bytesReclaimed: bytesReclaimed,
 	}
 	return s.metrics.addCacheMetrics(s.cache)
 }
@@ -146,7 +159,7 @@ func (m *metrics) observeHas(ctx context.Context, dur time.Duration, failed bool
 		attribute.Bool(failedKey, failed)))
 }
 
-func (m *metrics) observeRemoveODSQ4(ctx context.Context, dur time.Duration, failed bool) {
+func (m *metrics) observeRemoveODSQ4(ctx context.Context, dur time.Duration, bytes int64, failed bool) {
 	if m == nil {
 		return
 	}
@@ -154,9 +167,13 @@ func (m *metrics) observeRemoveODSQ4(ctx context.Context, dur time.Duration, fai
 
 	m.removeODSQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+	if !failed && bytes > 0 {
+		m.bytesReclaimed.Add(ctx, bytes, metric.WithAttributes(
+			attribute.String(layoutKey, "odsq4")))
+	}
 }
 
-func (m *metrics) observeRemoveQ4(ctx context.Context, dur time.Duration, failed bool) {
+func (m *metrics) observeRemoveQ4(ctx context.Context, dur time.Duration, bytes int64, failed bool) {
 	if m == nil {
 		return
 	}
@@ -164,10 +181,14 @@ func (m *metrics) observeRemoveQ4(ctx context.Context, dur time.Duration, failed
 
 	m.removeQ4.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		attribute.Bool(failedKey, failed)))
+	if !failed && bytes > 0 {
+		m.bytesReclaimed.Add(ctx, bytes, metric.WithAttributes(
+			attribute.String(layoutKey, "q4")))
+	}
 }
 
 func (m *metrics) close() error {
-	if m == nil {
+	if m == nil || m.unreg == nil {
 		return nil
 	}
 	return m.unreg()
