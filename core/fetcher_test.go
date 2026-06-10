@@ -20,23 +20,18 @@ func TestBlockFetcher_GetBlock_and_SubscribeNewBlockEvent(t *testing.T) {
 		require.NoError(t, network.Stop())
 	})
 
-	fetcher, err := NewBlockFetcher(network.GRPCClient)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(network.GRPCClient)
 	// generate some blocks
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 
 	for i := 1; i < 3; i++ {
 		select {
-		case newBlockFromChan := <-newBlockChan:
-			h := newBlockFromChan.Header.Height
-			block, err := fetcher.GetSignedBlock(ctx, h)
+		case ev := <-newBlockChan:
+			block, err := fetcher.GetSignedBlock(ctx, ev.Height)
 			require.NoError(t, err)
-			assert.Equal(t, newBlockFromChan.Data, block.Data)
-			assert.Equal(t, newBlockFromChan.Header, block.Header)
-			assert.Equal(t, newBlockFromChan.Commit, block.Commit)
-			assert.Equal(t, newBlockFromChan.ValidatorSet, block.ValidatorSet)
-			require.GreaterOrEqual(t, newBlockFromChan.Header.Height, int64(i))
+			assert.Equal(t, ev.Height, block.Header.Height)
+			require.GreaterOrEqual(t, ev.Height, int64(i))
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 		}
@@ -54,17 +49,15 @@ func TestFetcher_Resubscription(t *testing.T) {
 	host, port, err := net.SplitHostPort(tn.GRPCClient.Target())
 	require.NoError(t, err)
 	client := newTestClient(t, host, port)
-	fetcher, err := NewBlockFetcher(client)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(client)
 
 	// subscribe to the channel to get new blocks
 	// and try to get one block
 	newBlockChan, err := fetcher.SubscribeNewBlockEvent(ctx)
 	require.NoError(t, err)
 	select {
-	case newBlockFromChan := <-newBlockChan:
-		h := newBlockFromChan.Header.Height
-		_, err = fetcher.GetSignedBlock(ctx, h)
+	case ev := <-newBlockChan:
+		_, err = fetcher.GetSignedBlock(ctx, ev.Height)
 		require.NoError(t, err)
 	case <-ctx.Done():
 		t.Fatal("timeout waiting for block subscription")
@@ -90,9 +83,8 @@ func TestFetcher_Resubscription(t *testing.T) {
 		require.NoError(t, tn.Stop())
 	})
 	select {
-	case newBlockFromChan := <-newBlockChan:
-		h := newBlockFromChan.Header.Height
-		_, err = fetcher.GetSignedBlock(ctx, h)
+	case ev := <-newBlockChan:
+		_, err = fetcher.GetSignedBlock(ctx, ev.Height)
 		require.NoError(t, err)
 	case <-ctx.Done():
 		t.Fatal("timeout waiting for block subscription")
