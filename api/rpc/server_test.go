@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
+	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -411,6 +412,63 @@ func TestServer_NoTLS_PlainHTTP(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	assert.NotNil(t, resp)
+}
+
+// wsTestService is a minimal RPC service. Its channel-returning method forces a
+// websocket upgrade, exercising the http.Hijacker path.
+type wsTestService struct{}
+
+func (wsTestService) Ping(context.Context) (string, error) { return "pong", nil }
+
+func (wsTestService) Updates(ctx context.Context) (<-chan int, error) {
+	ch := make(chan int, 1)
+	ch <- 7
+	go func() {
+		<-ctx.Done()
+		close(ch)
+	}()
+	return ch, nil
+}
+
+// TestServer_WithMetrics_WebSocketSubscription guards the regression where the
+// metrics middleware wrapped the ResponseWriter without promoting http.Hijacker,
+// so every websocket subscription 500'd once WithMetrics was enabled. The
+// subscription must still work with metrics on.
+func TestServer_WithMetrics_WebSocketSubscription(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+	srv.RegisterService("test", wsTestService{}, nil)
+	require.NoError(t, srv.WithMetrics())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+	require.NoError(t, srv.Start(ctx))
+	t.Cleanup(func() { require.NoError(t, srv.Stop(context.Background())) })
+
+	var client struct {
+		Ping    func(context.Context) (string, error)
+		Updates func(context.Context) (<-chan int, error)
+	}
+	closer, err := jsonrpc.NewClient(ctx, "ws://"+srv.ListenAddr(), "test", &client, nil)
+	require.NoError(t, err)
+	t.Cleanup(closer)
+
+	// Unary call over the websocket transport.
+	got, err := client.Ping(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "pong", got)
+
+	// Subscription: this is the path that hijacks the connection — broken before
+	// the switch to otelhttp, which preserves http.Hijacker.
+	ch, err := client.Updates(ctx)
+	require.NoError(t, err, "websocket subscription must work with WithMetrics enabled")
+	select {
+	case v, ok := <-ch:
+		require.True(t, ok)
+		assert.Equal(t, 7, v)
+	case <-ctx.Done():
+		t.Fatal("no value received from websocket subscription")
+	}
 }
 
 func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {

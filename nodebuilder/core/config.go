@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
@@ -16,8 +17,16 @@ var MetricsEnabled bool
 // Config combines all configuration fields for managing the relationship with a Core node.
 type Config struct {
 	EndpointConfig
-	// AdditionalCoreEndpoints is a list of additional Celestia-Core endpoints to be used for
-	// transaction submission. Must be provided as `host:port` pairs.
+	// AdditionalCoreEndpoints lists extra Celestia-Core endpoints beyond the primary one.
+	// They serve two purposes: load-balancing transaction submission (see nodebuilder/state),
+	// and acting as additional block sources fanned into a MultiSource so the bridge ingests
+	// new blocks from every endpoint concurrently and tolerates any single one failing
+	// (see core.MultiSource and newCoreFetcher).
+	//
+	// Configurable only via the config file — there is intentionally no CLI flag. Each entry is
+	// a full EndpointConfig (IP, Port, TLSEnabled, XTokenPath): the primary endpoint keeps its
+	// --core.* flags for quick start, while this structured, possibly-secured list belongs in
+	// config rather than being flattened into flags.
 	AdditionalCoreEndpoints []EndpointConfig
 }
 
@@ -56,10 +65,23 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 
+	// Reject duplicate endpoints (same ip:port). A duplicate is either a config
+	// typo or a pointless one — two connections to the same node share a failure
+	// domain and add no resilience — and MultiSource keys sources by addr, so a
+	// duplicate would silently collapse into a single source. The primary
+	// endpoint seeds the set so an additional one can't shadow it either.
+	seen := map[string]struct{}{
+		net.JoinHostPort(cfg.IP, cfg.Port): {},
+	}
 	for _, additionalCfg := range cfg.AdditionalCoreEndpoints {
 		if err := additionalCfg.validate(); err != nil {
 			return fmt.Errorf("nodebuilder/core: invalid additional core endpoint configuration: %w", err)
 		}
+		key := net.JoinHostPort(additionalCfg.IP, additionalCfg.Port)
+		if _, dup := seen[key]; dup {
+			return fmt.Errorf("nodebuilder/core: duplicate core endpoint %q: endpoints must be distinct nodes", key)
+		}
+		seen[key] = struct{}{}
 	}
 
 	return nil

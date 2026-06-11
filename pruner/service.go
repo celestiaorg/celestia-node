@@ -199,7 +199,7 @@ func (s *Service) prune(ctx context.Context) {
 
 		for _, eh := range headers {
 			err = s.pruner.Prune(ctx, eh)
-			s.metrics.observePrune(ctx, err != nil)
+			s.metrics.observePrune(ctx, eh.DAH.SquareSize(), err != nil)
 			if err != nil {
 				log.Errorw("failed to prune block", "height", eh.Height(), "err", err)
 				failedSet[eh.Height()] = struct{}{}
@@ -240,6 +240,7 @@ func (s *Service) retryFailed(ctx context.Context) {
 			log.Errorw("failed to prune block from failed map", "height", failed, "err", err)
 			continue
 		}
+		s.metrics.observePrune(ctx, h.DAH.SquareSize(), false)
 		delete(s.checkpoint.FailedHeaders, failed)
 	}
 }
@@ -281,7 +282,7 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 	}
 
 	err = s.pruner.Prune(ctx, eh)
-	s.metrics.observePrune(ctx, err != nil)
+	s.metrics.observePrune(ctx, eh.DAH.SquareSize(), err != nil)
 	if err != nil {
 		return fmt.Errorf("pruning height %d: %w", height, err)
 	}

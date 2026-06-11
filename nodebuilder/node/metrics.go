@@ -18,10 +18,7 @@ var meter = otel.Meter("node")
 
 // WithMetrics registers node metrics.
 func WithMetrics(lc fx.Lifecycle) error {
-	var (
-		timeStarted time.Time
-		nodeStarted bool
-	)
+	timeStarted := time.Now()
 
 	nodeStartTS, err := meter.Int64ObservableGauge(
 		"node_start_ts",
@@ -48,13 +45,10 @@ func WithMetrics(lc fx.Lifecycle) error {
 	}
 
 	callback := func(_ context.Context, observer metric.Observer) error {
-		if !nodeStarted {
-			// Observe node start timestamp
-			timeStarted = time.Now()
-			observer.ObserveInt64(nodeStartTS, timeStarted.Unix())
-			nodeStarted = true
-		}
-
+		// Re-observe the start timestamp every cycle: OTel only exports
+		// instruments observed in the current collection, so a once-only
+		// observation goes stale in Prometheus after ~5m.
+		observer.ObserveInt64(nodeStartTS, timeStarted.Unix())
 		observer.ObserveFloat64(totalNodeRunTime, time.Since(timeStarted).Seconds())
 
 		// Observe build info with labels
