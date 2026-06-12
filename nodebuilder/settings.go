@@ -88,6 +88,13 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 	modcore.MetricsEnabled = true
 	modprune.MetricsEnabled = true
 
+	samplingMetrics := fx.Options(
+		fx.Invoke(das.WithMetrics),
+		fx.Invoke(share.WithPeerManagerMetrics),
+		fx.Invoke(share.WithShrexClientMetrics),
+		fx.Invoke(share.WithShrexGetterMetrics),
+	)
+
 	baseComponents := fx.Options(
 		fx.Supply(metricOpts),
 		fx.Invoke(initializeMetrics),
@@ -113,33 +120,19 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 			return nil
 		}),
 		fx.Invoke(node.WithMetrics),
+		fx.Invoke(modrpc.WithMetrics),
+		samplingMetrics,
 		fx.Invoke(share.WithDiscoveryMetrics),
 		fx.Invoke(share.WithBlockStoreMetrics),
-		fx.Invoke(modrpc.WithMetrics),
 	)
 
-	samplingMetrics := fx.Options(
-		fx.Invoke(das.WithMetrics),
-		fx.Invoke(share.WithPeerManagerMetrics),
-		fx.Invoke(share.WithShrexClientMetrics),
-		fx.Invoke(share.WithShrexGetterMetrics),
-	)
-
-	var opts fx.Option
-	switch nodeType {
-	case node.Bridge:
+	opts := baseComponents
+	if nodeType == node.Bridge {
 		opts = fx.Options(
 			baseComponents,
 			fx.Invoke(share.WithStoreMetrics),
 			fx.Invoke(share.WithShrexServerMetrics),
 		)
-	case node.Light:
-		opts = fx.Options(
-			baseComponents,
-			samplingMetrics,
-		)
-	default:
-		panic("invalid node type")
 	}
 	return opts
 }
