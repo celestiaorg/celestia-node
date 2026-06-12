@@ -1,0 +1,37 @@
+name: Notify protocol-ci on failure
+
+# Posts a message to the #protocol-ci Slack channel when a CI workflow fails on
+# main (post-merge) or on a scheduled run. A single workflow_run-triggered file
+# watches several workflows so we don't have to add a notify job to each one.
+# The repo name is included in the message so #protocol-ci can aggregate
+# failures from celestia-app, celestia-core, and celestia-node.
+on:
+  workflow_run:
+    workflows:
+      - "CI and Release"
+      - "Docker Build & Publish"
+      - "Bootstrapper Health Check"
+    types:
+      - completed
+    branches:
+      - main
+
+# The notifier only calls an external Slack webhook; it needs no GITHUB_TOKEN
+# scopes.
+permissions: {}
+
+jobs:
+  notify:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        with:
+          webhook: ${{ secrets.PROTOCOL_CI_SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ github.repository }} | ${{ github.event.workflow_run.name }} failed on ${{ github.event.workflow_run.head_branch }}: ${{ github.event.workflow_run.html_url }}"
+            }

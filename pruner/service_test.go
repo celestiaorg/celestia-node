@@ -33,7 +33,7 @@ func TestService(t *testing.T) {
 
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window (
-	suite := headertest.NewTestSuite(t, 1, blockTime)
+	suite := headertest.NewTestSuite(t, headertest.WithValidators(1), headertest.WithBlockTime(blockTime))
 	store := headertest.NewCustomStore(t, suite, 20)
 
 	mp := &mockPruner{}
@@ -73,7 +73,7 @@ func TestService_FailedAreRecorded(t *testing.T) {
 
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window
-	suite := headertest.NewTestSuite(t, 1, blockTime)
+	suite := headertest.NewTestSuite(t, headertest.WithValidators(1), headertest.WithBlockTime(blockTime))
 	store := headertest.NewCustomStore(t, suite, 100)
 
 	mp := &mockPruner{
@@ -164,7 +164,7 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 
 	// all headers generated in suite are timestamped to time.Now(), so
 	// they will all be considered "pruneable" within the availability window
-	suite := headertest.NewTestSuite(t, 1, blockTime)
+	suite := headertest.NewTestSuite(t, headertest.WithValidators(1), headertest.WithBlockTime(blockTime))
 	store := headertest.NewCustomStore(t, suite, maxHeadersPerLoop*6) // add small buffer
 
 	mp := &mockPruner{failHeight: make(map[uint64]int, 0)}
@@ -244,7 +244,7 @@ func TestFindPruneableHeaders(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 
-			suite := headertest.NewTestSuiteWithGenesisTime(t, tc.startTime, tc.blockTime)
+			suite := headertest.NewTestSuite(t, headertest.WithStartTime(tc.startTime), headertest.WithBlockTime(tc.blockTime))
 			store := headertest.NewCustomStore(t, suite, tc.headerAmount)
 
 			mp := &mockPruner{}

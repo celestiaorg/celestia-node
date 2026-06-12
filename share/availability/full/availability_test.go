@@ -111,7 +111,7 @@ func TestSharesAvailable_OutsideSamplingWindow_NonArchival(t *testing.T) {
 	store, err := store.NewStore(store.DefaultParameters(), t.TempDir())
 	require.NoError(t, err)
 
-	suite := headertest.NewTestSuite(t, 3, time.Nanosecond)
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(time.Nanosecond))
 	headers := suite.GenExtendedHeaders(10)
 
 	avail := NewShareAvailability(store, getter)

@@ -196,8 +196,7 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Netw
 	// flakiness with accessing account state)
 	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
 	require.NoError(t, err)
-	fetcher, err := NewBlockFetcher(network.GRPCClient)
-	require.NoError(t, err)
+	fetcher := NewBlockFetcher(network.GRPCClient)
 	return fetcher, network
 }
 
@@ -246,8 +245,11 @@ func generateNonEmptyBlocks(
 	i := 0
 	for i < 20 {
 		select {
-		case b, ok := <-sub:
+		case ev, ok := <-sub:
 			require.True(t, ok)
+
+			b, err := fetcher.GetSignedBlock(generateCtx, ev.Height)
+			require.NoError(t, err)
 
 			if bytes.Equal(share.EmptyEDSDataHash(), b.Data.Hash()) {
 				continue
