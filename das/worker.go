@@ -200,5 +200,14 @@ func (w *worker) setResult(curr uint64, err error) {
 func (w *worker) getState() workerState {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	return w.state
+	state := w.state
+	// state is a shallow copy: workerState embeds result, whose `failed` map is
+	// shared by reference. The worker keeps mutating it under w.lock, while
+	// callers (coordinator stats) read it without holding the lock. Deep-copy the
+	// map so the returned snapshot is safe to read concurrently.
+	state.failed = make(map[uint64]int, len(w.state.failed))
+	for height, count := range w.state.failed {
+		state.failed[height] = count
+	}
+	return state
 }
