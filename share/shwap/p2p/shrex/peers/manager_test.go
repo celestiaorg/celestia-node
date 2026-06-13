@@ -2,6 +2,7 @@ package peers
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -287,7 +288,7 @@ func TestManager(t *testing.T) {
 		// check that no peers or hashes were blacklisted
 		manager.params.PoolValidationTimeout = 0
 		require.Len(t, blacklisted, 0)
-		require.Len(t, manager.blacklistedHashes, 0)
+		require.Equal(t, 0, manager.blacklistedHashes.Len())
 	})
 
 	t.Run("pools store window", func(t *testing.T) {
@@ -467,6 +468,27 @@ func TestIntegration(t *testing.T) {
 			require.NoError(t, ctx.Err())
 		}
 	})
+}
+
+// TestManager_blacklistedHashesBounded ensures the blacklisted hashes cache
+// does not grow without bound. Previously it was a plain map with no eviction,
+// so a peer spamming invalid datahashes could grow it indefinitely (#1926).
+func TestManager_blacklistedHashesBounded(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	headerSub := newSubLock(testHeader(), nil)
+	manager, err := testManager(ctx, headerSub)
+	require.NoError(t, err)
+
+	// blacklist far more datahashes than the cache bound, as would happen on a
+	// long-running node fed a stream of invalid hashes.
+	for i := range blacklistedHashesCacheSize * 3 {
+		manager.blacklistedHashes.Add(strconv.Itoa(i), struct{}{})
+	}
+
+	require.Equal(t, blacklistedHashesCacheSize, manager.blacklistedHashes.Len(),
+		"blacklisted hashes cache must stay bounded")
 }
 
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
