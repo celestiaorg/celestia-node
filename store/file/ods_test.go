@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -151,6 +152,59 @@ func TestValidateODSSize(t *testing.T) {
 			})
 		}
 	}
+}
+
+// openFDCount returns the number of file descriptors currently open by the
+// process. It relies on Linux's /proc and skips the test elsewhere.
+func openFDCount(t *testing.T) int {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("file descriptor counting via /proc is only available on Linux")
+	}
+	entries, err := os.ReadDir("/proc/self/fd")
+	require.NoError(t, err)
+	return len(entries)
+}
+
+// TestValidateODSSize_NoFDLeak ensures ValidateODSSize does not leak the file
+// descriptor opened by OpenODS. It opened the file but never closed it on any
+// path, leaking one fd per call during store startup validation.
+func TestValidateODSSize_NoFDLeak(t *testing.T) {
+	eds := edstest.RandEDS(t, 8)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	path := t.TempDir() + "ods-fd-leak"
+	require.NoError(t, CreateODS(path, roots, eds))
+
+	// warm up one call so any one-off fds (not per-call leaks) are already open.
+	require.NoError(t, ValidateODSSize(path, eds))
+
+	before := openFDCount(t)
+	for range 50 {
+		require.NoError(t, ValidateODSSize(path, eds))
+	}
+	after := openFDCount(t)
+	require.LessOrEqual(t, after-before, 1, "ValidateODSSize leaked file descriptors")
+}
+
+// TestOpenODS_NoFDLeakOnHeaderError ensures OpenODS closes the underlying file
+// when header parsing fails, instead of leaking the descriptor.
+func TestOpenODS_NoFDLeakOnHeaderError(t *testing.T) {
+	// too short to contain a valid header, so readHeader fails.
+	path := t.TempDir() + "corrupt-ods"
+	require.NoError(t, os.WriteFile(path, []byte{0x00, 0x01, 0x02}, 0o600))
+
+	// warm up so the first-call allocations don't skew the count.
+	_, err := OpenODS(path)
+	require.Error(t, err)
+
+	before := openFDCount(t)
+	for range 50 {
+		_, err := OpenODS(path)
+		require.Error(t, err)
+	}
+	after := openFDCount(t)
+	require.LessOrEqual(t, after-before, 1, "OpenODS leaked a file descriptor on header error")
 }
 
 // BenchmarkAxisFromODSFile/Size:32/ProofType:row/squareHalf:0-16         	  382011	      3104 ns/op

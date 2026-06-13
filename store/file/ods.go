@@ -142,6 +142,7 @@ func ValidateODSSize(path string, eds *rsmt2d.ExtendedDataSquare) error {
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}
+	defer ods.Close()
 
 	shares, err := filledSharesAmount(eds)
 	if err != nil {
@@ -173,6 +174,7 @@ func OpenODS(path string) (*ODS, error) {
 
 	h, err := readHeader(f)
 	if err != nil {
+		_ = f.Close()
 		return nil, err
 	}
 
