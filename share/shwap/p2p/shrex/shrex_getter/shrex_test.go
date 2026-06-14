@@ -50,12 +50,12 @@ func TestShrexGetter(t *testing.T) {
 	edsStore := newWrappedStore(st)
 	client, _ := newShrexClientServer(ctx, t, edsStore, srvHost, clHost)
 
-	// create shrex Getter
-	sub := new(headertest.Subscriber)
-
-	fullPeerManager, err := testManager(ctx, clHost, sub)
+	// create shrex Getter. Each manager gets its own subscriber: the headertest
+	// Subscriber mock is not safe for concurrent NextHeader calls, and in
+	// production every manager has its own header subscription anyway.
+	fullPeerManager, err := testManager(ctx, clHost, new(headertest.Subscriber))
 	require.NoError(t, err)
-	archivalPeerManager, err := testManager(ctx, clHost, sub)
+	archivalPeerManager, err := testManager(ctx, clHost, new(headertest.Subscriber))
 	require.NoError(t, err)
 
 	getter := NewGetter(client, fullPeerManager, archivalPeerManager, availability.RequestWindow)
