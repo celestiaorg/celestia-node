@@ -94,7 +94,7 @@ func TestSessions_ConcurrentDifferentKeys(t *testing.T) {
 	var wg sync.WaitGroup
 	startCh := make(chan struct{})
 	activeSessions := atomic.Int32{}
-	maxActive := int32(0)
+	maxActive := atomic.Int32{}
 
 	for i := range numKeys {
 		wg.Add(1)
@@ -105,8 +105,12 @@ func TestSessions_ConcurrentDifferentKeys(t *testing.T) {
 			require.NoError(t, err)
 
 			active := activeSessions.Add(1)
-			if active > maxActive {
-				maxActive = active
+			// track the maximum without racing: bump only while we still hold the highest
+			for {
+				cur := maxActive.Load()
+				if active <= cur || maxActive.CompareAndSwap(cur, active) {
+					break
+				}
 			}
 
 			// Wait to simulate work
@@ -121,7 +125,7 @@ func TestSessions_ConcurrentDifferentKeys(t *testing.T) {
 	close(startCh)
 	wg.Wait()
 
-	if maxActive > int32(numKeys) {
-		t.Errorf("Expected %d concurrent active sessions, but got %d", numKeys, maxActive)
+	if maxActive.Load() > int32(numKeys) {
+		t.Errorf("Expected %d concurrent active sessions, but got %d", numKeys, maxActive.Load())
 	}
 }
