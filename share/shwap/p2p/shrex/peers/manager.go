@@ -454,8 +454,7 @@ func (m *Manager) isBlacklistedPeer(peerID peer.ID) bool {
 }
 
 func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	// no Manager lock needed: the LRU cache is safe for concurrent use.
 	return m.blacklistedHashes.Contains(hash.String())
 }
 
