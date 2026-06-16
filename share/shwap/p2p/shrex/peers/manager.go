@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -41,6 +42,11 @@ const (
 	// storedPoolsAmount is the amount of pools for recent headers that will be stored in the peer
 	// manager
 	storedPoolsAmount = 10
+
+	// blacklistedHashesCacheSize bounds the number of blacklisted datahashes kept in memory.
+	// The blacklist is a best-effort spam filter, so evicting the least-recently-used entries
+	// is acceptable and prevents unbounded growth from a stream of invalid datahashes.
+	blacklistedHashesCacheSize = 1024
 )
 
 type result string
@@ -74,8 +80,8 @@ type Manager struct {
 	// nodes collects nodes' peer.IDs found via discovery
 	nodes *pool
 
-	// hashes that are not in the chain
-	blacklistedHashes map[string]bool
+	// hashes that are not in the chain, bounded by an LRU to avoid unbounded growth
+	blacklistedHashes *lru.Cache[string, struct{}]
 
 	metrics *metrics
 
@@ -111,12 +117,17 @@ func NewManager(
 		return nil, err
 	}
 
+	blacklistedHashes, err := lru.New[string, struct{}](blacklistedHashesCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("shrex/peer-manager: creating blacklisted hashes cache: %w", err)
+	}
+
 	s := &Manager{
 		params:                params,
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
-		blacklistedHashes:     make(map[string]bool),
+		blacklistedHashes:     blacklistedHashes,
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
 		tag:                   tag,
@@ -443,9 +454,8 @@ func (m *Manager) isBlacklistedPeer(peerID peer.ID) bool {
 }
 
 func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	return m.blacklistedHashes[hash.String()]
+	// no Manager lock needed: the LRU cache is safe for concurrent use.
+	return m.blacklistedHashes.Contains(hash.String())
 }
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
@@ -520,7 +530,7 @@ func (m *Manager) cleanUp() []peer.ID {
 				"hash", h,
 				"peer_list", p.peersList)
 			// blacklist hash
-			m.blacklistedHashes[h] = true
+			m.blacklistedHashes.Add(h, struct{}{})
 
 			// blacklist peers
 			for _, peer := range p.peersList {

@@ -277,6 +277,6 @@ func (m *Manager) shrexPools() map[poolStatus]int64 {
 		shrexPools[poolStatusValidated]++
 	}
 
-	shrexPools[poolStatusBlacklisted] = int64(len(m.blacklistedHashes))
+	shrexPools[poolStatusBlacklisted] = int64(m.blacklistedHashes.Len())
 	return shrexPools
 }
