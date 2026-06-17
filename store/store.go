@@ -455,9 +455,19 @@ func (s *Store) RemoveODSQ4(ctx context.Context, height uint64, datahash share.D
 	lock.lock()
 	defer lock.unlock()
 
+	// Size the files before removal so the bytes-reclaimed metric reflects
+	// what actually left the filesystem. The hardlink in heights/ shares an
+	// inode with the ODS file in blocks/, so we size only the canonical
+	// blocks/ paths to avoid double-counting.
+	var bytes int64
+	if !datahash.IsEmptyEDS() {
+		bytes = fileSize(s.hashToPath(datahash, odsFileExt)) +
+			fileSize(s.hashToPath(datahash, q4FileExt))
+	}
+
 	tNow := time.Now()
 	err := s.removeODSQ4(height, datahash)
-	s.metrics.observeRemoveODSQ4(ctx, time.Since(tNow), err != nil)
+	s.metrics.observeRemoveODSQ4(ctx, time.Since(tNow), bytes, err != nil)
 	return err
 }
 
@@ -498,9 +508,14 @@ func (s *Store) RemoveQ4(ctx context.Context, height uint64, datahash share.Data
 	lock.lock()
 	defer lock.unlock()
 
+	var bytes int64
+	if !datahash.IsEmptyEDS() {
+		bytes = fileSize(s.hashToPath(datahash, q4FileExt))
+	}
+
 	tNow := time.Now()
 	err := s.removeQ4(height, datahash)
-	s.metrics.observeRemoveQ4(ctx, time.Since(tNow), err != nil)
+	s.metrics.observeRemoveQ4(ctx, time.Since(tNow), bytes, err != nil)
 	return err
 }
 
@@ -591,4 +606,14 @@ func remove(path string) error {
 		return fmt.Errorf("removing file '%s': %w", path, err)
 	}
 	return nil
+}
+
+// fileSize returns the on-disk size of a file, or 0 if it's missing/unstatable.
+// Used purely for the bytes-reclaimed metric — best-effort, not load-bearing.
+func fileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
 }

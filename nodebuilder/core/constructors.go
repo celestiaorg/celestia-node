@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
@@ -44,6 +45,18 @@ var (
 )
 
 type AdditionalCoreConns []*grpc.ClientConn
+
+// newCoreFetcher builds the block source consumed by the Listener. It combines
+// the primary core endpoint with any AdditionalCoreEndpoints into a MultiSource
+// so the Listener ingests new blocks from all configured endpoints concurrently
+// and tolerates any single endpoint failing. With no additional endpoints it is
+// equivalent to a single-source fetcher.
+func newCoreFetcher(primary *grpc.ClientConn, additional AdditionalCoreConns) core.Fetcher {
+	conns := make([]*grpc.ClientConn, 0, 1+len(additional))
+	conns = append(conns, primary)
+	conns = append(conns, additional...)
+	return core.NewMultiSource(conns...)
+}
 
 // TODO @renaynay: should we make this reusable so we can have all auth + other features
 // for the estimator service too?
