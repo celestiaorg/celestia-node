@@ -15,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	dockerclient "github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -589,7 +590,7 @@ func (f *Framework) Cleanup() {
 	// Remove the Docker network
 	if f.network != "" {
 		f.logger.Info("Removing Docker network", zap.String("network", f.network))
-		if err := f.client.NetworkRemove(ctx, f.network); err != nil {
+		if _, err := f.client.NetworkRemove(ctx, f.network, dockerclient.NetworkRemoveOptions{}); err != nil {
 			f.t.Logf("Failed to remove Docker network %s: %v", f.network, err)
 		} else {
 			f.logger.Info("Successfully removed Docker network", zap.String("network", f.network))
