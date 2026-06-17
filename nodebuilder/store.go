@@ -129,7 +129,15 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 		return f.data, nil
 	}
 
-	cfg := constraintBadgerConfig()
+	// Read the configured Badger value threshold (0 → upstream default). Lets
+	// disk-constrained operators keep ExtendedHeaders in the LSM tree instead of
+	// the value log, bounding `data/` growth. Falls back to the default if the
+	// node config can't be loaded.
+	valueThreshold := 0
+	if nodeCfg, cfgErr := f.Config(); cfgErr == nil {
+		valueThreshold = nodeCfg.Node.BadgerValueThreshold
+	}
+	cfg := constraintBadgerConfig(valueThreshold)
 	ds, err := dsbadger.NewDatastore(dataPath(f.path), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("node: can't open Badger Datastore: %w", err)
@@ -301,13 +309,24 @@ func dataPath(base string) string {
 //
 // TODO(@Wondertan): Consider alternative less constraint configuration for FN/BN
 // TODO(@Wondertan): Consider dynamic memory allocation based on available RAM
-func constraintBadgerConfig() *dsbadger.Options {
+func constraintBadgerConfig(valueThreshold int) *dsbadger.Options {
 	opts := dsbadger.DefaultOptions // this must be copied
-	// ValueLog:
-	// 2mib default => libshare.ShareSize - makes sure headers and samples are stored in value log
-	// This *tremendously* reduces the amount of memory used by the node, up to 10 times less during
-	// compaction
-	opts.ValueThreshold = libshare.ShareSize
+	// ValueLog / ValueThreshold:
+	// Upstream default is libshare.ShareSize (512B), which forces ExtendedHeaders
+	// (tens of KB each, incl. full validator set + commit) into the append-only value
+	// log. On a long-running node the value log accumulates header churn (head/tail
+	// pointer rewrites every flush + overwrites) that the deferred value-log GC fails to
+	// reclaim, growing `data/` by GBs/hour until it fills the disk (the pruner deletes
+	// nothing for the first PruningWindow=169h, so it is all "live" to GC).
+	// Operators can raise Node.BadgerValueThreshold to keep header values in the LSM
+	// tree instead, where leveled compaction reclaims overwritten versions continuously
+	// and `data/` stays bounded. Trade-off: higher memory during compaction (the reason
+	// upstream keeps it low). Zero preserves the upstream default.
+	if valueThreshold <= 0 {
+		valueThreshold = libshare.ShareSize
+	}
+	log.Infow("badger datastore value threshold", "bytes", valueThreshold)
+	opts.ValueThreshold = int64(valueThreshold)
 	// make sure we don't have any limits for stored headers
 	opts.ValueLogMaxEntries = 100000000
 	// run value log GC more often to spread the work over time
