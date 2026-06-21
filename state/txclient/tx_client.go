@@ -3,7 +3,6 @@ package txclient
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -111,10 +110,34 @@ func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool)
 	}
 
 	conn.Connect()
-	if !conn.WaitForStateChange(ctx, connectivity.Ready) {
-		return nil, errors.New("couldn't connect to core endpoint")
+	if err := waitForReady(ctx, conn); err != nil {
+		// the connection never reached Ready; close it so its resolver/balancer
+		// goroutines and transport are released instead of leaking on every retry.
+		_ = conn.Close()
+		return nil, fmt.Errorf("state: connecting to estimator address %s: %w", addr, err)
 	}
 	return conn, nil
+}
+
+// waitForReady blocks until conn reaches connectivity.Ready or ctx is done.
+//
+// grpc's WaitForStateChange waits for the connection to transition *away* from
+// the state passed to it, not *into* it. A fresh conn starts in Idle/Connecting,
+// so a single WaitForStateChange(ctx, Ready) returns immediately (the state is
+// already not Ready) and never actually waits for the endpoint to be reachable.
+// We loop over the current state until it is Ready, returning ctx.Err() if the
+// deadline fires first.
+func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			return nil
+		}
+		if !conn.WaitForStateChange(ctx, state) {
+			// WaitForStateChange only returns false when ctx is done.
+			return ctx.Err()
+		}
+	}
 }
 
 func (c *TxClient) Stop(context.Context) error {
