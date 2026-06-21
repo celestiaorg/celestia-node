@@ -296,6 +296,22 @@ func TestBlobService_Get(t *testing.T) {
 			},
 		},
 		{
+			name: "nil proof returns an error instead of panicking",
+			doFn: func() (any, error) {
+				return service.Included(ctx, 1,
+					blobsWithDiffNamespaces[0].Namespace(),
+					nil,
+					blobsWithDiffNamespaces[0].Commitment,
+				)
+			},
+			expectedResult: func(res any, err error) {
+				require.Error(t, err)
+				included, ok := res.(bool)
+				require.True(t, ok)
+				require.False(t, included)
+			},
+		},
+		{
 			name: "not included",
 			doFn: func() (any, error) {
 				libBlob, err := libshare.GenerateV0Blobs([]int{10}, false)

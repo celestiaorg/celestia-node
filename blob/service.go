@@ -382,6 +382,11 @@ func (s *Service) Included(
 		attribute.Int64("height", int64(height)),
 		attribute.String("namespace", namespace.String()),
 	)
+
+	if proof == nil {
+		return false, errors.New("blob: proof cannot be nil")
+	}
+
 	log.Infow("included",
 		"height", height,
 		"namespace", namespace.String(),
