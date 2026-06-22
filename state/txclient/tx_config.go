@@ -74,6 +74,8 @@ type TxConfig struct {
 	isGasPriceSet bool
 	// specifies the max gas price that user expects to pay for the transaction.
 	maxGasPrice float64
+	// since maxGasPrice can be 0, it is necessary to understand that user explicitly set it.
+	isMaxGasPriceSet bool
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
 	// priority is the priority level of the requested gas price.
@@ -101,7 +103,7 @@ func (cfg *TxConfig) IsGasPriceSet() bool {
 // MaxGasPrice will return the max gas price that the user set
 // in the TxConfig. If no value was set, it will return the default value.
 func (cfg *TxConfig) MaxGasPrice() float64 {
-	if cfg.maxGasPrice == 0 {
+	if !cfg.isMaxGasPriceSet {
 		return DefaultMaxGasPrice
 	}
 
@@ -118,6 +120,7 @@ type jsonTxConfig struct {
 	GasPrice          float64 `json:"gas_price,omitempty"`
 	IsGasPriceSet     bool    `json:"is_gas_price_set,omitempty"`
 	MaxGasPrice       float64 `json:"max_gas_price"`
+	IsMaxGasPriceSet  bool    `json:"is_max_gas_price_set,omitempty"`
 	Gas               uint64  `json:"gas,omitempty"`
 	TxPriority        int     `json:"tx_priority,omitempty"`
 	KeyName           string  `json:"key_name,omitempty"`
@@ -130,6 +133,7 @@ func (cfg *TxConfig) MarshalJSON() ([]byte, error) {
 		GasPrice:          cfg.gasPrice,
 		IsGasPriceSet:     cfg.isGasPriceSet,
 		MaxGasPrice:       cfg.maxGasPrice,
+		IsMaxGasPriceSet:  cfg.isMaxGasPriceSet,
 		Gas:               cfg.gas,
 		TxPriority:        int(cfg.priority),
 		KeyName:           cfg.keyName,
@@ -149,6 +153,7 @@ func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
 	cfg.gasPrice = jsonOpts.GasPrice
 	cfg.isGasPriceSet = jsonOpts.IsGasPriceSet
 	cfg.maxGasPrice = jsonOpts.MaxGasPrice
+	cfg.isMaxGasPriceSet = jsonOpts.IsMaxGasPriceSet
 	cfg.gas = jsonOpts.Gas
 	cfg.priority = TxPriority(jsonOpts.TxPriority)
 	cfg.keyName = jsonOpts.KeyName
@@ -218,6 +223,7 @@ func WithFeeGranterAddress(granter string) ConfigOption {
 func WithMaxGasPrice(gasPrice float64) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.maxGasPrice = gasPrice
+		cfg.isMaxGasPriceSet = true
 	}
 }
 
