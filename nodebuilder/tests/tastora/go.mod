@@ -11,7 +11,7 @@ require (
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
-	github.com/moby/moby/client v0.4.0
+	github.com/moby/moby/client v0.5.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.28.0
 	google.golang.org/grpc v1.81.1
@@ -83,7 +83,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.2 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.6.0 // indirect
+	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
@@ -376,7 +376,7 @@ require (
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.72 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
-	github.com/moby/moby/api v1.54.1 // indirect
+	github.com/moby/moby/api v1.55.0 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
