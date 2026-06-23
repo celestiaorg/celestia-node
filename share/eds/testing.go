@@ -91,6 +91,17 @@ func testEDSes(t *testing.T, sizes ...int) map[string]*rsmt2d.ExtendedDataSquare
 	}
 
 	testEDSes["EmptyODS"] = share.EmptyEDS()
+
+	// rsmt2d lazily computes and caches the row/col roots on first access without
+	// locking. The accessor subtests below run in parallel on the same shared EDS,
+	// so letting them trigger that computation concurrently is a data race. Warm
+	// the cache once here, single-threaded, before the parallel subtests run.
+	for _, eds := range testEDSes {
+		_, err := eds.RowRoots()
+		require.NoError(t, err)
+		_, err = eds.ColRoots()
+		require.NoError(t, err)
+	}
 	return testEDSes
 }
 
