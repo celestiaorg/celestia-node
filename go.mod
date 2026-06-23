@@ -411,6 +411,8 @@ replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0
 
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
+replace github.com/docker/go-connections => github.com/docker/go-connections v0.7.0
+
 replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
 
 replace github.com/bytedance/sonic/loader => github.com/bytedance/sonic/loader v0.5.0
