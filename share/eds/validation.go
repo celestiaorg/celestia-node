@@ -96,7 +96,8 @@ func (f validation) RangeNamespaceData(
 	odsSize := edsSize / 2
 	odsSharesAmount := odsSize * odsSize
 
-	if from > odsSharesAmount {
+	// `from` is an inclusive index, so its valid range is [0, odsSharesAmount).
+	if from >= odsSharesAmount {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: invalid start index of the range:%d. ODS shares amount %d",
 			from, odsSharesAmount,

@@ -56,3 +56,18 @@ func TestSampleCoords(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, rawIdx, idxOut)
 }
+
+func TestSampleCoordsFrom1DIndexBounds(t *testing.T) {
+	const squareSize = 16
+	last := squareSize*squareSize - 1
+
+	// the last valid index maps to the last cell.
+	coords, err := SampleCoordsFrom1DIndex(last, squareSize)
+	require.NoError(t, err)
+	assert.Equal(t, SampleCoords{Row: squareSize - 1, Col: squareSize - 1}, coords)
+
+	// one past the end must be rejected, not silently mapped to the
+	// non-existent row squareSize.
+	_, err = SampleCoordsFrom1DIndex(squareSize*squareSize, squareSize)
+	require.ErrorIs(t, err, ErrOutOfBounds)
+}
