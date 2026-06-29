@@ -89,6 +89,64 @@ func TestSharesAvailableSuccess(t *testing.T) {
 	require.Len(t, result.Available, int(avail.params.SampleAmount))
 }
 
+// TestSharesAvailablePartialResponse verifies that when a getter returns a
+// length-preserving slice with one not-retrieved (empty) sample, that sample's
+// coordinate is recorded in Remaining and the rest in Available — i.e. results
+// are matched to coords by position. A getter that compacted out empty samples
+// (shorter slice) would misattribute coordinates and silently drop the failed
+// one from Remaining.
+func TestSharesAvailablePartialResponse(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	square := edstest.RandEDS(t, 16)
+	roots, err := share.NewAxisRoots(square)
+	require.NoError(t, err)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
+
+	var missing shwap.SampleCoords
+	getter := mock.NewMockGetter(gomock.NewController(t))
+	getter.EXPECT().
+		GetSamples(gomock.Any(), eh, gomock.Any()).
+		DoAndReturn(
+			func(_ context.Context, _ *header.ExtendedHeader, indices []shwap.SampleCoords) ([]shwap.Sample, error) {
+				acc := eds.Rsmt2D{ExtendedDataSquare: square}
+				smpls := make([]shwap.Sample, len(indices))
+				for i, idx := range indices {
+					// leave the first requested coord empty to simulate a
+					// not-retrieved sample, keeping the slice length intact.
+					if i == 0 {
+						missing = idx
+						continue
+					}
+					smpl, err := acc.Sample(ctx, idx)
+					if err != nil {
+						return nil, err
+					}
+					smpls[i] = smpl
+				}
+				return smpls, nil
+			}).
+		AnyTimes()
+
+	ds := datastore.NewMapDatastore()
+	avail := NewShareAvailability(getter, ds, nil)
+
+	// the missing sample makes availability incomplete.
+	err = avail.SharesAvailable(ctx, eh)
+	require.Error(t, err)
+
+	data, err := avail.ds.Get(ctx, datastoreKeyForRoot(roots))
+	require.NoError(t, err)
+	var result SamplingResult
+	require.NoError(t, json.Unmarshal(data, &result))
+
+	// the empty sample's coordinate must be the one recorded as remaining.
+	require.Contains(t, result.Remaining, missing)
+	require.NotContains(t, result.Available, missing)
+	require.Len(t, result.Remaining, 1)
+}
+
 func TestSharesAvailableSkipSampled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

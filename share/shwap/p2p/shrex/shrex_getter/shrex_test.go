@@ -329,14 +329,24 @@ func TestShrexGetter(t *testing.T) {
 		coords := []shwap.SampleCoords{
 			{Row: 0, Col: 1},
 			{Row: 0, Col: 2},
-			{Row: 0, Col: 5},
+			{Row: 0, Col: 5}, // this coord fails to be retrieved
 			{Row: 1, Col: 0},
 		}
+		const failedIdx = 2
 
 		samples, err := getter.GetSamples(ctx, eh, coords)
 		require.Error(t, err)
 		assert.NotNil(t, samples)
-		assert.Len(t, samples, 3)
+		// the result stays positionally aligned with coords: failed entries are
+		// left empty rather than compacted out, so length is preserved.
+		require.Len(t, samples, len(coords))
+		for i, smpl := range samples {
+			if i == failedIdx {
+				assert.True(t, smpl.IsEmpty(), "failed coord must map to an empty sample at its index")
+			} else {
+				assert.False(t, smpl.IsEmpty(), "retrieved coord at index %d must not be empty", i)
+			}
+		}
 	})
 
 	t.Run("Samples_EmptyBlock", func(t *testing.T) {

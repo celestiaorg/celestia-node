@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -151,10 +150,11 @@ func (sg *Getter) GetSamples(
 	// Callers should check both the returned samples slice and error - a non-nil
 	// error with non-empty samples indicates partial success.
 	err = errGroup.Wait()
-	// Delete empty entries if samples were not found or any other error occurred and return partial response
-	samples = slices.DeleteFunc(samples, func(sample shwap.Sample) bool {
-		return sample.IsEmpty()
-	})
+	// The returned slice is positionally aligned with the requested coords:
+	// samples[i] corresponds to coords[i], and a sample that was not retrieved is
+	// left empty (IsEmpty) rather than removed. Compacting the slice here would
+	// break callers that index results by request position (e.g. light
+	// availability and GetShare), and it matches the bitswap getter's contract.
 	return samples, err
 }
 
