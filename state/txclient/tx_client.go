@@ -18,11 +18,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v9/app/errors"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v10/app/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
