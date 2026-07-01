@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
@@ -15,8 +16,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	appstate "github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	appstate "github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -41,10 +43,13 @@ func (s *stubABCI) ABCIQuery(
 func newTestClient(t *testing.T, abci abciQuerier, network p2p.Network) *Client {
 	t.Helper()
 	c := &Client{
-		store:        headertest.NewStore(t),
-		network:      network,
-		abciQueryCli: abci,
-		hostCache:    make(map[string]validator.Host),
+		store:           headertest.NewStore(t),
+		network:         network,
+		abciQueryCli:    abci,
+		hostCache:       make(map[string]validator.Host),
+		lastHost:        make(map[string]validator.Host),
+		lastRefresh:     make(map[string]time.Time),
+		refreshInterval: appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit,
 	}
 	return c
 }

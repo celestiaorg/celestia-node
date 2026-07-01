@@ -27,7 +27,7 @@ require (
 	github.com/gofrs/flock v0.13.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
-	github.com/grafana/otel-profiling-go v0.5.3
+	github.com/grafana/otel-profiling-go v0.6.0
 	github.com/grafana/pyroscope-go v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -42,7 +42,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.9.1
 	github.com/ipfs/go-metrics-interface v0.3.0
 	github.com/ipfs/go-metrics-prometheus v0.1.0
-	github.com/klauspost/reedsolomon v1.14.1-0.20260518132338-1166fa573ff0
+	github.com/klauspost/reedsolomon v1.14.1
 	github.com/libp2p/go-libp2p v0.48.0
 	github.com/libp2p/go-libp2p-kad-dht v0.39.0
 	github.com/libp2p/go-libp2p-pubsub v0.15.1-0.20260318184623-12372d99a0bc
@@ -63,7 +63,7 @@ require (
 	go.opentelemetry.io/contrib/bridges/prometheus v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.69.0
 	go.opentelemetry.io/otel v1.44.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.43.0
 	go.opentelemetry.io/otel/metric v1.44.0
@@ -74,9 +74,9 @@ require (
 	go.uber.org/fx v1.24.0
 	go.uber.org/mock v0.5.2
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.52.0
-	golang.org/x/sync v0.20.0
-	golang.org/x/text v0.37.0
+	golang.org/x/crypto v0.53.0
+	golang.org/x/sync v0.21.0
+	golang.org/x/text v0.38.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 )
@@ -228,7 +228,7 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.11 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.72 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -366,11 +366,11 @@ require (
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
-	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect
+	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.286.0 // indirect
