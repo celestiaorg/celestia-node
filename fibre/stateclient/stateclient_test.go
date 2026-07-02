@@ -18,7 +18,6 @@ import (
 
 	appstate "github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -46,10 +45,9 @@ func newTestClient(t *testing.T, abci abciQuerier, network p2p.Network) *Client 
 		store:           headertest.NewStore(t),
 		network:         network,
 		abciQueryCli:    abci,
-		hostCache:       make(map[string]validator.Host),
 		lastHost:        make(map[string]validator.Host),
 		lastRefresh:     make(map[string]time.Time),
-		refreshInterval: appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit,
+		refreshInterval: time.Minute,
 	}
 	return c
 }
@@ -118,10 +116,10 @@ func TestGetHostABCIErrors(t *testing.T) {
 	})
 }
 
-// TestGetHostCacheHitEvicts checks that a GetHost call hitting the
-// prefetch-populated cache returns immediately, evicts the entry, and
-// makes no ABCI call.
-func TestGetHostCacheHitEvicts(t *testing.T) {
+// TestGetHostServesWithinRefreshWindow checks that within the refresh window a
+// GetHost call serves the last known host without an ABCI query and retains the
+// entry for subsequent dials.
+func TestGetHostServesWithinRefreshWindow(t *testing.T) {
 	stub := &stubABCI{}
 	c := newTestClient(t, stub, p2p.Private)
 
@@ -131,22 +129,25 @@ func TestGetHostCacheHitEvicts(t *testing.T) {
 	}
 	val := &core.Validator{Address: addr}
 	cacheKey := sdk.ConsAddress(addr).String()
-	c.hostCache[cacheKey] = validator.Host("cached.example:9090")
+	c.lastHost[cacheKey] = validator.Host("cached.example:9090")
+	c.lastRefresh[cacheKey] = time.Now()
 
-	got, err := c.GetHost(context.Background(), val)
-	require.NoError(t, err)
-	require.Equal(t, validator.Host("cached.example:9090"), got)
-	require.Zero(t, stub.calls.Load(), "cache hit must not touch ABCI")
+	for range 3 {
+		got, err := c.GetHost(context.Background(), val)
+		require.NoError(t, err)
+		require.Equal(t, validator.Host("cached.example:9090"), got)
+	}
+	require.Zero(t, stub.calls.Load(), "within-window reads must not touch ABCI")
 
-	_, present := c.hostCache[cacheKey]
-	require.False(t, present, "cache hit must evict the entry")
+	_, present := c.lastHost[cacheKey]
+	require.True(t, present, "within-window read must retain the entry")
 }
 
-// TestGetHostSecondCallMissesCache checks that after a cache hit evicts
-// an entry, the next call for the same validator falls through to a
-// fresh ABCI query.
-func TestGetHostSecondCallMissesCache(t *testing.T) {
-	stub := &stubABCI{err: errors.New("forced miss")}
+// TestGetHostFallsBackOnQueryFailure checks that once the refresh window has
+// elapsed, a failed re-query falls back to the last known host instead of
+// failing the dial.
+func TestGetHostFallsBackOnQueryFailure(t *testing.T) {
+	stub := &stubABCI{err: errors.New("boom")}
 	c := newTestClient(t, stub, p2p.Private)
 
 	addr := make([]byte, 20)
@@ -155,16 +156,37 @@ func TestGetHostSecondCallMissesCache(t *testing.T) {
 	}
 	val := &core.Validator{Address: addr}
 	cacheKey := sdk.ConsAddress(addr).String()
-	c.hostCache[cacheKey] = validator.Host("cached.example:9090")
+	c.lastHost[cacheKey] = validator.Host("cached.example:9090")
+	// Stamp the window in the past so the next call re-queries.
+	c.lastRefresh[cacheKey] = time.Now().Add(-time.Hour)
 
 	got, err := c.GetHost(context.Background(), val)
 	require.NoError(t, err)
-	require.Equal(t, validator.Host("cached.example:9090"), got)
-	require.Zero(t, stub.calls.Load(), "first call must be served from cache")
+	require.Equal(t, validator.Host("cached.example:9090"), got, "must serve last known host on failure")
+	require.Equal(t, int64(1), stub.calls.Load(), "must attempt exactly one re-query")
+}
 
-	_, err = c.GetHost(context.Background(), val)
+// TestGetHostRateLimitsQueries checks that a failed query still opens the
+// refresh window, so a subsequent call within the window is not re-queried.
+func TestGetHostRateLimitsQueries(t *testing.T) {
+	stub := &stubABCI{err: errors.New("boom")}
+	c := newTestClient(t, stub, p2p.Private)
+
+	addr := make([]byte, 20)
+	for i := range addr {
+		addr[i] = 0xCC
+	}
+	val := &core.Validator{Address: addr}
+
+	// Cold call: no fallback, so the query error propagates.
+	_, err := c.GetHost(context.Background(), val)
 	require.ErrorContains(t, err, "abci query")
-	require.Equal(t, int64(1), stub.calls.Load(), "second call must query ABCI exactly once")
+	require.Equal(t, int64(1), stub.calls.Load())
+
+	// Second call is within the window opened by the first; it must not re-query.
+	_, err = c.GetHost(context.Background(), val)
+	require.ErrorContains(t, err, "within refresh window")
+	require.Equal(t, int64(1), stub.calls.Load(), "within-window call must not re-query")
 }
 
 // TestStartPrefetchToleratesErrors verifies that Start completes
@@ -176,7 +198,7 @@ func TestStartPrefetchToleratesErrors(t *testing.T) {
 		stub := &stubABCI{err: errors.New("boom")}
 		c := newTestClient(t, stub, p2p.Network("test"))
 		require.NoError(t, c.Start(context.Background()))
-		require.Empty(t, c.hostCache)
+		require.Empty(t, c.lastHost)
 		require.Greater(t, stub.calls.Load(), int64(0), "prefetch must attempt at least one query")
 	})
 
@@ -184,25 +206,28 @@ func TestStartPrefetchToleratesErrors(t *testing.T) {
 		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{}}
 		c := newTestClient(t, stub, p2p.Network("test"))
 		require.NoError(t, c.Start(context.Background()))
-		require.Empty(t, c.hostCache)
+		require.Empty(t, c.lastHost)
 		require.Greater(t, stub.calls.Load(), int64(0))
 	})
 }
 
 // TestConcurrentGetHost exercises GetHost from many goroutines in
-// parallel, each targeting a distinct cached validator. With -race this
-// catches any unsoundness in the cache mutex / eviction path.
+// parallel, each targeting a distinct within-window validator. With -race this
+// catches any unsoundness in the host-map mutex path.
 func TestConcurrentGetHost(t *testing.T) {
 	stub := &stubABCI{err: errors.New("should not be reached")}
 	c := newTestClient(t, stub, p2p.Private)
 
 	const N = 50
+	now := time.Now()
 	addrs := make([][]byte, N)
 	for i := range N {
 		addr := make([]byte, 20)
 		addr[0] = byte(i)
 		addrs[i] = addr
-		c.hostCache[sdk.ConsAddress(addr).String()] = validator.Host(fmt.Sprintf("h%d", i))
+		key := sdk.ConsAddress(addr).String()
+		c.lastHost[key] = validator.Host(fmt.Sprintf("h%d", i))
+		c.lastRefresh[key] = now
 	}
 
 	var wg sync.WaitGroup
@@ -218,14 +243,14 @@ func TestConcurrentGetHost(t *testing.T) {
 	}
 	wg.Wait()
 
-	require.Zero(t, stub.calls.Load(), "every call should hit cache")
-	require.Empty(t, c.hostCache, "every cache hit should evict")
+	require.Zero(t, stub.calls.Load(), "every within-window call should skip ABCI")
+	require.Len(t, c.lastHost, N, "within-window reads must retain every entry")
 }
 
-// TestNewClientInitializesHostCache guards against a regression where
-// the production constructor forgets to make the hostCache map and
-// prefetchHosts would panic on a nil-map write.
-func TestNewClientInitializesHostCache(t *testing.T) {
+// TestNewClientInitializesMaps guards against a regression where the production
+// constructor forgets to make the host maps and prefetchHosts / GetHost would
+// panic on a nil-map write.
+func TestNewClientInitializesMaps(t *testing.T) {
 	conn, err := grpc.NewClient(
 		"passthrough:test",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -234,5 +259,7 @@ func TestNewClientInitializesHostCache(t *testing.T) {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	c := NewClient(headertest.NewStore(t), conn, p2p.Private)
-	require.NotNil(t, c.hostCache)
+	require.NotNil(t, c.lastHost)
+	require.NotNil(t, c.lastRefresh)
+	require.Positive(t, c.refreshInterval)
 }
