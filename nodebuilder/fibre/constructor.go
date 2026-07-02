@@ -7,8 +7,8 @@ import (
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 
-	appfibre "github.com/celestiaorg/celestia-app/v9/fibre"
-	appstate "github.com/celestiaorg/celestia-app/v9/fibre/state"
+	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
+	appstate "github.com/celestiaorg/celestia-app/v10/fibre/state"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/fibre"

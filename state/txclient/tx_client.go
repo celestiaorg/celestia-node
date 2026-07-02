@@ -16,11 +16,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v9/app/errors"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v10/app/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
@@ -278,6 +278,19 @@ func (c *TxClient) SubmitPayForBlob(
 
 func ParseAccAddressFromString(addrStr string) (types.AccAddress, error) {
 	return types.AccAddressFromBech32(addrStr)
+}
+
+// GetTxAuthorAccAddress resolves the signer address from cfg, falling back
+// to the default signer.
+func (c *TxClient) GetTxAuthorAccAddress(cfg *TxConfig) (types.AccAddress, error) {
+	switch {
+	case cfg != nil && cfg.SignerAddress() != "":
+		return ParseAccAddressFromString(cfg.SignerAddress())
+	case cfg != nil && cfg.KeyName() != "" && cfg.KeyName() != c.defaultSignerAccount:
+		return ParseAccountKey(c.keyring, cfg.KeyName())
+	default:
+		return c.defaultSignerAddress, nil
+	}
 }
 
 // estimateGasPriceAndUsage estimate the gas price and limit.
