@@ -4,24 +4,21 @@ DIR_FULLPATH=$(shell pwd)
 versioningPath := github.com/celestiaorg/celestia-node/nodebuilder/node
 tastoraPath := github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 OS := $(shell uname -s)
-VERSION = $(shell git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
-              git describe --tags --dirty=-dev 2>/dev/null || \
-              git rev-parse --short HEAD)
+# Resolve the build version. When several tags share a commit (e.g. v0.30.2-arabica and
+# v0.30.2-mocha), git can't tell from the commit alone which one you checked out, so we recover
+# it from the reflog and use it only if it still points at HEAD. Precedence:
+#   1. explicit `make ... VERSION=<tag>` (command-line vars win; used by CI/goreleaser)
+#   2. the tag last checked out into HEAD (local dev: `git checkout <tag>` then build)
+#   3. any tag on HEAD, else `git describe`/short SHA (detached-by-SHA or no reflog, e.g. CI clones)
+CHECKOUT_TAG = $(shell t=$$(git reflog HEAD 2>/dev/null | grep -m1 -oE 'to v[0-9][^ ]*$$' | awk '{print $$2}'); \
+                       git tag --points-at HEAD 2>/dev/null | grep -qx "$$t" && echo "$$t")
+VERSION = $(or $(CHECKOUT_TAG),$(shell git describe --tags --dirty=-dev 2>/dev/null || \
+              git rev-parse --short HEAD))
 
 LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
-                    -X $(versioningPath).semanticVersion=$(shell \
-                      if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
-                        echo "$(VERSION)" | cut -d'-' -f1; \
-                      else \
-                        echo "$(VERSION)"; \
-                      fi) \
-                    -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(shell \
-                      if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
-                        echo "$(VERSION)" | cut -d'-' -f1; \
-                      else \
-                        echo "$(VERSION)"; \
-                      fi))"
+                    -X $(versioningPath).semanticVersion=$(VERSION) \
+                    -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(VERSION))"
 TAGS=integration
 SHORT=
 ifeq (${PREFIX},)
