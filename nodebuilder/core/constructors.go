@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -115,24 +114,44 @@ func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 		return nil, err
 	}
 
+	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			conn.Connect()
-			for {
-				state := conn.GetState()
-				if state == connectivity.Ready {
-					return nil
-				}
-				if !conn.WaitForStateChange(ctx, state) {
-					return errors.New("couldn't connect to core endpoint")
-				}
-			}
+			return waitForCoreConnReady(ctx, conn, endpoint)
 		},
 		OnStop: func(context.Context) error {
 			return conn.Close()
 		},
 	})
 	return conn, nil
+}
+
+// connReadier is the subset of *grpc.ClientConn used to await connectivity.
+type connReadier interface {
+	Connect()
+	GetState() connectivity.State
+	WaitForStateChange(context.Context, connectivity.State) bool
+}
+
+// waitForCoreConnReady blocks until the gRPC connection reaches connectivity.Ready
+// or the context expires. It aborts a StartupErrorBuffer before the startup deadline
+// so the descriptive error — naming the endpoint — is returned before fx masks it
+// with a bare context.DeadlineExceeded.
+func waitForCoreConnReady(ctx context.Context, conn connReadier, endpoint string) error {
+	ctx, cancel := utils.CtxWithStartupBuffer(ctx)
+	defer cancel()
+	conn.Connect()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			return nil
+		}
+		if !conn.WaitForStateChange(ctx, state) {
+			return fmt.Errorf(
+				"couldn't connect to core endpoint %s; verify --core.ip is correct "+
+					"and the consensus node is reachable: %w", endpoint, ctx.Err())
+		}
+	}
 }
 
 func additionalCoreEndpointGrpcClients(lc fx.Lifecycle, cfg Config) (AdditionalCoreConns, error) {

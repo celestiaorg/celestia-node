@@ -131,7 +131,7 @@ func (ca *CoreAccessor) Start(ctx context.Context) error {
 	ca.feeGrantCli = feegrant.NewQueryClient(ca.coreConn)
 	// create ABCI query client
 	ca.abciQueryCli = tmservice.NewServiceClient(ca.coreConn)
-	resp, err := waitForAppReady(ctx, ca.abciQueryCli)
+	resp, err := waitForAppReady(ctx, ca.abciQueryCli, ca.coreConn.Target())
 	if err != nil {
 		return fmt.Errorf("failed to get node info: %w", err)
 	}
@@ -593,7 +593,13 @@ func convertToSdkTxResponse(resp *user.TxResponse) *TxResponse {
 	}
 }
 
-func waitForAppReady(ctx context.Context, cli tmservice.ServiceClient) (*tmservice.GetNodeInfoResponse, error) {
+func waitForAppReady(
+	ctx context.Context,
+	cli tmservice.ServiceClient,
+	endpoint string,
+) (*tmservice.GetNodeInfoResponse, error) {
+	ctx, cancel := utils.CtxWithStartupBuffer(ctx)
+	defer cancel()
 	for {
 		resp, err := cli.GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
 		if err == nil {
@@ -605,7 +611,9 @@ func waitForAppReady(ctx context.Context, cli tmservice.ServiceClient) (*tmservi
 		select {
 		case <-time.After(p2p.BlockTime):
 		case <-ctx.Done():
-			return nil, fmt.Errorf("celestia-app not ready: %w", err)
+			return nil, fmt.Errorf(
+				"core endpoint %s reachable but celestia-app is not producing blocks "+
+					"(still catching up or halted?): %w", endpoint, ctx.Err())
 		}
 	}
 }
