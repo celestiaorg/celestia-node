@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -16,9 +17,10 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	valaddr "github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	valaddr "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -59,13 +61,10 @@ type Client struct {
 
 	chainID string
 
-	// hostCache is populated once in Start via prefetchHosts and never
-	// re-populated thereafter. A cache hit in GetHost evicts the entry so
-	// subsequent reads for the same validator go through fetchHostAt and
-	// hit the chain for fresh state. The cache is a one-shot startup
-	// warmup, not a persistent cache — no TTL/refresh.
-	hostMu    sync.Mutex
-	hostCache map[string]validator.Host
+	hostMu          sync.Mutex
+	lastHost        map[string]validator.Host
+	lastRefresh     map[string]time.Time
+	refreshInterval time.Duration
 }
 
 // NewClient builds a fibre [state.Client] backed by the local header store and
@@ -83,7 +82,11 @@ func NewClient(
 		network:      network,
 		abciQueryCli: tmservice.NewServiceClient(conn),
 		prt:          prt,
-		hostCache:    make(map[string]validator.Host),
+		lastHost:     make(map[string]validator.Host),
+		lastRefresh:  make(map[string]time.Time),
+		// registry state cannot change faster than one block, so re-querying
+		// more often than the expected block time is pointless.
+		refreshInterval: appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit,
 	}
 }
 
@@ -110,22 +113,49 @@ func (c *Client) GetByHeight(ctx context.Context, height uint64) (validator.Set,
 	return validator.Set{ValidatorSet: hdr.ValidatorSet, Height: hdr.Height()}, nil
 }
 
-// GetHost resolves a validator's fibre network host. If the cache (populated
-// at Start) has an entry, it is returned and evicted from the cache so the
-// next read goes to the chain for fresh state. Otherwise a single-key ABCI
-// query is issued and verified against the trusted AppHash from the local
-// head.
+// GetHost resolves a validator's fibre network host. It returns
+// the freshest on-chain host but re-queries state at most once per
+// validator per refreshInterval, serving the last known host within that window.
+// A fresh query is a single-key ABCI request verified with a merkle proof
+// against the trusted AppHash from the local head.
 func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
 	cacheKey := sdk.ConsAddress(val.Address.Bytes()).String()
 
 	c.hostMu.Lock()
-	if h, ok := c.hostCache[cacheKey]; ok {
-		delete(c.hostCache, cacheKey)
+	last, resolved := c.lastRefresh[cacheKey]
+	fallback, hasFallback := c.lastHost[cacheKey]
+
+	if resolved && time.Since(last) < c.refreshInterval {
 		c.hostMu.Unlock()
-		return h, nil
+		if hasFallback {
+			return fallback, nil
+		}
+		return "", fmt.Errorf("no host known for validator %s within refresh window", cacheKey)
 	}
+
+	c.lastRefresh[cacheKey] = time.Now()
 	c.hostMu.Unlock()
 
+	host, err := c.resolveHost(ctx, val)
+	if err != nil {
+		// Fall back to the last known host on a transient failure
+		if hasFallback && !errors.Is(err, ErrNoFibreProviderInfo) {
+			log.Debugw("host query failed; serving last known host",
+				"validator", cacheKey, "err", err)
+			return fallback, nil
+		}
+		return "", err
+	}
+
+	c.hostMu.Lock()
+	c.lastHost[cacheKey] = host
+	c.hostMu.Unlock()
+	return host, nil
+}
+
+// resolveHost fetches the local head and issues a proof-verified ABCI query for
+// the validator's fibre host against it.
+func (c *Client) resolveHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
 	head, err := c.store.Head(ctx)
 	if err != nil {
 		return "", fmt.Errorf("fetch head: %w", err)
@@ -190,12 +220,11 @@ func (c *Client) fetchHostAt(
 	return validator.Host(info.GetHost()), nil
 }
 
-// prefetchHosts fans out fetchHostAt across the head's validator set and
-// stores successfully-verified hosts in hostCache. All proofs anchor to
-// the same head.AppHash. Validators without registered provider info are
-// the common case and are silently skipped; other per-validator errors
-// (transport, proof verification) are logged as warnings since they may
-// indicate a misbehaving gRPC endpoint.
+// prefetchHosts fans out fetchHostAt across the head's validator set and seeds
+// the successfully-verified hosts as the last known hosts, stamping the refresh
+// window. This mirrors the app's bulk PullAll warm-up and lets
+// the first block of traffic be served without a per-validator query storm. All
+// proofs anchor to the same head.AppHash.
 func (c *Client) prefetchHosts(ctx context.Context, head *header.ExtendedHeader) {
 	vals := head.ValidatorSet.Validators
 
@@ -213,7 +242,8 @@ func (c *Client) prefetchHosts(ctx context.Context, head *header.ExtendedHeader)
 				return nil
 			}
 			c.hostMu.Lock()
-			c.hostCache[consAddr.String()] = host
+			c.lastHost[consAddr.String()] = host
+			c.lastRefresh[consAddr.String()] = time.Now()
 			c.hostMu.Unlock()
 			return nil
 		})
@@ -221,7 +251,7 @@ func (c *Client) prefetchHosts(ctx context.Context, head *header.ExtendedHeader)
 	_ = g.Wait()
 
 	c.hostMu.Lock()
-	cached := len(c.hostCache)
+	cached := len(c.lastHost)
 	c.hostMu.Unlock()
 	log.Infow("host prefetch completed",
 		"cached", cached, "validators", len(vals), "height", head.Height())
