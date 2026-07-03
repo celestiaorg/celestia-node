@@ -218,7 +218,7 @@ func (l *hookErrCapturer) LogEvent(e fxevent.Event) {
 }
 
 func (l *hookErrCapturer) capture(ch chan<- error, err error) {
-	if err == nil { //skip non-error cases
+	if err == nil { // skip non-error cases
 		return
 	}
 	select {

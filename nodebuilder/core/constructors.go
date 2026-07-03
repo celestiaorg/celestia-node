@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -115,6 +114,8 @@ func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 		return nil, err
 	}
 
+	endpoint := net.JoinHostPort(cfg.IP, cfg.Port)
+
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			conn.Connect()
@@ -124,7 +125,10 @@ func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 					return nil
 				}
 				if !conn.WaitForStateChange(ctx, state) {
-					return errors.New("couldn't connect to core endpoint")
+					return fmt.Errorf(
+						"couldn't connect to core endpoint %s; verify --core.ip is correct "+
+							"and the consensus node is reachable", endpoint,
+					)
 				}
 			}
 		},
