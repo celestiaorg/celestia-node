@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cristalhq/jwt/v5"
 	"github.com/ipfs/boxo/blockservice"
@@ -172,11 +173,15 @@ func (n *Node) Stop(ctx context.Context) error {
 // Light, unless we decide to give package users the ability to create custom node types themselves.
 func newNode(opts ...fx.Option) (*Node, error) {
 	node := new(Node)
+	// startErr/stopErr receive the real error of a lifecycle hook that hung past
+	// its deadline. Buffered to not blocked the fx pipeline
+	startErr := make(chan error, 1)
+	stopErr := make(chan error, 1)
 	app := fx.New(
 		fx.WithLogger(func() fxevent.Logger {
 			zl := &fxevent.ZapLogger{Logger: fxLog.Desugar()}
 			zl.UseLogLevel(zapcore.DebugLevel)
-			return zl
+			return &hookErrCapturer{next: zl, onStart: startErr, onStop: stopErr}
 		}),
 		fx.Populate(node),
 		fx.Options(opts...),
@@ -185,9 +190,59 @@ func newNode(opts ...fx.Option) (*Node, error) {
 		return nil, err
 	}
 
-	node.start, node.stop = app.Start, app.Stop
+	node.start = withHookCause(app.Start, startErr)
+	node.stop = withHookCause(app.Stop, stopErr)
 	return node, nil
 }
 
 // lifecycleFunc defines a type for common lifecycle funcs.
 type lifecycleFunc func(context.Context) error
+
+// hookErrCapturer wraps an fxevent.Logger and forwards the real error of a
+// failed lifecycle hook to the channel matching its phase.
+type hookErrCapturer struct {
+	next    fxevent.Logger
+	onStart chan<- error
+	onStop  chan<- error
+}
+
+func (l *hookErrCapturer) LogEvent(e fxevent.Event) {
+	l.next.LogEvent(e)
+
+	switch e := e.(type) {
+	case *fxevent.OnStartExecuted:
+		l.capture(l.onStart, e.Err)
+	case *fxevent.OnStopExecuted:
+		l.capture(l.onStop, e.Err)
+	}
+}
+
+func (l *hookErrCapturer) capture(ch chan<- error, err error) {
+	if err == nil { //skip non-error cases
+		return
+	}
+	select {
+	case ch <- err:
+	default:
+	}
+}
+
+// withHookCause wraps fx lifecycle func so that on a timeout it returns the
+// offending hook's real error instead of a bare context.DeadlineExceeded. When
+// the phase times out the hung hook keeps unwinding in the background and, once
+// it fails - hookErrCapturer forwards its error to pending.
+func withHookCause(fn lifecycleFunc, pending <-chan error) lifecycleFunc {
+	return func(ctx context.Context) error {
+		err := fn(ctx)
+		if errors.Is(err, context.DeadlineExceeded) {
+			select {
+			case cause := <-pending:
+				if cause != nil {
+					return errors.Join(err, cause)
+				}
+			case <-time.After(time.Second):
+			}
+		}
+		return err
+	}
+}
