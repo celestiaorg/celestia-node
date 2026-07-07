@@ -179,6 +179,44 @@ func convertOne(blocksDir, linkPath string) (share.DataHash, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read raw ODS: %w", err)
 	}
+
+	// If the link is a symlink naming a hash, use it as the expected hash so
+	// encodeRawSharesAsODSQ4 rejects a mismatch (corruption) up front.
+	var expected share.DataHash
+	if tgt, err := os.Readlink(linkPath); err == nil {
+		named := strings.TrimSuffix(filepath.Base(tgt), ".ods")
+		if b, err := hex.DecodeString(named); err == nil && len(b) == share.DataHashSize {
+			expected = share.DataHash(b)
+		}
+	}
+
+	// Rebuild + hash locally, then write the pair by hash. Remove any stale
+	// file at the expected path first (CreateODS uses O_EXCL); the height
+	// hardlink (if any) keeps the raw inode alive until we repoint it.
+	hash, err := encodeRawSharesAsODSQ4(blocksDir, raw, expected, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Repoint the height link at the freshly written ODS as a symlink.
+	if _, err := ensureSymlink(linkPath, "../"+hash.String()+".ods"); err != nil {
+		return nil, fmt.Errorf("relink height: %w", err)
+	}
+	return hash, nil
+}
+
+// encodeRawSharesAsODSQ4 rebuilds an EDS from raw row-major ODS shares (the
+// shrex response / old raw-ODS on-disk format), computes its roots/DataHash
+// locally, and writes the store pair <hash>.ods + <hash>.q4 under blocksDir.
+// If expected is non-nil the computed hash must equal it (rejecting corrupt
+// data). When overwrite is set any existing pair at the target is removed
+// first (CreateODS uses O_EXCL). Returns the computed DataHash.
+func encodeRawSharesAsODSQ4(
+	blocksDir string,
+	raw []byte,
+	expected share.DataHash,
+	overwrite bool,
+) (share.DataHash, error) {
 	if len(raw) == 0 || len(raw)%libshare.ShareSize != 0 {
 		return nil, fmt.Errorf("not a raw ODS: size %d not a multiple of share size", len(raw))
 	}
@@ -187,7 +225,6 @@ func convertOne(blocksDir, linkPath string) (share.DataHash, error) {
 	if odsSize*odsSize != totalShares {
 		return nil, fmt.Errorf("not a raw ODS: %d shares is not a perfect square", totalShares)
 	}
-
 	shares, err := eds.ReadShares(bytes.NewReader(raw), libshare.ShareSize, odsSize)
 	if err != nil {
 		return nil, fmt.Errorf("read shares: %w", err)
@@ -201,30 +238,18 @@ func convertOne(blocksDir, linkPath string) (share.DataHash, error) {
 		return nil, fmt.Errorf("compute roots: %w", err)
 	}
 	hash := share.DataHash(roots.Hash())
-
-	// If the link is a symlink naming a hash, sanity-check it matches.
-	if tgt, err := os.Readlink(linkPath); err == nil {
-		named := strings.TrimSuffix(filepath.Base(tgt), ".ods")
-		if named != "" && !strings.EqualFold(named, hex.EncodeToString(hash)) {
-			return nil, fmt.Errorf("hash mismatch: link names %s but data hashes to %s", named, hash)
-		}
+	if expected != nil && !expected.IsEmptyEDS() && !bytes.Equal(hash, expected) {
+		return nil, fmt.Errorf("hash mismatch: data hashes to %s but expected %s", hash, expected)
 	}
 
 	odsPath := filepath.Join(blocksDir, hash.String()+".ods")
 	q4Path := filepath.Join(blocksDir, hash.String()+".q4")
-
-	// Remove the old raw file(s) before writing (CreateODS uses O_EXCL). The raw
-	// bytes are already in memory, and the height hardlink (if any) keeps the
-	// inode alive until we repoint it below.
-	_ = os.Remove(odsPath)
-	_ = os.Remove(q4Path)
+	if overwrite {
+		_ = os.Remove(odsPath)
+		_ = os.Remove(q4Path)
+	}
 	if err := file.CreateODSQ4(odsPath, q4Path, roots, square.ExtendedDataSquare); err != nil {
 		return nil, fmt.Errorf("write odsq4: %w", err)
-	}
-
-	// Repoint the height link at the freshly written ODS as a symlink.
-	if _, err := ensureSymlink(linkPath, "../"+hash.String()+".ods"); err != nil {
-		return nil, fmt.Errorf("relink height: %w", err)
 	}
 	return hash, nil
 }

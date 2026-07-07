@@ -308,11 +308,22 @@ func fetchAndPublish(
 		return true, 0, 0, true, nil
 	}
 
-	if info, err := os.Lstat(e.localHash); err == nil && info.Mode().IsRegular() && info.Size() > 0 {
+	// Treat a block as already present only if it is store-readable (proper
+	// ODS header + sibling .q4). A leftover raw-ODS file is NOT complete and
+	// will be re-fetched and rewritten in the correct format below.
+	blocksDir := filepath.Dir(e.localHash)
+	if isStoreReadable(ctx, blocksDir, e.localHash) {
 		if err := publish(e); err != nil {
 			return false, 0, 0, false, fmt.Errorf("publish existing: %w", err)
 		}
 		return true, 0, 0, true, nil
+	}
+
+	// The store names blocks by DataHash; parse the expected hash from the
+	// entry so we can reject a peer that returns data for the wrong square.
+	var expected share.DataHash
+	if hb, err := hex.DecodeString(extractHashFromPath(e.hashPath)); err == nil && len(hb) == share.DataHashSize {
+		expected = share.DataHash(hb)
 	}
 
 	edsID, err := shwap.NewEdsID(e.height)
@@ -346,9 +357,12 @@ func fetchAndPublish(
 			continue
 		}
 
-		if err := writeBytesAtomic(e.localHash, buff.Bytes()); err != nil {
-			lastErr = fmt.Errorf("write: %w", err)
-			log.Warnw("write failed", "height", e.height, "path", e.localHash, "err", err)
+		// shrex returns raw ODS shares; rebuild and write the store ODSQ4 pair
+		// (<hash>.ods + <hash>.q4). This also verifies the content hash.
+		bytesGot := buff.Len()
+		if _, err := encodeRawSharesAsODSQ4(blocksDir, buff.Bytes(), expected, true); err != nil {
+			lastErr = fmt.Errorf("encode odsq4: %w", err)
+			log.Warnw("encode failed", "height", e.height, "path", e.localHash, "err", err)
 			continue
 		}
 		if err := publish(e); err != nil {
@@ -356,33 +370,8 @@ func fetchAndPublish(
 			log.Warnw("publish failed", "height", e.height, "err", err)
 			continue
 		}
-		return true, attempt + 1, buff.Len(), false, nil
+		return true, attempt + 1, bytesGot, false, nil
 	}
-}
-
-// writeBytesAtomic writes data to <path>.tmp, fsyncs, and renames to <path>.
-func writeBytesAtomic(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp := path + ".tmp"
-	_ = os.Remove(tmp)
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
 }
 
 // buildItems prepares the list of heights to fetch with their full entries.
