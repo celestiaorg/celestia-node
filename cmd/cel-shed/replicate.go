@@ -33,6 +33,7 @@ const (
 	flagDiscoveryLimit   = "discovery-limit"
 	flagTempDir          = "temp-dir"
 	flagSkipDownload     = "skip-download"
+	flagRepair           = "repair"
 )
 
 func init() {
@@ -274,6 +275,8 @@ func init() {
 		"soft cap for the archival peer pool maintained by discovery")
 	stagedSyncCmd.Flags().Bool(flagSkipDownload, false,
 		"skip the download phase; copy already-staged blocks from --temp-dir into place")
+	stagedSyncCmd.Flags().Bool(flagRepair, false,
+		"repair mode: also re-fetch present heights whose block is unreadable by the store (fails OpenODS or lacks a .q4)")
 	stagedSyncCmd.Flags().String(flagLogLevel, "info",
 		"log level for cel-shed/replicate logger")
 	_ = stagedSyncCmd.MarkFlagRequired(flagDataDir)
@@ -293,6 +296,7 @@ func readStagedSyncFlags(cmd *cobra.Command) (replicate.StagedSyncConfig, error)
 	discTimeout, _ := cmd.Flags().GetDuration(flagDiscoveryTimeout)
 	discLimit, _ := cmd.Flags().GetUint(flagDiscoveryLimit)
 	skipDownload, _ := cmd.Flags().GetBool(flagSkipDownload)
+	repair, _ := cmd.Flags().GetBool(flagRepair)
 	logLevel, _ := cmd.Flags().GetString(flagLogLevel)
 
 	dataExpanded, err := homedir.Expand(filepath.Clean(dataDir))
@@ -326,6 +330,7 @@ func readStagedSyncFlags(cmd *cobra.Command) (replicate.StagedSyncConfig, error)
 		DiscoveryTimeout: discTimeout,
 		DiscoveryLimit:   discLimit,
 		SkipDownload:     skipDownload,
+		Repair:           repair,
 		LogLevel:         logLevel,
 	}, nil
 }

@@ -67,6 +67,7 @@ type StagedSyncConfig struct {
 	DiscoveryTimeout time.Duration
 	DiscoveryLimit   uint
 	SkipDownload     bool
+	Repair           bool
 	LogLevel         string
 }
 
@@ -137,7 +138,7 @@ func RunStagedSync(ctx context.Context, cfg StagedSyncConfig) error {
 	log.Infow("staged-sync starting",
 		"data_dir", cfg.DataDir, "temp_dir", cfg.TempDir, "network", cfg.Network,
 		"from_height", cfg.FromHeight, "to_height", cfg.ToHeight,
-		"skip_download", cfg.SkipDownload, "concurrency", cfg.Concurrency)
+		"skip_download", cfg.SkipDownload, "repair", cfg.Repair, "concurrency", cfg.Concurrency)
 	runStart := time.Now()
 
 	if !cfg.SkipDownload {
@@ -199,17 +200,29 @@ func stagedDownload(ctx context.Context, cfg StagedSyncConfig) error {
 		"to", to, "to_source", toSrc,
 		"heights_in_window", to-from+1)
 
-	gaps := computeGaps(present, from, to)
-	log.Infow("gap scan complete",
-		"scanned_from", from, "scanned_to", to,
-		"present_in_window", (to-from+1)-uint64(len(gaps)),
-		"missing", len(gaps))
+	var gaps []uint64
+	if cfg.Repair {
+		// Repair mode: a height needs fetching if it is absent OR present but
+		// its block is unreadable by the store (fails OpenODS or lacks a .q4).
+		gaps, err = repairTargets(ctx, cfg, from, to)
+		if err != nil {
+			return fmt.Errorf("repair scan: %w", err)
+		}
+		log.Infow("repair scan complete",
+			"scanned_from", from, "scanned_to", to, "need_fetch", len(gaps))
+	} else {
+		gaps = computeGaps(present, from, to)
+		log.Infow("gap scan complete",
+			"scanned_from", from, "scanned_to", to,
+			"present_in_window", (to-from+1)-uint64(len(gaps)),
+			"missing", len(gaps))
+	}
 	if len(gaps) == 0 {
-		log.Infow("no missing heights in window; skipping download phase")
+		log.Infow("nothing to fetch in window; skipping download phase")
 		// Still (re)write an empty manifest so a later --skip-download run is a no-op.
 		return writeManifest(cfg.manifestPath(), nil)
 	}
-	// Log the missing heights as compact contiguous runs so the full picture
+	// Log the target heights as compact contiguous runs so the full picture
 	// of what will be fetched is visible without one line per height.
 	logGapRuns(gaps)
 
@@ -364,6 +377,90 @@ func fetchAndStoreHeaders(
 		"non_empty", len(staged)-emptyCount,
 		"elapsed", time.Since(startedAt).Round(time.Second))
 	return staged, nil
+}
+
+// repairTargets scans [from..to] and returns every height that needs
+// (re)fetching: absent heights plus present heights whose block is not
+// store-readable (fails file.OpenODS or has no sibling .q4). This is what lets
+// --repair fix blocks written by the old raw-ODS path, which still have a
+// present height link and so are invisible to a plain gap scan.
+func repairTargets(ctx context.Context, cfg StagedSyncConfig, from, to uint64) ([]uint64, error) {
+	heightsDir := filepath.Join(cfg.DataDir, "blocks", "heights")
+	blocksDir := filepath.Join(cfg.DataDir, "blocks")
+	emptyHex := hex.EncodeToString(share.EmptyEDSDataHash())
+
+	var targets []uint64
+	var checked, absent, broken, valid uint64
+	startedAt := time.Now()
+	log.Infow("repair: validating present blocks", "from", from, "to", to)
+	for h := from; h <= to; h++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		checked++
+		linkPath := filepath.Join(heightsDir, strconv.FormatUint(h, 10)+".ods")
+		li, err := os.Lstat(linkPath)
+		switch {
+		case err == nil:
+			ok, reason := validateBlock(ctx, blocksDir, linkPath, li, emptyHex)
+			if ok {
+				valid++
+			} else {
+				broken++
+				targets = append(targets, h)
+				log.Infow("repair: block needs refetch", "height", h, "reason", reason)
+			}
+		case errors.Is(err, os.ErrNotExist):
+			absent++
+			targets = append(targets, h)
+			log.Debugw("repair: height absent", "height", h)
+		default:
+			return nil, fmt.Errorf("lstat height %d: %w", h, err)
+		}
+		if checked%5000 == 0 {
+			log.Infow("repair scan progress",
+				"checked", checked, "of", to-from+1,
+				"absent", absent, "broken", broken, "valid", valid,
+				"elapsed", time.Since(startedAt).Round(time.Second))
+		}
+	}
+	log.Infow("repair scan summary",
+		"checked", checked, "absent", absent, "broken", broken, "valid", valid,
+		"need_fetch", len(targets), "elapsed", time.Since(startedAt).Round(time.Second))
+	return targets, nil
+}
+
+// validateBlock reports whether the block behind a present height link is
+// store-readable. Empty-EDS heights (symlinks to the canonical empty ODS the
+// node manages) are treated as valid.
+func validateBlock(
+	ctx context.Context,
+	blocksDir, linkPath string,
+	li os.FileInfo,
+	emptyHex string,
+) (bool, string) {
+	if li.Mode()&os.ModeSymlink != 0 {
+		if tgt, err := os.Readlink(linkPath); err == nil {
+			base := strings.TrimSuffix(filepath.Base(tgt), ".ods")
+			if strings.EqualFold(base, emptyHex) {
+				return true, ""
+			}
+		}
+	}
+	ods, err := file.OpenODS(linkPath)
+	if err != nil {
+		return false, fmt.Sprintf("OpenODS failed: %v", err)
+	}
+	dh, err := ods.DataHash(ctx)
+	_ = ods.Close()
+	if err != nil {
+		return false, fmt.Sprintf("DataHash failed: %v", err)
+	}
+	q4 := filepath.Join(blocksDir, dh.String()+".q4")
+	if info, err := os.Stat(q4); err != nil || info.Size() == 0 {
+		return false, "missing .q4"
+	}
+	return true, ""
 }
 
 // logGapRuns logs the missing heights collapsed into contiguous [start-end]
