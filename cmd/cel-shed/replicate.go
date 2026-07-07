@@ -81,7 +81,7 @@ var replicateCmd = &cobra.Command{
 }
 
 func init() {
-	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd)
+	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd)
 }
 
 var shrexFetchCmd = &cobra.Command{
@@ -333,6 +333,46 @@ func readStagedSyncFlags(cmd *cobra.Command) (replicate.StagedSyncConfig, error)
 		Repair:           repair,
 		LogLevel:         logLevel,
 	}, nil
+}
+
+var convertCmd = &cobra.Command{
+	Use:   "convert",
+	Short: "Offline: re-encode present raw-ODS blocks into the store's ODSQ4 format in place.",
+	Long: "Scans <data-dir>/blocks/heights and, for each present block that is not " +
+		"store-readable (old raw-ODS format, no .q4), reads the on-disk shares, rebuilds " +
+		"the square, recomputes the hash locally, and rewrites it as a proper <hash>.ods + " +
+		"<hash>.q4 pair with the height link repointed at it. No network is used. Blocks " +
+		"already in store format are skipped; absent or corrupt heights are reported for " +
+		"`staged-sync --repair`.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		dataDir, _ := cmd.Flags().GetString(flagDataDir)
+		fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
+		toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+		logLevel, _ := cmd.Flags().GetString(flagLogLevel)
+		expanded, err := homedir.Expand(filepath.Clean(dataDir))
+		if err != nil {
+			return fmt.Errorf("expand --data-dir: %w", err)
+		}
+		return replicate.RunConvert(cmd.Context(), replicate.ConvertConfig{
+			DataDir:    expanded,
+			FromHeight: fromHeight,
+			ToHeight:   toHeight,
+			LogLevel:   logLevel,
+		})
+	},
+}
+
+func init() {
+	convertCmd.Flags().String(flagDataDir, "",
+		"data directory containing blocks/heights (required)")
+	convertCmd.Flags().Uint64(flagFromHeight, 0,
+		"start height (inclusive); 0 means the lowest height present in heights/")
+	convertCmd.Flags().Uint64(flagToHeight, 0,
+		"stop height (inclusive); 0 means the highest height present in heights/")
+	convertCmd.Flags().String(flagLogLevel, "info",
+		"log level for cel-shed/replicate logger")
+	_ = convertCmd.MarkFlagRequired(flagDataDir)
 }
 
 func readReplicateFlags(cmd *cobra.Command) (replicate.Config, error) {
