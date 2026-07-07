@@ -31,6 +31,8 @@ const (
 	flagMinPeers         = "min-peers"
 	flagDiscoveryTimeout = "discovery-timeout"
 	flagDiscoveryLimit   = "discovery-limit"
+	flagTempDir          = "temp-dir"
+	flagSkipDownload     = "skip-download"
 )
 
 func init() {
@@ -78,7 +80,7 @@ var replicateCmd = &cobra.Command{
 }
 
 func init() {
-	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd)
+	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd)
 }
 
 var shrexFetchCmd = &cobra.Command{
@@ -226,6 +228,105 @@ func readGetMissingFlags(cmd *cobra.Command) (replicate.GetMissingConfig, error)
 		FromHeight: fromHeight,
 		ToHeight:   toHeight,
 		LogLevel:   logLevel,
+	}, nil
+}
+
+var stagedSyncCmd = &cobra.Command{
+	Use:   "staged-sync",
+	Short: "Fill heights/ gaps via an isolated temp staging dir, then copy into place.",
+	Long: "Scans <data-dir>/blocks/heights for internal gaps, downloads the missing " +
+		"headers into a badger DB under <temp-dir>/headers (plus a manifest) and their " +
+		"ODS via shrex into <temp-dir>/blocks, then copies each ODS into " +
+		"<data-dir>/blocks/<HASH>.ods and symlinks <data-dir>/blocks/heights/<height>.ods. " +
+		"Use --skip-download to replay only the copy step from an existing staging dir.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cfg, err := readStagedSyncFlags(cmd)
+		if err != nil {
+			return err
+		}
+		return replicate.RunStagedSync(cmd.Context(), cfg)
+	},
+}
+
+func init() {
+	stagedSyncCmd.Flags().String(flagDataDir, "",
+		"destination data directory containing blocks/heights (required)")
+	stagedSyncCmd.Flags().String(flagTempDir, "",
+		"staging directory for the header DB and downloaded ODS; must differ from --data-dir (required)")
+	stagedSyncCmd.Flags().String(flagNetwork, "mainnet",
+		"network: mainnet | mocha | arabica | private")
+	stagedSyncCmd.Flags().Uint64(flagFromHeight, 0,
+		"gap-scan start height (inclusive); 0 means the lowest height present in heights/")
+	stagedSyncCmd.Flags().Uint64(flagToHeight, 0,
+		"gap-scan stop height (inclusive); 0 means the highest height present in heights/")
+	stagedSyncCmd.Flags().StringSlice(flagPeers, nil,
+		"explicit shrex peer multiaddrs (each must include /p2p/<peer-id>); if empty, discover archival peers via DHT")
+	stagedSyncCmd.Flags().Int(flagConcurrency, 8,
+		"number of concurrent ODS fetches (1..32)")
+	stagedSyncCmd.Flags().Duration(flagRequestTimeout, 90*time.Second,
+		"timeout for each shrex/header request attempt")
+	stagedSyncCmd.Flags().Int(flagMinPeers, 3,
+		"minimum archival peers to wait for before starting (discovery mode)")
+	stagedSyncCmd.Flags().Duration(flagDiscoveryTimeout, 60*time.Second,
+		"max time to wait for min-peers archival peers before failing")
+	stagedSyncCmd.Flags().Uint(flagDiscoveryLimit, 20,
+		"soft cap for the archival peer pool maintained by discovery")
+	stagedSyncCmd.Flags().Bool(flagSkipDownload, false,
+		"skip the download phase; copy already-staged blocks from --temp-dir into place")
+	stagedSyncCmd.Flags().String(flagLogLevel, "info",
+		"log level for cel-shed/replicate logger")
+	_ = stagedSyncCmd.MarkFlagRequired(flagDataDir)
+	_ = stagedSyncCmd.MarkFlagRequired(flagTempDir)
+}
+
+func readStagedSyncFlags(cmd *cobra.Command) (replicate.StagedSyncConfig, error) {
+	dataDir, _ := cmd.Flags().GetString(flagDataDir)
+	tempDir, _ := cmd.Flags().GetString(flagTempDir)
+	networkStr, _ := cmd.Flags().GetString(flagNetwork)
+	fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
+	toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+	peers, _ := cmd.Flags().GetStringSlice(flagPeers)
+	concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
+	reqTimeout, _ := cmd.Flags().GetDuration(flagRequestTimeout)
+	minPeers, _ := cmd.Flags().GetInt(flagMinPeers)
+	discTimeout, _ := cmd.Flags().GetDuration(flagDiscoveryTimeout)
+	discLimit, _ := cmd.Flags().GetUint(flagDiscoveryLimit)
+	skipDownload, _ := cmd.Flags().GetBool(flagSkipDownload)
+	logLevel, _ := cmd.Flags().GetString(flagLogLevel)
+
+	dataExpanded, err := homedir.Expand(filepath.Clean(dataDir))
+	if err != nil {
+		return replicate.StagedSyncConfig{}, fmt.Errorf("expand --data-dir: %w", err)
+	}
+	tempExpanded, err := homedir.Expand(filepath.Clean(tempDir))
+	if err != nil {
+		return replicate.StagedSyncConfig{}, fmt.Errorf("expand --temp-dir: %w", err)
+	}
+
+	net, err := modp2p.GetNetwork(networkStr).Validate()
+	if err != nil {
+		net2, err2 := modp2p.Network(networkStr).Validate()
+		if err2 != nil {
+			return replicate.StagedSyncConfig{}, fmt.Errorf("invalid --network %q: %w", networkStr, err)
+		}
+		net = net2
+	}
+
+	return replicate.StagedSyncConfig{
+		DataDir:          dataExpanded,
+		TempDir:          tempExpanded,
+		Network:          net,
+		FromHeight:       fromHeight,
+		ToHeight:         toHeight,
+		Peers:            peers,
+		Concurrency:      concurrency,
+		RequestTimeout:   reqTimeout,
+		MinPeers:         minPeers,
+		DiscoveryTimeout: discTimeout,
+		DiscoveryLimit:   discLimit,
+		SkipDownload:     skipDownload,
+		LogLevel:         logLevel,
 	}, nil
 }
 
