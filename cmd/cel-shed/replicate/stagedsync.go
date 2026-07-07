@@ -29,8 +29,10 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	modp2p "github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
+	"github.com/celestiaorg/celestia-node/store/file"
 )
 
 // StagedSyncConfig configures the staged-sync run.
@@ -109,10 +111,14 @@ func (c StagedSyncConfig) remainingPath() string {
 
 // stagedHeight is one entry in the staging manifest: a missing height, its DAH
 // hash, and whether the EDS is the canonical empty square (no ODS to fetch).
+// roots is the header's DataAvailabilityHeader, needed to decode the shrex ODS
+// shares and write them in the store's ODSQ4 file format. It is only populated
+// during the download phase (nil on the --skip-download install path).
 type stagedHeight struct {
 	height uint64
 	hash   share.DataHash
 	empty  bool
+	roots  *share.AxisRoots
 }
 
 // RunStagedSync executes Phase A (unless skipped) then Phase B. See
@@ -340,7 +346,7 @@ func fetchAndStoreHeaders(
 		if empty {
 			emptyCount++
 		}
-		staged = append(staged, stagedHeight{height: height, hash: hash, empty: empty})
+		staged = append(staged, stagedHeight{height: height, hash: hash, empty: empty, roots: hdr.DAH})
 		log.Infow("header fetched",
 			"progress", fmt.Sprintf("%d/%d", i+1, len(gaps)),
 			"height", height, "hash", hash.String(), "empty", empty)
@@ -482,8 +488,7 @@ func fetchODSToTemp(
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			dest := filepath.Join(cfg.stagedBlocksDir(), sh.hash.String()+".ods")
-			res := fetchOneODS(ctx, client, pool, cfg, sh, dest)
+			res := fetchOneODS(ctx, client, pool, cfg, sh)
 			counter.Lock()
 			if !res.ok {
 				failed++
@@ -535,22 +540,33 @@ type odsResult struct {
 	lastErr       error
 }
 
-// fetchOneODS fetches a single height's ODS, retrying across peers, and writes
-// it atomically to dest. A dest already on disk with content short-circuits as
-// success. Every request attempt (success or failure) is logged.
+// fetchOneODS fetches a single height's ODS via shrex, retrying across peers,
+// then writes it in the store's ODSQ4 format (both <hash>.ods and <hash>.q4)
+// under the staging blocks dir. shrex returns raw ODS shares in row-major order;
+// they are decoded with eds.ReadAccessor (which also verifies the datahash
+// against the header roots) and re-encoded via file.CreateODSQ4 so the files are
+// readable by a node's store. A valid pair already on disk short-circuits.
 func fetchOneODS(
 	ctx context.Context,
 	client *shrex.Client,
 	pool *peerPool,
 	cfg StagedSyncConfig,
 	sh stagedHeight,
-	dest string,
 ) odsResult {
-	if info, err := os.Stat(dest); err == nil && info.Size() > 0 {
-		log.Infow("staged ODS already present; skipping fetch",
-			"height", sh.height, "hash", sh.hash.String(), "bytes", info.Size())
-		return odsResult{ok: true, bytes: int(info.Size()), alreadyOnDisk: true}
+	odsPath := filepath.Join(cfg.stagedBlocksDir(), sh.hash.String()+".ods")
+	q4Path := filepath.Join(cfg.stagedBlocksDir(), sh.hash.String()+".q4")
+
+	if odsInfo, err := os.Stat(odsPath); err == nil && odsInfo.Size() > 0 {
+		if q4Info, err := os.Stat(q4Path); err == nil && q4Info.Size() > 0 {
+			log.Infow("staged ODSQ4 already present; skipping fetch",
+				"height", sh.height, "hash", sh.hash.String(), "ods_bytes", odsInfo.Size())
+			return odsResult{ok: true, bytes: int(odsInfo.Size()), alreadyOnDisk: true}
+		}
 	}
+	if sh.roots == nil {
+		return odsResult{lastErr: fmt.Errorf("height %d: missing header roots", sh.height)}
+	}
+
 	edsID, err := shwap.NewEdsID(sh.height)
 	if err != nil {
 		return odsResult{lastErr: fmt.Errorf("new eds id: %w", err)}
@@ -580,13 +596,38 @@ func fetchOneODS(
 				"err", err)
 			continue
 		}
-		if err := writeBytesAtomic(dest, buff.Bytes()); err != nil {
-			lastErr = fmt.Errorf("write: %w", err)
-			log.Warnw("write staged ODS failed",
-				"height", sh.height, "dest", dest, "err", err)
+
+		rawBytes := buff.Len()
+		// Decode the raw ODS shares into a full EDS. This also verifies the
+		// content hash matches the header roots, so a corrupt/wrong response
+		// is rejected here rather than silently written.
+		square, err := eds.ReadAccessor(ctx, bytes.NewReader(buff.Bytes()), sh.roots)
+		if err != nil {
+			lastErr = fmt.Errorf("decode ods shares: %w", err)
+			log.Warnw("decoding staged ODS failed (retrying)",
+				"height", sh.height, "hash", sh.hash.String(), "peer", p.String(), "err", err)
 			continue
 		}
-		return odsResult{ok: true, bytes: buff.Len(), attempts: attempt, peer: p}
+		// Overwrite any stale partials (CreateODS uses O_EXCL).
+		_ = os.Remove(odsPath)
+		_ = os.Remove(q4Path)
+		if err := file.CreateODSQ4(odsPath, q4Path, sh.roots, square.ExtendedDataSquare); err != nil {
+			lastErr = fmt.Errorf("write odsq4: %w", err)
+			log.Warnw("writing staged ODSQ4 failed",
+				"height", sh.height, "ods", odsPath, "err", err)
+			_ = os.Remove(odsPath)
+			_ = os.Remove(q4Path)
+			continue
+		}
+		odsInfo, _ := os.Stat(odsPath)
+		var odsBytes int
+		if odsInfo != nil {
+			odsBytes = int(odsInfo.Size())
+		}
+		log.Debugw("wrote staged ODSQ4",
+			"height", sh.height, "hash", sh.hash.String(),
+			"raw_shares_bytes", rawBytes, "ods_file_bytes", odsBytes)
+		return odsResult{ok: true, bytes: odsBytes, attempts: attempt, peer: p}
 	}
 }
 
@@ -622,17 +663,34 @@ func stagedInstall(ctx context.Context, cfg StagedSyncConfig) error {
 
 		copied := false
 		if !sh.empty {
-			srcHash := filepath.Join(cfg.stagedBlocksDir(), hashHex+".ods")
-			if info, err := os.Stat(srcHash); err != nil || info.Size() == 0 {
+			srcODS := filepath.Join(cfg.stagedBlocksDir(), hashHex+".ods")
+			srcQ4 := filepath.Join(cfg.stagedBlocksDir(), hashHex+".q4")
+			destQ4 := filepath.Join(blocksDir, hashHex+".q4")
+			// Both ODS and Q4 must be staged; the store needs the pair.
+			odsInfo, odsErr := os.Stat(srcODS)
+			q4Info, q4Err := os.Stat(srcQ4)
+			if odsErr != nil || odsInfo.Size() == 0 || q4Err != nil || q4Info.Size() == 0 {
 				missingStaged++
-				log.Warnw("staged ODS missing; skipping height",
+				log.Warnw("staged ODSQ4 incomplete; skipping height",
 					"progress", fmt.Sprintf("%d/%d", i+1, len(staged)),
-					"height", sh.height, "src", srcHash)
+					"height", sh.height, "ods", srcODS, "ods_ok", odsErr == nil,
+					"q4", srcQ4, "q4_ok", q4Err == nil)
 				continue
 			}
-			if info, err := os.Stat(destHash); err != nil || info.Size() == 0 {
-				if err := copyFileAtomic(srcHash, destHash); err != nil {
-					return fmt.Errorf("copy %d: %w", sh.height, err)
+			// The destination is only "good" if BOTH files are present. A
+			// missing/empty .q4 is the tell of a block written by the old
+			// raw-ODS fetch: overwrite the pair so such blocks are repaired.
+			dODS, dODSErr := os.Stat(destHash)
+			dQ4, dQ4Err := os.Stat(destQ4)
+			destComplete := dODSErr == nil && dODS.Size() > 0 && dQ4Err == nil && dQ4.Size() > 0
+			if !destComplete {
+				_ = os.Remove(destHash)
+				_ = os.Remove(destQ4)
+				if err := copyFileAtomic(srcODS, destHash); err != nil {
+					return fmt.Errorf("copy ODS %d: %w", sh.height, err)
+				}
+				if err := copyFileAtomic(srcQ4, destQ4); err != nil {
+					return fmt.Errorf("copy Q4 %d: %w", sh.height, err)
 				}
 				installed++
 				copied = true
