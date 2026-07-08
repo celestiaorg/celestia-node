@@ -469,6 +469,84 @@ func TestIntegration(t *testing.T) {
 	})
 }
 
+func TestManagerPeerAccounting(t *testing.T) {
+	t.Run("in-flight balances across Peer/done and records latency", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		manager, err := testManager(ctx, newSubLock(h, nil))
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+
+		peerID := peer.ID("peer1")
+		manager.nodes.add(peerID)
+
+		pid, done, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
+		require.NoError(t, err)
+		require.Equal(t, peerID, pid)
+		require.Equal(t, 1, manager.nodes.stats[peerID].inFlight)
+
+		// ensure a measurable, non-zero latency is recorded on success
+		time.Sleep(5 * time.Millisecond)
+		done(ResultNoop)
+		require.Equal(t, 0, manager.nodes.stats[peerID].inFlight)
+		require.Greater(t, manager.nodes.stats[peerID].latencyEWMA, 0.0)
+		require.Equal(t, 0, manager.nodes.stats[peerID].consecFails)
+	})
+
+	t.Run("double result (Noop then Blacklist) decrements in-flight once", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		manager, err := testManager(ctx, newSubLock(h, nil))
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+
+		peerID := peer.ID("peer1")
+		manager.nodes.add(peerID)
+
+		// two concurrent handouts of the same peer -> in-flight 2
+		_, done1, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
+		require.NoError(t, err)
+		_, done2, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
+		require.NoError(t, err)
+		require.Equal(t, 2, manager.nodes.stats[peerID].inFlight)
+
+		// the getter reports success then a verification failure on the SAME handout;
+		// in-flight must drop by exactly one, not two.
+		done1(ResultNoop)
+		done1(ResultBlacklistPeer)
+		require.Equal(t, 1, manager.nodes.stats[peerID].inFlight)
+
+		done2(ResultNoop)
+		require.Equal(t, 0, manager.nodes.stats[peerID].inFlight)
+	})
+
+	t.Run("cooldown result puts the served peer on cooldown", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		manager, err := testManager(ctx, newSubLock(h, nil))
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+
+		peerID := peer.ID("peer1")
+		manager.nodes.add(peerID)
+		require.Equal(t, 1, manager.nodes.len())
+
+		_, done, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
+		require.NoError(t, err)
+
+		done(ResultCooldownPeer)
+		// peer is no longer active and its failure counter advanced
+		require.Equal(t, 0, manager.nodes.len())
+		require.Equal(t, 1, manager.nodes.stats[peerID].consecFails)
+	})
+}
+
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
 	host, err := mocknet.New().GenPeer()
 	if err != nil {

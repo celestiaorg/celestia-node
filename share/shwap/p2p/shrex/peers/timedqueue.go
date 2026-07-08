@@ -8,31 +8,33 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-// timedQueue store items for ttl duration and releases it with calling onPop callback. Each item
-// is tracked independently
+// timedQueue stores items for a per-item ttl and releases each by calling onPop once
+// its ttl elapses. Items may have different ttls (see adaptive cooldown, ADR-014), so
+// the queue is not strictly FIFO by expiry; the release timer always targets the
+// earliest outstanding release time.
 type timedQueue struct {
 	sync.Mutex
 	items []item
 
-	// ttl is the amount of time each item exist in the timedQueue
-	ttl   time.Duration
-	clock clock.Clock
-	after *clock.Timer
+	// defaultTTL is used by callers that push without an explicit ttl.
+	defaultTTL time.Duration
+	clock      clock.Clock
+	after      *clock.Timer
 	// onPop will be called on item peer.ID after it is released
 	onPop func(peer.ID)
 }
 
 type item struct {
 	peer.ID
-	createdAt time.Time
+	releaseAt time.Time
 }
 
-func newTimedQueue(ttl time.Duration, onPop func(peer.ID)) *timedQueue {
+func newTimedQueue(defaultTTL time.Duration, onPop func(peer.ID)) *timedQueue {
 	return &timedQueue{
-		items: make([]item, 0),
-		clock: clock.New(),
-		ttl:   ttl,
-		onPop: onPop,
+		items:      make([]item, 0),
+		clock:      clock.New(),
+		defaultTTL: defaultTTL,
+		onPop:      onPop,
 	}
 }
 
@@ -48,40 +50,59 @@ func (q *timedQueue) releaseUnsafe() {
 		return
 	}
 
-	var i int
+	now := q.clock.Now()
+	kept := q.items[:0]
 	for _, next := range q.items {
-		timeIn := q.clock.Since(next.createdAt)
-		if timeIn < q.ttl {
-			// item is not expired yet, create a timer that will call releaseExpired
-			q.after.Stop()
-			q.after = q.clock.AfterFunc(q.ttl-timeIn, q.releaseExpired)
-			break
+		if next.releaseAt.After(now) {
+			// not expired yet, keep it
+			kept = append(kept, next)
+			continue
 		}
-
-		// item is expired
 		q.onPop(next.ID)
-		i++
 	}
-
-	if i > 0 {
-		copy(q.items, q.items[i:])
-		q.items = q.items[:len(q.items)-i]
-	}
+	q.items = kept
+	q.reschedule(now)
 }
 
-func (q *timedQueue) push(peerID peer.ID) {
+// reschedule (re)arms the release timer to fire at the earliest outstanding release
+// time. Must be called with the lock held.
+func (q *timedQueue) reschedule(now time.Time) {
+	if q.after != nil {
+		q.after.Stop()
+		q.after = nil
+	}
+	if len(q.items) == 0 {
+		return
+	}
+
+	earliest := q.items[0].releaseAt
+	for _, it := range q.items[1:] {
+		if it.releaseAt.Before(earliest) {
+			earliest = it.releaseAt
+		}
+	}
+
+	d := earliest.Sub(now)
+	if d < 0 {
+		d = 0
+	}
+	q.after = q.clock.AfterFunc(d, q.releaseExpired)
+}
+
+// push schedules peerID for release after ttl. If ttl <= 0 the queue's defaultTTL is used.
+func (q *timedQueue) push(peerID peer.ID, ttl time.Duration) {
 	q.Lock()
 	defer q.Unlock()
 
+	if ttl <= 0 {
+		ttl = q.defaultTTL
+	}
+	now := q.clock.Now()
 	q.items = append(q.items, item{
 		ID:        peerID,
-		createdAt: q.clock.Now(),
+		releaseAt: now.Add(ttl),
 	})
-
-	// if it is the first item in queue, create a timer to call releaseExpired after its expiration
-	if len(q.items) == 1 {
-		q.after = q.clock.AfterFunc(q.ttl, q.releaseExpired)
-	}
+	q.reschedule(now)
 }
 
 func (q *timedQueue) len() int {

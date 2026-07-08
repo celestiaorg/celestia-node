@@ -129,7 +129,7 @@ func NewManager(
 		}
 	}
 
-	s.nodes = newPool(s.params.PeerCooldown)
+	s.nodes = newPool(&s.params)
 	return s, nil
 }
 
@@ -212,14 +212,14 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 		if m.removeIfUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash, height)
 		}
-		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
+		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.pool, p.len(), 0)
 	}
 
 	// if no peer for datahash is currently available, try to use node
 	// obtained from discovery
 	peerID, ok = m.nodes.tryGet()
 	if ok {
-		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), 0)
+		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes, m.nodes.len(), 0)
 	}
 
 	// no peers are available right now, wait for the first one
@@ -229,9 +229,9 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 		if m.removeIfUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash, height)
 		}
-		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
+		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.pool, p.len(), time.Since(start))
 	case peerID = <-m.nodes.next(ctx):
-		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), time.Since(start))
+		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes, m.nodes.len(), time.Since(start))
 	case <-ctx.Done():
 		return "", nil, ctx.Err()
 	}
@@ -258,6 +258,7 @@ func (m *Manager) newPeer(
 	datahash share.DataHash,
 	peerID peer.ID,
 	source peerSource,
+	pool *pool,
 	poolSize int,
 	waitTime time.Duration,
 ) (peer.ID, DoneFunc, error) {
@@ -268,10 +269,22 @@ func (m *Manager) newPeer(
 		"pool_size", poolSize,
 		"wait (s)", waitTime)
 	m.metrics.observeGetPeer(ctx, source, poolSize, waitTime)
-	return peerID, m.doneFunc(datahash, peerID, source), nil
+	// commit to using this peer: account its load and start timing for latency scoring
+	pool.acquire(peerID)
+	return peerID, m.doneFunc(datahash, peerID, source, pool, time.Now()), nil
 }
 
-func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerSource) DoneFunc {
+func (m *Manager) doneFunc(
+	datahash share.DataHash,
+	peerID peer.ID,
+	source peerSource,
+	pool *pool,
+	start time.Time,
+) DoneFunc {
+	// the getter may report a result more than once for a single handout (a successful
+	// fetch that then fails verification). In-flight must be decremented exactly once,
+	// while the outcome may be recorded for each reported result.
+	var decOnce sync.Once
 	return func(result result) {
 		log.Debugw("set peer result",
 			"hash", datahash.String(),
@@ -279,20 +292,17 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 			"source", source,
 			"result", result)
 		m.metrics.observeDoneResult(source, result)
+
+		decOnce.Do(func() { pool.decInFlight(peerID) })
+
+		latency := time.Since(start)
 		switch result {
 		case ResultNoop:
+			pool.recordOutcome(peerID, true, latency)
 		case ResultCooldownPeer:
-			if source == sourceDiscoveredNodes {
-				m.nodes.putOnCooldown(peerID)
-				return
-			}
-			p := m.getPool(datahash.String())
-			if p == nil {
-				// pool was removed
-				return
-			}
-			p.putOnCooldown(peerID)
+			pool.recordOutcome(peerID, false, latency)
 		case ResultBlacklistPeer:
+			pool.recordOutcome(peerID, false, latency)
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
 	}
@@ -404,7 +414,7 @@ func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	if !ok {
 		p = &syncPool{
 			height:    height,
-			pool:      newPool(m.params.PeerCooldown),
+			pool:      newPool(&m.params),
 			createdAt: time.Now(),
 		}
 		m.pools[datahash] = p
