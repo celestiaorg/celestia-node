@@ -124,7 +124,7 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 
 		// Case 1: block files are already store-readable. Only the height link
 		// might be wrong (a symlink where a hardlink is expected) — fix it.
-		if dh, ok := storeReadableHash(ctx, blocksDir, linkPath); ok {
+		if dh, ok := storeReadableHash(ctx, linkPath); ok {
 			created, err := ensureStoreLink(blocksDir, heightsDir, h, dh)
 			if err != nil {
 				failed++
@@ -181,9 +181,11 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 }
 
 // storeReadableHash reports the block's DataHash and true if the block behind
-// linkPath opens as a store ODS with a present, non-empty sibling .q4 (empty
-// EDS blocks count as readable — the node manages their file).
-func storeReadableHash(ctx context.Context, blocksDir, linkPath string) (share.DataHash, bool) {
+// linkPath is store-readable — i.e. file.OpenODS parses its header. The sibling
+// .q4 is intentionally NOT required: the store regenerates the Q4 quadrant on
+// the fly from the ODS, so a valid ODS with no .q4 is fully readable and is left
+// untouched rather than re-encoded.
+func storeReadableHash(ctx context.Context, linkPath string) (share.DataHash, bool) {
 	ods, err := file.OpenODS(linkPath)
 	if err != nil {
 		return nil, false
@@ -192,13 +194,6 @@ func storeReadableHash(ctx context.Context, blocksDir, linkPath string) (share.D
 	_ = ods.Close()
 	if err != nil {
 		return nil, false
-	}
-	if dh.IsEmptyEDS() {
-		return dh, true
-	}
-	q4 := filepath.Join(blocksDir, dh.String()+".q4")
-	if info, err := os.Stat(q4); err != nil || info.Size() == 0 {
-		return dh, false
 	}
 	return dh, true
 }

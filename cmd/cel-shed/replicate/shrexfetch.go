@@ -312,7 +312,7 @@ func fetchAndPublish(
 	// ODS header + sibling .q4). A leftover raw-ODS file is NOT complete and
 	// will be re-fetched and rewritten in the correct format below.
 	blocksDir := filepath.Dir(e.localHash)
-	if _, ok := storeReadableHash(ctx, blocksDir, e.localHash); ok {
+	if _, ok := storeReadableHash(ctx, e.localHash); ok {
 		if err := publish(e); err != nil {
 			return false, 0, 0, false, fmt.Errorf("publish existing: %w", err)
 		}
