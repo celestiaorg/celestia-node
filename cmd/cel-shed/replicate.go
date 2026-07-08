@@ -34,6 +34,7 @@ const (
 	flagTempDir          = "temp-dir"
 	flagSkipDownload     = "skip-download"
 	flagRepair           = "repair"
+	flagJSON             = "json"
 )
 
 func init() {
@@ -81,7 +82,62 @@ var replicateCmd = &cobra.Command{
 }
 
 func init() {
-	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd)
+	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd)
+}
+
+var discoverArchivalCmd = &cobra.Command{
+	Use:   "discover-archival",
+	Short: "Discover archival nodes advertising on the network's DHT.",
+	Long: "Boots an ephemeral libp2p host, joins the network's Kademlia DHT, and " +
+		"listens on the \"archival\" discovery topic for --timeout, then prints every " +
+		"archival peer seen (as dialable multiaddrs). Read-only: advertises nothing and " +
+		"fetches no data.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cfg, err := readDiscoverArchivalFlags(cmd)
+		if err != nil {
+			return err
+		}
+		return replicate.RunDiscoverArchival(cmd.Context(), cfg)
+	},
+}
+
+func init() {
+	discoverArchivalCmd.Flags().String(flagNetwork, "mainnet",
+		"network: mainnet | mocha | arabica | private")
+	discoverArchivalCmd.Flags().Duration(flagDiscoveryTimeout, 30*time.Second,
+		"how long to keep discovering before printing results")
+	discoverArchivalCmd.Flags().Uint(flagDiscoveryLimit, 100,
+		"soft cap for the archival peer pool maintained by discovery")
+	discoverArchivalCmd.Flags().Bool(flagJSON, false,
+		"emit results as JSON instead of a text table")
+	discoverArchivalCmd.Flags().String(flagLogLevel, "info",
+		"log level for cel-shed/replicate logger")
+}
+
+func readDiscoverArchivalFlags(cmd *cobra.Command) (replicate.DiscoverConfig, error) {
+	networkStr, _ := cmd.Flags().GetString(flagNetwork)
+	timeout, _ := cmd.Flags().GetDuration(flagDiscoveryTimeout)
+	discLimit, _ := cmd.Flags().GetUint(flagDiscoveryLimit)
+	asJSON, _ := cmd.Flags().GetBool(flagJSON)
+	logLevel, _ := cmd.Flags().GetString(flagLogLevel)
+
+	net, err := modp2p.GetNetwork(networkStr).Validate()
+	if err != nil {
+		net2, err2 := modp2p.Network(networkStr).Validate()
+		if err2 != nil {
+			return replicate.DiscoverConfig{}, fmt.Errorf("invalid --network %q: %w", networkStr, err)
+		}
+		net = net2
+	}
+
+	return replicate.DiscoverConfig{
+		Network:        net,
+		Timeout:        timeout,
+		DiscoveryLimit: discLimit,
+		JSON:           asJSON,
+		LogLevel:       logLevel,
+	}, nil
 }
 
 var shrexFetchCmd = &cobra.Command{
