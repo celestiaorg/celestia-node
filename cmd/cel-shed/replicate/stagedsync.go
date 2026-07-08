@@ -756,7 +756,6 @@ func stagedInstall(ctx context.Context, cfg StagedSyncConfig) error {
 		hashHex := sh.hash.String()
 		destHash := filepath.Join(blocksDir, hashHex+".ods")
 		destLink := filepath.Join(heightsDir, fmt.Sprintf("%d.ods", sh.height))
-		linkTarget := "../" + hashHex + ".ods"
 
 		copied := false
 		if !sh.empty {
@@ -794,9 +793,11 @@ func stagedInstall(ctx context.Context, cfg StagedSyncConfig) error {
 			}
 		}
 
-		created, err := ensureSymlink(destLink, linkTarget)
+		// Link the height using the store convention: hardlink for non-empty,
+		// symlink for empty. Fixes a pre-existing symlink left by an older run.
+		created, err := ensureStoreLink(blocksDir, heightsDir, sh.height, sh.hash)
 		if err != nil {
-			return fmt.Errorf("symlink %d: %w", sh.height, err)
+			return fmt.Errorf("link %d: %w", sh.height, err)
 		}
 		if created {
 			relinked++
@@ -804,7 +805,7 @@ func stagedInstall(ctx context.Context, cfg StagedSyncConfig) error {
 		log.Infow("installed height",
 			"progress", fmt.Sprintf("%d/%d", i+1, len(staged)),
 			"height", sh.height, "hash", hashHex, "empty", sh.empty,
-			"copied_block", copied, "symlinked", created, "link", destLink)
+			"copied_block", copied, "linked", created, "link", destLink)
 		if (i+1)%5000 == 0 {
 			log.Infow("install progress", "processed", i+1, "total", len(staged),
 				"copied", installed, "linked", relinked,
@@ -824,29 +825,45 @@ func headerDBKey(height uint64) datastore.Key {
 	return datastore.NewKey(fmt.Sprintf("/hdr/%d", height))
 }
 
-// ensureSymlink creates destLink -> target if absent, or replaces it if it
-// points elsewhere. Returns true when it created/replaced the link.
-func ensureSymlink(destLink, target string) (bool, error) {
-	if cur, err := os.Readlink(destLink); err == nil {
-		if cur == target {
-			return false, nil
+// ensureStoreLink makes heights/<height>.ods match the store's linking
+// convention: a hardlink to blocks/<hash>.ods for a non-empty block, or a
+// symlink to ../<hash>.ods for the empty EDS (the store hardlinks non-empty and
+// symlinks empty). It is idempotent and repairs a link of the wrong kind — in
+// particular a symlink left where a hardlink belongs. Returns true when it
+// created or replaced the link.
+func ensureStoreLink(blocksDir, heightsDir string, height uint64, hash share.DataHash) (bool, error) {
+	linkPath := filepath.Join(heightsDir, strconv.FormatUint(height, 10)+".ods")
+
+	if hash.IsEmptyEDS() {
+		target := "../" + hash.String() + ".ods"
+		if cur, err := os.Readlink(linkPath); err == nil && cur == target {
+			return false, nil // already the correct symlink
 		}
-		if err := os.Remove(destLink); err != nil {
+		if _, err := os.Lstat(linkPath); err == nil {
+			if err := os.Remove(linkPath); err != nil {
+				return false, err
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return false, err
+		}
+		return true, os.Symlink(target, linkPath)
+	}
+
+	blockPath := filepath.Join(blocksDir, hash.String()+".ods")
+	if li, err := os.Lstat(linkPath); err == nil {
+		// A regular file sharing the block's inode is already a correct hardlink.
+		if li.Mode()&os.ModeSymlink == 0 {
+			if bi, err := os.Stat(blockPath); err == nil && os.SameFile(li, bi) {
+				return false, nil
+			}
+		}
+		if err := os.Remove(linkPath); err != nil {
 			return false, err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		// Exists but is not a symlink (regular file / hardlink) — replace it
-		// so the destination consistently uses symlinks.
-		if _, statErr := os.Lstat(destLink); statErr == nil {
-			if err := os.Remove(destLink); err != nil {
-				return false, err
-			}
-		}
-	}
-	if err := os.Symlink(target, destLink); err != nil {
 		return false, err
 	}
-	return true, nil
+	return true, os.Link(blockPath, linkPath)
 }
 
 // copyFileAtomic copies src to <dst>.tmp, fsyncs, and renames to dst.

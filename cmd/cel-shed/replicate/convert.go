@@ -3,7 +3,6 @@ package replicate
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -20,21 +19,26 @@ import (
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
+	"github.com/celestiaorg/celestia-node/store"
 	"github.com/celestiaorg/celestia-node/store/file"
 )
 
 // ConvertConfig configures the in-place convert run.
 //
-// convert repairs a data directory OFFLINE: blocks written by the old raw-ODS
-// fetch contain the correct ODS shares but not the store's ODSQ4 file format
-// (header + sibling .q4). Because the share data is already on disk, there is no
-// need to re-download anything — convert reads the raw shares, rebuilds the
-// square, recomputes the DataHash locally, and rewrites each block as a proper
-// <hash>.ods + <hash>.q4 pair, repointing the height link at it.
+// convert repairs a data directory OFFLINE and makes it match exactly what a
+// node's store would have written. Two problems are fixed:
 //
-// Blocks that are already in store format (or empty-EDS heights) are skipped.
-// Heights whose on-disk data is missing or corrupt are reported and left for
-// `staged-sync --repair`, which can re-fetch them from the network.
+//   - blocks written by the old raw-ODS fetch contain the correct ODS shares
+//     but not the store's ODSQ4 file format (header + sibling .q4). Their shares
+//     are read from disk, the square is rebuilt, and the block is re-written via
+//     store.PutODSQ4 — no network needed.
+//   - height links created as symlinks by an earlier (buggy) tool are rewritten
+//     as hardlinks, which is the store's convention for non-empty blocks (empty
+//     EDS heights stay symlinks, per the store).
+//
+// Blocks already in store format with a correct hardlink are left untouched.
+// Heights whose on-disk data is missing or corrupt are reported for
+// `staged-sync --repair` (the network fallback).
 type ConvertConfig struct {
 	DataDir    string
 	FromHeight uint64
@@ -52,8 +56,9 @@ func (c ConvertConfig) Validate() error {
 	return nil
 }
 
-// RunConvert scans [from..to] and re-encodes every present-but-wrong-format
-// block in place, without touching the network.
+// RunConvert scans [from..to] and, in place and offline, re-encodes every
+// present-but-wrong-format block and normalises every height link to the store
+// convention (hardlink for non-empty, symlink for empty).
 func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -64,7 +69,19 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 
 	blocksDir := filepath.Join(cfg.DataDir, "blocks")
 	heightsDir := filepath.Join(blocksDir, "heights")
-	emptyHex := hex.EncodeToString(share.EmptyEDSDataHash())
+
+	// Open the real EDS store: PutODSQ4 writes byte-identical files and the
+	// store-convention hardlink, and NewStore populates the canonical empty
+	// EDS file so empty-height symlinks resolve.
+	st, err := store.NewStore(store.DefaultParameters(), cfg.DataDir)
+	if err != nil {
+		return fmt.Errorf("open store: %w", err)
+	}
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = st.Stop(stopCtx)
+	}()
 
 	log.Infow("convert: scanning heights dir", "dir", heightsDir)
 	present, err := scanHeightsDir(heightsDir)
@@ -88,62 +105,73 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 	log.Infow("convert: resolved window", "from", from, "to", to)
 
 	var (
-		converted, alreadyOK, empty, absent, failed uint64
-		startedAt                                   = time.Now()
+		reencoded, relinked, alreadyOK, empty, absent, failed uint64
+		startedAt                                             = time.Now()
 	)
 	for h := from; h <= to; h++ {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		linkPath := filepath.Join(heightsDir, strconv.FormatUint(h, 10)+".ods")
-		li, err := os.Lstat(linkPath)
-		if err != nil {
+		if _, err := os.Lstat(linkPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				absent++
 				log.Debugw("convert: height absent (needs fetch)", "height", h)
-			} else {
-				return fmt.Errorf("lstat height %d: %w", h, err)
+				continue
+			}
+			return fmt.Errorf("lstat height %d: %w", h, err)
+		}
+
+		// Case 1: block files are already store-readable. Only the height link
+		// might be wrong (a symlink where a hardlink is expected) — fix it.
+		if dh, ok := storeReadableHash(ctx, blocksDir, linkPath); ok {
+			created, err := ensureStoreLink(blocksDir, heightsDir, h, dh)
+			if err != nil {
+				failed++
+				log.Warnw("convert: relink failed", "height", h, "err", err)
+				continue
+			}
+			switch {
+			case dh.IsEmptyEDS():
+				empty++
+			case created:
+				relinked++
+				log.Infow("convert: fixed height link to hardlink", "height", h, "hash", dh.String())
+			default:
+				alreadyOK++
 			}
 			continue
 		}
 
-		// Empty-EDS heights are symlinks to the node-managed empty ODS; leave them.
-		if li.Mode()&os.ModeSymlink != 0 {
-			if tgt, err := os.Readlink(linkPath); err == nil {
-				base := strings.TrimSuffix(filepath.Base(tgt), ".ods")
-				if strings.EqualFold(base, emptyHex) {
-					empty++
-					continue
-				}
-			}
-		}
-
-		// Already store-readable? Skip.
-		if isStoreReadable(ctx, blocksDir, linkPath) {
-			alreadyOK++
-			continue
-		}
-
-		hash, err := convertOne(blocksDir, linkPath)
+		// Case 2: not store-readable — rebuild the square from the on-disk data
+		// and rewrite the block via the store (which also hardlinks the height).
+		square, roots, hash, err := reconstructFromLink(ctx, linkPath)
 		if err != nil {
 			failed++
-			log.Warnw("convert: block cannot be converted locally (needs fetch)",
-				"height", h, "err", err)
+			log.Warnw("convert: block cannot be rebuilt locally (needs fetch)", "height", h, "err", err)
 			continue
 		}
-		converted++
-		log.Infow("convert: block re-encoded",
-			"height", h, "hash", hash.String(),
-			"converted_total", converted)
-		if converted%5000 == 0 {
-			log.Infow("convert progress", "height", h, "converted", converted,
-				"already_ok", alreadyOK, "elapsed", time.Since(startedAt).Round(time.Second))
+		// Clear the old raw file + any stale link so PutODSQ4 writes cleanly.
+		_ = os.Remove(filepath.Join(blocksDir, hash.String()+".ods"))
+		_ = os.Remove(filepath.Join(blocksDir, hash.String()+".q4"))
+		_ = os.Remove(linkPath)
+		if err := st.PutODSQ4(ctx, roots, h, square.ExtendedDataSquare); err != nil {
+			failed++
+			log.Warnw("convert: store put failed", "height", h, "err", err)
+			continue
+		}
+		reencoded++
+		log.Infow("convert: block re-encoded via store", "height", h, "hash", hash.String())
+		if (reencoded+relinked)%5000 == 0 {
+			log.Infow("convert progress", "height", h,
+				"reencoded", reencoded, "relinked", relinked, "already_ok", alreadyOK,
+				"elapsed", time.Since(startedAt).Round(time.Second))
 		}
 	}
 
 	log.Infow("convert done",
-		"converted", converted, "already_ok", alreadyOK, "empty", empty,
-		"absent", absent, "failed", failed,
+		"reencoded", reencoded, "relinked", relinked, "already_ok", alreadyOK,
+		"empty", empty, "absent", absent, "failed", failed,
 		"elapsed", time.Since(startedAt).Round(time.Second))
 	if absent > 0 || failed > 0 {
 		log.Infow("some heights need network fetch; run staged-sync --repair for them",
@@ -152,96 +180,113 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 	return nil
 }
 
-// isStoreReadable reports whether the block behind linkPath opens as a store
-// ODS with a present, non-empty sibling .q4.
-func isStoreReadable(ctx context.Context, blocksDir, linkPath string) bool {
+// storeReadableHash reports the block's DataHash and true if the block behind
+// linkPath opens as a store ODS with a present, non-empty sibling .q4 (empty
+// EDS blocks count as readable — the node manages their file).
+func storeReadableHash(ctx context.Context, blocksDir, linkPath string) (share.DataHash, bool) {
 	ods, err := file.OpenODS(linkPath)
 	if err != nil {
-		return false
+		return nil, false
 	}
 	dh, err := ods.DataHash(ctx)
 	_ = ods.Close()
 	if err != nil {
-		return false
+		return nil, false
+	}
+	if dh.IsEmptyEDS() {
+		return dh, true
 	}
 	q4 := filepath.Join(blocksDir, dh.String()+".q4")
-	info, err := os.Stat(q4)
-	return err == nil && info.Size() > 0
+	if info, err := os.Stat(q4); err != nil || info.Size() == 0 {
+		return dh, false
+	}
+	return dh, true
 }
 
-// convertOne reads the raw ODS shares behind linkPath, rebuilds the square,
-// recomputes the roots/hash, and rewrites the block as a store ODSQ4 pair
-// (<hash>.ods + <hash>.q4) with the height link repointed at it. Returns the
-// computed DataHash. Errors if the on-disk data is not a valid raw ODS.
-func convertOne(blocksDir, linkPath string) (share.DataHash, error) {
-	// Read the data through the link (works for both hardlink and symlink).
+// reconstructFromLink rebuilds the EDS behind linkPath from its on-disk shares.
+// It handles both the raw-ODS format (OpenODS fails → the bytes are raw shares)
+// and a valid ODS file that is merely missing its .q4 (read shares via the
+// accessor). Returns the square, its roots, and the computed DataHash.
+func reconstructFromLink(
+	ctx context.Context,
+	linkPath string,
+) (*eds.Rsmt2D, *share.AxisRoots, share.DataHash, error) {
+	if ods, err := file.OpenODS(linkPath); err == nil {
+		shares, err := ods.Shares(ctx)
+		_ = ods.Close()
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("read shares from ODS: %w", err)
+		}
+		odsSize := int(math.Sqrt(float64(len(shares))))
+		if odsSize*odsSize != len(shares) {
+			return nil, nil, nil, fmt.Errorf("ODS share count %d is not a perfect square", len(shares))
+		}
+		return rebuild(shares, odsSize)
+	}
+
 	raw, err := os.ReadFile(linkPath)
 	if err != nil {
-		return nil, fmt.Errorf("read raw ODS: %w", err)
+		return nil, nil, nil, fmt.Errorf("read raw ODS: %w", err)
 	}
-
-	// If the link is a symlink naming a hash, use it as the expected hash so
-	// encodeRawSharesAsODSQ4 rejects a mismatch (corruption) up front.
-	var expected share.DataHash
-	if tgt, err := os.Readlink(linkPath); err == nil {
-		named := strings.TrimSuffix(filepath.Base(tgt), ".ods")
-		if b, err := hex.DecodeString(named); err == nil && len(b) == share.DataHashSize {
-			expected = share.DataHash(b)
-		}
-	}
-
-	// Rebuild + hash locally, then write the pair by hash. Remove any stale
-	// file at the expected path first (CreateODS uses O_EXCL); the height
-	// hardlink (if any) keeps the raw inode alive until we repoint it.
-	hash, err := encodeRawSharesAsODSQ4(blocksDir, raw, expected, true)
-	if err != nil {
-		return nil, err
-	}
-
-	// Repoint the height link at the freshly written ODS as a symlink.
-	if _, err := ensureSymlink(linkPath, "../"+hash.String()+".ods"); err != nil {
-		return nil, fmt.Errorf("relink height: %w", err)
-	}
-	return hash, nil
+	return reconstructODS(raw, nil)
 }
 
-// encodeRawSharesAsODSQ4 rebuilds an EDS from raw row-major ODS shares (the
-// shrex response / old raw-ODS on-disk format), computes its roots/DataHash
-// locally, and writes the store pair <hash>.ods + <hash>.q4 under blocksDir.
-// If expected is non-nil the computed hash must equal it (rejecting corrupt
-// data). When overwrite is set any existing pair at the target is removed
-// first (CreateODS uses O_EXCL). Returns the computed DataHash.
+// reconstructODS rebuilds an EDS from raw row-major ODS share bytes (the shrex
+// response / old raw-ODS on-disk format), verifying the computed hash against
+// expected when non-nil.
+func reconstructODS(
+	raw []byte,
+	expected share.DataHash,
+) (*eds.Rsmt2D, *share.AxisRoots, share.DataHash, error) {
+	if len(raw) == 0 || len(raw)%libshare.ShareSize != 0 {
+		return nil, nil, nil, fmt.Errorf("not a raw ODS: size %d not a multiple of share size", len(raw))
+	}
+	totalShares := len(raw) / libshare.ShareSize
+	odsSize := int(math.Sqrt(float64(totalShares)))
+	if odsSize*odsSize != totalShares {
+		return nil, nil, nil, fmt.Errorf("not a raw ODS: %d shares is not a perfect square", totalShares)
+	}
+	shares, err := eds.ReadShares(bytes.NewReader(raw), libshare.ShareSize, odsSize)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read shares: %w", err)
+	}
+	square, roots, hash, err := rebuild(shares, odsSize)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if expected != nil && !expected.IsEmptyEDS() && !bytes.Equal(hash, expected) {
+		return nil, nil, nil, fmt.Errorf("hash mismatch: data hashes to %s but expected %s", hash, expected)
+	}
+	return square, roots, hash, nil
+}
+
+// rebuild extends the ODS shares into a full square and computes its roots/hash.
+func rebuild(shares []libshare.Share, odsSize int) (*eds.Rsmt2D, *share.AxisRoots, share.DataHash, error) {
+	square, err := eds.Rsmt2DFromShares(shares, odsSize)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("rebuild square: %w", err)
+	}
+	roots, err := share.NewAxisRoots(square.ExtendedDataSquare)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("compute roots: %w", err)
+	}
+	return square, roots, share.DataHash(roots.Hash()), nil
+}
+
+// encodeRawSharesAsODSQ4 rebuilds an EDS from raw ODS shares and writes the
+// store pair <hash>.ods + <hash>.q4 under blocksDir via file.CreateODSQ4 (the
+// same writer store.PutODSQ4 uses). Used by the fetch paths, which create the
+// height link themselves. Returns the computed DataHash.
 func encodeRawSharesAsODSQ4(
 	blocksDir string,
 	raw []byte,
 	expected share.DataHash,
 	overwrite bool,
 ) (share.DataHash, error) {
-	if len(raw) == 0 || len(raw)%libshare.ShareSize != 0 {
-		return nil, fmt.Errorf("not a raw ODS: size %d not a multiple of share size", len(raw))
-	}
-	totalShares := len(raw) / libshare.ShareSize
-	odsSize := int(math.Sqrt(float64(totalShares)))
-	if odsSize*odsSize != totalShares {
-		return nil, fmt.Errorf("not a raw ODS: %d shares is not a perfect square", totalShares)
-	}
-	shares, err := eds.ReadShares(bytes.NewReader(raw), libshare.ShareSize, odsSize)
+	square, roots, hash, err := reconstructODS(raw, expected)
 	if err != nil {
-		return nil, fmt.Errorf("read shares: %w", err)
+		return nil, err
 	}
-	square, err := eds.Rsmt2DFromShares(shares, odsSize)
-	if err != nil {
-		return nil, fmt.Errorf("rebuild square: %w", err)
-	}
-	roots, err := share.NewAxisRoots(square.ExtendedDataSquare)
-	if err != nil {
-		return nil, fmt.Errorf("compute roots: %w", err)
-	}
-	hash := share.DataHash(roots.Hash())
-	if expected != nil && !expected.IsEmptyEDS() && !bytes.Equal(hash, expected) {
-		return nil, fmt.Errorf("hash mismatch: data hashes to %s but expected %s", hash, expected)
-	}
-
 	odsPath := filepath.Join(blocksDir, hash.String()+".ods")
 	q4Path := filepath.Join(blocksDir, hash.String()+".q4")
 	if overwrite {
