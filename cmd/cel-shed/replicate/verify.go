@@ -8,9 +8,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -37,6 +39,9 @@ type VerifyConfig struct {
 	FromHeight uint64
 	ToHeight   uint64
 	FailFast   bool
+	// Concurrency is the number of parallel verification workers. 0 means one
+	// worker per CPU core.
+	Concurrency int
 	// FailedFile is where failed heights (and their reasons) are written. Empty
 	// means <data-dir>/.cel-shed-replicate/verify-failed.txt.
 	FailedFile string
@@ -92,56 +97,98 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 			to = present[len(present)-1]
 		}
 	}
-	log.Infow("verify: resolved window", "from", from, "to", to, "blocks_dir", blocksDir)
+	concurrency := cfg.Concurrency
+	if concurrency <= 0 {
+		concurrency = runtime.NumCPU()
+	}
+	log.Infow("verify: resolved window", "from", from, "to", to, "blocks_dir", blocksDir, "workers", concurrency)
+
+	// Each height is verified independently (own file handles, pure recompute),
+	// so a worker pool fans the CPU-bound rebuild across cores. A shared context
+	// lets fail-fast / fatal errors stop the producer and remaining workers.
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	heightsCh := make(chan uint64, concurrency*2)
+	resultsCh := make(chan checkResult, concurrency*2)
+
+	go func() {
+		defer close(heightsCh)
+		for h := from; h <= to; h++ {
+			select {
+			case <-runCtx.Done():
+				return
+			case heightsCh <- h:
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for range concurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for h := range heightsCh {
+				res := checkHeight(runCtx, blocksDir, heightsDir, h)
+				select {
+				case <-runCtx.Done():
+					return
+				case resultsCh <- res:
+				}
+			}
+		}()
+	}
+	go func() { wg.Wait(); close(resultsCh) }()
 
 	var (
 		checked, okCount, empty, absent, failed uint64
-		failedLines                             []string
+		failedResults                           []checkResult
+		fatalErr                                error
 		startedAt                               = time.Now()
 	)
-	// recordFailure appends "<height>\t<reason>" so failures can be written out
-	// (and the height column stays grep/cut-friendly for feeding into repair).
-	recordFailure := func(h uint64, reason error) {
-		failedLines = append(failedLines, fmt.Sprintf("%d\t%s", h, reason))
-	}
-	for h := from; h <= to; h++ {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		linkPath := filepath.Join(heightsDir, strconv.FormatUint(h, 10)+".ods")
-		li, err := os.Lstat(linkPath)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				absent++
-				log.Debugw("verify: height absent", "height", h)
-				continue
-			}
-			return fmt.Errorf("lstat height %d: %w", h, err)
-		}
-
-		checked++
-		isEmpty, err := verifyHeight(ctx, blocksDir, linkPath, li)
-		if err != nil {
-			failed++
-			recordFailure(h, err)
-			log.Warnw("verify: FAILED", "height", h, "err", err)
-			if cfg.FailFast {
-				if werr := writeFailedFile(cfg.failedFilePath(), failedLines); werr != nil {
-					log.Warnw("verify: could not write failed file", "err", werr)
-				}
-				return fmt.Errorf("verify height %d: %w", h, err)
-			}
+	for res := range resultsCh {
+		switch res.status {
+		case statusAbsent:
+			absent++
 			continue
-		}
-		okCount++
-		if isEmpty {
+		case statusFatal:
+			// An I/O error (not a verification failure) aborts the whole run.
+			fatalErr = res.err
+			cancel()
+			continue
+		case statusFailed:
+			checked++
+			failed++
+			failedResults = append(failedResults, res)
+			log.Warnw("verify: FAILED", "height", res.height, "err", res.err)
+			if cfg.FailFast {
+				cancel()
+			}
+		case statusEmpty:
+			checked++
+			okCount++
 			empty++
+		case statusOK:
+			checked++
+			okCount++
 		}
 		if checked%5000 == 0 {
-			log.Infow("verify progress", "height", h,
+			log.Infow("verify progress", "height", res.height,
 				"checked", checked, "ok", okCount, "failed", failed,
 				"elapsed", time.Since(startedAt).Round(time.Second))
 		}
+	}
+
+	if fatalErr != nil {
+		return fatalErr
+	}
+
+	// Results arrive out of order across workers; sort failures by height so the
+	// failed file is stable and ascending (and cut-friendly for a repair pass).
+	sort.Slice(failedResults, func(i, j int) bool { return failedResults[i].height < failedResults[j].height })
+	failedLines := make([]string, len(failedResults))
+	for i, res := range failedResults {
+		failedLines[i] = fmt.Sprintf("%d\t%s", res.height, res.err)
 	}
 
 	failedPath := cfg.failedFilePath()
@@ -182,6 +229,43 @@ func writeFailedFile(path string, lines []string) error {
 		return fmt.Errorf("write failed file: %w", err)
 	}
 	return nil
+}
+
+// verification outcome for a single height, passed from a worker to the collector.
+const (
+	statusOK     = iota // verified, non-empty block
+	statusEmpty         // verified, empty EDS (symlink)
+	statusAbsent        // no height link present (skipped, not a failure)
+	statusFailed        // verification failed (corrupt data / bad link)
+	statusFatal         // I/O error that aborts the whole run
+)
+
+type checkResult struct {
+	height uint64
+	status int
+	err    error
+}
+
+// checkHeight verifies one height and classifies the outcome. It is safe to call
+// concurrently: it only reads files and recomputes hashes, sharing no state.
+func checkHeight(ctx context.Context, blocksDir, heightsDir string, h uint64) checkResult {
+	linkPath := filepath.Join(heightsDir, strconv.FormatUint(h, 10)+".ods")
+	li, err := os.Lstat(linkPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return checkResult{height: h, status: statusAbsent}
+		}
+		return checkResult{height: h, status: statusFatal, err: fmt.Errorf("lstat height %d: %w", h, err)}
+	}
+	isEmpty, err := verifyHeight(ctx, blocksDir, linkPath, li)
+	switch {
+	case err != nil:
+		return checkResult{height: h, status: statusFailed, err: err}
+	case isEmpty:
+		return checkResult{height: h, status: statusEmpty}
+	default:
+		return checkResult{height: h, status: statusOK}
+	}
 }
 
 // verifyHeight audits a single height link and its backing block file. It

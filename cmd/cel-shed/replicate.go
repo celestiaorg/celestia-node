@@ -102,18 +102,20 @@ var verifyOdsCmd = &cobra.Command{
 		toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
 		failFast, _ := cmd.Flags().GetBool(flagFailFast)
 		failedFile, _ := cmd.Flags().GetString(flagFailedFile)
+		concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
 		logLevel, _ := cmd.Flags().GetString(flagLogLevel)
 		expanded, err := homedir.Expand(filepath.Clean(dataDir))
 		if err != nil {
 			return fmt.Errorf("expand --data-dir: %w", err)
 		}
 		return replicate.RunVerify(cmd.Context(), replicate.VerifyConfig{
-			DataDir:    expanded,
-			FromHeight: fromHeight,
-			ToHeight:   toHeight,
-			FailFast:   failFast,
-			FailedFile: failedFile,
-			LogLevel:   logLevel,
+			DataDir:     expanded,
+			FromHeight:  fromHeight,
+			ToHeight:    toHeight,
+			FailFast:    failFast,
+			FailedFile:  failedFile,
+			Concurrency: concurrency,
+			LogLevel:    logLevel,
 		})
 	},
 }
@@ -127,6 +129,8 @@ func init() {
 		"stop height (inclusive); 0 means the highest height present in heights/")
 	verifyOdsCmd.Flags().Bool(flagFailFast, false,
 		"stop at the first verification failure instead of scanning the whole range")
+	verifyOdsCmd.Flags().Int(flagConcurrency, 0,
+		"number of parallel verification workers; 0 means one per CPU core")
 	verifyOdsCmd.Flags().String(flagFailedFile, "",
 		"where to write failed heights + reasons; empty = <data-dir>/.cel-shed-replicate/verify-failed.txt")
 	verifyOdsCmd.Flags().String(flagLogLevel, "info",
