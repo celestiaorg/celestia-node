@@ -12,6 +12,11 @@ import (
 const (
 	maxRangeRequest       = 64
 	headerFetchRetryDelay = 2 * time.Second
+	// localAnchorProbeTimeout bounds the attempt to read the range's anchor
+	// (start-1) from the local store. A present anchor returns instantly; an
+	// absent one (fresh store fetching a mid-range) trips this and the anchor is
+	// fetched from the source instead.
+	localAnchorProbeTimeout = 5 * time.Second
 )
 
 type exchanger interface {

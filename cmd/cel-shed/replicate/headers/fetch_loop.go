@@ -106,9 +106,13 @@ func replicateHeaderRange(
 	return r.lastAppended, nil
 }
 
-// prepareStart establishes the local trusted tip. Height 1 has no parent so
-// it is fetched and appended on its own; for higher starts the previous
-// height is loaded from the local store.
+// prepareStart establishes the trusted tip to append the range onto. Height 1
+// has no parent so it is fetched and appended on its own. For higher starts the
+// anchor is the header at start-1: it is loaded from the local store when the
+// store already covers it (contiguous sync from an existing head), otherwise —
+// when fetching an arbitrary mid-range into a fresh store — the anchor is
+// fetched from the source and seeded into the store so the range can verify and
+// append onto it.
 func (r *replicationState) prepareStart() error {
 	if r.startHeight == 1 {
 		h, err := getByHeightWithRetry(r.ctx, r.exchange, 1, r.requestTimeout)
@@ -125,11 +129,35 @@ func (r *replicationState) prepareStart() error {
 		return nil
 	}
 
-	localAnchor, err := r.hstore.GetByHeight(r.ctx, r.startHeight-1)
-	if err != nil {
-		return fmt.Errorf("read local anchor at height %d: %w", r.startHeight-1, err)
+	anchorHeight := r.startHeight - 1
+
+	// Try to read the anchor locally (contiguous sync from an existing head). A
+	// GetByHeight for a height the store lacks blocks until ctx expires (the
+	// "awaiting header … context deadline exceeded" hang), so bound the probe: a
+	// present header returns instantly from cache/disk, an absent one trips the
+	// short timeout and we fall back to fetching the anchor from the source.
+	probeCtx, cancelProbe := context.WithTimeout(r.ctx, localAnchorProbeTimeout)
+	localAnchor, err := r.hstore.GetByHeight(probeCtx, anchorHeight)
+	cancelProbe()
+	if err == nil {
+		r.lastAppended = localAnchor
+		r.nextHeight = r.startHeight
+		return nil
 	}
-	r.lastAppended = localAnchor
+
+	// No local anchor: fetch it from the source and seed the store with it as the
+	// trusted tip. This is the mid-range-into-fresh-store case (e.g. verify-headers).
+	anchor, err := getByHeightWithRetry(r.ctx, r.exchange, anchorHeight, r.requestTimeout)
+	if err != nil {
+		return fmt.Errorf("fetch anchor at height %d from source: %w", anchorHeight, err)
+	}
+	if err := validateChunkChainID([]*header.ExtendedHeader{anchor}, r.chainID); err != nil {
+		return err
+	}
+	if err := r.hstore.Append(r.ctx, anchor); err != nil {
+		return fmt.Errorf("seed anchor at height %d: %w", anchorHeight, err)
+	}
+	r.lastAppended = anchor
 	r.nextHeight = r.startHeight
 	return nil
 }
