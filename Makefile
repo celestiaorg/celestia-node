@@ -4,24 +4,22 @@ DIR_FULLPATH=$(shell pwd)
 versioningPath := github.com/celestiaorg/celestia-node/nodebuilder/node
 tastoraPath := github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora
 OS := $(shell uname -s)
-VERSION = $(shell git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
-              git describe --tags --dirty=-dev 2>/dev/null || \
-              git rev-parse --short HEAD)
+VERSION = $(shell \
+              checked_out=$$(git reflog -1 --format='%gs' 2>/dev/null | sed -nE 's,^checkout: moving from .* to (refs/)?(tags/)?(.+),\3,p'); \
+              if [ -n "$$checked_out" ] && git tag --points-at HEAD | grep -qxF "$$checked_out"; then \
+                  echo "$$checked_out"; \
+              else \
+                  git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || \
+                  git describe --tags --dirty=-dev 2>/dev/null || \
+                  git rev-parse --short HEAD; \
+              fi)
 
+# Note: the network suffix (-mocha/-arabica) is intentionally kept in VERSION,
+# so semanticVersion and defaultNodeTag are no longer stripped with `cut`.
 LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
-                    -X $(versioningPath).semanticVersion=$(shell \
-                      if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
-                        echo "$(VERSION)" | cut -d'-' -f1; \
-                      else \
-                        echo "$(VERSION)"; \
-                      fi) \
-                    -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(shell \
-                      if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
-                        echo "$(VERSION)" | cut -d'-' -f1; \
-                      else \
-                        echo "$(VERSION)"; \
-                      fi))"
+                    -X $(versioningPath).semanticVersion=$(VERSION) \
+                    -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(VERSION))"
 TAGS=integration
 SHORT=
 ifeq (${PREFIX},)
