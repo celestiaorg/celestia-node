@@ -35,6 +35,7 @@ const (
 	flagSkipDownload     = "skip-download"
 	flagRepair           = "repair"
 	flagJSON             = "json"
+	flagFailFast         = "fail-fast"
 )
 
 func init() {
@@ -82,7 +83,50 @@ var replicateCmd = &cobra.Command{
 }
 
 func init() {
-	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd)
+	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd, verifyOdsCmd)
+}
+
+var verifyOdsCmd = &cobra.Command{
+	Use:   "verify-ods",
+	Short: "Offline: verify each block's ODS hashes to its stored DataHash and matches its height hardlink.",
+	Long: "Scans <data-dir>/blocks/heights and, for each present height, reads the DataHash stored in " +
+		"the ODS header, recomputes it from the on-disk shares to confirm the data is intact, and checks " +
+		"the backing blocks/<hash>.ods carries the same hash (provably so via the shared hardlink inode, " +
+		"or by direct comparison if the link has diverged). Empty-EDS heights are expected to be symlinks. " +
+		"Read-only: no files are modified and no network is used.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		dataDir, _ := cmd.Flags().GetString(flagDataDir)
+		fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
+		toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+		failFast, _ := cmd.Flags().GetBool(flagFailFast)
+		logLevel, _ := cmd.Flags().GetString(flagLogLevel)
+		expanded, err := homedir.Expand(filepath.Clean(dataDir))
+		if err != nil {
+			return fmt.Errorf("expand --data-dir: %w", err)
+		}
+		return replicate.RunVerify(cmd.Context(), replicate.VerifyConfig{
+			DataDir:    expanded,
+			FromHeight: fromHeight,
+			ToHeight:   toHeight,
+			FailFast:   failFast,
+			LogLevel:   logLevel,
+		})
+	},
+}
+
+func init() {
+	verifyOdsCmd.Flags().String(flagDataDir, "",
+		"data directory containing blocks/heights (required)")
+	verifyOdsCmd.Flags().Uint64(flagFromHeight, 0,
+		"start height (inclusive); 0 means the lowest height present in heights/")
+	verifyOdsCmd.Flags().Uint64(flagToHeight, 0,
+		"stop height (inclusive); 0 means the highest height present in heights/")
+	verifyOdsCmd.Flags().Bool(flagFailFast, false,
+		"stop at the first verification failure instead of scanning the whole range")
+	verifyOdsCmd.Flags().String(flagLogLevel, "info",
+		"log level for cel-shed/replicate logger")
+	_ = verifyOdsCmd.MarkFlagRequired(flagDataDir)
 }
 
 var discoverArchivalCmd = &cobra.Command{
