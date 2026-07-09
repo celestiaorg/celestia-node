@@ -87,6 +87,80 @@ func TestRunVerify(t *testing.T) {
 	}
 }
 
+// TestAdvanceWatermark pins the in-order, gapless milestone behavior: feeding
+// heights in a shuffled order still yields every interval milestone exactly
+// once, in ascending order, and never advances past an unfinished height.
+func TestAdvanceWatermark(t *testing.T) {
+	const (
+		from     = 300000
+		to       = 300020
+		interval = 5
+	)
+	// A deterministic out-of-order arrival sequence covering [from..to].
+	arrivals := []uint64{
+		300002, 300000, 300001, 300005, 300004, // 300000 completes early, 300005 before 300003
+		300003, 300010, 300009, 300008, 300007, 300006, // filling backwards toward the watermark
+		300011, 300013, 300012, 300015, 300014,
+		300016, 300017, 300019, 300018, 300020,
+	}
+
+	done := make(map[uint64]struct{})
+	watermark := uint64(from)
+	var got []uint64
+	for _, h := range arrivals {
+		done[h] = struct{}{}
+		var ms []uint64
+		watermark, ms = advanceWatermark(watermark, to, interval, done)
+		got = append(got, ms...)
+		// The watermark must never claim a height that has not arrived yet.
+		if _, ok := done[watermark]; ok && watermark != to {
+			t.Fatalf("watermark %d still marked done — should have advanced past it", watermark)
+		}
+	}
+
+	want := []uint64{300000, 300005, 300010, 300015, 300020}
+	if len(got) != len(want) {
+		t.Fatalf("milestones = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("milestones = %v, want %v (ascending, no gaps)", got, want)
+		}
+	}
+	if len(done) != 0 {
+		t.Fatalf("done set not drained: %v", done)
+	}
+	if watermark != to {
+		t.Fatalf("final watermark = %d, want %d", watermark, to)
+	}
+}
+
+// TestAdvanceWatermarkStalls confirms a missing (still-in-flight) height holds
+// the watermark and its milestone back until that height arrives.
+func TestAdvanceWatermarkStalls(t *testing.T) {
+	done := make(map[uint64]struct{})
+	watermark := uint64(11) // 11 is not a milestone, so nothing should fire until the hole fills
+	// Everything above the hole 12 arrives first; milestone 15 must NOT fire yet.
+	for _, h := range []uint64{11, 13, 14, 15, 16} {
+		done[h] = struct{}{}
+	}
+	var ms []uint64
+	watermark, ms = advanceWatermark(watermark, 20, 5, done)
+	if watermark != 12 || len(ms) != 0 {
+		t.Fatalf("stalled advance: watermark=%d milestones=%v, want watermark=12 no milestones", watermark, ms)
+	}
+	// The hole fills; now the watermark jumps and milestone 15 fires (once).
+	done[12] = struct{}{}
+	watermark, ms = advanceWatermark(watermark, 20, 5, done)
+	// Consumes 12..16; stops at 17 (the next height not yet finished).
+	if watermark != 17 {
+		t.Fatalf("post-fill watermark = %d, want 17", watermark)
+	}
+	if len(ms) != 1 || ms[0] != 15 {
+		t.Fatalf("post-fill milestones = %v, want [15]", ms)
+	}
+}
+
 func corruptLastByte(t *testing.T, path string) {
 	t.Helper()
 	f, err := os.OpenFile(path, os.O_RDWR, 0)

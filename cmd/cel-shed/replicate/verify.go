@@ -145,12 +145,21 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 		failedResults                           []checkResult
 		fatalErr                                error
 		startedAt                               = time.Now()
+
+		// Progress is reported per completed height milestone, in ascending order
+		// and without skipping any, despite workers finishing out of order. `done`
+		// holds finished heights not yet contiguous with `watermark`; the watermark
+		// is the highest height H with every height in [from..H] finished. It only
+		// advances over a solid run, so a slow block holds back the milestone until
+		// it (and everything below it) is done. `done` stays small: it never grows
+		// past the in-flight window ahead of the watermark.
+		done      = make(map[uint64]struct{})
+		watermark = from
 	)
 	for res := range resultsCh {
 		switch res.status {
 		case statusAbsent:
 			absent++
-			continue
 		case statusFatal:
 			// An I/O error (not a verification failure) aborts the whole run.
 			fatalErr = res.err
@@ -172,9 +181,16 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 			checked++
 			okCount++
 		}
-		if checked%5000 == 0 {
-			log.Infow("verify progress", "height", res.height,
-				"checked", checked, "ok", okCount, "failed", failed,
+
+		// Advance the watermark over the now-contiguous run of finished heights
+		// (absent heights count as finished, so real gaps don't stall it), logging
+		// each milestone exactly once, in order, as it is crossed.
+		done[res.height] = struct{}{}
+		var milestones []uint64
+		watermark, milestones = advanceWatermark(watermark, to, progressInterval, done)
+		for _, m := range milestones {
+			log.Infow("verify progress", "height", m,
+				"checked", checked, "ok", okCount, "empty", empty, "absent", absent, "failed", failed,
 				"elapsed", time.Since(startedAt).Round(time.Second))
 		}
 	}
@@ -229,6 +245,34 @@ func writeFailedFile(path string, lines []string) error {
 		return fmt.Errorf("write failed file: %w", err)
 	}
 	return nil
+}
+
+// progressInterval is the height spacing between verify progress log lines.
+const progressInterval = 5000
+
+// advanceWatermark consumes the contiguous run of finished heights starting at
+// watermark from the done set (deleting them as it goes) and returns the new
+// watermark together with every `interval` milestone height crossed, in
+// ascending order. The watermark never moves past a height that has not
+// finished, so milestones are emitted in order and none is skipped — regardless
+// of the order results arrived. It stops at `to` to avoid overflowing past the
+// range end.
+func advanceWatermark(watermark, to, interval uint64, done map[uint64]struct{}) (uint64, []uint64) {
+	var milestones []uint64
+	for {
+		if _, ok := done[watermark]; !ok {
+			break
+		}
+		delete(done, watermark)
+		if interval != 0 && watermark%interval == 0 {
+			milestones = append(milestones, watermark)
+		}
+		if watermark == to {
+			break
+		}
+		watermark++
+	}
+	return watermark, milestones
 }
 
 // verification outcome for a single height, passed from a worker to the collector.
