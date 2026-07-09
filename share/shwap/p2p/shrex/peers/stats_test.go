@@ -47,6 +47,34 @@ func TestPeerStats(t *testing.T) {
 		require.Greater(t, fast.quality(now), slow.quality(now))
 	})
 
+	t.Run("throughput biases selection when weighted", func(t *testing.T) {
+		params := DefaultParameters()
+		now := time.Now()
+
+		// two peers with identical success/latency but different throughput
+		fast := newPeerStats(params, now)
+		slow := newPeerStats(params, now)
+		fast.recordSuccess(100*time.Millisecond, 100<<20, params, now) // ~1 GiB/s
+		slow.recordSuccess(100*time.Millisecond, 1<<20, params, now)   // ~10 MiB/s
+		require.InDelta(t, fast.quality(now), slow.quality(now), 1e-9, "quality must ignore throughput")
+
+		// with weighting on (default), the faster peer wins selection
+		require.Greater(t, fast.selectionScore(now, params), slow.selectionScore(now, params))
+
+		// with weighting disabled, selection scores match (throughput ignored)
+		params.ThroughputWeight = 0
+		require.InDelta(t, fast.selectionScore(now, params), slow.selectionScore(now, params), 1e-9)
+	})
+
+	t.Run("unmeasured throughput is neutral", func(t *testing.T) {
+		params := DefaultParameters()
+		now := time.Now()
+		st := newPeerStats(params, now)
+		// no bytes recorded yet -> factor is 1, selection score equals quality/(1+inflight)
+		require.Equal(t, 1.0, st.throughputFactor(params))
+		require.InDelta(t, st.quality(now), st.selectionScore(now, params), 1e-9)
+	})
+
 	t.Run("in-flight lowers selection score", func(t *testing.T) {
 		params := DefaultParameters()
 		now := time.Now()

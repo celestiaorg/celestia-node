@@ -54,6 +54,18 @@ type Parameters struct {
 
 	// PeerRateBurst is the token-bucket burst size for the per-peer rate limiter.
 	PeerRateBurst int
+
+	// ThroughputWeight controls how strongly observed download throughput (bytes/sec)
+	// influences peer selection, in [0,1]. 0 disables throughput weighting entirely
+	// (selection falls back to success/latency only); higher values bias selection more
+	// toward faster peers. The resulting multiplier stays within [1-ThroughputWeight,
+	// 1+ThroughputWeight], so it re-ranks peers without ever excluding a peer outright.
+	ThroughputWeight float64
+
+	// ThroughputRefBytesPerSec is the reference throughput at which a peer is treated as
+	// "average" (multiplier ~1). Peers faster than this are boosted, slower ones demoted.
+	// Only used when ThroughputWeight > 0.
+	ThroughputRefBytesPerSec float64
 }
 
 type Option func(*Manager) error
@@ -100,6 +112,16 @@ func (p *Parameters) Validate() error {
 		return fmt.Errorf("peer-manager: peer rate burst must be positive")
 	}
 
+	// ThroughputWeight is optional; the zero value disables throughput weighting and keeps
+	// this non-breaking for configs written before the field existed.
+	if p.ThroughputWeight < 0 || p.ThroughputWeight > 1 {
+		return fmt.Errorf("peer-manager: throughput weight must be in [0, 1]")
+	}
+
+	if p.ThroughputWeight > 0 && p.ThroughputRefBytesPerSec <= 0 {
+		return fmt.Errorf("peer-manager: throughput reference must be positive when throughput weight > 0")
+	}
+
 	return nil
 }
 
@@ -128,6 +150,12 @@ func DefaultParameters() *Parameters {
 		P2CSampleSize:  2,
 		PeerRateLimit:  60,
 		PeerRateBurst:  64,
+		// Throughput weighting: bias selection toward faster peers. Moderate weight so a
+		// slow peer is demoted but not starved; reference set near the middle of observed
+		// archival throughputs (~20 MiB/s). Set ThroughputWeight to 0 to A/B the old
+		// success/latency-only behavior.
+		ThroughputWeight:         0.5,
+		ThroughputRefBytesPerSec: 20 << 20, // 20 MiB/s
 	}
 }
 

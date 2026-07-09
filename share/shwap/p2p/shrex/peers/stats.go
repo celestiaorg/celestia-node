@@ -101,12 +101,30 @@ func (s *peerStats) quality(now time.Time) float64 {
 	return s.successEWMA * latencyFactor * freshness
 }
 
+// throughputFactor returns a multiplier that biases selection toward peers with higher
+// observed download throughput. It is neutral (1) when throughput weighting is disabled
+// or the peer has no throughput measurement yet, so unproven peers keep their optimistic
+// treatment. The result is bounded to [1-ThroughputWeight, 1+ThroughputWeight] so it only
+// re-ranks peers and never excludes one.
+func (s *peerStats) throughputFactor(params *Parameters) float64 {
+	if params.ThroughputWeight <= 0 || s.throughputEWMA <= 0 {
+		return 1
+	}
+	// normalized throughput in (0,1): 0.5 at the reference, →1 as throughput →∞
+	n := s.throughputEWMA / (s.throughputEWMA + params.ThroughputRefBytesPerSec)
+	// map to a multiplier centered at 1 for a reference-speed peer:
+	//   throughput = ref  → 1
+	//   throughput ≫ ref  → 1 + ThroughputWeight
+	//   throughput ≪ ref  → 1 - ThroughputWeight
+	return 1 + params.ThroughputWeight*(2*n-1)
+}
+
 // selectionScore is the value the pool maximizes when picking a peer. It applies a
-// load penalty on top of quality so requests spread across peers, and a heavier
-// penalty once a peer reaches its in-flight cap so it is only chosen when nothing
-// better is eligible (spill, never block).
+// load penalty on top of quality so requests spread across peers, a throughput bias so
+// faster peers are preferred, and a heavier penalty once a peer reaches its in-flight cap
+// so it is only chosen when nothing better is eligible (spill, never block).
 func (s *peerStats) selectionScore(now time.Time, params *Parameters) float64 {
-	score := s.quality(now) / float64(1+s.inFlight)
+	score := s.quality(now) * s.throughputFactor(params) / float64(1+s.inFlight)
 	if s.inFlight >= params.InflightCap {
 		score *= 0.01
 	}
