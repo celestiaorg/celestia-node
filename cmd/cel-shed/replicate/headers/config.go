@@ -11,8 +11,12 @@ import (
 )
 
 type Config struct {
-	Source         string
-	DataDir        string
+	Source  string
+	DataDir string
+	// StoreDir, when set, points headers at a standalone badger datastore under
+	// that directory instead of the node's own store under DataDir — the node
+	// store is then never opened or modified. Empty means use the node store.
+	StoreDir       string
 	Network        modp2p.Network
 	FromHeight     uint64
 	ToHeight       uint64

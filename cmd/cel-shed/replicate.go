@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/go-homedir"
@@ -13,30 +14,32 @@ import (
 )
 
 const (
-	flagRemoteHost       = "remote-host"
-	flagRemoteBlocks     = "remote-blocks"
-	flagSource           = "source"
-	flagDataDir          = "data-dir"
-	flagNetwork          = "network"
-	flagFromHeight       = "from-height"
-	flagToHeight         = "to-height"
-	flagScanFromHeight   = "scan-from-height"
-	flagBatchSize        = "batch-size"
-	flagLogLevel         = "log-level"
-	flagConcurrency      = "concurrency"
-	flagRequestTimeout   = "request-timeout"
-	flagVerify           = "verify"
-	flagMissingFile      = "missing-file"
-	flagPeers            = "peers"
-	flagMinPeers         = "min-peers"
-	flagDiscoveryTimeout = "discovery-timeout"
-	flagDiscoveryLimit   = "discovery-limit"
-	flagTempDir          = "temp-dir"
-	flagSkipDownload     = "skip-download"
-	flagRepair           = "repair"
-	flagJSON             = "json"
-	flagFailFast         = "fail-fast"
-	flagFailedFile       = "failed-file"
+	flagRemoteHost        = "remote-host"
+	flagRemoteBlocks      = "remote-blocks"
+	flagSource            = "source"
+	flagDataDir           = "data-dir"
+	flagNetwork           = "network"
+	flagFromHeight        = "from-height"
+	flagToHeight          = "to-height"
+	flagScanFromHeight    = "scan-from-height"
+	flagBatchSize         = "batch-size"
+	flagLogLevel          = "log-level"
+	flagConcurrency       = "concurrency"
+	flagRequestTimeout    = "request-timeout"
+	flagVerify            = "verify"
+	flagMissingFile       = "missing-file"
+	flagPeers             = "peers"
+	flagMinPeers          = "min-peers"
+	flagDiscoveryTimeout  = "discovery-timeout"
+	flagDiscoveryLimit    = "discovery-limit"
+	flagTempDir           = "temp-dir"
+	flagSkipDownload      = "skip-download"
+	flagRepair            = "repair"
+	flagJSON              = "json"
+	flagFailFast          = "fail-fast"
+	flagFailedFile        = "failed-file"
+	flagHeaderConcurrency = "header-concurrency"
+	flagHeaderStoreDir    = "header-store-dir"
 )
 
 func init() {
@@ -84,7 +87,7 @@ var replicateCmd = &cobra.Command{
 }
 
 func init() {
-	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd, verifyOdsCmd)
+	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd, verifyOdsCmd, verifyHeadersCmd)
 }
 
 var verifyOdsCmd = &cobra.Command{
@@ -136,6 +139,107 @@ func init() {
 	verifyOdsCmd.Flags().String(flagLogLevel, "info",
 		"log level for cel-shed/replicate logger")
 	_ = verifyOdsCmd.MarkFlagRequired(flagDataDir)
+}
+
+var verifyHeadersCmd = &cobra.Command{
+	Use:   "verify-headers",
+	Short: "Fast (no-reconstruction): check each block's stored ODS DataHash against its downloaded chain header.",
+	Long: "Downloads every header in the range from --source into the node's header store, then scans " +
+		"<data-dir>/blocks/heights and, for each present height, reads ONLY the DataHash stored in the ODS " +
+		"header (a ~65-byte read; no shares are read and the square is never re-extended) and checks: (1) it " +
+		"equals the chain header's committed DataHash for that height, (2) it matches the blocks/<hash>.ods " +
+		"filename the block is stored under, and (3) the height link resolves to that block (shared hardlink " +
+		"inode; empty-EDS heights are symlinks). Complements verify-ods, which is slower because it recomputes " +
+		"hashes by erasure-reconstructing each square. Because it skips reconstruction, it does NOT catch a " +
+		"flipped byte inside a share that leaves the stored ODS-header hash unchanged. Read-only for local files.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cfg, err := readVerifyHeadersFlags(cmd)
+		if err != nil {
+			return err
+		}
+		return replicate.RunVerifyHeaders(cmd.Context(), cfg)
+	},
+}
+
+func init() {
+	verifyHeadersCmd.Flags().String(flagDataDir, "",
+		"data directory containing blocks/heights; must be initialised via `celestia bridge init` (required)")
+	verifyHeadersCmd.Flags().String(flagSource, "",
+		"libp2p multiaddr of source bridge node to download headers from, must include /p2p/<peer-id> (required)")
+	verifyHeadersCmd.Flags().String(flagNetwork, "mainnet",
+		"network: mainnet | mocha | arabica | private")
+	verifyHeadersCmd.Flags().Uint64(flagFromHeight, 0,
+		"start height (inclusive); 0 means the lowest height present in heights/")
+	verifyHeadersCmd.Flags().Uint64(flagToHeight, 0,
+		"stop height (inclusive); 0 means the highest height present in heights/")
+	verifyHeadersCmd.Flags().Bool(flagFailFast, false,
+		"stop at the first verification failure instead of scanning the whole range")
+	verifyHeadersCmd.Flags().Int(flagConcurrency, 0,
+		"number of parallel verification workers; 0 means one per CPU core")
+	verifyHeadersCmd.Flags().Int(flagHeaderConcurrency, 8,
+		"number of concurrent header range requests during download (1..32)")
+	verifyHeadersCmd.Flags().Duration(flagRequestTimeout, 30*time.Second,
+		"timeout for each header request attempt")
+	verifyHeadersCmd.Flags().String(flagHeaderStoreDir, "",
+		"standalone badger dir for downloaded headers (node store left untouched); empty = <data-dir>/.cel-shed-replicate/verify-headers-db")
+	verifyHeadersCmd.Flags().String(flagFailedFile, "",
+		"where to write failed heights + reasons; empty = <data-dir>/.cel-shed-replicate/verify-headers-failed.txt")
+	verifyHeadersCmd.Flags().String(flagLogLevel, "info",
+		"log level for cel-shed/replicate logger")
+	_ = verifyHeadersCmd.MarkFlagRequired(flagDataDir)
+	_ = verifyHeadersCmd.MarkFlagRequired(flagSource)
+}
+
+func readVerifyHeadersFlags(cmd *cobra.Command) (replicate.VerifyHeadersConfig, error) {
+	dataDir, _ := cmd.Flags().GetString(flagDataDir)
+	source, _ := cmd.Flags().GetString(flagSource)
+	networkStr, _ := cmd.Flags().GetString(flagNetwork)
+	fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
+	toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+	failFast, _ := cmd.Flags().GetBool(flagFailFast)
+	concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
+	headerConc, _ := cmd.Flags().GetInt(flagHeaderConcurrency)
+	reqTimeout, _ := cmd.Flags().GetDuration(flagRequestTimeout)
+	headerStoreDir, _ := cmd.Flags().GetString(flagHeaderStoreDir)
+	failedFile, _ := cmd.Flags().GetString(flagFailedFile)
+	logLevel, _ := cmd.Flags().GetString(flagLogLevel)
+
+	expanded, err := homedir.Expand(filepath.Clean(dataDir))
+	if err != nil {
+		return replicate.VerifyHeadersConfig{}, fmt.Errorf("expand --data-dir: %w", err)
+	}
+
+	if strings.TrimSpace(headerStoreDir) != "" {
+		headerStoreDir, err = homedir.Expand(filepath.Clean(headerStoreDir))
+		if err != nil {
+			return replicate.VerifyHeadersConfig{}, fmt.Errorf("expand --header-store-dir: %w", err)
+		}
+	}
+
+	net, err := modp2p.GetNetwork(networkStr).Validate()
+	if err != nil {
+		net2, err2 := modp2p.Network(networkStr).Validate()
+		if err2 != nil {
+			return replicate.VerifyHeadersConfig{}, fmt.Errorf("invalid --network %q: %w", networkStr, err)
+		}
+		net = net2
+	}
+
+	return replicate.VerifyHeadersConfig{
+		DataDir:           expanded,
+		Source:            source,
+		Network:           net,
+		FromHeight:        fromHeight,
+		ToHeight:          toHeight,
+		FailFast:          failFast,
+		Concurrency:       concurrency,
+		HeaderConcurrency: headerConc,
+		RequestTimeout:    reqTimeout,
+		HeaderStoreDir:    headerStoreDir,
+		FailedFile:        failedFile,
+		LogLevel:          logLevel,
+	}, nil
 }
 
 var discoverArchivalCmd = &cobra.Command{

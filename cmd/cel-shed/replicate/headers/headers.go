@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	dsbadger "github.com/ipfs/go-ds-badger4"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -29,25 +33,11 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 		prog = NewProgress()
 	}
 
-	if !nodebuilder.IsInit(cfg.DataDir) {
-		return fmt.Errorf(
-			"data directory %q is not initialised; run `celestia bridge init --node.store %s --p2p.network %s` first",
-			cfg.DataDir, cfg.DataDir, cfg.Network,
-		)
-	}
-
-	log.Infow("opening node store", "data_dir", cfg.DataDir)
-	openStart := time.Now()
-	nodeStore, err := nodebuilder.OpenStore(cfg.DataDir, nil)
+	ds, closeDS, err := openHeaderDatastore(cfg)
 	if err != nil {
-		return fmt.Errorf("open node store: %w", err)
+		return err
 	}
-	defer nodeStore.Close()
-	ds, err := nodeStore.Datastore()
-	if err != nil {
-		return fmt.Errorf("open datastore: %w", err)
-	}
-	log.Infow("opened node store", "elapsed", time.Since(openStart).Round(time.Second))
+	defer closeDS()
 
 	h, err := NewReplicatorHost()
 	if err != nil {
@@ -201,4 +191,44 @@ func Run(ctx context.Context, cfg Config, prog *Progress) error {
 			lastAppended.Height(), targetHeight)
 	}
 	return PersistHeadKey(ds, lastAppended)
+}
+
+// openHeaderDatastore returns the datastore headers are written to, plus a
+// closer. When cfg.StoreDir is set, headers go into a standalone badger DB there
+// and the node's own store under DataDir is neither opened nor modified;
+// otherwise they go into the node store (the original behavior).
+func openHeaderDatastore(cfg Config) (datastore.Batching, func() error, error) {
+	if strings.TrimSpace(cfg.StoreDir) != "" {
+		log.Infow("opening standalone header datastore", "dir", cfg.StoreDir)
+		openStart := time.Now()
+		if err := os.MkdirAll(cfg.StoreDir, 0o755); err != nil {
+			return nil, nil, fmt.Errorf("ensure header store dir %q: %w", cfg.StoreDir, err)
+		}
+		db, err := dsbadger.NewDatastore(cfg.StoreDir, nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("open header db %q: %w", cfg.StoreDir, err)
+		}
+		log.Infow("opened standalone header datastore", "elapsed", time.Since(openStart).Round(time.Second))
+		return db, db.Close, nil
+	}
+
+	if !nodebuilder.IsInit(cfg.DataDir) {
+		return nil, nil, fmt.Errorf(
+			"data directory %q is not initialised; run `celestia bridge init --node.store %s --p2p.network %s` first",
+			cfg.DataDir, cfg.DataDir, cfg.Network,
+		)
+	}
+	log.Infow("opening node store", "data_dir", cfg.DataDir)
+	openStart := time.Now()
+	nodeStore, err := nodebuilder.OpenStore(cfg.DataDir, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open node store: %w", err)
+	}
+	ds, err := nodeStore.Datastore()
+	if err != nil {
+		_ = nodeStore.Close()
+		return nil, nil, fmt.Errorf("open datastore: %w", err)
+	}
+	log.Infow("opened node store", "elapsed", time.Since(openStart).Round(time.Second))
+	return ds, nodeStore.Close, nil
 }
