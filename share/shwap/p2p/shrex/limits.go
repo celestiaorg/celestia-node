@@ -32,6 +32,7 @@ package shrex
 // constant regardless of hardware.
 
 import (
+	"math"
 	"os"
 
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
@@ -46,6 +47,18 @@ const serviceName = "shrex"
 // disableResourceLimits disables shrex resource manager limits when set to "1".
 // Intended for debugging and testing; do not use in production.
 var disableResourceLimits = os.Getenv("CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS") == "1"
+
+// unlimitedOutbound lifts any shrex-specific cap on OUTBOUND streams.
+//
+// Outbound concurrency is driven by our own fetch needs, never by remote peers,
+// so it is not a DoS vector and needs no per-protocol cap here; the system- and
+// peer-scope outbound limits remain the backstop against a runaway local bug.
+//
+// It MUST be set explicitly. rcmgr treats a zero BaseLimit field as block-all
+// (not "inherit"), and once shrex is registered in the limit map the protocol
+// scope is served verbatim without merging protocolDefault (see
+// fixedLimiter.GetProtocolLimits).
+const unlimitedOutbound = math.MaxInt
 
 // serviceBaseStreams is the baseline service-wide stream count for the shrex
 // server on low-memory machines. It is additive with streamIncrease, which
@@ -166,9 +179,10 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 	increaseMemory := int64(streamIncrease) * maxMem
 
 	globalBase := rcmgr.BaseLimit{
-		Streams:        serviceBaseStreams,
-		StreamsInbound: serviceBaseStreams,
-		Memory:         baseMemory,
+		Streams:         serviceBaseStreams,
+		StreamsInbound:  serviceBaseStreams,
+		StreamsOutbound: unlimitedOutbound,
+		Memory:          baseMemory,
 	}
 	// globalLimitMultiplier doubles the autoscaled global ceiling so a public
 	// bridge can fan out shrex traffic across many peers without the global cap
@@ -179,9 +193,10 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		Memory:         increaseMemory * globalLimitMultiplier,
 	}
 	peerBase := rcmgr.BaseLimit{
-		Streams:        servicePeerBaseStreams,
-		StreamsInbound: servicePeerBaseStreams,
-		Memory:         servicePeerBaseMemory,
+		Streams:         servicePeerBaseStreams,
+		StreamsInbound:  servicePeerBaseStreams,
+		StreamsOutbound: unlimitedOutbound,
+		Memory:          servicePeerBaseMemory,
 	}
 	peerIncrease := rcmgr.BaseLimitIncrease{
 		Streams:        servicePeerStreamIncrease,
@@ -201,8 +216,9 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		protoID := ProtocolID(networkID, req.Name())
 		n := peerStreamsPerProtocol[req.Name()]
 		perPeer := rcmgr.BaseLimit{
-			Streams:        n,
-			StreamsInbound: n,
+			Streams:         n,
+			StreamsInbound:  n,
+			StreamsOutbound: unlimitedOutbound,
 			// Sized above service-peer so that scope (not this one) is the
 			// binding memory budget. See protocolPeerMemoryMultiplier doc.
 			Memory: servicePeerBaseMemory * protocolPeerMemoryMultiplier,
@@ -211,8 +227,9 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 			Memory: servicePeerMemoryIncrease * protocolPeerMemoryMultiplier,
 		}
 		protoBase := rcmgr.BaseLimit{
-			Streams:        serviceBaseStreams,
-			StreamsInbound: serviceBaseStreams,
+			Streams:         serviceBaseStreams,
+			StreamsInbound:  serviceBaseStreams,
+			StreamsOutbound: unlimitedOutbound,
 			// Same reasoning as perPeer.Memory above: leaving Memory unset
 			// resolves to 0 and makes rcmgr reject every memory reservation
 			// at this scope before service-global is even checked. Sized
