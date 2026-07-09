@@ -37,6 +37,9 @@ type VerifyConfig struct {
 	FromHeight uint64
 	ToHeight   uint64
 	FailFast   bool
+	// FailedFile is where failed heights (and their reasons) are written. Empty
+	// means <data-dir>/.cel-shed-replicate/verify-failed.txt.
+	FailedFile string
 	LogLevel   string
 }
 
@@ -48,6 +51,13 @@ func (c VerifyConfig) Validate() error {
 		return fmt.Errorf("from-height (%d) must be <= to-height (%d)", c.FromHeight, c.ToHeight)
 	}
 	return nil
+}
+
+func (c VerifyConfig) failedFilePath() string {
+	if strings.TrimSpace(c.FailedFile) != "" {
+		return c.FailedFile
+	}
+	return filepath.Join(c.DataDir, ".cel-shed-replicate", "verify-failed.txt")
 }
 
 // RunVerify scans [from..to] and audits every present height link and its
@@ -86,8 +96,14 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 
 	var (
 		checked, okCount, empty, absent, failed uint64
+		failedLines                             []string
 		startedAt                               = time.Now()
 	)
+	// recordFailure appends "<height>\t<reason>" so failures can be written out
+	// (and the height column stays grep/cut-friendly for feeding into repair).
+	recordFailure := func(h uint64, reason error) {
+		failedLines = append(failedLines, fmt.Sprintf("%d\t%s", h, reason))
+	}
 	for h := from; h <= to; h++ {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -107,8 +123,12 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 		isEmpty, err := verifyHeight(ctx, blocksDir, linkPath, li)
 		if err != nil {
 			failed++
+			recordFailure(h, err)
 			log.Warnw("verify: FAILED", "height", h, "err", err)
 			if cfg.FailFast {
+				if werr := writeFailedFile(cfg.failedFilePath(), failedLines); werr != nil {
+					log.Warnw("verify: could not write failed file", "err", werr)
+				}
 				return fmt.Errorf("verify height %d: %w", h, err)
 			}
 			continue
@@ -124,11 +144,42 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 		}
 	}
 
+	failedPath := cfg.failedFilePath()
+	if failed > 0 {
+		if err := writeFailedFile(failedPath, failedLines); err != nil {
+			log.Warnw("verify: could not write failed file", "path", failedPath, "err", err)
+		} else {
+			log.Infow("verify: wrote failed heights", "path", failedPath, "count", failed)
+		}
+	} else {
+		// A clean run must not leave a stale failed file implying failures.
+		if err := os.Remove(failedPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			log.Warnw("verify: could not remove stale failed file", "path", failedPath, "err", err)
+		}
+	}
+
 	log.Infow("verify done",
 		"checked", checked, "ok", okCount, "empty", empty, "absent", absent, "failed", failed,
 		"elapsed", time.Since(startedAt).Round(time.Second))
 	if failed > 0 {
-		return fmt.Errorf("verification failed for %d of %d checked blocks", failed, checked)
+		return fmt.Errorf("verification failed for %d of %d checked blocks; see %s",
+			failed, checked, failedPath)
+	}
+	return nil
+}
+
+// writeFailedFile writes the collected "<height>\t<reason>" lines to path,
+// truncating it, creating the parent directory if needed.
+func writeFailedFile(path string, lines []string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create dir for failed file: %w", err)
+	}
+	content := strings.Join(lines, "\n")
+	if content != "" {
+		content += "\n"
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write failed file: %w", err)
 	}
 	return nil
 }

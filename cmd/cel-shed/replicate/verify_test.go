@@ -3,6 +3,7 @@ package replicate
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-node/share"
@@ -65,9 +66,24 @@ func TestRunVerify(t *testing.T) {
 		t.Fatal("expected verification to fail after corrupting a block, got nil")
 	}
 
-	// Restricting the window to only the intact heights should pass again.
+	// The failed height (11) is recorded in the failed file, one entry.
+	failedPath := cfg.failedFilePath()
+	data, err := os.ReadFile(failedPath)
+	if err != nil {
+		t.Fatalf("read failed file: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 1 || !strings.HasPrefix(lines[0], "11\t") {
+		t.Fatalf("failed file = %q, want a single line for height 11", string(data))
+	}
+
+	// Restricting the window to only the intact heights should pass again and
+	// clear the stale failed file.
 	if err := RunVerify(ctx, VerifyConfig{DataDir: base, FromHeight: 10, ToHeight: 10, LogLevel: "error"}); err != nil {
 		t.Fatalf("intact height should still verify, got: %v", err)
+	}
+	if _, err := os.Stat(failedPath); !os.IsNotExist(err) {
+		t.Fatalf("clean run should remove stale failed file, stat err = %v", err)
 	}
 }
 

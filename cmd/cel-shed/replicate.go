@@ -36,6 +36,7 @@ const (
 	flagRepair           = "repair"
 	flagJSON             = "json"
 	flagFailFast         = "fail-fast"
+	flagFailedFile       = "failed-file"
 )
 
 func init() {
@@ -100,6 +101,7 @@ var verifyOdsCmd = &cobra.Command{
 		fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
 		toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
 		failFast, _ := cmd.Flags().GetBool(flagFailFast)
+		failedFile, _ := cmd.Flags().GetString(flagFailedFile)
 		logLevel, _ := cmd.Flags().GetString(flagLogLevel)
 		expanded, err := homedir.Expand(filepath.Clean(dataDir))
 		if err != nil {
@@ -110,6 +112,7 @@ var verifyOdsCmd = &cobra.Command{
 			FromHeight: fromHeight,
 			ToHeight:   toHeight,
 			FailFast:   failFast,
+			FailedFile: failedFile,
 			LogLevel:   logLevel,
 		})
 	},
@@ -124,6 +127,8 @@ func init() {
 		"stop height (inclusive); 0 means the highest height present in heights/")
 	verifyOdsCmd.Flags().Bool(flagFailFast, false,
 		"stop at the first verification failure instead of scanning the whole range")
+	verifyOdsCmd.Flags().String(flagFailedFile, "",
+		"where to write failed heights + reasons; empty = <data-dir>/.cel-shed-replicate/verify-failed.txt")
 	verifyOdsCmd.Flags().String(flagLogLevel, "info",
 		"log level for cel-shed/replicate logger")
 	_ = verifyOdsCmd.MarkFlagRequired(flagDataDir)
