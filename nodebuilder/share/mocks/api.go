@@ -11,6 +11,7 @@ import (
 	header "github.com/celestiaorg/celestia-node/header"
 	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
+	peers "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	share0 "github.com/celestiaorg/go-square/v4/share"
 	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
@@ -52,6 +53,21 @@ func (m *MockModule) GetEDS(arg0 context.Context, arg1 uint64) (*rsmt2d.Extended
 func (mr *MockModuleMockRecorder) GetEDS(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEDS", reflect.TypeOf((*MockModule)(nil).GetEDS), arg0, arg1)
+}
+
+// ShrexPeers mocks base method.
+func (m *MockModule) ShrexPeers(arg0 context.Context) ([]peers.ManagerSnapshot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ShrexPeers", arg0)
+	ret0, _ := ret[0].([]peers.ManagerSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ShrexPeers indicates an expected call of ShrexPeers.
+func (mr *MockModuleMockRecorder) ShrexPeers(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShrexPeers", reflect.TypeOf((*MockModule)(nil).ShrexPeers), arg0)
 }
 
 // GetNamespaceData mocks base method.

@@ -85,8 +85,22 @@ type Manager struct {
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
-// peer from Peer method
-type DoneFunc func(result)
+// peer from Peer method. Optional DoneOptions carry extra metadata about the request, e.g.
+// the number of payload bytes transferred (see WithBytes) used for throughput scoring.
+type DoneFunc func(result, ...DoneOption)
+
+// DoneOption configures optional metadata reported alongside a request result.
+type DoneOption func(*doneMeta)
+
+type doneMeta struct {
+	bytes int64
+}
+
+// WithBytes reports the number of payload bytes transferred for a (successful) request so
+// the peer manager can maintain a per-peer throughput estimate. Ignored on failures.
+func WithBytes(n int64) DoneOption {
+	return func(m *doneMeta) { m.bytes = n }
+}
 
 type syncPool struct {
 	*pool
@@ -285,7 +299,12 @@ func (m *Manager) doneFunc(
 	// fetch that then fails verification). In-flight must be decremented exactly once,
 	// while the outcome may be recorded for each reported result.
 	var decOnce sync.Once
-	return func(result result) {
+	return func(result result, opts ...DoneOption) {
+		var meta doneMeta
+		for _, opt := range opts {
+			opt(&meta)
+		}
+
 		log.Debugw("set peer result",
 			"hash", datahash.String(),
 			"peer", peerID.String(),
@@ -298,11 +317,11 @@ func (m *Manager) doneFunc(
 		latency := time.Since(start)
 		switch result {
 		case ResultNoop:
-			pool.recordOutcome(peerID, true, latency)
+			pool.recordOutcome(peerID, true, latency, meta.bytes)
 		case ResultCooldownPeer:
-			pool.recordOutcome(peerID, false, latency)
+			pool.recordOutcome(peerID, false, latency, 0)
 		case ResultBlacklistPeer:
-			pool.recordOutcome(peerID, false, latency)
+			pool.recordOutcome(peerID, false, latency, 0)
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
 	}

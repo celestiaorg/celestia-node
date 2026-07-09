@@ -78,8 +78,8 @@ func TestPool(t *testing.T) {
 
 		// train: good succeeds fast, bad fails repeatedly
 		for i := 0; i < 10; i++ {
-			p.recordOutcome(good, true, 100*time.Millisecond)
-			p.recordOutcome(bad, false, 0)
+			p.recordOutcome(good, true, 100*time.Millisecond, 0)
+			p.recordOutcome(bad, false, 0, 0)
 			// bad gets cooled on failure; bring it back so it stays selectable
 			p.afterCooldown(bad)
 		}
@@ -124,7 +124,7 @@ func TestPool(t *testing.T) {
 		peerID := peer.ID("peer1")
 		p.add(peerID)
 
-		p.recordOutcome(peerID, false, 0)
+		p.recordOutcome(peerID, false, 0, 0)
 		require.Equal(t, 0, p.activeCount)
 		_, ok := p.tryGet()
 		require.False(t, ok)
@@ -333,14 +333,14 @@ func TestPoolSelection(t *testing.T) {
 		p.add(peerID)
 
 		// first failure -> cooldown of base (1s)
-		p.recordOutcome(peerID, false, 0)
+		p.recordOutcome(peerID, false, 0, 0)
 		require.Equal(t, 1, p.stats[peerID].consecFails)
 		require.Equal(t, 0, p.activeCount)
 		mock.Add(time.Second)
 		require.Equal(t, 1, p.activeCount, "peer should be released after base cooldown")
 
 		// second consecutive failure -> cooldown of 2*base (2s)
-		p.recordOutcome(peerID, false, 0)
+		p.recordOutcome(peerID, false, 0, 0)
 		require.Equal(t, 2, p.stats[peerID].consecFails)
 		mock.Add(time.Second)
 		require.Equal(t, 0, p.activeCount, "peer must still be cooling after only 1s of a 2s cooldown")
@@ -372,7 +372,7 @@ func TestPoolConcurrency(t *testing.T) {
 				}
 				p.acquire(id)
 				// keep peers active so selection keeps making progress
-				p.recordOutcome(id, true, time.Millisecond)
+				p.recordOutcome(id, true, time.Millisecond, 0)
 				p.decInFlight(id)
 			}
 		}()

@@ -110,3 +110,16 @@ func (q *timedQueue) len() int {
 	defer q.Unlock()
 	return len(q.items)
 }
+
+// releaseAt returns the scheduled release time for peerID and whether it is currently
+// queued. Used for diagnostics to report how long a peer remains on cooldown.
+func (q *timedQueue) releaseAt(peerID peer.ID) (time.Time, bool) {
+	q.Lock()
+	defer q.Unlock()
+	for _, it := range q.items {
+		if it.ID == peerID {
+			return it.releaseAt, true
+		}
+	}
+	return time.Time{}, false
+}

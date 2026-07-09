@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"sort"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -9,6 +10,7 @@ import (
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 )
 
 var _ Module = (*API)(nil)
@@ -71,6 +73,12 @@ type Module interface {
 		height uint64,
 		start, end int,
 	) (*GetRangeResult, error)
+
+	// ShrexPeers returns a diagnostic snapshot of the shrex peer managers (one per
+	// discovery tag, e.g. "full" and "archival"): the discovered-nodes pool with
+	// per-peer scores, stats, in-flight/downloading state and cooldowns, a summary of
+	// the per-datahash pools, and the blacklist size.
+	ShrexPeers(ctx context.Context) ([]peers.ManagerSnapshot, error)
 }
 
 // API is a wrapper around Module for the RPC.
@@ -106,6 +114,7 @@ type API struct {
 			height uint64,
 			start, end int,
 		) (*GetRangeResult, error) `perm:"read"`
+		ShrexPeers func(ctx context.Context) ([]peers.ManagerSnapshot, error) `perm:"read"`
 	}
 }
 
@@ -144,10 +153,15 @@ func (api *API) GetNamespaceData(
 	return api.Internal.GetNamespaceData(ctx, height, namespace)
 }
 
+func (api *API) ShrexPeers(ctx context.Context) ([]peers.ManagerSnapshot, error) {
+	return api.Internal.ShrexPeers(ctx)
+}
+
 type module struct {
-	getter shwap.Getter
-	avail  share.Availability
-	hs     headerServ.Module
+	getter   shwap.Getter
+	avail    share.Availability
+	hs       headerServ.Module
+	managers map[string]*peers.Manager
 }
 
 func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libshare.Share, error) {
@@ -227,4 +241,15 @@ func (m module) GetRow(ctx context.Context, height uint64, rowIdx int) (shwap.Ro
 		return shwap.Row{}, err
 	}
 	return m.getter.GetRow(ctx, header, rowIdx)
+}
+
+func (m module) ShrexPeers(context.Context) ([]peers.ManagerSnapshot, error) {
+	snaps := make([]peers.ManagerSnapshot, 0, len(m.managers))
+	for _, mgr := range m.managers {
+		snaps = append(snaps, mgr.Snapshot())
+	}
+	sort.Slice(snaps, func(i, j int) bool {
+		return snaps[i].Tag < snaps[j].Tag
+	})
+	return snaps, nil
 }

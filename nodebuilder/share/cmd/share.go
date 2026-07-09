@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 )
 
 func init() {
@@ -20,6 +22,7 @@ func init() {
 		getShare,
 		getEDS,
 		getRange,
+		shrexPeersCmd,
 	)
 }
 
@@ -171,6 +174,52 @@ var getEDS = &cobra.Command{
 		shares, err := client.Share.GetEDS(cmd.Context(), height)
 		return cmdnode.PrintOutput(shares, err, nil)
 	},
+}
+
+var shrexPeersCmd = &cobra.Command{
+	Use:   "shrex-peers [peer-id-filter]",
+	Short: "Shows shrex peer manager pools with per-peer scores, stats, in-flight/downloading state and cooldowns",
+	Long: "Shows a diagnostic snapshot of the shrex peer managers (one per discovery tag, e.g. " +
+		"\"full\" and \"archival\"). For each managed peer it reports the selection score, quality, " +
+		"success/latency estimates, cumulative served counts, whether the peer is currently downloading, " +
+		"whether it hit an in-flight or rate limit, and any active cooldown. An optional argument filters " +
+		"peers whose ID contains the given substring.",
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		snaps, err := client.Share.ShrexPeers(cmd.Context())
+		if err != nil {
+			return cmdnode.PrintOutput(nil, err, nil)
+		}
+
+		if len(args) == 1 {
+			snaps = filterShrexPeers(snaps, args[0])
+		}
+		return cmdnode.PrintOutput(snaps, nil, nil)
+	},
+}
+
+// filterShrexPeers keeps only peers whose ID contains substr in each manager's nodes
+// pool, and drops the per-datahash pool summaries which are not peer-specific.
+func filterShrexPeers(snaps []peers.ManagerSnapshot, substr string) []peers.ManagerSnapshot {
+	out := make([]peers.ManagerSnapshot, 0, len(snaps))
+	for _, s := range snaps {
+		filtered := s.Nodes.Peers[:0:0]
+		for _, p := range s.Nodes.Peers {
+			if strings.Contains(p.ID, substr) {
+				filtered = append(filtered, p)
+			}
+		}
+		s.Nodes.Peers = filtered
+		s.DataHashPools = nil
+		out = append(out, s)
+	}
+	return out
 }
 
 var getRange = &cobra.Command{

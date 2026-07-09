@@ -47,12 +47,14 @@ func (c *Client) WithMetrics() error {
 	return nil
 }
 
+// Get requests data from the given peer and writes it into resp. It returns the number of
+// payload bytes received (status + response), which callers use for throughput accounting.
 func (c *Client) Get(
 	ctx context.Context,
 	req request,
 	resp response,
 	peer peer.ID,
-) error {
+) (int64, error) {
 	logger := log.With(
 		"source", "client",
 		"name", req.Name(),
@@ -69,7 +71,7 @@ func (c *Client) Get(
 		"status", status, "duration",
 		time.Since(requestTime), "total bytes received", n,
 	)
-	return err
+	return n, err
 }
 
 // doRequest performs a request to the given peer

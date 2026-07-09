@@ -38,6 +38,19 @@ const (
 	removed
 )
 
+func (s status) String() string {
+	switch s {
+	case active:
+		return "active"
+	case cooldown:
+		return "cooldown"
+	case removed:
+		return "removed"
+	default:
+		return "unknown"
+	}
+}
+
 // newPool returns new empty pool.
 func newPool(params *Parameters) *pool {
 	p := &pool{
@@ -156,7 +169,7 @@ func (p *pool) decInFlight(peerID peer.ID) {
 
 // recordOutcome folds a request outcome into the peer's EWMAs and, on failure, puts the
 // peer on an adaptive (escalating) cooldown if it is currently active.
-func (p *pool) recordOutcome(peerID peer.ID, success bool, latency time.Duration) {
+func (p *pool) recordOutcome(peerID peer.ID, success bool, latency time.Duration, bytes int64) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
@@ -164,7 +177,7 @@ func (p *pool) recordOutcome(peerID peer.ID, success bool, latency time.Duration
 	st := p.stats[peerID]
 	if st != nil {
 		if success {
-			st.recordSuccess(latency, p.params, now)
+			st.recordSuccess(latency, bytes, p.params, now)
 		} else {
 			st.recordFailure(p.params, now)
 		}

@@ -29,7 +29,7 @@ func TestPeerStats(t *testing.T) {
 		require.Less(t, failed, 0.1)
 
 		for i := 0; i < 10; i++ {
-			st.recordSuccess(50*time.Millisecond, params, now)
+			st.recordSuccess(50*time.Millisecond, 0, params, now)
 		}
 		require.Greater(t, st.quality(now), failed)
 	})
@@ -41,8 +41,8 @@ func TestPeerStats(t *testing.T) {
 		slow := newPeerStats(params, now)
 
 		for i := 0; i < 20; i++ {
-			fast.recordSuccess(50*time.Millisecond, params, now)
-			slow.recordSuccess(5*time.Second, params, now)
+			fast.recordSuccess(50*time.Millisecond, 0, params, now)
+			slow.recordSuccess(5*time.Second, 0, params, now)
 		}
 		require.Greater(t, fast.quality(now), slow.quality(now))
 	})
@@ -91,7 +91,7 @@ func TestPeerStats(t *testing.T) {
 		params := DefaultParameters()
 		start := time.Now()
 		st := newPeerStats(params, start)
-		st.recordSuccess(50*time.Millisecond, params, start)
+		st.recordSuccess(50*time.Millisecond, 0, params, start)
 
 		fresh := st.quality(start)
 		later := st.quality(start.Add(freshnessWindow))

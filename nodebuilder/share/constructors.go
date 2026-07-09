@@ -10,12 +10,18 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-func newShareModule(getter shwap.Getter, avail share.Availability, header headerServ.Module) Module {
-	return &module{getter, avail, header}
+func newShareModule(
+	getter shwap.Getter,
+	avail share.Availability,
+	header headerServ.Module,
+	managers map[string]*peers.Manager,
+) Module {
+	return &module{getter, avail, header, managers}
 }
 
 func bitswapGetter(

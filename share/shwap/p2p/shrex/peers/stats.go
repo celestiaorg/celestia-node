@@ -28,6 +28,15 @@ type peerStats struct {
 	latencyEWMA float64
 	// consecFails counts consecutive failures and drives the adaptive cooldown.
 	consecFails int
+	// totalSuccess and totalFailure are cumulative request-outcome counters, kept for
+	// diagnostics (how much a peer has actually served) independently of the EWMAs.
+	totalSuccess int
+	totalFailure int
+	// throughputEWMA is the EWMA of per-request throughput in bytes/second, measured on
+	// successful requests that reported a payload size. Zero until the first measurement.
+	throughputEWMA float64
+	// totalBytes is the cumulative payload bytes served by this peer.
+	totalBytes int64
 	// inFlight is the number of outstanding requests currently assigned to this peer.
 	inFlight int
 	// lastUpdate is the time of the most recent handout/result, used for freshness decay.
@@ -46,12 +55,26 @@ func newPeerStats(params *Parameters, now time.Time) *peerStats {
 }
 
 // recordSuccess folds a successful request outcome into the EWMAs and resets the
-// consecutive-failure counter.
-func (s *peerStats) recordSuccess(latency time.Duration, params *Parameters, now time.Time) {
+// consecutive-failure counter. bytes is the payload size transferred (0 if unknown) and
+// is used to maintain a per-peer throughput estimate.
+func (s *peerStats) recordSuccess(latency time.Duration, bytes int64, params *Parameters, now time.Time) {
 	a := params.EWMAAlpha
 	s.successEWMA = a*1 + (1-a)*s.successEWMA
 	s.latencyEWMA = a*latency.Seconds() + (1-a)*s.latencyEWMA
+	if bytes > 0 {
+		s.totalBytes += bytes
+		if secs := latency.Seconds(); secs > 0 {
+			tp := float64(bytes) / secs
+			if s.throughputEWMA == 0 {
+				// seed directly so the estimate is not anchored at zero
+				s.throughputEWMA = tp
+			} else {
+				s.throughputEWMA = a*tp + (1-a)*s.throughputEWMA
+			}
+		}
+	}
 	s.consecFails = 0
+	s.totalSuccess++
 	s.lastUpdate = now
 }
 
@@ -61,6 +84,7 @@ func (s *peerStats) recordFailure(params *Parameters, now time.Time) {
 	a := params.EWMAAlpha
 	s.successEWMA = a*0 + (1-a)*s.successEWMA
 	s.consecFails++
+	s.totalFailure++
 	s.lastUpdate = now
 }
 

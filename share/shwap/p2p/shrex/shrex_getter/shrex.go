@@ -133,7 +133,7 @@ func (sg *Getter) GetSamples(
 			"colIndex", request.ShareIndex,
 		)
 		errGroup.Go(func() error {
-			req := func(ctx context.Context, peer libpeer.ID) error {
+			req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
 				return sg.client.Get(ctx, &request, &samples[i], peer)
 			}
 			verify := func() error {
@@ -184,7 +184,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 		"rowIndex", rowIndex,
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -231,7 +231,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		"hash", header.DAH.String(),
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
 		buff.Reset()
 		return sg.client.Get(ctx, &request, buff, peer)
 	}
@@ -291,7 +291,7 @@ func (sg *Getter) GetNamespaceData(
 		"namespace", namespace.String(),
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -350,7 +350,7 @@ func (sg *Getter) GetRangeNamespaceData(
 		"to", to,
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -398,7 +398,7 @@ func (sg *Getter) getPeer(
 // requestFn defines a function type that wraps the actual request logic as a closure.
 // The closure captures additional request parameters and then executes
 // the request with the provided context and peer ID.
-type requestFn func(context.Context, libpeer.ID) error
+type requestFn func(context.Context, libpeer.ID) (int64, error)
 
 // handleFn defines a function type that wraps response handling logic as a closure.
 // The closure captures the response data and validation parameters performing the verification.
@@ -443,11 +443,12 @@ func (sg *Getter) executeRequest(
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 
-		getErr = req(reqCtx, peer)
+		var n int64
+		n, getErr = req(reqCtx, peer)
 		cancel()
 		switch {
 		case getErr == nil:
-			setStatus(peers.ResultNoop)
+			setStatus(peers.ResultNoop, peers.WithBytes(n))
 			verifyErr := handle()
 			if verifyErr != nil {
 				getErr = verifyErr
