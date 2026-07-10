@@ -205,10 +205,31 @@ func openStandaloneHeaderStore(ctx context.Context, dir string) (
 	return hstore, closeFn, nil
 }
 
+// errHeaderUnavailable signals that a height's header is not in the store because
+// it is above the store head — the source peer's head is below this height, so it
+// was never downloaded. The height cannot be checked and is skipped rather than
+// failed.
+var errHeaderUnavailable = errors.New("header not available in store")
+
 // headerStoreLookup adapts a go-header store to the headerLookup signature,
 // returning each height's chain-committed DataHash.
+//
+// go-header's GetByHeight blocks (heightSub.Wait) on any height above the store
+// head, waiting for a live header that will never arrive in this offline,
+// download-once store. When the --source peer's head is below the highest local
+// block, that tail of heights is exactly what we would ask for, and the wait
+// hangs until the process is interrupted. Guard it: read the head first and
+// report anything above it as errHeaderUnavailable so the caller skips it and
+// keeps going.
 func headerStoreLookup(hstore *libheadstore.Store[*header.ExtendedHeader]) headerLookup {
 	return func(ctx context.Context, height uint64) (share.DataHash, error) {
+		head, err := hstore.Head(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("read header store head: %w", err)
+		}
+		if height > head.Height() {
+			return nil, errHeaderUnavailable
+		}
 		hdr, err := hstore.GetByHeight(ctx, height)
 		if err != nil {
 			return nil, err
@@ -294,11 +315,33 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 	}
 	go func() { wg.Wait(); close(resultsCh) }()
 
+	// Create the failed file up front and append to it as failures are found, so
+	// each one is durable the moment it occurs — an interrupt or hang mid-scan
+	// still leaves every failure discovered so far on disk. A fully clean run
+	// removes the (empty) file at the end.
+	failedPath := cfg.failedFilePath()
+	failedFile, err := newIncrementalFailedFile(failedPath)
+	if err != nil {
+		return err
+	}
+	failedClosed := false
+	closeFailedFile := func() {
+		if failedClosed {
+			return
+		}
+		failedClosed = true
+		if cerr := failedFile.close(); cerr != nil {
+			log.Warnw("verify-headers: close failed file", "path", failedPath, "err", cerr)
+		}
+	}
+	defer closeFailedFile()
+
 	var (
-		checked, okCount, empty, absent, failed uint64
-		failedResults                           []checkResult
-		fatalErr                                error
-		startedAt                               = time.Now()
+		checked, okCount, empty, absent, skipped, failed uint64
+		failedResults                                    []checkResult
+		firstSkipped                                     uint64
+		fatalErr                                         error
+		startedAt                                        = time.Now()
 
 		// See RunVerify: the watermark advances only over a contiguous run of
 		// finished heights so milestones are logged in order and none is skipped
@@ -310,6 +353,11 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 		switch res.status {
 		case statusAbsent:
 			absent++
+		case statusSkipped:
+			skipped++
+			if firstSkipped == 0 || res.height < firstSkipped {
+				firstSkipped = res.height
+			}
 		case statusFatal:
 			fatalErr = res.err
 			cancel()
@@ -318,6 +366,10 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 			checked++
 			failed++
 			failedResults = append(failedResults, res)
+			if werr := failedFile.append(res.height, res.err); werr != nil {
+				log.Warnw("verify-headers: append to failed file",
+					"path", failedPath, "height", res.height, "err", werr)
+			}
 			log.Warnw("verify-headers: FAILED", "height", res.height, "err", res.err)
 			if cfg.FailFast {
 				cancel()
@@ -336,7 +388,8 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 		watermark, milestones = advanceWatermark(watermark, to, progressInterval, done)
 		for _, m := range milestones {
 			log.Infow("verify-headers progress", "height", m,
-				"checked", checked, "ok", okCount, "empty", empty, "absent", absent, "failed", failed,
+				"checked", checked, "ok", okCount, "empty", empty, "absent", absent,
+				"skipped", skipped, "failed", failed,
 				"elapsed", time.Since(startedAt).Round(time.Second))
 		}
 	}
@@ -345,14 +398,16 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 		return fatalErr
 	}
 
-	sort.Slice(failedResults, func(i, j int) bool { return failedResults[i].height < failedResults[j].height })
-	failedLines := make([]string, len(failedResults))
-	for i, res := range failedResults {
-		failedLines[i] = fmt.Sprintf("%d\t%s", res.height, res.err)
-	}
-
-	failedPath := cfg.failedFilePath()
+	// Rewrite the failed file sorted by height for a stable, cut-friendly result
+	// (the incremental appends land in worker-completion order). A clean run drops
+	// the empty file so it never implies failures that did not happen.
+	closeFailedFile()
 	if failed > 0 {
+		sort.Slice(failedResults, func(i, j int) bool { return failedResults[i].height < failedResults[j].height })
+		failedLines := make([]string, len(failedResults))
+		for i, res := range failedResults {
+			failedLines[i] = fmt.Sprintf("%d\t%s", res.height, res.err)
+		}
 		if err := writeFailedFile(failedPath, failedLines); err != nil {
 			log.Warnw("verify-headers: could not write failed file", "path", failedPath, "err", err)
 		} else {
@@ -364,14 +419,49 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 		}
 	}
 
+	if skipped > 0 {
+		log.Warnw("verify-headers: skipped heights above the source head (no downloaded header to check "+
+			"against); point --source at a peer whose head covers them, or lower --to-height",
+			"skipped", skipped, "first_skipped_height", firstSkipped)
+	}
+
 	log.Infow("verify-headers done",
-		"checked", checked, "ok", okCount, "empty", empty, "absent", absent, "failed", failed,
+		"checked", checked, "ok", okCount, "empty", empty, "absent", absent,
+		"skipped", skipped, "failed", failed,
 		"elapsed", time.Since(startedAt).Round(time.Second))
 	if failed > 0 {
 		return fmt.Errorf("verification failed for %d of %d checked blocks; see %s",
 			failed, checked, failedPath)
 	}
 	return nil
+}
+
+// incrementalFailedFile appends "<height>\t<reason>" lines to the failed file as
+// failures are discovered, so they survive an interrupted or hung run instead of
+// being written only at the very end. The caller rewrites the file sorted once
+// the scan finishes cleanly.
+type incrementalFailedFile struct {
+	f *os.File
+}
+
+func newIncrementalFailedFile(path string) (*incrementalFailedFile, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, fmt.Errorf("create dir for failed file: %w", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return nil, fmt.Errorf("create failed file %q: %w", path, err)
+	}
+	return &incrementalFailedFile{f: f}, nil
+}
+
+func (w *incrementalFailedFile) append(height uint64, reason error) error {
+	_, err := fmt.Fprintf(w.f, "%d\t%s\n", height, reason)
+	return err
+}
+
+func (w *incrementalFailedFile) close() error {
+	return w.f.Close()
 }
 
 // checkHeightAgainstHeader audits one height against its chain header and
@@ -394,6 +484,11 @@ func checkHeightAgainstHeader(
 
 	chainHash, err := lookup(ctx, h)
 	if err != nil {
+		if errors.Is(err, errHeaderUnavailable) {
+			// Header for this height was not downloaded (source head is below it);
+			// skip it instead of blocking or counting it as a failure.
+			return checkResult{height: h, status: statusSkipped}
+		}
 		return checkResult{height: h, status: statusFatal, err: fmt.Errorf("lookup header %d: %w", h, err)}
 	}
 

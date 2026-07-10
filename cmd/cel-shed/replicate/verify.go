@@ -277,11 +277,12 @@ func advanceWatermark(watermark, to, interval uint64, done map[uint64]struct{}) 
 
 // verification outcome for a single height, passed from a worker to the collector.
 const (
-	statusOK     = iota // verified, non-empty block
-	statusEmpty         // verified, empty EDS (symlink)
-	statusAbsent        // no height link present (skipped, not a failure)
-	statusFailed        // verification failed (corrupt data / bad link)
-	statusFatal         // I/O error that aborts the whole run
+	statusOK      = iota // verified, non-empty block
+	statusEmpty          // verified, empty EDS (symlink)
+	statusAbsent         // no height link present (skipped, not a failure)
+	statusSkipped        // present block, but no header to check against (skipped, not a failure)
+	statusFailed         // verification failed (corrupt data / bad link)
+	statusFatal          // I/O error that aborts the whole run
 )
 
 type checkResult struct {

@@ -21,6 +21,19 @@ func fakeLookup(m map[uint64]share.DataHash) headerLookup {
 	}
 }
 
+// fakeLookupWithUnavailable serves hashes from m and returns errHeaderUnavailable
+// for any height not in it — simulating a --source peer whose head sits below
+// those heights, so their headers were never downloaded.
+func fakeLookupWithUnavailable(m map[uint64]share.DataHash) headerLookup {
+	return func(_ context.Context, height uint64) (share.DataHash, error) {
+		h, ok := m[height]
+		if !ok {
+			return nil, errHeaderUnavailable
+		}
+		return h, nil
+	}
+}
+
 func lstat(t *testing.T, path string) os.FileInfo {
 	t.Helper()
 	li, err := os.Lstat(path)
@@ -123,6 +136,38 @@ func TestVerifyHeightAgainstHeader(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "block filename hash") &&
 		!strings.Contains(err.Error(), "does not resolve") {
 		t.Fatalf("unexpected broken-hardlink error: %v", err)
+	}
+}
+
+// TestRunVerifyHeadersSkipsUnavailableHeaders proves that a present block whose
+// header was not downloaded (it is above the source's head) is skipped and the
+// run completes cleanly, rather than blocking or being reported as a failure.
+func TestRunVerifyHeadersSkipsUnavailableHeaders(t *testing.T) {
+	ctx := context.Background()
+	base := t.TempDir()
+
+	st, err := store.NewStore(store.DefaultParameters(), base)
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	defer st.Stop(ctx)
+
+	// Three present blocks on disk, but the "source" only holds headers up to 11
+	// (its head is 11); height 12 is above the source head.
+	hash10 := putBlock(t, st, 10, 4)
+	hash11 := putBlock(t, st, 11, 8)
+	_ = putBlock(t, st, 12, 4)
+
+	cfg := VerifyHeadersConfig{DataDir: base, FromHeight: 10, ToHeight: 12, LogLevel: "error"}
+	lookup := fakeLookupWithUnavailable(map[uint64]share.DataHash{10: hash10, 11: hash11})
+
+	// 10 and 11 verify; 12 is skipped. A skip is not a failure, so the run passes.
+	if err := runVerifyHeaders(ctx, cfg, lookup); err != nil {
+		t.Fatalf("unavailable header should be skipped and the run should pass, got: %v", err)
+	}
+	// Skipped (not failed) heights must not leave a failed file behind.
+	if _, err := os.Stat(cfg.failedFilePath()); !os.IsNotExist(err) {
+		t.Fatalf("skipped heights must not create a failed file, stat err = %v", err)
 	}
 }
 
