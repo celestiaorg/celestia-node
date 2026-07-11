@@ -40,6 +40,7 @@ const (
 	flagFailedFile        = "failed-file"
 	flagHeaderConcurrency = "header-concurrency"
 	flagHeaderStoreDir    = "header-store-dir"
+	flagParallel          = "parallel"
 )
 
 func init() {
@@ -87,7 +88,7 @@ var replicateCmd = &cobra.Command{
 }
 
 func init() {
-	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd, verifyOdsCmd, verifyHeadersCmd)
+	replicateCmd.AddCommand(getMissingCmd, shrexFetchCmd, stagedSyncCmd, convertCmd, discoverArchivalCmd, verifyOdsCmd, verifyHeadersCmd, verifyAllCmd)
 }
 
 var verifyOdsCmd = &cobra.Command{
@@ -238,6 +239,108 @@ func readVerifyHeadersFlags(cmd *cobra.Command) (replicate.VerifyHeadersConfig, 
 		RequestTimeout:    reqTimeout,
 		HeaderStoreDir:    headerStoreDir,
 		FailedFile:        failedFile,
+		LogLevel:          logLevel,
+	}, nil
+}
+
+var verifyAllCmd = &cobra.Command{
+	Use:   "verify-all",
+	Short: "Run BOTH verify-ods (deep, offline) and verify-headers (vs chain headers), optionally in parallel.",
+	Long: "Runs the two integrity checks over the same data-dir and range in one go. verify-ods recomputes " +
+		"each block's hash from the on-disk shares (catches silent data corruption); verify-headers downloads " +
+		"every header from --source into a standalone store and checks the stored ODS DataHash against the " +
+		"chain-committed header (proves the stored hash is canonical). Together they prove the data hashes to " +
+		"the value in the ODS header AND that value is what the chain committed. With --parallel the CPU-bound " +
+		"verify-ods scan overlaps the header download and header check, so wall-clock cost is close to the " +
+		"slower check rather than their sum. Both always run to completion; each writes its own failed file " +
+		"(verify-failed.txt and verify-headers-failed.txt). Read-only for local files; network is used only to " +
+		"download headers.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cfg, err := readVerifyAllFlags(cmd)
+		if err != nil {
+			return err
+		}
+		return replicate.RunVerifyAll(cmd.Context(), cfg)
+	},
+}
+
+func init() {
+	verifyAllCmd.Flags().String(flagDataDir, "",
+		"data directory containing blocks/heights; must be initialised via `celestia bridge init` (required)")
+	verifyAllCmd.Flags().String(flagSource, "",
+		"libp2p multiaddr of source bridge node to download headers from, must include /p2p/<peer-id> (required)")
+	verifyAllCmd.Flags().String(flagNetwork, "mainnet",
+		"network: mainnet | mocha | arabica | private")
+	verifyAllCmd.Flags().Uint64(flagFromHeight, 0,
+		"start height (inclusive); 0 means the lowest height present in heights/")
+	verifyAllCmd.Flags().Uint64(flagToHeight, 0,
+		"stop height (inclusive); 0 means the highest height present in heights/")
+	verifyAllCmd.Flags().Bool(flagFailFast, false,
+		"stop each check at its first verification failure instead of scanning the whole range")
+	verifyAllCmd.Flags().Int(flagConcurrency, 0,
+		"number of parallel verification workers used by EACH check; 0 means one per CPU core")
+	verifyAllCmd.Flags().Int(flagHeaderConcurrency, 8,
+		"number of concurrent header range requests during download (1..32)")
+	verifyAllCmd.Flags().Duration(flagRequestTimeout, 30*time.Second,
+		"timeout for each header request attempt")
+	verifyAllCmd.Flags().String(flagHeaderStoreDir, "",
+		"standalone badger dir for downloaded headers (node store left untouched); empty = <data-dir>/.cel-shed-replicate/verify-headers-db")
+	verifyAllCmd.Flags().Bool(flagParallel, false,
+		"run verify-ods and verify-headers concurrently instead of one after the other")
+	verifyAllCmd.Flags().String(flagLogLevel, "info",
+		"log level for cel-shed/replicate logger")
+	_ = verifyAllCmd.MarkFlagRequired(flagDataDir)
+	_ = verifyAllCmd.MarkFlagRequired(flagSource)
+}
+
+func readVerifyAllFlags(cmd *cobra.Command) (replicate.VerifyAllConfig, error) {
+	dataDir, _ := cmd.Flags().GetString(flagDataDir)
+	source, _ := cmd.Flags().GetString(flagSource)
+	networkStr, _ := cmd.Flags().GetString(flagNetwork)
+	fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
+	toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+	failFast, _ := cmd.Flags().GetBool(flagFailFast)
+	concurrency, _ := cmd.Flags().GetInt(flagConcurrency)
+	headerConc, _ := cmd.Flags().GetInt(flagHeaderConcurrency)
+	reqTimeout, _ := cmd.Flags().GetDuration(flagRequestTimeout)
+	headerStoreDir, _ := cmd.Flags().GetString(flagHeaderStoreDir)
+	parallel, _ := cmd.Flags().GetBool(flagParallel)
+	logLevel, _ := cmd.Flags().GetString(flagLogLevel)
+
+	expanded, err := homedir.Expand(filepath.Clean(dataDir))
+	if err != nil {
+		return replicate.VerifyAllConfig{}, fmt.Errorf("expand --data-dir: %w", err)
+	}
+
+	if strings.TrimSpace(headerStoreDir) != "" {
+		headerStoreDir, err = homedir.Expand(filepath.Clean(headerStoreDir))
+		if err != nil {
+			return replicate.VerifyAllConfig{}, fmt.Errorf("expand --header-store-dir: %w", err)
+		}
+	}
+
+	net, err := modp2p.GetNetwork(networkStr).Validate()
+	if err != nil {
+		net2, err2 := modp2p.Network(networkStr).Validate()
+		if err2 != nil {
+			return replicate.VerifyAllConfig{}, fmt.Errorf("invalid --network %q: %w", networkStr, err)
+		}
+		net = net2
+	}
+
+	return replicate.VerifyAllConfig{
+		DataDir:           expanded,
+		Source:            source,
+		Network:           net,
+		FromHeight:        fromHeight,
+		ToHeight:          toHeight,
+		FailFast:          failFast,
+		Concurrency:       concurrency,
+		HeaderConcurrency: headerConc,
+		RequestTimeout:    reqTimeout,
+		HeaderStoreDir:    headerStoreDir,
+		Parallel:          parallel,
 		LogLevel:          logLevel,
 	}, nil
 }
