@@ -120,9 +120,66 @@ func TestRoutingExchange_GetRangeByHeight_Split(t *testing.T) {
 
 	result, err := routingEx.GetRangeByHeight(ctx, fromHeader, 8)
 	require.NoError(t, err)
-	assert.Len(t, result, 5) // heights 4,5,6,7,8
+	require.Len(t, result, 4) // heights 4,5,6,7 (`to` is exclusive)
+	assert.Equal(t, uint64(4), result[0].Height())
+	assert.Equal(t, uint64(7), result[len(result)-1].Height())
 	assert.Equal(t, 1, coreEx.calls)
 	assert.Equal(t, 1, p2pEx.calls)
+}
+
+// TestRoutingExchange_GetRangeByHeight_SplitCutoffUnavailableInCore ensures the
+// split routes the cutoff height itself to P2P. The core exchange serves only
+// heights inside the window (the consensus node has pruned everything at and
+// below the cutoff), so requesting the cutoff from core fails the whole range.
+func TestRoutingExchange_GetRangeByHeight_SplitCutoffUnavailableInCore(t *testing.T) {
+	coreEx := newMockExchange()
+	p2pEx := newMockExchange()
+
+	suite := headertest.NewTestSuite(t, headertest.WithBlockTime(time.Nanosecond))
+	headers := suite.GenExtendedHeaders(10)
+
+	blockTime := time.Second
+	window := 5 * time.Second
+
+	fromHeader := headers[2] // height 3
+	oldTime := time.Now().Add(-window - 2*blockTime)
+	fromHeader.RawHeader.Time = oldTime
+	// cutoff resolves to height 5: heights <= 5 are pruned from core,
+	// heights > 5 are inside the window.
+	const cutoff = 5
+	for _, h := range headers {
+		if h.Height() <= cutoff {
+			p2pEx.addHeader(h)
+		} else {
+			coreEx.addHeader(h)
+		}
+	}
+
+	routingEx, err := NewRoutingExchange(coreEx, p2pEx,
+		window,
+		blockTime,
+	)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	t.Run("split range crossing the cutoff", func(t *testing.T) {
+		result, err := routingEx.GetRangeByHeight(ctx, fromHeader, 8)
+		require.NoError(t, err)
+		require.Len(t, result, 4) // heights 4,5,6,7
+		assert.Equal(t, uint64(4), result[0].Height())
+		assert.Equal(t, uint64(7), result[len(result)-1].Height())
+	})
+
+	t.Run("range ending exactly at the cutoff", func(t *testing.T) {
+		// to = cutoff+1 requests heights 4,5 — entirely outside the window,
+		// so core must not be involved at all.
+		coreCalls := coreEx.calls
+		result, err := routingEx.GetRangeByHeight(ctx, fromHeader, cutoff+1)
+		require.NoError(t, err)
+		require.Len(t, result, 2) // heights 4,5
+		assert.Equal(t, uint64(cutoff), result[len(result)-1].Height())
+		assert.Equal(t, coreCalls, coreEx.calls)
+	})
 }
 
 func TestRoutingExchange_Head_AlwaysUsesCore(t *testing.T) {
@@ -297,7 +354,8 @@ func (m *mockExchange) GetRangeByHeight(
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
 	var result []*header.ExtendedHeader
-	for i := from.Height() + 1; i <= to; i++ {
+	// `to` is exclusive, matching the libhead.Exchange contract.
+	for i := from.Height() + 1; i < to; i++ {
 		h, ok := m.headers[i]
 		if !ok {
 			return nil, errors.New("not found")
