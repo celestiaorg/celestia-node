@@ -140,6 +140,27 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 	}
 	go func() { wg.Wait(); close(resultsCh) }()
 
+	// Create the failed file up front and append to it as failures are found, so
+	// each one is durable the moment it occurs — a crash or interrupt mid-scan
+	// still leaves every corruption discovered so far on disk. A fully clean run
+	// removes the (empty) file at the end.
+	failedPath := cfg.failedFilePath()
+	failedFile, err := newIncrementalFailedFile(failedPath)
+	if err != nil {
+		return err
+	}
+	failedClosed := false
+	closeFailedFile := func() {
+		if failedClosed {
+			return
+		}
+		failedClosed = true
+		if cerr := failedFile.close(); cerr != nil {
+			log.Warnw("verify: close failed file", "path", failedPath, "err", cerr)
+		}
+	}
+	defer closeFailedFile()
+
 	var (
 		checked, okCount, empty, absent, failed uint64
 		failedResults                           []checkResult
@@ -169,6 +190,10 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 			checked++
 			failed++
 			failedResults = append(failedResults, res)
+			if werr := failedFile.append(res.height, res.err); werr != nil {
+				log.Warnw("verify: append to failed file",
+					"path", failedPath, "height", res.height, "err", werr)
+			}
 			log.Warnw("verify: FAILED", "height", res.height, "err", res.err)
 			if cfg.FailFast {
 				cancel()
@@ -199,16 +224,16 @@ func RunVerify(ctx context.Context, cfg VerifyConfig) error {
 		return fatalErr
 	}
 
-	// Results arrive out of order across workers; sort failures by height so the
-	// failed file is stable and ascending (and cut-friendly for a repair pass).
-	sort.Slice(failedResults, func(i, j int) bool { return failedResults[i].height < failedResults[j].height })
-	failedLines := make([]string, len(failedResults))
-	for i, res := range failedResults {
-		failedLines[i] = fmt.Sprintf("%d\t%s", res.height, res.err)
-	}
-
-	failedPath := cfg.failedFilePath()
+	// Rewrite the failed file sorted by height for a stable, cut-friendly result
+	// (the incremental appends land in worker-completion order). A clean run drops
+	// the empty file so it never implies failures that did not happen.
+	closeFailedFile()
 	if failed > 0 {
+		sort.Slice(failedResults, func(i, j int) bool { return failedResults[i].height < failedResults[j].height })
+		failedLines := make([]string, len(failedResults))
+		for i, res := range failedResults {
+			failedLines[i] = fmt.Sprintf("%d\t%s", res.height, res.err)
+		}
 		if err := writeFailedFile(failedPath, failedLines); err != nil {
 			log.Warnw("verify: could not write failed file", "path", failedPath, "err", err)
 		} else {
@@ -293,7 +318,19 @@ type checkResult struct {
 
 // checkHeight verifies one height and classifies the outcome. It is safe to call
 // concurrently: it only reads files and recomputes hashes, sharing no state.
-func checkHeight(ctx context.Context, blocksDir, heightsDir string, h uint64) checkResult {
+//
+// A malformed or truncated ODS can panic deep inside the square rebuild. Because
+// this runs in a worker goroutine, an unrecovered panic would take down the whole
+// process and abort the scan. Contain it per height: a panic is turned into a
+// verification failure for that one height (recorded like any other) so the audit
+// keeps going instead of stopping.
+func checkHeight(ctx context.Context, blocksDir, heightsDir string, h uint64) (res checkResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			res = checkResult{height: h, status: statusFailed,
+				err: fmt.Errorf("panic while verifying height %d: %v", h, r)}
+		}
+	}()
 	linkPath := filepath.Join(heightsDir, strconv.FormatUint(h, 10)+".ods")
 	li, err := os.Lstat(linkPath)
 	if err != nil {
