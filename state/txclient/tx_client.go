@@ -13,7 +13,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -83,7 +82,11 @@ func (c *TxClient) Start(context.Context) error {
 	return nil
 }
 
-func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
+// newEstimatorConnection opens the estimator gRPC connection. It's a package
+// var so tests can observe the connection handed to setupClient.
+var newEstimatorConnection = setupEstimatorConnection
+
+func setupEstimatorConnection(addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
 	log.Infow("setting up estimator connection", "address", addr)
 
 	interceptor := grpc_retry.UnaryClientInterceptor(
@@ -104,40 +107,15 @@ func setupEstimatorConnection(ctx context.Context, addr string, tlsEnabled bool)
 		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
+	// grpc.NewClient does not dial; the connection is established lazily on the
+	// first RPC, and the retry interceptor above absorbs transient Unavailable
+	// errors. So there's no need to block on readiness here — a non-Ready conn
+	// is fine to hand to the tx client.
 	conn, err := grpc.NewClient(addr, grpcOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("state: failed to set up grpc connection to estimator address %s: %w", addr, err)
 	}
-
-	conn.Connect()
-	if err := waitForReady(ctx, conn); err != nil {
-		// the connection never reached Ready; close it so its resolver/balancer
-		// goroutines and transport are released instead of leaking on every retry.
-		_ = conn.Close()
-		return nil, fmt.Errorf("state: connecting to estimator address %s: %w", addr, err)
-	}
 	return conn, nil
-}
-
-// waitForReady blocks until conn reaches connectivity.Ready or ctx is done.
-//
-// grpc's WaitForStateChange waits for the connection to transition *away* from
-// the state passed to it, not *into* it. A fresh conn starts in Idle/Connecting,
-// so a single WaitForStateChange(ctx, Ready) returns immediately (the state is
-// already not Ready) and never actually waits for the endpoint to be reachable.
-// We loop over the current state until it is Ready, returning ctx.Err() if the
-// deadline fires first.
-func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
-	for {
-		state := conn.GetState()
-		if state == connectivity.Ready {
-			return nil
-		}
-		if !conn.WaitForStateChange(ctx, state) {
-			// WaitForStateChange only returns false when ctx is done.
-			return ctx.Err()
-		}
-	}
 }
 
 func (c *TxClient) Stop(context.Context) error {
@@ -378,14 +356,14 @@ func (c *TxClient) setupClient() error {
 	}
 
 	opts := []user.Option{user.WithDefaultAddress(c.defaultSignerAddress)}
+	var estimatorConn *grpc.ClientConn
 	if c.estimatorServiceAddr != "" {
-		estimatorConn, err := setupEstimatorConnection(c.ctx, c.estimatorServiceAddr, c.estimatorServiceTLS)
+		var err error
+		estimatorConn, err = newEstimatorConnection(c.estimatorServiceAddr, c.estimatorServiceTLS)
 		if err != nil {
 			return err
 		}
-
 		opts = append(opts, user.WithEstimatorService(estimatorConn))
-		c.estimatorConn = estimatorConn
 	}
 
 	if c.txWorkerAccounts > 1 {
@@ -400,9 +378,16 @@ func (c *TxClient) setupClient() error {
 
 	client, err := user.SetupTxClient(c.ctx, c.keyring, c.coreConns[0], encCfg, opts...)
 	if err != nil {
+		// the client was never assigned, so Stop() won't run to release the
+		// estimator connection we opened above; close it here to avoid leaking
+		// its transport and resolver/balancer goroutines.
+		if estimatorConn != nil {
+			_ = estimatorConn.Close()
+		}
 		return fmt.Errorf("failed to setup a tx client: %w", err)
 	}
 
 	c.client = client
+	c.estimatorConn = estimatorConn
 	return nil
 }

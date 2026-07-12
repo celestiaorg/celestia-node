@@ -2,94 +2,81 @@ package txclient
 
 import (
 	"context"
-	"runtime"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
 )
 
-// TestSetupEstimatorConnection_Success verifies the happy path returns a
-// connection that has actually reached Ready and is the caller's to close.
-func TestSetupEstimatorConnection_Success(t *testing.T) {
+// TestSetupEstimatorConnection verifies the connection is created lazily and is
+// usable without blocking on readiness: grpc.NewClient does not dial, so the
+// returned conn starts Idle and connects on the first RPC.
+func TestSetupEstimatorConnection(t *testing.T) {
 	mes := setupEstimatorService(t)
+	mes.gasPriceToReturn = 0.02
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	conn, err := setupEstimatorConnection(ctx, mes.addr, false)
+	conn, err := setupEstimatorConnection(mes.addr, false)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.NoError(t, conn.Close())
+	t.Cleanup(func() { _ = conn.Close() })
+
+	// no readiness wait happened, so the conn dials on this first call.
+	resp, err := gasestimation.NewGasEstimatorClient(conn).EstimateGasPrice(
+		context.Background(), &gasestimation.EstimateGasPriceRequest{},
+	)
+	require.NoError(t, err)
+	require.Equal(t, mes.gasPriceToReturn, resp.EstimatedGasPrice)
 }
 
-// TestSetupEstimatorConnection_UnreachableReturnsError verifies that an
-// unreachable endpoint surfaces an error once the context deadline fires,
-// rather than silently returning a not-yet-connected conn.
+// TestSetupClient_ClosesEstimatorConnOnFailure ensures the estimator connection
+// opened during setup is closed when user.SetupTxClient fails. On that path the
+// TxClient is never assigned, so Stop() won't run to release the connection;
+// without the explicit close it would leak its transport and resolver/balancer
+// goroutines.
 //
-// Before the fix, WaitForStateChange(ctx, Ready) returned immediately (a fresh
-// conn is in Idle/Connecting, already != Ready), so setupEstimatorConnection
-// returned a non-Ready conn with a nil error and never honored the deadline.
-func TestSetupEstimatorConnection_UnreachableReturnsError(t *testing.T) {
-	// RFC 5737 TEST-NET-1: guaranteed non-routable, so Ready is never reached.
-	const blackhole = "192.0.2.1:65000"
+// We point the core connection at the estimator mock, which does not implement
+// the node-info service, so SetupTxClient's first RPC fails fast. The estimator
+// connection handed to setupClient is captured via newEstimatorConnection and
+// asserted to be in the Shutdown state (i.e. Close was called). Reverting the
+// close leaves it Idle and turns this test red — deterministically, without
+// counting goroutines.
+func TestSetupClient_ClosesEstimatorConnOnFailure(t *testing.T) {
+	mes := setupEstimatorService(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
+	coreConn, err := grpc.NewClient(mes.addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = coreConn.Close() })
 
-	conn, err := setupEstimatorConnection(ctx, blackhole, false)
+	var captured *grpc.ClientConn
+	orig := newEstimatorConnection
+	newEstimatorConnection = func(addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
+		conn, connErr := orig(addr, tlsEnabled)
+		captured = conn
+		return conn, connErr
+	}
+	t.Cleanup(func() { newEstimatorConnection = orig })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	c := &TxClient{
+		ctx:                  ctx,
+		cancel:               cancel,
+		coreConns:            []*grpc.ClientConn{coreConn},
+		estimatorServiceAddr: mes.addr,
+	}
+
+	err = c.setupClient()
 	require.Error(t, err)
-	require.Nil(t, conn)
-}
+	require.Nil(t, c.client)
+	// estimatorConn must not be retained on the failure path.
+	require.Nil(t, c.estimatorConn)
 
-// TestSetupEstimatorConnection_NoLeakOnFailure guards against the gRPC
-// connection leak on the failure path: setupEstimatorConnection used to return
-// an error without closing the already-created *grpc.ClientConn, leaking its
-// resolver/balancer goroutines and transport. setupClient retries on each
-// submit while the client is not yet initialized, so an unreachable estimator
-// would accumulate one leaked conn per attempt.
-//
-// We assert that repeated failed connections do not grow the goroutine count,
-// which they would if each conn were left open.
-func TestSetupEstimatorConnection_NoLeakOnFailure(t *testing.T) {
-	const blackhole = "192.0.2.1:65000"
-
-	connectOnce := func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancel()
-
-		conn, err := setupEstimatorConnection(ctx, blackhole, false)
-		require.Error(t, err)
-		require.Nil(t, conn)
-	}
-
-	// Warm up so grpc/runtime one-time goroutines exist before the baseline,
-	// otherwise the first iteration inflates the count.
-	connectOnce()
-	stabilizeGoroutines()
-	baseline := runtime.NumGoroutine()
-
-	const attempts = 10
-	for range attempts {
-		connectOnce()
-	}
-	stabilizeGoroutines()
-
-	// A real leak would add several goroutines per attempt, well above this
-	// slack for transient scheduler/runtime goroutines.
-	const slack = 5
-	got := runtime.NumGoroutine()
-	require.LessOrEqualf(t, got, baseline+slack,
-		"goroutine count grew from %d to %d after %d failed connections: "+
-			"setupEstimatorConnection likely leaks the *grpc.ClientConn on the failure path",
-		baseline, got, attempts)
-}
-
-// stabilizeGoroutines gives background goroutines a chance to wind down so the
-// goroutine-count reading is stable.
-func stabilizeGoroutines() {
-	for range 10 {
-		runtime.GC()
-		time.Sleep(20 * time.Millisecond)
-	}
+	require.NotNil(t, captured, "estimator connection was never opened")
+	require.Equal(t, connectivity.Shutdown, captured.GetState(),
+		"estimator connection was not closed after SetupTxClient failure")
 }
