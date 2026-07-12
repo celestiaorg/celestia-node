@@ -41,8 +41,8 @@ func SampleCoordsFrom1DIndex(idx, squareSize int) (SampleCoords, error) {
 	// idx is a 0-based index into a squareSize×squareSize square, so the valid
 	// range is [0, squareSize²). idx == squareSize² maps to row squareSize, which
 	// does not exist (valid rows are 0..squareSize-1).
-	if idx >= squareSize*squareSize {
-		return SampleCoords{}, fmt.Errorf("SampleCoords %d >= %d: %w", idx, squareSize*squareSize, ErrOutOfBounds)
+	if idx < 0 || idx >= squareSize*squareSize {
+		return SampleCoords{}, fmt.Errorf("SampleCoords %d out of [0, %d): %w", idx, squareSize*squareSize, ErrOutOfBounds)
 	}
 
 	rowIdx := idx / squareSize

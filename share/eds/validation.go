@@ -83,6 +83,12 @@ func (f validation) RangeNamespaceData(
 	ctx context.Context,
 	from, to int,
 ) (shwap.RangeNamespaceData, error) {
+	// Valid range is 0 <= from < to <= odsSharesAmount.
+	if from < 0 {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: `from` %d is negative", from,
+		)
+	}
 	if from >= to {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: `from` %d is >= than `to %d", from, to,

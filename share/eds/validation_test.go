@@ -121,6 +121,7 @@ func TestValidation_RangeNamespaceData(t *testing.T) {
 		{"ValidBounds", 0, 4, false},
 		{"FromAtLastValidIndex", odsSharesAmount - 1, odsSharesAmount, false},
 		{"FromGreaterThanTo", 5, 3, true},
+		{"NegativeFrom", -1, 4, true},
 		{"ToBeyondSharesAmount", 0, odsSharesAmount + 1, true},
 	}
 

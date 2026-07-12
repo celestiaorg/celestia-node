@@ -70,4 +70,9 @@ func TestSampleCoordsFrom1DIndexBounds(t *testing.T) {
 	// non-existent row squareSize.
 	_, err = SampleCoordsFrom1DIndex(squareSize*squareSize, squareSize)
 	require.ErrorIs(t, err, ErrOutOfBounds)
+
+	// a negative index must be rejected, not silently mapped to a negative
+	// row/col.
+	_, err = SampleCoordsFrom1DIndex(-1, squareSize)
+	require.ErrorIs(t, err, ErrOutOfBounds)
 }
