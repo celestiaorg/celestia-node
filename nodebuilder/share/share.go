@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"fmt"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -197,6 +198,12 @@ func (m module) GetRange(
 	height uint64,
 	start, end int,
 ) (*GetRangeResult, error) {
+	// Valid range is 0 <= start < end; reject bad input at the API boundary
+	// instead of letting it reach the getter.
+	if start < 0 || start >= end {
+		return nil, fmt.Errorf("share: invalid range [%d, %d)", start, end)
+	}
+
 	hdr, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err

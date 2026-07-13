@@ -83,6 +83,12 @@ func (f validation) RangeNamespaceData(
 	ctx context.Context,
 	from, to int,
 ) (shwap.RangeNamespaceData, error) {
+	// Valid range is 0 <= from < to <= odsSharesAmount.
+	if from < 0 {
+		return shwap.RangeNamespaceData{}, fmt.Errorf(
+			"range validation: `from` %d is negative", from,
+		)
+	}
 	if from >= to {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: `from` %d is >= than `to %d", from, to,
@@ -96,7 +102,8 @@ func (f validation) RangeNamespaceData(
 	odsSize := edsSize / 2
 	odsSharesAmount := odsSize * odsSize
 
-	if from > odsSharesAmount {
+	// `from` is an inclusive index, so its valid range is [0, odsSharesAmount).
+	if from >= odsSharesAmount {
 		return shwap.RangeNamespaceData{}, fmt.Errorf(
 			"range validation: invalid start index of the range:%d. ODS shares amount %d",
 			from, odsSharesAmount,
