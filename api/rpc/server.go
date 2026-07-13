@@ -140,7 +140,10 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 	// rpcMetrics. s.metrics may be nil (metrics disabled) → no wrapping.
 	h := core
 	if s.metrics != nil {
-		h = otelhttp.NewHandler(core, "rpc",
+		// trackWebsocket wraps core directly so its bracket is the tightest
+		// possible around the (blocking) ws ServeHTTP; otelhttp then wraps that.
+		h = s.metrics.trackWebsocket(h)
+		h = otelhttp.NewHandler(h, "rpc",
 			// metrics only: suppress the per-request span otelhttp would emit.
 			otelhttp.WithTracerProvider(noop.NewTracerProvider()),
 		)

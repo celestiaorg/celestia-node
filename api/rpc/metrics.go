@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
@@ -36,7 +37,17 @@ type rpcMetrics struct {
 	// sees individual requests), so it stays instrumented here.
 	connectionsOpen     atomic.Int64
 	connectionsOpenInst metric.Int64ObservableGauge
-	gaugeReg            metric.Registration
+
+	// websocketConnsOpen tracks currently-open websocket connections. It can't
+	// live in onConnState like connectionsOpen: net/http emits StateHijacked on
+	// upgrade but never a matching close for hijacked conns, so the gauge is
+	// bracketed around the (blocking) ws ServeHTTP in trackWebsocket instead.
+	// Live slot usage against maxConcurrentConns is connectionsOpen +
+	// websocketConnsOpen (hijacked conns leave connectionsOpen on upgrade).
+	websocketConnsOpen     atomic.Int64
+	websocketConnsOpenInst metric.Int64ObservableGauge
+
+	gaugeReg metric.Registration
 }
 
 func newMetrics() (*rpcMetrics, error) {
@@ -69,7 +80,17 @@ func newMetrics() (*rpcMetrics, error) {
 	if err != nil {
 		return nil, err
 	}
-	m.gaugeReg, err = meter.RegisterCallback(m.observeGauges, m.connectionsOpenInst)
+	m.websocketConnsOpenInst, err = meter.Int64ObservableGauge(
+		"rpc_websocket_connections_open",
+		metric.WithDescription("number of websocket connections currently open to the RPC server"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	m.gaugeReg, err = meter.RegisterCallback(
+		m.observeGauges, m.connectionsOpenInst, m.websocketConnsOpenInst,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +100,7 @@ func newMetrics() (*rpcMetrics, error) {
 
 func (m *rpcMetrics) observeGauges(_ context.Context, obs metric.Observer) error {
 	obs.ObserveInt64(m.connectionsOpenInst, m.connectionsOpen.Load())
+	obs.ObserveInt64(m.websocketConnsOpenInst, m.websocketConnsOpen.Load())
 	return nil
 }
 
@@ -113,4 +135,30 @@ func (m *rpcMetrics) traceMethod(method string, _, _ []reflect.Value, err error)
 		attribute.String("method", method),
 		attribute.Bool("error", err != nil),
 	))
+}
+
+// isWebsocketUpgrade reports whether r is a websocket handshake. Such a request
+// is served by a single ServeHTTP call that blocks for the whole connection
+// lifetime, so bracketing it yields an accurate live count — unlike ConnState,
+// which sees StateHijacked but never a matching close.
+func isWebsocketUpgrade(r *http.Request) bool {
+	return strings.EqualFold(r.Header.Get("Upgrade"), "websocket") &&
+		strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade")
+}
+
+// trackWebsocket brackets each websocket connection with the websocketConnsOpen
+// gauge. The inner ServeHTTP blocks until the socket closes, so the deferred
+// decrement fires exactly on close — the close signal net/http withholds for
+// hijacked connections. A handshake that fails to upgrade returns immediately,
+// leaving the gauge net-zero.
+func (m *rpcMetrics) trackWebsocket(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if m == nil || !isWebsocketUpgrade(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		m.websocketConnsOpen.Add(1)
+		defer m.websocketConnsOpen.Add(-1)
+		next.ServeHTTP(w, r)
+	})
 }
