@@ -20,11 +20,6 @@ var tracer = otel.Tracer("header/service")
 // ErrHeightZero returned when the provided block height is equal to 0.
 var ErrHeightZero = errors.New("height is equal to 0")
 
-// ErrRangeTooLarge returned when the requested header range exceeds MaxRangeRequestSize.
-// Clients should paginate their requests into ranges of at most MaxRangeRequestSize headers.
-var ErrRangeTooLarge = fmt.Errorf("header/service: requested range exceeds maximum of %d headers",
-	libhead.MaxRangeRequestSize)
-
 // Service represents the header Service that can be started / stopped on a node.
 // Service's main function is to manage its sub-services. Service can contain several
 // sub-services, such as Exchange, ExchangeServer, Syncer, and so forth.
@@ -89,13 +84,15 @@ func (s *Service) GetRangeByHeight(
 	}()
 
 	// The store fetches headers in range [from.Height()+1, to), so the count is to - from.Height() - 1.
+	// Reuse the go-header sentinels the P2P ExchangeServer returns for the same conditions.
 	switch {
-	case to <= from.Height()+1:
-		return nil, fmt.Errorf("header/service: invalid range: 'to' (%d) must be greater than 'from' height + 1 (%d)",
-			to, from.Height()+1)
+	case to <= from.Height():
+		return nil, libhead.ErrRangeMixUp
+	case to == from.Height()+1:
+		return nil, libhead.ErrEmptyRange
 	// Enforce the same MaxRangeRequestSize limit as the P2P server.
 	case to > from.Height()+1+libhead.MaxRangeRequestSize:
-		return nil, ErrRangeTooLarge
+		return nil, libhead.ErrHeadersLimitExceeded
 	}
 
 	log.Infow("getting header range by height", "from", from.Height(), "to", to)

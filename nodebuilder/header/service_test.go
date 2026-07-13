@@ -51,7 +51,7 @@ func TestGetRangeByHeight_Validation(t *testing.T) {
 		// request 65 headers: from.Height()+1=101 to 166 exclusive = 65 headers
 		to := from.Height() + 1 + libhead.MaxRangeRequestSize + 1
 		_, err := serv.GetRangeByHeight(context.Background(), from, to)
-		assert.ErrorIs(t, err, ErrRangeTooLarge)
+		assert.ErrorIs(t, err, libhead.ErrHeadersLimitExceeded)
 	})
 
 	t.Run("accepts range at MaxRangeRequestSize", func(t *testing.T) {
@@ -72,11 +72,11 @@ func TestGetRangeByHeight_Validation(t *testing.T) {
 
 	t.Run("rejects reversed range", func(t *testing.T) {
 		_, err := serv.GetRangeByHeight(context.Background(), from, from.Height()-1)
-		assert.ErrorContains(t, err, "invalid range")
+		assert.ErrorIs(t, err, libhead.ErrRangeMixUp)
 	})
 
 	t.Run("rejects empty range", func(t *testing.T) {
 		_, err := serv.GetRangeByHeight(context.Background(), from, from.Height()+1)
-		assert.ErrorContains(t, err, "invalid range")
+		assert.ErrorIs(t, err, libhead.ErrEmptyRange)
 	})
 }
