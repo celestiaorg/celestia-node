@@ -82,10 +82,6 @@ func (c *TxClient) Start(context.Context) error {
 	return nil
 }
 
-// newEstimatorConnection opens the estimator gRPC connection. It's a package
-// var so tests can observe the connection handed to setupClient.
-var newEstimatorConnection = setupEstimatorConnection
-
 func setupEstimatorConnection(addr string, tlsEnabled bool) (*grpc.ClientConn, error) {
 	log.Infow("setting up estimator connection", "address", addr)
 
@@ -359,7 +355,7 @@ func (c *TxClient) setupClient() error {
 	var estimatorConn *grpc.ClientConn
 	if c.estimatorServiceAddr != "" {
 		var err error
-		estimatorConn, err = newEstimatorConnection(c.estimatorServiceAddr, c.estimatorServiceTLS)
+		estimatorConn, err = setupEstimatorConnection(c.estimatorServiceAddr, c.estimatorServiceTLS)
 		if err != nil {
 			return err
 		}
