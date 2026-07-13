@@ -107,8 +107,9 @@ func (h *RoutingExchange) GetRangeByHeight(
 		return rng, nil
 	}
 
-	// All headers are outside window - use P2P
-	if to <= cutoff {
+	// All headers are outside window - use P2P.
+	// `to` is exclusive, so the highest requested height is to-1.
+	if to <= cutoff+1 {
 		log.Debugw("requesting full range from p2p network", "from", from.Height(), "to", to)
 		rng, err := h.p2p.GetRangeByHeight(ctx, from, to)
 		if err != nil {
@@ -117,13 +118,14 @@ func (h *RoutingExchange) GetRangeByHeight(
 		return rng, nil
 	}
 
-	// Split: [startHeight, cutoff] from P2P, (cutoff, to] from core
+	// Split: [startHeight, cutoff] from P2P, [cutoff+1, to) from core
 	// cutoff is the last height outside the window (lastPruned), so it should be fetched from P2P
 	var headers []*header.ExtendedHeader
 
-	log.Debugw("requesting partial range from p2p network", "from", from, "to", cutoff)
-	// Get historical headers from P2P (outside window, including cutoff)
-	p2pHeaders, err := h.p2p.GetRangeByHeight(ctx, from, cutoff)
+	log.Debugw("requesting partial range from p2p network", "from", from.Height(), "to", cutoff+1)
+	// Get historical headers from P2P (outside window, including cutoff).
+	// `to` is exclusive, so request up to cutoff+1 to receive cutoff itself.
+	p2pHeaders, err := h.p2p.GetRangeByHeight(ctx, from, cutoff+1)
 	if err != nil {
 		return nil, fmt.Errorf("requesting partial range from p2p network: %w", err)
 	}
