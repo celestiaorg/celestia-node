@@ -170,10 +170,11 @@ func DefaultParameters() *Parameters {
 		// success/latency-only behavior.
 		ThroughputWeight:         0.5,
 		ThroughputRefBytesPerSec: 20 << 20, // 20 MiB/s
-		// Bound downloads to the 4 fastest measured peers. Unproven peers still fill the set
-		// while fewer than 4 are measured, so cold-start exploration is not starved. Set to 0
-		// to disable the cap and keep every active peer eligible.
-		FastestPeersLimit: 4,
+		// Fastest-peers cap is off by default: selection keeps every active peer eligible and
+		// merely *prefers* faster ones via ThroughputWeight above, so a request can still spill
+		// to a slower peer when the fast ones don't have the block. Set it to a positive N only
+		// when you deliberately want to hard-restrict downloads to the N fastest peers.
+		FastestPeersLimit: 0,
 	}
 }
 
