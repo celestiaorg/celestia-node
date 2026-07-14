@@ -86,11 +86,11 @@ func MsgID(pmsg *pb.Message) string {
 		return string(hash[:])
 	}
 
-	commit, err := unmarshalCommit(pmsg.Data)
+	commit, err := unmarshalCommit(pmsg.GetData())
 	if commit == nil || err != nil {
 		// There is nothing we can do about the error, and it will be anyway caught during validation.
 		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
-		return mID(pmsg.Data)
+		return mID(pmsg.GetData())
 	}
 
 	// IMPORTANT NOTE:
