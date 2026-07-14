@@ -202,3 +202,27 @@ func (d *DASer) SamplingStats(ctx context.Context) (SamplingStats, error) {
 func (d *DASer) WaitCatchUp(ctx context.Context) error {
 	return d.sampler.state.waitCatchUp(ctx)
 }
+
+// ResetSampledTo moves the DAS sampling position to the given height so that sampling
+// resumes from that height upward. Heights below it are treated as already sampled and are
+// no longer processed, and any previously failed heights are cleared. The new position is
+// persisted to disk immediately so it survives a restart.
+func (d *DASer) ResetSampledTo(ctx context.Context, height uint64) error {
+	if !d.running.Load() {
+		return errors.New("das: DASer is not running")
+	}
+
+	if err := d.sampler.resetTo(ctx, height); err != nil {
+		return fmt.Errorf("das: resetting sampled height: %w", err)
+	}
+
+	// persist the new position immediately so a crash right after the reset does not lose it
+	cp, err := d.sampler.getCheckpoint(ctx)
+	if err != nil {
+		return fmt.Errorf("das: reading checkpoint after reset: %w", err)
+	}
+	if err := d.store.store(ctx, cp); err != nil {
+		return fmt.Errorf("das: storing checkpoint after reset: %w", err)
+	}
+	return nil
+}

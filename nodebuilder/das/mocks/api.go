@@ -35,6 +35,20 @@ func (m *MockModule) EXPECT() *MockModuleMockRecorder {
 	return m.recorder
 }
 
+// ResetSampledTo mocks base method.
+func (m *MockModule) ResetSampledTo(arg0 context.Context, arg1 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetSampledTo", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetSampledTo indicates an expected call of ResetSampledTo.
+func (mr *MockModuleMockRecorder) ResetSampledTo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetSampledTo", reflect.TypeOf((*MockModule)(nil).ResetSampledTo), arg0, arg1)
+}
+
 // SamplingStats mocks base method.
 func (m *MockModule) SamplingStats(arg0 context.Context) (das.SamplingStats, error) {
 	m.ctrl.T.Helper()

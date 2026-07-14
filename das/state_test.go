@@ -93,3 +93,34 @@ func Test_coordinatorStats(t *testing.T) {
 		})
 	}
 }
+
+func Test_coordinatorStateReset(t *testing.T) {
+	t.Run("moves next and clears failed/inRetry", func(t *testing.T) {
+		s := newCoordinatorState(DefaultParameters())
+		s.next = 100
+		s.networkHead = 200
+		s.failed = map[uint64]retryAttempt{50: {count: 1}, 150: {count: 2}}
+		s.inRetry = map[uint64]retryAttempt{60: {count: 1}}
+
+		s.reset(70)
+
+		assert.Equal(t, uint64(70), s.next, "next should move to the reset height")
+		assert.Empty(t, s.failed, "failed heights should be cleared")
+		assert.Empty(t, s.inRetry, "in-retry heights should be cleared")
+	})
+
+	t.Run("re-arms catch-up after it was done", func(t *testing.T) {
+		s := newCoordinatorState(DefaultParameters())
+		s.next = 201
+		s.networkHead = 200
+		// simulate catch-up completed
+		s.checkDone()
+		assert.True(t, s.catchUpDone.Load(), "catch-up should be done before reset")
+
+		// reset to a height below the head re-opens the catch-up range
+		s.reset(100)
+
+		assert.Equal(t, uint64(100), s.next)
+		assert.False(t, s.catchUpDone.Load(), "catch-up should be re-armed after reset below head")
+	})
+}

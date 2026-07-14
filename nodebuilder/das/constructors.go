@@ -29,6 +29,10 @@ func (d daserStub) WaitCatchUp(context.Context) error {
 	return errStub
 }
 
+func (d daserStub) ResetSampledTo(context.Context, uint64) error {
+	return errStub
+}
+
 func newDaserStub() Module {
 	return &daserStub{}
 }

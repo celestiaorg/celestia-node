@@ -26,6 +26,8 @@ type samplingCoordinator struct {
 	updHeadCh chan *header.ExtendedHeader
 	// waitCh signals to block coordinator for external access to state
 	waitCh chan *sync.WaitGroup
+	// resetCh signals to move the sampling position to a requested height
+	resetCh chan resetRequest
 
 	workersWg sync.WaitGroup
 	metrics   *metrics
@@ -37,6 +39,13 @@ type result struct {
 	job
 	failed map[uint64]int
 	err    error
+}
+
+// resetRequest asks the coordinator to move the sampling position to height. done is closed
+// once the reset has been applied on the coordinator goroutine.
+type resetRequest struct {
+	height uint64
+	done   chan struct{}
 }
 
 func newSamplingCoordinator(
@@ -53,6 +62,7 @@ func newSamplingCoordinator(
 		resultCh:         make(chan result),
 		updHeadCh:        make(chan *header.ExtendedHeader),
 		waitCh:           make(chan *sync.WaitGroup),
+		resetCh:          make(chan resetRequest),
 		done:             newDone("sampling coordinator"),
 	}
 }
@@ -86,6 +96,9 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 			}
 		case res := <-sc.resultCh:
 			sc.state.handleResult(res)
+		case req := <-sc.resetCh:
+			sc.state.reset(req.height)
+			close(req.done)
 		case wg := <-sc.waitCh:
 			wg.Wait()
 		case <-ctx.Done():
@@ -130,6 +143,24 @@ func (sc *samplingCoordinator) stats(ctx context.Context) (SamplingStats, error)
 	}
 
 	return sc.state.unsafeStats(), nil
+}
+
+// resetTo moves the sampling position to height on the coordinator goroutine and blocks
+// until it has been applied (or ctx is cancelled).
+func (sc *samplingCoordinator) resetTo(ctx context.Context, height uint64) error {
+	req := resetRequest{height: height, done: make(chan struct{})}
+	select {
+	case sc.resetCh <- req:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	select {
+	case <-req.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (sc *samplingCoordinator) getCheckpoint(ctx context.Context) (checkpoint, error) {

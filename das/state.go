@@ -75,6 +75,18 @@ func (s *coordinatorState) resumeFromCheckpoint(c checkpoint) {
 	}
 }
 
+// reset moves the sampling position to height so that sampling resumes from that height
+// upward. Heights below it are treated as done and are no longer sampled, and all failed /
+// in-retry bookkeeping is cleared. If the reset re-opens the catch-up range (height is at or
+// below the network head), the catch-up signal is re-armed. In-progress workers are left to
+// finish; any heights they re-fail will be picked up again from the freshly cleared state.
+func (s *coordinatorState) reset(height uint64) {
+	s.next = height
+	s.failed = make(map[uint64]retryAttempt)
+	s.inRetry = make(map[uint64]retryAttempt)
+	s.checkDone()
+}
+
 func (s *coordinatorState) handleResult(res result) {
 	delete(s.inProgress, res.id)
 
