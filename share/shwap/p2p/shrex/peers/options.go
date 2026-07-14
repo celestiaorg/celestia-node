@@ -66,6 +66,14 @@ type Parameters struct {
 	// "average" (multiplier ~1). Peers faster than this are boosted, slower ones demoted.
 	// Only used when ThroughputWeight > 0.
 	ThroughputRefBytesPerSec float64
+
+	// FastestPeersLimit, when > 0, hard-caps peer selection to the N peers with the highest
+	// observed download throughput: only those N are considered as candidates for a request.
+	// Peers without a throughput measurement yet (unproven) are only used to fill the set when
+	// fewer than N peers have been measured, so exploration continues during cold start but,
+	// once N peers are measured, downloads concentrate on the N fastest. 0 (default) disables
+	// the cap and keeps all active peers eligible.
+	FastestPeersLimit int
 }
 
 type Option func(*Manager) error
@@ -122,6 +130,12 @@ func (p *Parameters) Validate() error {
 		return fmt.Errorf("peer-manager: throughput reference must be positive when throughput weight > 0")
 	}
 
+	// FastestPeersLimit is optional; the zero value disables the cap and keeps this
+	// non-breaking for configs written before the field existed.
+	if p.FastestPeersLimit < 0 {
+		return fmt.Errorf("peer-manager: fastest peers limit must be >= 0")
+	}
+
 	return nil
 }
 
@@ -156,6 +170,10 @@ func DefaultParameters() *Parameters {
 		// success/latency-only behavior.
 		ThroughputWeight:         0.5,
 		ThroughputRefBytesPerSec: 20 << 20, // 20 MiB/s
+		// Bound downloads to the 4 fastest measured peers. Unproven peers still fill the set
+		// while fewer than 4 are measured, so cold-start exploration is not starved. Set to 0
+		// to disable the cap and keep every active peer eligible.
+		FastestPeersLimit: 4,
 	}
 }
 

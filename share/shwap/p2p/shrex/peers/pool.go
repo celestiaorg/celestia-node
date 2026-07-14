@@ -3,6 +3,7 @@ package peers
 import (
 	"context"
 	"math/rand/v2"
+	"sort"
 	"sync"
 	"time"
 
@@ -87,7 +88,35 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
+	candidates = p.limitToFastest(candidates)
+
 	return p.pickP2C(candidates), true
+}
+
+// limitToFastest restricts candidates to the params.FastestPeersLimit peers with the highest
+// observed throughput when the cap is enabled. Peers without a throughput measurement yet sort
+// last, so they are only kept to fill the set when fewer than the cap have been measured. It
+// mutates and returns the passed slice (a freshly allocated local). Must be called with the
+// lock held.
+func (p *pool) limitToFastest(candidates []peer.ID) []peer.ID {
+	limit := p.params.FastestPeersLimit
+	if limit <= 0 || len(candidates) <= limit {
+		return candidates
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return p.throughputOf(candidates[i]) > p.throughputOf(candidates[j])
+	})
+	return candidates[:limit]
+}
+
+// throughputOf returns the peer's observed throughput EWMA in bytes/sec, or 0 if the peer is
+// unknown or has no measurement yet. Must be called with the lock held.
+func (p *pool) throughputOf(peerID peer.ID) float64 {
+	if st := p.stats[peerID]; st != nil {
+		return st.throughputEWMA
+	}
+	return 0
 }
 
 // pickP2C draws up to P2CSampleSize random candidates and returns the highest scoring

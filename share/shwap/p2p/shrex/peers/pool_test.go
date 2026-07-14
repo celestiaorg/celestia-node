@@ -319,6 +319,64 @@ func TestPoolSelection(t *testing.T) {
 		require.Equal(t, peerID, id)
 	})
 
+	t.Run("caps selection to the N fastest peers by throughput", func(t *testing.T) {
+		params := DefaultParameters()
+		params.FastestPeersLimit = 2
+		params.P2CSampleSize = 1024 // evaluate all candidates -> deterministic pick
+		p := newPool(params)
+
+		fast1, fast2 := peer.ID("fast1"), peer.ID("fast2")
+		slow1, slow2 := peer.ID("slow1"), peer.ID("slow2")
+		peers := []peer.ID{fast1, slow1, fast2, slow2}
+		p.add(peers...)
+
+		p.stats[fast1].throughputEWMA = 100 << 20 // 100 MiB/s
+		p.stats[fast2].throughputEWMA = 90 << 20  // 90 MiB/s
+		p.stats[slow1].throughputEWMA = 1 << 20   // 1 MiB/s
+		p.stats[slow2].throughputEWMA = 2 << 20   // 2 MiB/s
+
+		const trials = 500
+		for i := 0; i < trials; i++ {
+			id, ok := p.tryGet()
+			require.True(t, ok)
+			require.Contains(t, []peer.ID{fast1, fast2}, id,
+				"selection must stay within the 2 fastest peers")
+		}
+	})
+
+	t.Run("fastest cap fills remaining slots with unproven peers", func(t *testing.T) {
+		params := DefaultParameters()
+		params.FastestPeersLimit = 2
+		p := newPool(params)
+
+		measured := peer.ID("measured")
+		unproven1, unproven2 := peer.ID("unproven1"), peer.ID("unproven2")
+		p.add(measured, unproven1, unproven2)
+		p.stats[measured].throughputEWMA = 50 << 20 // only one peer has a measurement
+
+		// with only one measured peer, the cap keeps an unproven peer eligible so the
+		// cold-start exploration is not starved: the measured peer plus one unproven fill it.
+		eligible := p.limitToFastest([]peer.ID{measured, unproven1, unproven2})
+		require.Len(t, eligible, 2)
+		require.Equal(t, measured, eligible[0], "the measured peer ranks first")
+		require.Contains(t, []peer.ID{unproven1, unproven2}, eligible[1],
+			"an unproven peer should fill the remaining slot")
+	})
+
+	t.Run("fastest cap disabled keeps every active peer eligible", func(t *testing.T) {
+		params := DefaultParameters()
+		params.FastestPeersLimit = 0 // 0 disables the cap
+		p := newPool(params)
+
+		peers := []peer.ID{"a", "b", "c"}
+		p.add(peers...)
+		candidates := make([]peer.ID, 0, len(peers))
+		for _, id := range peers {
+			candidates = append(candidates, id)
+		}
+		require.Len(t, p.limitToFastest(candidates), len(peers))
+	})
+
 	t.Run("adaptive cooldown escalates end-to-end", func(t *testing.T) {
 		params := DefaultParameters()
 		params.PeerCooldown = time.Second
