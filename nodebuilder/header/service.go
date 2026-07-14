@@ -71,6 +71,10 @@ func (s *Service) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) (_ []*header.ExtendedHeader, err error) {
+	if from == nil {
+		return nil, errors.New("header/service: 'from' header is nil")
+	}
+
 	ctx, span := tracer.Start(ctx, "header/get-range-by-height")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -79,11 +83,16 @@ func (s *Service) GetRangeByHeight(
 		}
 	}()
 
-	// Enforce the same MaxRangeRequestSize limit as the P2P server.
 	// The store fetches headers in range [from.Height()+1, to), so the count is to - from.Height() - 1.
-	if to > from.Height()+1+libhead.MaxRangeRequestSize {
-		return nil, fmt.Errorf("header/service: requested range exceeds MaxRangeRequestSize (%d)",
-			libhead.MaxRangeRequestSize)
+	// Reuse the go-header sentinels the P2P ExchangeServer returns for the same conditions.
+	switch {
+	case to <= from.Height():
+		return nil, libhead.ErrRangeMixUp
+	case to == from.Height()+1:
+		return nil, libhead.ErrEmptyRange
+	// Enforce the same MaxRangeRequestSize limit as the P2P server.
+	case to > from.Height()+1+libhead.MaxRangeRequestSize:
+		return nil, libhead.ErrHeadersLimitExceeded
 	}
 
 	log.Infow("getting header range by height", "from", from.Height(), "to", to)
