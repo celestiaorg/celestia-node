@@ -92,7 +92,7 @@ func pubSub(cfg *Config, params pubSubParams) (*pubsub.PubSub, error) {
 }
 
 func hashMsgID(m *pubsub_pb.Message) string {
-	hash := blake2b.Sum256(m.Data)
+	hash := blake2b.Sum256(m.GetData())
 	return string(hash[:])
 }
 

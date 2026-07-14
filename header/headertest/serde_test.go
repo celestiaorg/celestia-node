@@ -44,9 +44,9 @@ func TestMsgIDEquivalency(t *testing.T) {
 			return string(hash[:])
 		}
 
-		h, _ := header.UnmarshalExtendedHeader(message.Data)
+		h, _ := header.UnmarshalExtendedHeader(message.GetData())
 		if h == nil || h.ValidateBasic() != nil {
-			return mID(message.Data)
+			return mID(message.GetData())
 		}
 
 		return h.Commit.BlockID.String()
