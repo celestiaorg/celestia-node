@@ -61,6 +61,14 @@ func (c *Client) Get(
 	)
 	requestTime := time.Now()
 	n, status, err := c.doRequest(ctx, logger, req, resp, peer)
+	// Prefer ctx.Err() when the request failed after cancellation: without this
+	// the caller sees the libp2p stream-reset error triggered by our own
+	// AfterFunc rather than the actual cause. Only replace when err is already
+	// non-nil so a race between a successful response and a late cancellation
+	// doesn't turn a successful Get into an error.
+	if err != nil && ctx.Err() != nil {
+		err = ctx.Err()
+	}
 	if err != nil {
 		logger.Debugw("requesting data from peer failed", "error", err)
 	}
@@ -100,6 +108,15 @@ func (c *Client) doRequest(
 	defer func() {
 		utils.CloseAndLog(log, "shrex/client stream", stream)
 	}()
+
+	// Reset the stream if ctx is canceled after it is opened, so any in-flight
+	// Read/Write returns immediately instead of blocking until the deadline set
+	// by setStreamDeadlines expires (up to ReadTimeout, 2m by default). Without
+	// this the caller keeps its peer slot even after giving up on the request.
+	stopWatch := context.AfterFunc(ctx, func() {
+		stream.Reset() //nolint:errcheck
+	})
+	defer stopWatch()
 
 	c.setStreamDeadlines(ctx, logger, stream)
 
