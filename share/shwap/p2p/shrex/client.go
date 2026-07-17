@@ -2,6 +2,7 @@ package shrex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -61,13 +62,14 @@ func (c *Client) Get(
 	)
 	requestTime := time.Now()
 	n, status, err := c.doRequest(ctx, logger, req, resp, peer)
-	// Prefer ctx.Err() when the request failed after cancellation: without this
-	// the caller sees the libp2p stream-reset error triggered by our own
-	// AfterFunc rather than the actual cause. Only replace when err is already
-	// non-nil so a race between a successful response and a late cancellation
-	// doesn't turn a successful Get into an error.
+	// Join ctx.Err() when the request failed after cancellation so the caller
+	// can classify the failure as canceled, without dropping typed shrex errors
+	// like ErrNotFound or ErrResourceExhausted that a late cancel would
+	// otherwise mask. Only join when err is already non-nil so a race between
+	// a successful response and a late cancellation doesn't turn a successful
+	// Get into an error.
 	if err != nil && ctx.Err() != nil {
-		err = ctx.Err()
+		err = errors.Join(err, ctx.Err())
 	}
 	if err != nil {
 		logger.Debugw("requesting data from peer failed", "error", err)
@@ -113,6 +115,11 @@ func (c *Client) doRequest(
 	// Read/Write returns immediately instead of blocking until the deadline set
 	// by setStreamDeadlines expires (up to ReadTimeout, 2m by default). Without
 	// this the caller keeps its peer slot even after giving up on the request.
+	//
+	// stopWatch does not wait for an in-flight callback to finish, so the
+	// Reset here can race with the deferred CloseAndLog above. libp2p's stream
+	// Close and Reset are safe under concurrent use, so the race is harmless:
+	// whichever one lands first tears the stream down and the other is a no-op.
 	stopWatch := context.AfterFunc(ctx, func() {
 		stream.Reset() //nolint:errcheck
 	})

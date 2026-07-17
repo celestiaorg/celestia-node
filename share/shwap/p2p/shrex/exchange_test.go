@@ -76,19 +76,21 @@ func TestClient_AbortsOnCtxCancel(t *testing.T) {
 	id, err := shwap.NewNamespaceDataID(1, libshare.RandomNamespace())
 	require.NoError(t, err)
 
-	// Server-side handler holds the stream open without reading or responding,
-	// simulating an unresponsive peer so the client is stuck in serde.Read.
+	// Hold the server handler on a channel that only closes at test cleanup so
+	// the server never reads or writes anything. This keeps the client stuck
+	// in serde.Read waiting for a status response, which is exactly the state
+	// the fix targets — reading a byte instead would race with the client's
+	// WriteTo and let the handler exit before ctx is canceled, so the test
+	// could pass without exercising AfterFunc at all.
 	serverBlocked := make(chan struct{})
-	streamClosed := make(chan struct{})
+	unblock := make(chan struct{})
+	t.Cleanup(func() { close(unblock) })
 	hosts[1].SetStreamHandler(
 		ProtocolID(client.params.NetworkID(), id.Name()),
 		func(s network.Stream) {
-			defer close(streamClosed)
-			defer s.Close()
+			defer s.Reset() //nolint:errcheck
 			close(serverBlocked)
-			// Block until the stream is torn down by the client's Reset.
-			buf := make([]byte, 1)
-			_, _ = s.Read(buf)
+			<-unblock
 		},
 	)
 
@@ -115,13 +117,6 @@ func TestClient_AbortsOnCtxCancel(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 	case <-time.After(2 * time.Second):
 		t.Fatal("client did not return promptly after context cancellation")
-	}
-	// The server-side handler should unblock too, once its Read errors out on
-	// the reset stream.
-	select {
-	case <-streamClosed:
-	case <-time.After(2 * time.Second):
-		t.Fatal("server handler did not exit after client reset the stream")
 	}
 }
 
