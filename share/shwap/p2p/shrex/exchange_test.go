@@ -65,9 +65,8 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 	})
 }
 
-// TestClient_AbortsOnCtxCancel is a regression test for #3480: canceling the
-// parent context after the stream is opened must abort the request promptly
-// instead of blocking on the stream deadline (up to ReadTimeout, 2m default).
+// Regression for #3480: canceling ctx mid-request must abort promptly instead
+// of hanging on the stream deadline.
 func TestClient_AbortsOnCtxCancel(t *testing.T) {
 	hosts := createMocknet(t, 2)
 	client, err := NewClient(DefaultClientParameters(), hosts[0])
@@ -76,12 +75,8 @@ func TestClient_AbortsOnCtxCancel(t *testing.T) {
 	id, err := shwap.NewNamespaceDataID(1, libshare.RandomNamespace())
 	require.NoError(t, err)
 
-	// Hold the server handler on a channel that only closes at test cleanup so
-	// the server never reads or writes anything. This keeps the client stuck
-	// in serde.Read waiting for a status response, which is exactly the state
-	// the fix targets — reading a byte instead would race with the client's
-	// WriteTo and let the handler exit before ctx is canceled, so the test
-	// could pass without exercising AfterFunc at all.
+	// Server never reads or writes, so the client stays blocked in serde.Read
+	// until the fix's AfterFunc resets the stream.
 	serverBlocked := make(chan struct{})
 	unblock := make(chan struct{})
 	t.Cleanup(func() { close(unblock) })
@@ -102,8 +97,6 @@ func TestClient_AbortsOnCtxCancel(t *testing.T) {
 		result <- client.Get(ctx, &id, &shwap.NamespaceData{}, hosts[1].ID())
 	}()
 
-	// Wait until the server has accepted the stream so we know the client is
-	// past NewStream and blocked reading the response.
 	select {
 	case <-serverBlocked:
 	case <-time.After(2 * time.Second):
