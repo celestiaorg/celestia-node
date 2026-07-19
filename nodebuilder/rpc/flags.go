@@ -22,6 +22,7 @@ var (
 	tlsCertPathFlag        = "rpc.tls-cert"
 	tlsKeyPathFlag         = "rpc.tls-key"
 	rateLimitFlag          = "rpc.rate-limit"
+	maxConcurrentConnsFlag = "rpc.max-concurrent-conns"
 )
 
 // Flags gives a set of hardcoded node/rpc package flags.
@@ -90,6 +91,13 @@ func Flags() *flag.FlagSet {
 		rateLimitFlag,
 		false,
 		"Enable per-IP rate limiting on RPC server. Leave disabled when running behind a reverse proxy",
+	)
+
+	flags.Int(
+		maxConcurrentConnsFlag,
+		0,
+		"Cap on simultaneous RPC connections; websocket subscriptions count for their lifetime. "+
+			"0 keeps the config file value (default 500)",
 	)
 
 	return flags
@@ -195,6 +203,12 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 	} else if val {
 		log.Info("RPC rate limiting enabled (--rpc.rate-limit)")
 		cfg.RateLimit.Enabled = true
+	}
+
+	if val, err := cmd.Flags().GetInt(maxConcurrentConnsFlag); err != nil {
+		return err
+	} else if val > 0 {
+		cfg.MaxConcurrentConns = val
 	}
 
 	return nil

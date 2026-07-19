@@ -70,7 +70,10 @@ func TestServer_HandlerStackSelection(t *testing.T) {
 				AllowedHeaders: []string{"Content-Type"},
 			}
 
-			server := NewServer("localhost", "0", tt.authDisabled, corsConfig, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+			server := NewServer(
+				"localhost", "0", tt.authDisabled, corsConfig,
+				TLSConfig{}, RateLimitConfig{}, 0, signer, verifier,
+			)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -114,7 +117,7 @@ func TestServer_AuthDisabledOverridesCORS(t *testing.T) {
 		AllowedHeaders: []string{"Content-Type"},
 	}
 
-	server := NewServer("localhost", "0", true, restrictiveCORS, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+	server := NewServer("localhost", "0", true, restrictiveCORS, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -180,7 +183,7 @@ func TestServer_CORSConfigurationPassing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", false, tt.corsConfig, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+			server := NewServer("localhost", "0", false, tt.corsConfig, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -242,6 +245,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 				CORSConfig{},
 				TLSConfig{},
 				RateLimitConfig{},
+				0,
 				signer,
 				verifier,
 			)
@@ -307,6 +311,7 @@ func TestServer_VerifyAuth(t *testing.T) {
 				CORSConfig{},
 				TLSConfig{},
 				RateLimitConfig{},
+				0,
 				signer,
 				verifier,
 			)
@@ -326,7 +331,7 @@ func TestServer_VerifyAuth(t *testing.T) {
 // TestServer_StartStop tests server lifecycle
 func TestServer_StartStop(t *testing.T) {
 	signer, verifier := createTestJWT(t)
-	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)
 
 	ctx := context.Background()
 
@@ -358,7 +363,7 @@ func TestServer_TLS(t *testing.T) {
 		Enabled:  true,
 		CertPath: certFile,
 		KeyPath:  keyFile,
-	}, RateLimitConfig{}, signer, verifier)
+	}, RateLimitConfig{}, 0, signer, verifier)
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
@@ -397,7 +402,7 @@ func TestServer_TLS(t *testing.T) {
 func TestServer_NoTLS_PlainHTTP(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
-	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
@@ -436,7 +441,7 @@ func (wsTestService) Updates(ctx context.Context) (<-chan int, error) {
 // subscription must still work with metrics on.
 func TestServer_WithMetrics_WebSocketSubscription(t *testing.T) {
 	signer, verifier := createTestJWT(t)
-	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)
 	srv.RegisterService("test", wsTestService{}, nil)
 	require.NoError(t, srv.WithMetrics())
 
@@ -469,6 +474,55 @@ func TestServer_WithMetrics_WebSocketSubscription(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("no value received from websocket subscription")
 	}
+}
+
+// TestServer_MaxConcurrentConns_Configurable verifies that a non-zero
+// maxConcurrentConns passed to NewServer flows through to connLimit,
+// so operators can raise the cap when many long-lived websocket
+// subscribers would otherwise exhaust the default 500 slots.
+func TestServer_MaxConcurrentConns_Configurable(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	srv := NewServer("localhost", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 1, signer, verifier)
+
+	blocked := make(chan struct{})
+	release := make(chan struct{})
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Block") == "true" {
+			close(blocked)
+			<-release
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	stack := srv.newHandlerStack(inner)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("X-Block", "true")
+		w := httptest.NewRecorder()
+		stack.ServeHTTP(w, req)
+	}()
+
+	<-blocked
+
+	// Second concurrent request must be rejected — the single slot is held.
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	stack.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	close(release)
+	<-done
+}
+
+// TestServer_MaxConcurrentConns_ZeroFallsBackToDefault verifies that passing
+// 0 falls back to DefaultMaxConcurrentConns, so callers that leave the field
+// unset get the same behavior as before this became configurable.
+func TestServer_MaxConcurrentConns_ZeroFallsBackToDefault(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	srv := NewServer("localhost", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)
+	assert.Equal(t, DefaultMaxConcurrentConns, srv.maxConcurrentConns)
 }
 
 func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {

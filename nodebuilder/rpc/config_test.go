@@ -4,7 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-node/api/rpc"
 )
+
+const testAddr = "127.0.0.1"
 
 // TestDefaultConfig tests that the default rpc config is correct.
 func TestDefaultConfig(t *testing.T) {
@@ -18,7 +22,8 @@ func TestDefaultConfig(t *testing.T) {
 			AllowedHeaders: []string{},
 			AllowedMethods: []string{},
 		},
-		RateLimit: DefaultRateLimitConfig(),
+		RateLimit:          DefaultRateLimitConfig(),
+		MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 	}
 
 	assert.Equal(t, expected, DefaultConfig())
@@ -33,24 +38,45 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid config",
 			cfg: Config{
-				Address: "127.0.0.1",
-				Port:    "8080",
+				Address:            testAddr,
+				Port:               "8080",
+				MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 			},
 			err: false,
 		},
 		{
 			name: "invalid address",
 			cfg: Config{
-				Address: "999.999.999.999",
-				Port:    "8080",
+				Address:            "999.999.999.999",
+				Port:               "8080",
+				MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 			},
 			err: true,
 		},
 		{
 			name: "invalid port",
 			cfg: Config{
-				Address: "127.0.0.1",
-				Port:    "invalid",
+				Address:            testAddr,
+				Port:               "invalid",
+				MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
+			},
+			err: true,
+		},
+		{
+			name: "MaxConcurrentConns zero rejected",
+			cfg: Config{
+				Address:            testAddr,
+				Port:               "8080",
+				MaxConcurrentConns: 0,
+			},
+			err: true,
+		},
+		{
+			name: "MaxConcurrentConns negative rejected",
+			cfg: Config{
+				Address:            testAddr,
+				Port:               "8080",
+				MaxConcurrentConns: -1,
 			},
 			err: true,
 		},

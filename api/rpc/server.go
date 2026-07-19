@@ -30,8 +30,10 @@ const (
 	// to cover base64 + JSON envelope overhead (~1.5×) on a worst-case blob.Submit,
 	// which packs all blobs into a single PFB tx capped at MaxTxSize.
 	maxRequestSize = int64(appconsts.MaxTxSize * 2)
-	// maxConcurrentConns caps simultaneous connections to bound goroutine/FD usage.
-	maxConcurrentConns = 500
+	// DefaultMaxConcurrentConns is the default cap on simultaneous connections
+	// to bound goroutine/FD usage. Operators can override via config; websocket
+	// subscriptions count against this limit for the lifetime of the connection.
+	DefaultMaxConcurrentConns = 500
 )
 
 // RateLimitConfig configures per-IP rate limiting based on the connection's
@@ -70,6 +72,11 @@ type Server struct {
 	corsConfig   CORSConfig
 	rateLimitCfg RateLimitConfig
 
+	// maxConcurrentConns caps simultaneous HTTP connections. Websocket
+	// subscriptions count against this for the lifetime of the connection,
+	// so operators exposing many long-lived subscribers should raise it.
+	maxConcurrentConns int
+
 	tlsEnabled  bool
 	tlsCertPath string
 	tlsKeyPath  string
@@ -92,18 +99,23 @@ func NewServer(
 	corsConfig CORSConfig,
 	tlsConfig TLSConfig,
 	rateLimitCfg RateLimitConfig,
+	maxConcurrentConns int,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
 ) *Server {
+	if maxConcurrentConns <= 0 {
+		maxConcurrentConns = DefaultMaxConcurrentConns
+	}
 	srv := &Server{
-		signer:       signer,
-		verifier:     verifier,
-		authDisabled: authDisabled,
-		corsConfig:   corsConfig,
-		rateLimitCfg: rateLimitCfg,
-		tlsEnabled:   tlsConfig.Enabled,
-		tlsCertPath:  tlsConfig.CertPath,
-		tlsKeyPath:   tlsConfig.KeyPath,
+		signer:             signer,
+		verifier:           verifier,
+		authDisabled:       authDisabled,
+		corsConfig:         corsConfig,
+		rateLimitCfg:       rateLimitCfg,
+		maxConcurrentConns: maxConcurrentConns,
+		tlsEnabled:         tlsConfig.Enabled,
+		tlsCertPath:        tlsConfig.CertPath,
+		tlsKeyPath:         tlsConfig.KeyPath,
 	}
 
 	// The tracer closure reads srv.metrics lazily: WithMetrics may run after
@@ -155,7 +167,7 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 		h = s.authHandler(h)
 	}
 
-	h = connLimit(maxConcurrentConns, h)
+	h = connLimit(s.maxConcurrentConns, h)
 	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
 	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
 	if s.rateLimitCfg.Enabled {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 )
 
@@ -43,16 +44,22 @@ type Config struct {
 	TLSCertPath string
 	TLSKeyPath  string
 	RateLimit   RateLimitConfig
+	// MaxConcurrentConns caps simultaneous HTTP connections to bound
+	// goroutine/FD usage. Websocket subscriptions count against this limit
+	// for the lifetime of the connection, so operators exposing many
+	// long-lived subscribers should raise this. Must be > 0.
+	MaxConcurrentConns int
 }
 
 func DefaultConfig() Config {
 	return Config{
 		Address: defaultBindAddress,
 		// do NOT expose the same port as celestia-core by default so that both can run on the same machine
-		Port:      defaultPort,
-		SkipAuth:  false,
-		CORS:      DefaultCORSConfig(),
-		RateLimit: DefaultRateLimitConfig(),
+		Port:               defaultPort,
+		SkipAuth:           false,
+		CORS:               DefaultCORSConfig(),
+		RateLimit:          DefaultRateLimitConfig(),
+		MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 	}
 }
 
@@ -121,6 +128,10 @@ func (cfg *Config) Validate() error {
 		if cfg.RateLimit.CacheSize <= 0 {
 			return fmt.Errorf("service/rpc: rate limit CacheSize must be > 0")
 		}
+	}
+
+	if cfg.MaxConcurrentConns <= 0 {
+		return fmt.Errorf("service/rpc: MaxConcurrentConns must be > 0")
 	}
 
 	return nil
