@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
 )
@@ -97,24 +98,6 @@ func TestConfigValidate(t *testing.T) {
 			},
 			err: true,
 		},
-		{
-			name: "MaxConcurrentConns zero rejected",
-			cfg: Config{
-				Address:            ipv4Loopback,
-				Port:               "8080",
-				MaxConcurrentConns: 0,
-			},
-			err: true,
-		},
-		{
-			name: "MaxConcurrentConns negative rejected",
-			cfg: Config{
-				Address:            ipv4Loopback,
-				Port:               "8080",
-				MaxConcurrentConns: -1,
-			},
-			err: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -123,6 +106,30 @@ func TestConfigValidate(t *testing.T) {
 			if (err != nil) != tt.err {
 				t.Errorf("Config.Validate() error = %v, err %v", err, tt.err)
 			}
+		})
+	}
+}
+
+// TestConfigValidate_MaxConcurrentConnsFallback covers the upgrade path where
+// an older config.toml lacks the field: it decodes to 0, and Validate must
+// backfill the default instead of failing the node's startup.
+func TestConfigValidate_MaxConcurrentConnsFallback(t *testing.T) {
+	tests := []struct {
+		name string
+		in   int
+	}{
+		{name: "zero (missing from old config.toml)", in: 0},
+		{name: "negative", in: -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{
+				Address:            ipv4Loopback,
+				Port:               "8080",
+				MaxConcurrentConns: tt.in,
+			}
+			require.NoError(t, cfg.Validate())
+			assert.Equal(t, rpc.DefaultMaxConcurrentConns, cfg.MaxConcurrentConns)
 		})
 	}
 }
