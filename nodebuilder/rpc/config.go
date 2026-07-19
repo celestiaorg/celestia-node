@@ -130,8 +130,11 @@ func (cfg *Config) Validate() error {
 		}
 	}
 
+	// A missing MaxConcurrentConns in an older config.toml decodes to 0. Fall
+	// back to the default instead of rejecting so binary upgrades don't require
+	// the operator to run `celestia config update` before the node can start.
 	if cfg.MaxConcurrentConns <= 0 {
-		return fmt.Errorf("service/rpc: MaxConcurrentConns must be > 0")
+		cfg.MaxConcurrentConns = rpc.DefaultMaxConcurrentConns
 	}
 
 	return nil
