@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/celestia-node/api/rpc"
 )
 
 const ipv4Loopback = "127.0.0.1"
@@ -20,7 +22,8 @@ func TestDefaultConfig(t *testing.T) {
 			AllowedHeaders: []string{},
 			AllowedMethods: []string{},
 		},
-		RateLimit: DefaultRateLimitConfig(),
+		RateLimit:          DefaultRateLimitConfig(),
+		MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 	}
 
 	assert.Equal(t, expected, DefaultConfig())
@@ -70,24 +73,45 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid config",
 			cfg: Config{
-				Address: ipv4Loopback,
-				Port:    "8080",
+				Address:            ipv4Loopback,
+				Port:               "8080",
+				MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 			},
 			err: false,
 		},
 		{
 			name: "invalid address",
 			cfg: Config{
-				Address: "999.999.999.999",
-				Port:    "8080",
+				Address:            "999.999.999.999",
+				Port:               "8080",
+				MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
 			},
 			err: true,
 		},
 		{
 			name: "invalid port",
 			cfg: Config{
-				Address: ipv4Loopback,
-				Port:    "invalid",
+				Address:            ipv4Loopback,
+				Port:               "invalid",
+				MaxConcurrentConns: rpc.DefaultMaxConcurrentConns,
+			},
+			err: true,
+		},
+		{
+			name: "MaxConcurrentConns zero rejected",
+			cfg: Config{
+				Address:            ipv4Loopback,
+				Port:               "8080",
+				MaxConcurrentConns: 0,
+			},
+			err: true,
+		},
+		{
+			name: "MaxConcurrentConns negative rejected",
+			cfg: Config{
+				Address:            ipv4Loopback,
+				Port:               "8080",
+				MaxConcurrentConns: -1,
 			},
 			err: true,
 		},
