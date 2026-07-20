@@ -97,11 +97,14 @@ func (r *Revoker) persistLocked() error {
 	if err != nil {
 		return fmt.Errorf("revoker: marshal: %w", err)
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(r.path), filepath.Base(r.path)+".tmp-*")
+	// Paths derive from the operator-supplied store dir; clean to satisfy gosec's taint analysis.
+	dir := filepath.Clean(filepath.Dir(r.path))
+	final := filepath.Clean(r.path)
+	tmp, err := os.CreateTemp(dir, filepath.Base(final)+".tmp-*")
 	if err != nil {
 		return fmt.Errorf("revoker: temp file: %w", err)
 	}
-	tmpPath := tmp.Name()
+	tmpPath := filepath.Clean(tmp.Name())
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		os.Remove(tmpPath)
@@ -111,7 +114,7 @@ func (r *Revoker) persistLocked() error {
 		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: close: %w", err)
 	}
-	if err := os.Rename(tmpPath, r.path); err != nil {
+	if err := os.Rename(tmpPath, final); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: rename: %w", err)
 	}
