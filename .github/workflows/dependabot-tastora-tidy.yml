@@ -1,0 +1,65 @@
+name: Dependabot Tastora Tidy
+
+# When Dependabot bumps a dependency in the root go.mod, the tastora test module
+# (nodebuilder/tests/tastora) drifts out of sync: its shared dependencies are
+# indirect (pulled in transitively via `replace celestia-node => ../../..`), so
+# Dependabot never updates them there. This makes the go_mod_tidy_check and
+# go_mod_parity_check jobs in go-ci.yml fail on Dependabot PRs.
+#
+# This workflow reacts to Dependabot PRs that touch the root module, runs
+# `go mod tidy` in the tastora module, and commits the result back onto the PR
+# branch. It authenticates with a GitHub App installation token (same pattern as
+# celestia-app's goreleaser.yml) so that the fixup push re-triggers the required
+# go-ci checks — a push made with the default GITHUB_TOKEN would not.
+
+on:
+  pull_request:
+    paths:
+      - go.mod
+      - go.sum
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  tidy-tastora:
+    name: Tidy tastora go.mod
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      # Mint a short-lived installation token so the fixup push re-triggers CI.
+      - name: Mint GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run go mod tidy in tastora module
+        run: go mod tidy
+        working-directory: nodebuilder/tests/tastora
+
+      - name: Commit and push fixup if the tastora module changed
+        run: |
+          if git diff --quiet -- nodebuilder/tests/tastora; then
+            echo "tastora go.mod/go.sum already in sync — nothing to do"
+            exit 0
+          fi
+          git config user.name "celestia-app[bot]"
+          git config user.email "celestia-app[bot]@users.noreply.github.com"
+          git add nodebuilder/tests/tastora/go.mod nodebuilder/tests/tastora/go.sum
+          git commit -m "chore(deps): tidy tastora go.mod after dependabot bump"
+          git push
