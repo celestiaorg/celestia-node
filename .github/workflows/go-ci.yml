@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -77,7 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -107,7 +107,7 @@ jobs:
             go-${{ runner.os }}-
 
       - name: set up go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ inputs.go-version }}
           cache: false
@@ -136,7 +136,7 @@ jobs:
             go-${{ runner.os }}-
 
       - name: set up go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ inputs.go-version }}
           cache: false
@@ -177,7 +177,7 @@ jobs:
   #     - uses: actions/checkout@v7
 
   #     - name: set up go
-  #       uses: actions/setup-go@v6
+  #       uses: actions/setup-go@v7
   #       with:
   #         go-version: ${{ inputs.go-version }}
 
