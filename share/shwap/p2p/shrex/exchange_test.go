@@ -7,6 +7,7 @@ import (
 	"time"
 
 	libhost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
@@ -62,6 +63,54 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, data.Flatten())
 	})
+}
+
+// Regression for #3480: canceling ctx mid-request must abort promptly instead
+// of hanging on the stream deadline.
+func TestClient_AbortsOnCtxCancel(t *testing.T) {
+	hosts := createMocknet(t, 2)
+	client, err := NewClient(DefaultClientParameters(), hosts[0])
+	require.NoError(t, err)
+
+	id, err := shwap.NewNamespaceDataID(1, libshare.RandomNamespace())
+	require.NoError(t, err)
+
+	// Server never reads or writes, so the client stays blocked in serde.Read
+	// until the fix's AfterFunc resets the stream.
+	serverBlocked := make(chan struct{})
+	unblock := make(chan struct{})
+	t.Cleanup(func() { close(unblock) })
+	hosts[1].SetStreamHandler(
+		ProtocolID(client.params.NetworkID(), id.Name()),
+		func(s network.Stream) {
+			defer s.Reset() //nolint:errcheck
+			close(serverBlocked)
+			<-unblock
+		},
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	result := make(chan error, 1)
+	go func() {
+		result <- client.Get(ctx, &id, &shwap.NamespaceData{}, hosts[1].ID())
+	}()
+
+	select {
+	case <-serverBlocked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server never received the stream")
+	}
+
+	cancel()
+
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(2 * time.Second):
+		t.Fatal("client did not return promptly after context cancellation")
+	}
 }
 
 func createMocknet(t *testing.T, amount int) []libhost.Host {

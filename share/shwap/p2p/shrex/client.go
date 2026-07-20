@@ -2,6 +2,7 @@ package shrex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -61,6 +62,10 @@ func (c *Client) Get(
 	)
 	requestTime := time.Now()
 	n, status, err := c.doRequest(ctx, logger, req, resp, peer)
+	// Surface ctx.Err() without masking typed wire errors like ErrNotFound.
+	if err != nil && ctx.Err() != nil {
+		err = errors.Join(err, ctx.Err())
+	}
 	if err != nil {
 		logger.Debugw("requesting data from peer failed", "error", err)
 	}
@@ -100,6 +105,13 @@ func (c *Client) doRequest(
 	defer func() {
 		utils.CloseAndLog(log, "shrex/client stream", stream)
 	}()
+
+	// Reset on ctx cancel so in-flight Read/Write returns immediately instead
+	// of hanging until the stream deadline.
+	stopWatch := context.AfterFunc(ctx, func() {
+		stream.Reset() //nolint:errcheck
+	})
+	defer stopWatch()
 
 	c.setStreamDeadlines(ctx, logger, stream)
 
