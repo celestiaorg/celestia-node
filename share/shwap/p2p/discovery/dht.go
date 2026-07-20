@@ -28,5 +28,5 @@ func NewDHT(
 		dht.Mode(mode),
 	}
 
-	return dht.New(ctx, host, opts...)
+	return dht.New(host, opts...)
 }
