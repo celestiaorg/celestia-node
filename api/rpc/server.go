@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"reflect"
@@ -60,6 +61,11 @@ type CORSConfig struct {
 	AllowedHeaders []string
 }
 
+// RevocationChecker reports whether a token nonce has been revoked.
+type RevocationChecker interface {
+	IsRevoked(nonce []byte) bool
+}
+
 type Server struct {
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
@@ -76,6 +82,7 @@ type Server struct {
 
 	signer   jwt.Signer
 	verifier jwt.Verifier
+	revoker  RevocationChecker
 
 	metrics *rpcMetrics
 }
@@ -94,10 +101,12 @@ func NewServer(
 	rateLimitCfg RateLimitConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
+	revoker RevocationChecker,
 ) *Server {
 	srv := &Server{
 		signer:       signer,
 		verifier:     verifier,
+		revoker:      revoker,
 		authDisabled: authDisabled,
 		corsConfig:   corsConfig,
 		rateLimitCfg: rateLimitCfg,
@@ -188,7 +197,14 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 	if s.authDisabled {
 		return perms.AllPerms, nil
 	}
-	return authtoken.ExtractSignedPermissions(s.verifier, token)
+	p, err := authtoken.ExtractSignedPayload(s.verifier, token)
+	if err != nil {
+		return nil, err
+	}
+	if s.revoker != nil && s.revoker.IsRevoked(p.Nonce) {
+		return nil, errors.New("token revoked")
+	}
+	return p.Allow, nil
 }
 
 // authHandler wraps the handler with authentication.

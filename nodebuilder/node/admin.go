@@ -2,6 +2,8 @@ package node
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
@@ -17,13 +19,15 @@ type module struct {
 	tp       Type
 	signer   jwt.Signer
 	verifier jwt.Verifier
+	revoker  *Revoker
 }
 
-func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
+func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier, revoker *Revoker) Module {
 	return &module{
 		tp:       tp,
 		signer:   signer,
 		verifier: verifier,
+		revoker:  revoker,
 	}
 }
 
@@ -65,4 +69,24 @@ func (m *module) AuthNewWithExpiry(_ context.Context,
 	permissions []auth.Permission, ttl time.Duration,
 ) (string, error) {
 	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
+}
+
+func (m *module) AuthRevoke(_ context.Context, token string) error {
+	p, err := authtoken.ExtractSignedPayload(m.verifier, token)
+	if err != nil {
+		return err
+	}
+	return m.revoker.Revoke(p.Nonce)
+}
+
+func (m *module) AuthRevokeNonce(_ context.Context, nonceHex string) error {
+	nonce, err := hex.DecodeString(nonceHex)
+	if err != nil {
+		return fmt.Errorf("invalid nonce hex: %w", err)
+	}
+	return m.revoker.Revoke(nonce)
+}
+
+func (m *module) AuthRevoked(_ context.Context) ([]string, error) {
+	return m.revoker.List(), nil
 }
