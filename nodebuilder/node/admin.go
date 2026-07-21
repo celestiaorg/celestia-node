@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -58,7 +59,14 @@ func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 }
 
 func (m *module) AuthVerify(_ context.Context, token string) ([]auth.Permission, error) {
-	return authtoken.ExtractSignedPermissions(m.verifier, token)
+	p, err := authtoken.ExtractSignedPayload(m.verifier, token)
+	if err != nil {
+		return nil, err
+	}
+	if m.revoker.IsRevoked(p.Nonce) {
+		return nil, errors.New("token revoked")
+	}
+	return p.Allow, nil
 }
 
 func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (string, error) {
@@ -75,6 +83,9 @@ func (m *module) AuthRevoke(_ context.Context, token string) error {
 	p, err := authtoken.ExtractSignedPayload(m.verifier, token)
 	if err != nil {
 		return err
+	}
+	if len(p.Nonce) == 0 {
+		return errors.New("token carries no nonce and cannot be individually revoked; rotate the signing key instead")
 	}
 	return m.revoker.Revoke(p.Nonce)
 }

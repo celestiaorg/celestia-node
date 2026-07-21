@@ -110,6 +110,31 @@ func TestRevoker_ConcurrentRevoke(t *testing.T) {
 	assert.Len(t, r2.List(), workers*each)
 }
 
+func TestRevoker_MergesExternalWritesOnNextRevoke(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "revoked.json")
+	r, err := NewRevoker(path)
+	require.NoError(t, err)
+	require.NoError(t, r.Revoke([]byte("in-memory")))
+
+	// Simulate the offline CLI writing directly to disk while the node holds an in-memory set.
+	external := []string{
+		hex.EncodeToString([]byte("in-memory")),
+		hex.EncodeToString([]byte("cli-added")),
+	}
+	data, err := json.Marshal(external)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+
+	// The next RPC-triggered revoke must merge, not overwrite.
+	require.NoError(t, r.Revoke([]byte("rpc-added")))
+
+	r2, err := NewRevoker(path)
+	require.NoError(t, err)
+	assert.True(t, r2.IsRevoked([]byte("in-memory")))
+	assert.True(t, r2.IsRevoked([]byte("cli-added")))
+	assert.True(t, r2.IsRevoked([]byte("rpc-added")))
+}
+
 func TestRevoker_OnDiskFormat(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "revoked.json")
 	r, err := NewRevoker(path)
