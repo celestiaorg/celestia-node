@@ -14,7 +14,7 @@ import (
 // PeerRouting provides constructor for PeerRouting over DHT.
 // Basically, this provides a way to discover peer addresses by respecting public keys.
 func NewDHT(
-	ctx context.Context,
+	_ context.Context,
 	prefix string,
 	bootsrappers []peer.AddrInfo,
 	host host.Host,
