@@ -392,13 +392,13 @@ func TestIntegration(t *testing.T) {
 			dht.Mode(dht.ModeServer), // it must accept incoming connections
 			dht.BootstrapPeers(),     // no bootstrappers for a bootstrapper ¯\_(ツ)_/¯
 		)
-		bsRouter, err := dht.New(ctx, bsHost, bsOpts...)
+		bsRouter, err := dht.New(bsHost, bsOpts...)
 		require.NoError(t, err)
 		require.NoError(t, bsRouter.Bootstrap(ctx))
 
 		// set up broadcaster node
 		bnHost := nw.Hosts()[1]
-		bnRouter, err := dht.New(ctx, bnHost, opts...)
+		bnRouter, err := dht.New(bnHost, opts...)
 		require.NoError(t, err)
 
 		params := discovery.DefaultParameters()
@@ -415,7 +415,7 @@ func TestIntegration(t *testing.T) {
 
 		// set up full node / receiver node
 		fnHost := nw.Hosts()[2]
-		fnRouter, err := dht.New(ctx, fnHost, opts...)
+		fnRouter, err := dht.New(fnHost, opts...)
 		require.NoError(t, err)
 
 		// init peer manager for full node
