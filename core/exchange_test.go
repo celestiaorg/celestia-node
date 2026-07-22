@@ -185,9 +185,8 @@ func TestExchange_StoreHistoricIfArchival(t *testing.T) {
 	}
 }
 
-// TestExchange_ReturnsPartialRange tests that the Exchange
-// is able to return a partial range of headers if a routine fails
-// in the err group.
+// TestExchange_ReturnsPartialRange verifies that when the requested range extends past the
+// chain tip, the Exchange returns the contiguous prefix that exists instead of failing.
 func TestExchange_ReturnsPartialRange(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -220,11 +219,15 @@ func TestExchange_ReturnsPartialRange(t *testing.T) {
 	shortCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	t.Cleanup(cancel)
 
-	headers, err := ce.GetRangeByHeight(shortCtx, genHeader, to+20) // attempt to fetch non-existent blocks
+	headers, err := ce.GetRangeByHeight(shortCtx, genHeader, to+20)
 
 	require.NoError(t, err)
-	unexpectedAmount := (to + 20) - genHeader.Height() + 1
-	assert.Less(t, uint64(len(headers)), unexpectedAmount)
+	requested := (to + 20) - (genHeader.Height() + 1)
+	assert.GreaterOrEqual(t, uint64(len(headers)), to-genHeader.Height())
+	assert.Less(t, uint64(len(headers)), requested)
+	for i, h := range headers {
+		require.Equal(t, genHeader.Height()+1+uint64(i), h.Height())
+	}
 }
 
 func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Network) {

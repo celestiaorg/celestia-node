@@ -120,7 +120,10 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 	headers := make([]*header.ExtendedHeader, amount)
 
 	start := time.Now()
-	errGroup, ctx := errgroup.WithContext(ctx)
+	// A plain errgroup (not WithContext) avoids cancelling sibling fetches on the first
+	// failure, so every height runs to completion and headers[:firstNil] is the largest
+	// contiguous prefix.
+	var errGroup errgroup.Group
 	errGroup.SetLimit(concurrencyLimit)
 	for i := range headers {
 		errGroup.Go(func() error {
@@ -135,8 +138,7 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		// Return a best-effort contiguous prefix of fetched headers to save re-work. Concurrent
-		// cancellation may nil a slot below the failure, so the prefix is gap-free but may be short.
+		// On failure, return the contiguous prefix already fetched so the caller skips re-work.
 		for i, h := range headers {
 			if h == nil {
 				if i > 0 {
