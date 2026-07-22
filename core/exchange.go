@@ -135,9 +135,10 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		// return partial range if possible
+		// Return a best-effort contiguous prefix of fetched headers to save re-work. Concurrent
+		// cancellation may nil a slot below the failure, so the prefix is gap-free but may be short.
 		for i, h := range headers {
-			if h == nil || h.IsZero() {
+			if h == nil {
 				if i > 0 {
 					return headers[:i], nil
 				}
