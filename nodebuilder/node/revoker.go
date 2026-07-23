@@ -117,22 +117,23 @@ func (r *Revoker) persistLocked() error {
 		return fmt.Errorf("revoker: temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
+	cleanup := func() { _ = os.Remove(tmpPath) } //nolint:gosec,nolintlint
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
-		os.Remove(tmpPath)
+		cleanup()
 		return fmt.Errorf("revoker: write: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		tmp.Close()
-		os.Remove(tmpPath)
+		cleanup()
 		return fmt.Errorf("revoker: sync: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		os.Remove(tmpPath)
+		cleanup()
 		return fmt.Errorf("revoker: close: %w", err)
 	}
 	if err := os.Rename(tmpPath, r.path); err != nil { //nolint:gosec,nolintlint
-		os.Remove(tmpPath)
+		cleanup()
 		return fmt.Errorf("revoker: rename: %w", err)
 	}
 	return nil
