@@ -15,19 +15,27 @@ import (
 // ExtractSignedPermissions returns the permissions granted to the token by the passed signer.
 // If the token isn't signed by the signer, it will not pass verification.
 func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permission, error) {
+	p, err := ExtractSignedPayload(verifier, token)
+	if err != nil {
+		return nil, err
+	}
+	return p.Allow, nil
+}
+
+// ExtractSignedPayload verifies the token's signature and returns its parsed payload.
+func ExtractSignedPayload(verifier jwt.Verifier, token string) (*perms.JWTPayload, error) {
 	tk, err := jwt.Parse([]byte(token), verifier)
 	if err != nil {
 		return nil, err
 	}
 	p := new(perms.JWTPayload)
-
 	if err := json.Unmarshal(tk.Claims(), p); err != nil {
 		return nil, err
 	}
 	if !p.ExpiresAt.IsZero() && p.ExpiresAt.Before(time.Now().UTC()) {
 		return nil, fmt.Errorf("token expired %s ago", time.Since(p.ExpiresAt))
 	}
-	return p.Allow, nil
+	return p, nil
 }
 
 // NewSignedJWT returns a signed JWT token with the passed permissions and signer.

@@ -27,6 +27,12 @@ type Module interface {
 	AuthNew(ctx context.Context, perms []auth.Permission) (string, error)
 	// AuthNewWithExpiry signs and returns a new token with the given permissions and TTL.
 	AuthNewWithExpiry(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error)
+	// AuthRevoke revokes a token by extracting its nonce. Persists across restarts.
+	AuthRevoke(ctx context.Context, token string) error
+	// AuthRevokeNonce revokes a token by its hex nonce; use when the token itself is lost.
+	AuthRevokeNonce(ctx context.Context, nonceHex string) error
+	// AuthRevoked returns hex nonces of revoked tokens.
+	AuthRevoked(ctx context.Context) ([]string, error)
 }
 
 var _ Module = (*API)(nil)
@@ -39,6 +45,9 @@ type API struct {
 		AuthVerify        func(ctx context.Context, token string) ([]auth.Permission, error)                    `perm:"admin"`
 		AuthNew           func(ctx context.Context, perms []auth.Permission) (string, error)                    `perm:"admin"`
 		AuthNewWithExpiry func(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error) `perm:"admin"`
+		AuthRevoke        func(ctx context.Context, token string) error                                         `perm:"admin"`
+		AuthRevokeNonce   func(ctx context.Context, nonceHex string) error                                      `perm:"admin"`
+		AuthRevoked       func(ctx context.Context) ([]string, error)                                           `perm:"admin"`
 	}
 }
 
@@ -64,4 +73,16 @@ func (api *API) AuthNew(ctx context.Context, perms []auth.Permission) (string, e
 
 func (api *API) AuthNewWithExpiry(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error) {
 	return api.Internal.AuthNewWithExpiry(ctx, perms, ttl)
+}
+
+func (api *API) AuthRevoke(ctx context.Context, token string) error {
+	return api.Internal.AuthRevoke(ctx, token)
+}
+
+func (api *API) AuthRevokeNonce(ctx context.Context, nonceHex string) error {
+	return api.Internal.AuthRevokeNonce(ctx, nonceHex)
+}
+
+func (api *API) AuthRevoked(ctx context.Context) ([]string, error) {
+	return api.Internal.AuthRevoked(ctx)
 }

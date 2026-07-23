@@ -39,7 +39,7 @@ func registerEndpoints(
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
 }
 
-func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
+func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier, revoker *node.Revoker) *rpc.Server {
 	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, rpc.CORSConfig{
 		Enabled:        cfg.CORS.Enabled,
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
@@ -54,5 +54,5 @@ func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
 		RequestsPerSec: cfg.RateLimit.RequestsPerSec,
 		Burst:          cfg.RateLimit.Burst,
 		CacheSize:      cfg.RateLimit.CacheSize,
-	}, signer, verifier)
+	}, signer, verifier, revoker)
 }

@@ -67,6 +67,49 @@ func (mr *MockModuleMockRecorder) AuthNewWithExpiry(arg0, arg1, arg2 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthNewWithExpiry", reflect.TypeOf((*MockModule)(nil).AuthNewWithExpiry), arg0, arg1, arg2)
 }
 
+// AuthRevoke mocks base method.
+func (m *MockModule) AuthRevoke(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthRevoke", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AuthRevoke indicates an expected call of AuthRevoke.
+func (mr *MockModuleMockRecorder) AuthRevoke(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthRevoke", reflect.TypeOf((*MockModule)(nil).AuthRevoke), arg0, arg1)
+}
+
+// AuthRevokeNonce mocks base method.
+func (m *MockModule) AuthRevokeNonce(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthRevokeNonce", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AuthRevokeNonce indicates an expected call of AuthRevokeNonce.
+func (mr *MockModuleMockRecorder) AuthRevokeNonce(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthRevokeNonce", reflect.TypeOf((*MockModule)(nil).AuthRevokeNonce), arg0, arg1)
+}
+
+// AuthRevoked mocks base method.
+func (m *MockModule) AuthRevoked(arg0 context.Context) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthRevoked", arg0)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthRevoked indicates an expected call of AuthRevoked.
+func (mr *MockModuleMockRecorder) AuthRevoked(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthRevoked", reflect.TypeOf((*MockModule)(nil).AuthRevoked), arg0)
+}
+
 // AuthVerify mocks base method.
 func (m *MockModule) AuthVerify(arg0 context.Context, arg1 string) ([]auth.Permission, error) {
 	m.ctrl.T.Helper()
