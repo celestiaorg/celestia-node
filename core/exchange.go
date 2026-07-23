@@ -120,7 +120,7 @@ func (ce *Exchange) getRangeByHeight(ctx context.Context, from, amount uint64) (
 	headers := make([]*header.ExtendedHeader, amount)
 
 	start := time.Now()
-	// A plain errgroup (not WithContext) avoids cancelling sibling fetches on the first
+	// A plain errgroup (not WithContext) avoids canceling sibling fetches on the first
 	// failure, so every height runs to completion and headers[:firstNil] is the largest
 	// contiguous prefix.
 	var errGroup errgroup.Group
