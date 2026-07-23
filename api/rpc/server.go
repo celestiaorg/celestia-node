@@ -66,11 +66,6 @@ type RevocationChecker interface {
 	IsRevoked(nonce []byte) bool
 }
 
-// nopRevocationChecker is the default when NewServer is called with a nil checker.
-type nopRevocationChecker struct{}
-
-func (nopRevocationChecker) IsRevoked([]byte) bool { return false }
-
 type Server struct {
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
@@ -108,9 +103,6 @@ func NewServer(
 	verifier jwt.Verifier,
 	revoker RevocationChecker,
 ) *Server {
-	if revoker == nil {
-		revoker = nopRevocationChecker{}
-	}
 	srv := &Server{
 		signer:       signer,
 		verifier:     verifier,

@@ -28,6 +28,10 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
+type noopRevoker struct{}
+
+func (noopRevoker) IsRevoked([]byte) bool { return false }
+
 // TestServer_HandlerStackSelection tests that the correct middleware stack is selected
 func TestServer_HandlerStackSelection(t *testing.T) {
 	signer, verifier := createTestJWT(t)
@@ -73,7 +77,7 @@ func TestServer_HandlerStackSelection(t *testing.T) {
 
 			server := NewServer(
 				"localhost", "0", tt.authDisabled, corsConfig,
-				TLSConfig{}, RateLimitConfig{}, signer, verifier, nil,
+				TLSConfig{}, RateLimitConfig{}, signer, verifier, noopRevoker{},
 			)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +122,10 @@ func TestServer_AuthDisabledOverridesCORS(t *testing.T) {
 		AllowedHeaders: []string{"Content-Type"},
 	}
 
-	server := NewServer("localhost", "0", true, restrictiveCORS, TLSConfig{}, RateLimitConfig{}, signer, verifier, nil)
+	server := NewServer(
+		"localhost", "0", true, restrictiveCORS,
+		TLSConfig{}, RateLimitConfig{}, signer, verifier, noopRevoker{},
+	)
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -184,7 +191,10 @@ func TestServer_CORSConfigurationPassing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer("localhost", "0", false, tt.corsConfig, TLSConfig{}, RateLimitConfig{}, signer, verifier, nil)
+			server := NewServer(
+				"localhost", "0", false, tt.corsConfig,
+				TLSConfig{}, RateLimitConfig{}, signer, verifier, noopRevoker{},
+			)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -248,7 +258,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 				RateLimitConfig{},
 				signer,
 				verifier,
-				nil,
+				noopRevoker{},
 			)
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -314,7 +324,7 @@ func TestServer_VerifyAuth(t *testing.T) {
 				RateLimitConfig{},
 				signer,
 				verifier,
-				nil,
+				noopRevoker{},
 			)
 
 			permissions, err := server.verifyAuth(context.Background(), tt.token)
@@ -332,7 +342,10 @@ func TestServer_VerifyAuth(t *testing.T) {
 // TestServer_StartStop tests server lifecycle
 func TestServer_StartStop(t *testing.T) {
 	signer, verifier := createTestJWT(t)
-	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier, nil)
+	server := NewServer(
+		"localhost", "0", false, CORSConfig{},
+		TLSConfig{}, RateLimitConfig{}, signer, verifier, noopRevoker{},
+	)
 
 	ctx := context.Background()
 
@@ -364,7 +377,7 @@ func TestServer_TLS(t *testing.T) {
 		Enabled:  true,
 		CertPath: certFile,
 		KeyPath:  keyFile,
-	}, RateLimitConfig{}, signer, verifier, nil)
+	}, RateLimitConfig{}, signer, verifier, noopRevoker{})
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
@@ -403,7 +416,7 @@ func TestServer_TLS(t *testing.T) {
 func TestServer_NoTLS_PlainHTTP(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
-	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier, nil)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier, noopRevoker{})
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
@@ -442,7 +455,7 @@ func (wsTestService) Updates(ctx context.Context) (<-chan int, error) {
 // subscription must still work with metrics on.
 func TestServer_WithMetrics_WebSocketSubscription(t *testing.T) {
 	signer, verifier := createTestJWT(t)
-	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier, nil)
+	srv := NewServer("127.0.0.1", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier, noopRevoker{})
 	srv.RegisterService("test", wsTestService{}, nil)
 	require.NoError(t, srv.WithMetrics())
 

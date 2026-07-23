@@ -11,6 +11,10 @@ import (
 	"sync"
 )
 
+// File paths below derive from the operator-supplied store config, not user
+// input, so the //nolint:gosec directives on os.ReadFile / os.CreateTemp /
+// os.Rename suppress gosec's taint-analysis false positives.
+
 // Revoker is a persistent set of revoked JWT nonces.
 type Revoker struct {
 	path string
@@ -30,8 +34,7 @@ func NewRevoker(path string) (*Revoker, error) {
 	return r, nil
 }
 
-// Revoke adds nonce to the set and persists. Empty nonces are rejected so a
-// missing-claim token doesn't collide with the "no nonce" entry.
+// Revoke adds nonce to the set and persists. Empty nonces are rejected — they identify nothing.
 func (r *Revoker) Revoke(nonce []byte) error {
 	if len(nonce) == 0 {
 		return errors.New("revoker: empty nonce")
@@ -75,7 +78,7 @@ func (r *Revoker) List() []string {
 }
 
 func (r *Revoker) loadLocked() error {
-	data, err := os.ReadFile(r.path) //nolint:gosec,nolintlint // path from trusted store config
+	data, err := os.ReadFile(r.path) //nolint:gosec,nolintlint
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -109,7 +112,7 @@ func (r *Revoker) persistLocked() error {
 
 	dir := filepath.Dir(r.path)
 	pattern := filepath.Base(r.path) + ".tmp-*"
-	tmp, err := os.CreateTemp(dir, pattern) //nolint:gosec,nolintlint // dir from trusted store config
+	tmp, err := os.CreateTemp(dir, pattern) //nolint:gosec,nolintlint
 	if err != nil {
 		return fmt.Errorf("revoker: temp file: %w", err)
 	}
@@ -119,11 +122,16 @@ func (r *Revoker) persistLocked() error {
 		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: write: %w", err)
 	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("revoker: sync: %w", err)
+	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: close: %w", err)
 	}
-	if err := os.Rename(tmpPath, r.path); err != nil { //nolint:gosec,nolintlint // paths from trusted store config
+	if err := os.Rename(tmpPath, r.path); err != nil { //nolint:gosec,nolintlint
 		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: rename: %w", err)
 	}
