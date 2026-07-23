@@ -66,6 +66,11 @@ type RevocationChecker interface {
 	IsRevoked(nonce []byte) bool
 }
 
+// nopRevocationChecker is the default when NewServer is called with a nil checker.
+type nopRevocationChecker struct{}
+
+func (nopRevocationChecker) IsRevoked([]byte) bool { return false }
+
 type Server struct {
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
@@ -103,6 +108,9 @@ func NewServer(
 	verifier jwt.Verifier,
 	revoker RevocationChecker,
 ) *Server {
+	if revoker == nil {
+		revoker = nopRevocationChecker{}
+	}
 	srv := &Server{
 		signer:       signer,
 		verifier:     verifier,
@@ -201,7 +209,7 @@ func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission,
 	if err != nil {
 		return nil, err
 	}
-	if s.revoker != nil && s.revoker.IsRevoked(p.Nonce) {
+	if s.revoker.IsRevoked(p.Nonce) {
 		return nil, errors.New("token revoked")
 	}
 	return p.Allow, nil

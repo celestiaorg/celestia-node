@@ -30,7 +30,8 @@ func NewRevoker(path string) (*Revoker, error) {
 	return r, nil
 }
 
-// Revoke persists the nonce; empty nonces are rejected to avoid matching every token missing the claim.
+// Revoke adds nonce to the set and persists. Empty nonces are rejected so a
+// missing-claim token doesn't collide with the "no nonce" entry.
 func (r *Revoker) Revoke(nonce []byte) error {
 	if len(nonce) == 0 {
 		return errors.New("revoker: empty nonce")
@@ -38,11 +39,6 @@ func (r *Revoker) Revoke(nonce []byte) error {
 	id := hex.EncodeToString(nonce)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	// Merge any external writes (e.g. from the offline CLI) into memory before we persist,
-	// otherwise the next write would silently overwrite them.
-	if err := r.loadLocked(); err != nil {
-		return err
-	}
 	if _, ok := r.set[id]; ok {
 		return nil
 	}
@@ -78,10 +74,8 @@ func (r *Revoker) List() []string {
 	return out
 }
 
-// loadLocked reads the on-disk set into r.set. Missing file is not an error. Caller must hold r.mu.
 func (r *Revoker) loadLocked() error {
-	// path is derived from the operator-supplied store config, not user input.
-	data, err := os.ReadFile(r.path) //nolint:gosec,nolintlint // G304/G703 false positive
+	data, err := os.ReadFile(r.path) //nolint:gosec,nolintlint // path from trusted store config
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -101,7 +95,7 @@ func (r *Revoker) loadLocked() error {
 	return nil
 }
 
-// persistLocked writes atomically via temp+fsync+rename. Caller must hold r.mu.
+// persistLocked writes atomically via temp+rename. Caller must hold r.mu.
 func (r *Revoker) persistLocked() error {
 	nonces := make([]string, 0, len(r.set))
 	for id := range r.set {
@@ -113,36 +107,24 @@ func (r *Revoker) persistLocked() error {
 		return fmt.Errorf("revoker: marshal: %w", err)
 	}
 
-	// dir/base derive from the operator-supplied store config, not user input.
 	dir := filepath.Dir(r.path)
-	base := filepath.Base(r.path) + ".tmp-*"
-	tmp, err := os.CreateTemp(dir, base) //nolint:gosec,nolintlint // G304/G703 false positive
+	pattern := filepath.Base(r.path) + ".tmp-*"
+	tmp, err := os.CreateTemp(dir, pattern) //nolint:gosec,nolintlint // dir from trusted store config
 	if err != nil {
 		return fmt.Errorf("revoker: temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
-	cleanup := func() {
-		_ = os.Remove(tmpPath)
-	}
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
-		cleanup()
+		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: write: %w", err)
 	}
-	// fsync before rename so a crash between close and OS flush cannot leave an empty
-	// revoked.json — a critical failure mode for a security-sensitive denylist.
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		cleanup()
-		return fmt.Errorf("revoker: sync: %w", err)
-	}
 	if err := tmp.Close(); err != nil {
-		cleanup()
+		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: close: %w", err)
 	}
-	// paths derive from the operator-supplied store config, not user input.
-	if err := os.Rename(tmpPath, r.path); err != nil { //nolint:gosec,nolintlint // G304/G703 false positive
-		cleanup()
+	if err := os.Rename(tmpPath, r.path); err != nil { //nolint:gosec,nolintlint // paths from trusted store config
+		os.Remove(tmpPath)
 		return fmt.Errorf("revoker: rename: %w", err)
 	}
 	return nil

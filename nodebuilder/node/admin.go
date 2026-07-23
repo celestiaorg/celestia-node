@@ -85,7 +85,7 @@ func (m *module) AuthRevoke(_ context.Context, token string) error {
 		return err
 	}
 	if len(p.Nonce) == 0 {
-		return errors.New("token carries no nonce and cannot be individually revoked; rotate the signing key instead")
+		return errors.New("token has no nonce; rotate the signing key to revoke")
 	}
 	return m.revoker.Revoke(p.Nonce)
 }
