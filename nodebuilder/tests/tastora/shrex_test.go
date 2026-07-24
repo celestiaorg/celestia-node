@@ -7,7 +7,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/da"
 	"github.com/celestiaorg/go-square/v4/share"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
@@ -71,15 +70,12 @@ func (s *P2PTestSuite) TestBridgeServesSharesOverShrex() {
 	shareA, err := clientA.Share.GetShare(ctx, height, 0, 0)
 	s.Require().NoError(err, "bridge[0] should serve share (0,0)")
 
-	dah, err := da.NewDataAvailabilityHeader(edsA)
-	s.Require().NoError(err, "err building DAH")
-
 	row, err := clientA.Share.GetRow(ctx, height, 0)
 	s.Require().NoError(err, "bridge[0] should serve row 0")
 	rowShares, err := row.Shares()
 	s.Require().NoError(err, "row should reconstruct its shares")
 	s.Assert().Len(rowShares, width, "row 0 should hold a full EDS-width row of shares")
-	s.Require().NoError(row.Verify(dah, 0), "bridge[0] invalid row at index 0")
+	s.Require().NoError(row.Verify(hdr.DAH, 0), "bridge[0] invalid row at index 0")
 
 	rng, err := clientA.Share.GetRange(ctx, height, 0, 1)
 	s.Require().NoError(err, "bridge[0] should serve a share range")
@@ -90,7 +86,7 @@ func (s *P2PTestSuite) TestBridgeServesSharesOverShrex() {
 	nsDataA, err := clientA.Share.GetNamespaceData(ctx, height, namespace)
 	s.Require().NoError(err, "bridge[0] should serve namespace data")
 	s.Require().NotEmpty(nsDataA.Flatten(), "namespace data should contain the submitted blob shares")
-	s.Require().NoError(nsDataA.Verify(dah, namespace), "bridge[0] proof veirification failed")
+	s.Require().NoError(nsDataA.Verify(hdr.DAH, namespace), "bridge[0] proof verification failed")
 
 	// same height retrieved on B (peered to A) returns byte-identical shares.
 	_, err = clientB.Header.WaitForHeight(ctx, height)
@@ -111,7 +107,7 @@ func (s *P2PTestSuite) TestBridgeServesSharesOverShrex() {
 	nsDataB, err := clientB.Share.GetNamespaceData(ctx, height, namespace)
 	s.Require().NoError(err, "bridge[1] should serve namespace data")
 	s.Assert().Equal(nsDataA.Flatten(), nsDataB.Flatten(), "namespace data should match across bridges")
-	s.Require().NoError(nsDataB.Verify(dah, namespace), "bridge[1] proof veirification failed")
+	s.Require().NoError(nsDataB.Verify(hdr.DAH, namespace), "bridge[1] proof verification failed")
 }
 
 func (s *P2PTestSuite) TestNoPeerHasData() {

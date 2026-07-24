@@ -44,8 +44,8 @@ func (s *ArchivalTestSuite) TearDownSuite() {
 	}
 }
 
-// TestArchivalNodeKeepsData submits a blob at an early height and wait untill it will be
-// outside AvalaibilityWindow to ensure that the whole data is servable
+// TestArchivalNodeKeepsData submits a blob at an early height and waits until it is
+// outside the availability window to ensure the whole data stays servable.
 func (s *ArchivalTestSuite) TestArchivalNodeKeepsData() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
