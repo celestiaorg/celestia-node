@@ -17,6 +17,7 @@ import (
 	dsbadger "github.com/ipfs/go-ds-badger4"
 	logging "github.com/ipfs/go-log/v2"
 
+	libhead "github.com/celestiaorg/go-header"
 	libheadstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/celestiaorg/celestia-node/cmd/cel-shed/replicate/headers"
@@ -205,22 +206,29 @@ func openStandaloneHeaderStore(ctx context.Context, dir string) (
 	return hstore, closeFn, nil
 }
 
-// errHeaderUnavailable signals that a height's header is not in the store because
-// it is above the store head — the source peer's head is below this height, so it
-// was never downloaded. The height cannot be checked and is skipped rather than
-// failed.
+// errHeaderUnavailable signals that a height's header is not in the store — it is
+// either above the store head (the source peer's head is below this height) or
+// below the store base (the store was seeded from a higher --from-height and this
+// height was never downloaded). Either way the height cannot be checked and is
+// skipped rather than failed.
 var errHeaderUnavailable = errors.New("header not available in store")
 
 // headerStoreLookup adapts a go-header store to the headerLookup signature,
 // returning each height's chain-committed DataHash.
 //
-// go-header's GetByHeight blocks (heightSub.Wait) on any height above the store
-// head, waiting for a live header that will never arrive in this offline,
-// download-once store. When the --source peer's head is below the highest local
-// block, that tail of heights is exactly what we would ask for, and the wait
-// hangs until the process is interrupted. Guard it: read the head first and
-// report anything above it as errHeaderUnavailable so the caller skips it and
-// keeps going.
+// The store only covers a contiguous [base..head] window, so a lookup can miss on
+// either side and must be handled without aborting the run:
+//
+//   - Above head: go-header's GetByHeight blocks (heightSub.Wait) waiting for a
+//     live header that never arrives in this offline, download-once store — the
+//     "hang at the end" when --source's head is below the highest local block.
+//     Guarded by reading the head first and reporting above-head as unavailable.
+//   - Below base: GetByHeight returns ErrNotFound immediately (the store was
+//     seeded mid-range via --from-height, so low heights were never fetched).
+//     Mapped to the same unavailable signal.
+//
+// In both cases the caller skips the height and keeps going; only a real I/O
+// error propagates as fatal.
 func headerStoreLookup(hstore *libheadstore.Store[*header.ExtendedHeader]) headerLookup {
 	return func(ctx context.Context, height uint64) (share.DataHash, error) {
 		head, err := hstore.Head(ctx)
@@ -232,6 +240,9 @@ func headerStoreLookup(hstore *libheadstore.Store[*header.ExtendedHeader]) heade
 		}
 		hdr, err := hstore.GetByHeight(ctx, height)
 		if err != nil {
+			if errors.Is(err, libhead.ErrNotFound) {
+				return nil, errHeaderUnavailable
+			}
 			return nil, err
 		}
 		return chainDataHash(hdr), nil
@@ -420,8 +431,9 @@ func runVerifyHeaders(ctx context.Context, cfg VerifyHeadersConfig, lookup heade
 	}
 
 	if skipped > 0 {
-		log.Warnw("verify-headers: skipped heights above the source head (no downloaded header to check "+
-			"against); point --source at a peer whose head covers them, or lower --to-height",
+		log.Warnw("verify-headers: skipped heights whose header was not in the store (above the source head, "+
+			"or below the downloaded range because --header-store-dir was seeded from a higher --from-height); "+
+			"use a fresh --header-store-dir spanning the full range, or point --source at a peer whose head covers it",
 			"skipped", skipped, "first_skipped_height", firstSkipped)
 	}
 

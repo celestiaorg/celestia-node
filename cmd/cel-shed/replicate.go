@@ -39,6 +39,7 @@ const (
 	flagFailFast          = "fail-fast"
 	flagFailedFile        = "failed-file"
 	flagHeaderConcurrency = "header-concurrency"
+	flagLinkOnly          = "link-only"
 	flagHeaderStoreDir    = "header-store-dir"
 	flagParallel          = "parallel"
 )
@@ -665,6 +666,7 @@ var convertCmd = &cobra.Command{
 		dataDir, _ := cmd.Flags().GetString(flagDataDir)
 		fromHeight, _ := cmd.Flags().GetUint64(flagFromHeight)
 		toHeight, _ := cmd.Flags().GetUint64(flagToHeight)
+		linkOnly, _ := cmd.Flags().GetBool(flagLinkOnly)
 		logLevel, _ := cmd.Flags().GetString(flagLogLevel)
 		expanded, err := homedir.Expand(filepath.Clean(dataDir))
 		if err != nil {
@@ -674,6 +676,7 @@ var convertCmd = &cobra.Command{
 			DataDir:    expanded,
 			FromHeight: fromHeight,
 			ToHeight:   toHeight,
+			LinkOnly:   linkOnly,
 			LogLevel:   logLevel,
 		})
 	},
@@ -686,6 +689,8 @@ func init() {
 		"start height (inclusive); 0 means the lowest height present in heights/")
 	convertCmd.Flags().Uint64(flagToHeight, 0,
 		"stop height (inclusive); 0 means the highest height present in heights/")
+	convertCmd.Flags().Bool(flagLinkOnly, false,
+		"only repair heights<->blocks links (hardlink to one inode); never re-encode blocks or write .q4 files")
 	convertCmd.Flags().String(flagLogLevel, "info",
 		"log level for cel-shed/replicate logger")
 	_ = convertCmd.MarkFlagRequired(flagDataDir)

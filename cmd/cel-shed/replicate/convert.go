@@ -43,7 +43,12 @@ type ConvertConfig struct {
 	DataDir    string
 	FromHeight uint64
 	ToHeight   uint64
-	LogLevel   string
+	// LinkOnly restricts the run to link repair: heights entries and their
+	// blocks/<hash>.ods get hardlinked to one inode, but no block is ever
+	// re-encoded and no .q4 is written. Non-store-readable blocks are only
+	// reported.
+	LinkOnly bool
+	LogLevel string
 }
 
 func (c ConvertConfig) Validate() error {
@@ -72,16 +77,21 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 
 	// Open the real EDS store: PutODSQ4 writes byte-identical files and the
 	// store-convention hardlink, and NewStore populates the canonical empty
-	// EDS file so empty-height symlinks resolve.
-	st, err := store.NewStore(store.DefaultParameters(), cfg.DataDir)
-	if err != nil {
-		return fmt.Errorf("open store: %w", err)
+	// EDS file so empty-height symlinks resolve. In link-only mode the store
+	// is not opened at all — the run touches nothing but links.
+	var st *store.Store
+	if !cfg.LinkOnly {
+		var err error
+		st, err = store.NewStore(store.DefaultParameters(), cfg.DataDir)
+		if err != nil {
+			return fmt.Errorf("open store: %w", err)
+		}
+		defer func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			_ = st.Stop(stopCtx)
+		}()
 	}
-	defer func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		_ = st.Stop(stopCtx)
-	}()
 
 	log.Infow("convert: scanning heights dir", "dir", heightsDir)
 	present, err := scanHeightsDir(heightsDir)
@@ -102,7 +112,7 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 			to = present[len(present)-1]
 		}
 	}
-	log.Infow("convert: resolved window", "from", from, "to", to)
+	log.Infow("convert: resolved window", "from", from, "to", to, "link_only", cfg.LinkOnly)
 
 	var (
 		reencoded, relinked, alreadyOK, empty, absent, failed uint64
@@ -145,6 +155,11 @@ func RunConvert(ctx context.Context, cfg ConvertConfig) error {
 
 		// Case 2: not store-readable — rebuild the square from the on-disk data
 		// and rewrite the block via the store (which also hardlinks the height).
+		if cfg.LinkOnly {
+			failed++
+			log.Warnw("convert: block not store-readable; left untouched (--link-only)", "height", h)
+			continue
+		}
 		square, roots, hash, err := reconstructFromLink(ctx, linkPath)
 		if err != nil {
 			failed++

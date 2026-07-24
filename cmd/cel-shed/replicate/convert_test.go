@@ -95,6 +95,103 @@ func TestEnsureStoreLink(t *testing.T) {
 	if created, err := ensureStoreLink(blocksDir, heightsDir, 102, empty); err != nil || created {
 		t.Fatalf("empty idempotent: created=%v err=%v (want false)", created, err)
 	}
+
+	// heights file present but blocks/<hash>.ods missing -> the block name is
+	// hardlinked to the heights file; the data (the only copy) must survive.
+	orphan := make([]byte, share.DataHashSize)
+	for i := range orphan {
+		orphan[i] = byte(i + 3)
+	}
+	orphanHash := share.DataHash(orphan)
+	olp := linkPathFor(heightsDir, 103)
+	if err := os.WriteFile(olp, []byte("ONLYCOPY"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	created, err = ensureStoreLink(blocksDir, heightsDir, 103, orphanHash)
+	if err != nil || !created {
+		t.Fatalf("orphan heights file: created=%v err=%v", created, err)
+	}
+	orphanBlock := filepath.Join(blocksDir, orphanHash.String()+".ods")
+	li, err := os.Lstat(olp)
+	if err != nil {
+		t.Fatalf("heights file vanished: %v", err)
+	}
+	bi, err := os.Stat(orphanBlock)
+	if err != nil {
+		t.Fatalf("blocks/<hash>.ods was not created: %v", err)
+	}
+	if !os.SameFile(li, bi) {
+		t.Fatal("blocks/<hash>.ods is not a hardlink to the heights file")
+	}
+	if data, _ := os.ReadFile(orphanBlock); string(data) != "ONLYCOPY" {
+		t.Fatalf("block content = %q, data lost", data)
+	}
+	// and it is idempotent afterwards
+	if created, err := ensureStoreLink(blocksDir, heightsDir, 103, orphanHash); err != nil || created {
+		t.Fatalf("orphan idempotent: created=%v err=%v (want false)", created, err)
+	}
+}
+
+// TestRunConvertLinkOnly pins --link-only against the "orphaned heights file"
+// state: heights/<h>.ods is a store-format regular file but blocks/<hash>.ods
+// (and .q4) are gone. The run must restore the blocks hardlink onto the same
+// inode without writing a .q4 or re-encoding, and must leave a
+// non-store-readable block untouched.
+func TestRunConvertLinkOnly(t *testing.T) {
+	ctx := context.Background()
+	base := t.TempDir()
+
+	st, err := store.NewStore(store.DefaultParameters(), base)
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	hash := putBlock(t, st, 700, 4)
+	if err := st.Stop(ctx); err != nil {
+		t.Fatalf("stop store: %v", err)
+	}
+
+	blocksDir := filepath.Join(base, "blocks")
+	heightsDir := filepath.Join(blocksDir, "heights")
+	blockPath := filepath.Join(blocksDir, hash.String()+".ods")
+	q4Path := filepath.Join(blocksDir, hash.String()+".q4")
+
+	// Orphan the heights file: drop the blocks-side names, keep the inode
+	// alive through heights/700.ods.
+	if err := os.Remove(blockPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(q4Path); err != nil {
+		t.Fatal(err)
+	}
+
+	// A raw (non-store-readable) block that link-only must not touch.
+	rawLp := linkPathFor(heightsDir, 701)
+	if err := os.WriteFile(rawLp, []byte("not an ods"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err = RunConvert(ctx, ConvertConfig{DataDir: base, LinkOnly: true})
+	if err != nil {
+		t.Fatalf("run convert: %v", err)
+	}
+
+	li, err := os.Lstat(linkPathFor(heightsDir, 700))
+	if err != nil {
+		t.Fatalf("heights file vanished: %v", err)
+	}
+	bi, err := os.Stat(blockPath)
+	if err != nil {
+		t.Fatalf("blocks/<hash>.ods was not restored: %v", err)
+	}
+	if !os.SameFile(li, bi) {
+		t.Fatal("heights and blocks names are not one inode")
+	}
+	if _, err := os.Stat(q4Path); !os.IsNotExist(err) {
+		t.Fatalf(".q4 was written in --link-only mode: %v", err)
+	}
+	if data, _ := os.ReadFile(rawLp); string(data) != "not an ods" {
+		t.Fatalf("raw block was modified: %q", data)
+	}
 }
 
 // TestEmptyBlockReadableStaysSymlink pins the empty-EDS path: the store

@@ -829,8 +829,10 @@ func headerDBKey(height uint64) datastore.Key {
 // convention: a hardlink to blocks/<hash>.ods for a non-empty block, or a
 // symlink to ../<hash>.ods for the empty EDS (the store hardlinks non-empty and
 // symlinks empty). It is idempotent and repairs a link of the wrong kind — in
-// particular a symlink left where a hardlink belongs. Returns true when it
-// created or replaced the link.
+// particular a symlink left where a hardlink belongs. When the heights entry is
+// a regular file whose blocks/<hash>.ods name is missing, it hardlinks the
+// block name to the heights file (never removing the data's only link). Returns
+// true when it created or replaced a link.
 func ensureStoreLink(blocksDir, heightsDir string, height uint64, hash share.DataHash) (bool, error) {
 	linkPath := filepath.Join(heightsDir, strconv.FormatUint(height, 10)+".ods")
 
@@ -851,10 +853,20 @@ func ensureStoreLink(blocksDir, heightsDir string, height uint64, hash share.Dat
 
 	blockPath := filepath.Join(blocksDir, hash.String()+".ods")
 	if li, err := os.Lstat(linkPath); err == nil {
-		// A regular file sharing the block's inode is already a correct hardlink.
 		if li.Mode()&os.ModeSymlink == 0 {
-			if bi, err := os.Stat(blockPath); err == nil && os.SameFile(li, bi) {
+			bi, statErr := os.Stat(blockPath)
+			// A regular file sharing the block's inode is already a correct hardlink.
+			if statErr == nil && os.SameFile(li, bi) {
 				return false, nil
+			}
+			// The heights entry is a regular file but blocks/<hash>.ods is
+			// missing: the heights file holds the only copy of the data, so link
+			// the block name to it instead of removing the sole link.
+			if errors.Is(statErr, os.ErrNotExist) {
+				return true, os.Link(linkPath, blockPath)
+			}
+			if statErr != nil {
+				return false, statErr
 			}
 		}
 		if err := os.Remove(linkPath); err != nil {
