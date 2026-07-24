@@ -3,7 +3,6 @@ package tastora
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	dockerclient "github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -251,8 +251,10 @@ func (f *Framework) bridgeContainerExit(ctx context.Context, node *dataavailabil
 	require.NoError(f.t, err, "failed to read container logs")
 	defer logs.Close()
 
+	// ContainerLogs returns Docker's multiplexed stream (8-byte header per frame); demux it
+	// so the returned logs are clean text, not binary-prefixed.
 	var sb strings.Builder
-	_, err = io.Copy(&sb, logs)
+	_, err = stdcopy.StdCopy(&sb, &sb, logs)
 	require.NoError(f.t, err, "failed to copy container logs")
 
 	return inspect.Container.State.ExitCode, sb.String()

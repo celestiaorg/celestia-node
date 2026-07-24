@@ -59,6 +59,7 @@ func (s *E2ESanityTestSuite) TestBlobSubscribe() {
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridgeNode)
 	wsClient := s.framework.GetNodeRPCClientWS(ctx, bridgeNode)
+	defer wsClient.Close()
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x03}, 10))
 	s.Require().NoError(err, "should create namespace")
