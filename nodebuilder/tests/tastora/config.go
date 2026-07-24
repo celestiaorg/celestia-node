@@ -5,6 +5,8 @@ type Config struct {
 	NumValidators   int
 	BridgeNodeCount int
 	LightNodeCount  int
+	ArchivalBridge  bool
+	MultiSource     bool
 }
 
 // Option for modifying Tastora's Config.
@@ -37,5 +39,20 @@ func WithBridgeNodes(count int) Option {
 func WithLightNodes(count int) Option {
 	return func(c *Config) {
 		c.LightNodeCount = count
+	}
+}
+
+// WithArchivalBridge starts bridge nodes in archival mode with disabled pruner
+func WithArchivalBridge() Option {
+	return func(c *Config) {
+		c.ArchivalBridge = true
+	}
+}
+
+// WithMultiSource starts each bridge with a second core endpoint added to its
+// config.toml
+func WithMultiSource() Option {
+	return func(c *Config) {
+		c.MultiSource = true
 	}
 }
