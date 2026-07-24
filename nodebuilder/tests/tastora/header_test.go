@@ -44,6 +44,7 @@ func (s *HeaderTestSuite) TestHeaderLiveSync() {
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClientWS(ctx, bridgeNode)
+	defer client.Close()
 
 	sub, err := client.Header.Subscribe(ctx)
 	s.Require().NoError(err)
@@ -71,6 +72,7 @@ func (s *HeaderTestSuite) TestHeaderSubscribe() {
 
 	bridgeNode := s.framework.GetBridgeNodes()[0]
 	client := s.framework.GetNodeRPCClientWS(ctx, bridgeNode)
+	defer client.Close()
 
 	sub, err := client.Header.Subscribe(ctx)
 	s.Require().NoError(err)

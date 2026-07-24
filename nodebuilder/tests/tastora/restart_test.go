@@ -68,7 +68,7 @@ func (s *RestartTestSuite) TestRestartPersistence() {
 	client = s.framework.GetNodeRPCClient(ctx, bridge)
 	s.waitNodeUp(ctx, client)
 
-	// verify that store is survived after restsart
+	// verify that store survived after restart
 	postHdr, err := client.Header.GetByHeight(ctx, h0)
 	s.Require().NoError(err, "should get header at height %d after restart", h0)
 	s.Assert().Equal(preHdr.Hash(), postHdr.Hash(), "header hash at height %d should survive restart", h0)
