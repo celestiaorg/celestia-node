@@ -222,7 +222,7 @@ func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window t
 	require.NoError(f.t, err, "failed to start small-window bridge node")
 
 	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
-	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "small-window bridge node")
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount)
 
 	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
 	return bridgeNode
@@ -273,7 +273,7 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Verify funds are available by checking balance
-	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
 
 	f.lightNodes = append(f.lightNodes, lightNode)
 	return lightNode
@@ -285,7 +285,7 @@ func (f *Framework) NewLightNodeBitswapOff(ctx context.Context) *dataavailabilit
 	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia,
 		dataavailability.WithConfigModifications(bitswapOffMod()))
 	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
-	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node (bitswap off)")
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
 
 	f.lightNodes = append(f.lightNodes, lightNode)
 	return lightNode
@@ -365,7 +365,7 @@ func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Verify funds are available by checking balance
-	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "bridge node")
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount)
 
 	return bridgeNode
 }
@@ -418,7 +418,8 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 // verifyNodeBalance verifies that a DA node has the expected balance after funding.
 // This function provides deterministic balance verification with retries and waiting.
 // It should be called after fundNodeAccount to ensure funding was successful.
-func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailability.Node, expectedAmount int64, nodeType string) {
+func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailability.Node, expectedAmount int64) {
+	nodeType := daNode.GetType()
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get %s account address", nodeType)
@@ -670,7 +671,9 @@ func (f *Framework) startLightNode(
 
 	startOpts := append([]dataavailability.StartOption{
 		dataavailability.WithChainID(testChainID),
-		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
+		dataavailability.WithAdditionalStartArguments(
+			"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0",
+		),
 		dataavailability.WithEnvironmentVariables(
 			map[string]string{
 				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),

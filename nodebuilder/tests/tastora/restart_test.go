@@ -54,11 +54,11 @@ func (s *RestartTestSuite) TestRestartPersistence() {
 	preHdr, err := client.Header.GetByHeight(ctx, h0)
 	s.Require().NoError(err, "should get header at height %d before restart", h0)
 
-	preStats, dasErr := client.DAS.SamplingStats(ctx)
+	_, dasErr := client.DAS.SamplingStats(ctx)
 	s.Require().NoError(dasErr, "DAS not available", dasErr)
 
 	s.Require().NoError(client.DAS.WaitCatchUp(ctx), "DASer should catch up before restart")
-	preStats, err = client.DAS.SamplingStats(ctx)
+	preStats, err := client.DAS.SamplingStats(ctx)
 	s.Require().NoError(err, "should get sampling stats before restart")
 	s.T().Logf("pre-restart: head=%d sampledChainHead=%d catchupHead=%d networkHead=%d",
 		h0, preStats.SampledChainHead, preStats.CatchupHead, preStats.NetworkHead)
@@ -76,20 +76,18 @@ func (s *RestartTestSuite) TestRestartPersistence() {
 	s.Require().NoError(client.Share.SharesAvailable(ctx, h0),
 		"shares at height %d should stay available after restart", h0)
 
-	if dasEnabled {
-		immStats, err := client.DAS.SamplingStats(ctx)
-		s.Require().NoError(err, "should get sampling stats after restart")
-		s.T().Logf("post-restart (immediate): sampledChainHead=%d catchupHead=%d networkHead=%d isRunning=%v",
-			immStats.SampledChainHead, immStats.CatchupHead, immStats.NetworkHead, immStats.IsRunning)
+	immStats, err := client.DAS.SamplingStats(ctx)
+	s.Require().NoError(err, "should get sampling stats after restart")
+	s.T().Logf("post-restart (immediate): sampledChainHead=%d catchupHead=%d networkHead=%d isRunning=%v",
+		immStats.SampledChainHead, immStats.CatchupHead, immStats.NetworkHead, immStats.IsRunning)
 
-		s.Require().NoError(client.DAS.WaitCatchUp(ctx), "DASer should catch up again after restart")
-		postStats, err := client.DAS.SamplingStats(ctx)
-		s.Require().NoError(err, "should get sampling stats after catch up")
-		s.T().Logf("post-restart (caught up): sampledChainHead=%d catchupHead=%d networkHead=%d",
-			postStats.SampledChainHead, postStats.CatchupHead, postStats.NetworkHead)
-		s.Assert().GreaterOrEqual(postStats.SampledChainHead, preStats.SampledChainHead,
-			"sampled chain head should not regress across restart")
-	}
+	s.Require().NoError(client.DAS.WaitCatchUp(ctx), "DASer should catch up again after restart")
+	postStats, err := client.DAS.SamplingStats(ctx)
+	s.Require().NoError(err, "should get sampling stats after catch up")
+	s.T().Logf("post-restart (caught up): sampledChainHead=%d catchupHead=%d networkHead=%d",
+		postStats.SampledChainHead, postStats.CatchupHead, postStats.NetworkHead)
+	s.Assert().GreaterOrEqual(postStats.SampledChainHead, preStats.SampledChainHead,
+		"sampled chain head should not regress across restart")
 
 	// the node keeps advancing after the restart.
 	_, err = client.Header.WaitForHeight(ctx, h0+3)
