@@ -196,7 +196,7 @@ test-e2e-sanity:
 ## test-tastora: Run all Tastora framework tests.
 test-tastora:
 	@echo "--> Running all Tastora tests"
-	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration ./...
+	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -timeout 60m ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:
