@@ -130,6 +130,56 @@ func TestEnsureStoreLink(t *testing.T) {
 	if created, err := ensureStoreLink(blocksDir, heightsDir, 103, orphanHash); err != nil || created {
 		t.Fatalf("orphan idempotent: created=%v err=%v (want false)", created, err)
 	}
+
+	// A separate heights copy must NOT be dropped for an unreadable blocks file
+	// ("BLOCKDATA" does not parse as an ODS): error out, both files untouched.
+	dupLp := linkPathFor(heightsDir, 104)
+	if err := os.WriteFile(dupLp, []byte("HEIGHTCOPY"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ensureStoreLink(blocksDir, heightsDir, 104, hash); err == nil {
+		t.Fatal("expected error for unreadable blocks file, got nil")
+	}
+	if data, _ := os.ReadFile(dupLp); string(data) != "HEIGHTCOPY" {
+		t.Fatalf("heights copy was modified: %q", data)
+	}
+	if data, _ := os.ReadFile(blockPath); string(data) != "BLOCKDATA" {
+		t.Fatalf("blocks file was modified: %q", data)
+	}
+
+	// A dangling symlink with no blocks file: error out, symlink left in place.
+	danglingLp := linkPathFor(heightsDir, 105)
+	if err := os.Symlink("../does-not-exist.ods", danglingLp); err != nil {
+		t.Fatal(err)
+	}
+	missing := make([]byte, share.DataHashSize)
+	for i := range missing {
+		missing[i] = byte(i + 7)
+	}
+	if _, err := ensureStoreLink(blocksDir, heightsDir, 105, share.DataHash(missing)); err == nil {
+		t.Fatal("expected error for dangling symlink, got nil")
+	}
+	if fi, err := os.Lstat(danglingLp); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("dangling symlink was removed or replaced: %v", err)
+	}
+
+	// Empty height held as a regular file while the canonical empty ODS is
+	// missing: the copy must first receive the canonical name, then become a
+	// symlink that resolves to it — no bytes lost.
+	emptyCopyLp := linkPathFor(heightsDir, 106)
+	if err := os.WriteFile(emptyCopyLp, []byte("EMPTYCOPY"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	created, err = ensureStoreLink(blocksDir, heightsDir, 106, empty)
+	if err != nil || !created {
+		t.Fatalf("empty copy: created=%v err=%v", created, err)
+	}
+	if fi, err := os.Lstat(emptyCopyLp); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("empty height is not a symlink: %v", err)
+	}
+	if data, err := os.ReadFile(emptyCopyLp); err != nil || string(data) != "EMPTYCOPY" {
+		t.Fatalf("empty symlink does not resolve to the preserved copy: %q err=%v", data, err)
+	}
 }
 
 // TestRunConvertLinkOnly pins --link-only against the "orphaned heights file"
@@ -170,6 +220,17 @@ func TestRunConvertLinkOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A broken hardlink: a byte-identical separate copy of the same block at
+	// another height (as left by rsync without -H). Must end up on one inode.
+	odsBytes, err := os.ReadFile(linkPathFor(heightsDir, 700))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dupLp := linkPathFor(heightsDir, 702)
+	if err := os.WriteFile(dupLp, odsBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	err = RunConvert(ctx, ConvertConfig{DataDir: base, LinkOnly: true})
 	if err != nil {
 		t.Fatalf("run convert: %v", err)
@@ -191,6 +252,13 @@ func TestRunConvertLinkOnly(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(rawLp); string(data) != "not an ods" {
 		t.Fatalf("raw block was modified: %q", data)
+	}
+	di, err := os.Lstat(dupLp)
+	if err != nil {
+		t.Fatalf("duplicate-copy height vanished: %v", err)
+	}
+	if !os.SameFile(di, bi) {
+		t.Fatal("duplicate-copy height was not merged onto the block's inode")
 	}
 }
 

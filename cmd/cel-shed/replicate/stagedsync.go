@@ -831,8 +831,14 @@ func headerDBKey(height uint64) datastore.Key {
 // symlinks empty). It is idempotent and repairs a link of the wrong kind — in
 // particular a symlink left where a hardlink belongs. When the heights entry is
 // a regular file whose blocks/<hash>.ods name is missing, it hardlinks the
-// block name to the heights file (never removing the data's only link). Returns
-// true when it created or replaced a link.
+// block name to the heights file. Returns true when it created or replaced a
+// link.
+//
+// Deletion safety invariant: a heights entry is only ever removed AFTER the
+// data it points at provably survives under its blocks/<hash>.ods name — the
+// block file must exist, and when the heights entry is a separate copy, the
+// block's ODS header must carry the expected hash. On any doubt the function
+// errors out leaving everything untouched.
 func ensureStoreLink(blocksDir, heightsDir string, height uint64, hash share.DataHash) (bool, error) {
 	linkPath := filepath.Join(heightsDir, strconv.FormatUint(height, 10)+".ods")
 
@@ -841,38 +847,85 @@ func ensureStoreLink(blocksDir, heightsDir string, height uint64, hash share.Dat
 		if cur, err := os.Readlink(linkPath); err == nil && cur == target {
 			return false, nil // already the correct symlink
 		}
-		if _, err := os.Lstat(linkPath); err == nil {
+		canonical := filepath.Join(blocksDir, hash.String()+".ods")
+		li, lerr := os.Lstat(linkPath)
+		if lerr != nil && !errors.Is(lerr, os.ErrNotExist) {
+			return false, lerr
+		}
+		if lerr == nil {
+			// Never drop the height entry while the canonical empty ODS the
+			// new symlink will point at is missing.
+			if _, statErr := os.Stat(canonical); errors.Is(statErr, os.ErrNotExist) {
+				if li.Mode()&os.ModeSymlink != 0 {
+					return false, fmt.Errorf(
+						"canonical empty ODS %s missing; leaving %s untouched", canonical, linkPath)
+				}
+				// The heights file is the only empty-ODS copy: give it the
+				// canonical name first.
+				if err := os.Link(linkPath, canonical); err != nil {
+					return false, err
+				}
+			} else if statErr != nil {
+				return false, statErr
+			}
 			if err := os.Remove(linkPath); err != nil {
 				return false, err
 			}
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return false, err
 		}
 		return true, os.Symlink(target, linkPath)
 	}
 
 	blockPath := filepath.Join(blocksDir, hash.String()+".ods")
-	if li, err := os.Lstat(linkPath); err == nil {
-		if li.Mode()&os.ModeSymlink == 0 {
-			bi, statErr := os.Stat(blockPath)
-			// A regular file sharing the block's inode is already a correct hardlink.
-			if statErr == nil && os.SameFile(li, bi) {
-				return false, nil
-			}
-			// The heights entry is a regular file but blocks/<hash>.ods is
-			// missing: the heights file holds the only copy of the data, so link
-			// the block name to it instead of removing the sole link.
-			if errors.Is(statErr, os.ErrNotExist) {
-				return true, os.Link(linkPath, blockPath)
-			}
-			if statErr != nil {
-				return false, statErr
-			}
+	li, lerr := os.Lstat(linkPath)
+	if lerr != nil {
+		if !errors.Is(lerr, os.ErrNotExist) {
+			return false, lerr
 		}
-		if err := os.Remove(linkPath); err != nil {
+		// Fresh link: os.Link fails cleanly if the block is missing.
+		return true, os.Link(blockPath, linkPath)
+	}
+
+	isSymlink := li.Mode()&os.ModeSymlink != 0
+	bi, statErr := os.Stat(blockPath)
+	// A regular file sharing the block's inode is already a correct hardlink.
+	if statErr == nil && !isSymlink && os.SameFile(li, bi) {
+		return false, nil
+	}
+	if errors.Is(statErr, os.ErrNotExist) {
+		if !isSymlink {
+			// The heights entry is a regular file but blocks/<hash>.ods is
+			// missing: the heights file holds the only copy of the data, so
+			// link the block name to it instead of removing the sole link.
+			return true, os.Link(linkPath, blockPath)
+		}
+		// A symlink whose block name is missing: the symlink's target may hold
+		// the only copy, so give the block its name from the resolved target
+		// before the symlink is replaced.
+		resolved, rerr := filepath.EvalSymlinks(linkPath)
+		if rerr != nil {
+			return false, fmt.Errorf(
+				"height link %s dangles and %s is missing: %w", linkPath, blockPath, rerr)
+		}
+		if err := os.Link(resolved, blockPath); err != nil {
 			return false, err
 		}
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if statErr != nil {
+		return false, statErr
+	}
+
+	// blockPath exists. When the heights entry is a separate regular-file copy,
+	// confirm the block's ODS header carries the expected hash before dropping
+	// the copy — a wrong or unreadable blocks file must never replace the
+	// height's data. (Removing a symlink deletes no data, so no check there.)
+	if !isSymlink {
+		got, ok := storeReadableHash(context.Background(), blockPath)
+		if !ok || !bytes.Equal(got, hash) {
+			return false, fmt.Errorf(
+				"block %s is unreadable or header hash %s != expected %s; leaving %s untouched",
+				blockPath, got, hash, linkPath)
+		}
+	}
+	if err := os.Remove(linkPath); err != nil {
 		return false, err
 	}
 	return true, os.Link(blockPath, linkPath)
