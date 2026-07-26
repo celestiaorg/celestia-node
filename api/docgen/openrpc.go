@@ -28,6 +28,18 @@ const (
 	DocsName = "Celestia Node GitHub"
 )
 
+// authDescriptionTmpl renders the description for authenticated methods (#4817).
+const authDescriptionTmpl = "Auth level: `%s`\n\n" +
+	"Requests need an `Authorization: Bearer <token>` header. " +
+	"Generate a token with `celestia <node-type> auth %s`.\n\n" +
+	"```bash\n" +
+	"curl -X POST \\\n" +
+	"  -H \"Content-Type: application/json\" \\\n" +
+	"  -H \"Authorization: Bearer $CELESTIA_NODE_AUTH_TOKEN\" \\\n" +
+	"  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"%s\",\"params\":[]}' \\\n" +
+	"  http://localhost:26658\n" +
+	"```"
+
 type Visitor struct {
 	Methods map[string]ast.Node
 }
@@ -162,10 +174,12 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 
 	// remove the default implementation from the method descriptions
 	appReflector.FnGetMethodDescription = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
-		if v, ok := permissions[m.Name]; ok {
-			return "Auth level: " + v + ". Requests must include the HTTP header: Authorization: Bearer <token>.", nil
+		perm, ok := permissions[m.Name]
+		if !ok {
+			return "", nil
 		}
-		return "", nil
+		methodName := extractPackageNameFromAPIMethod(m) + "." + m.Name
+		return fmt.Sprintf(authDescriptionTmpl, perm, perm, methodName), nil
 	}
 
 	appReflector.FnGetMethodName = func(
