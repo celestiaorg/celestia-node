@@ -43,11 +43,13 @@ jobs:
 
       - name: Resolve node image tag
         id: resolve
+        env:
+          NODE_TAG: ${{ github.event.inputs.node_tag }}
         run: |
           set -euo pipefail
           image="ghcr.io/celestiaorg/celestia-node"
 
-          override="${{ github.event.inputs.node_tag }}"
+          override="${NODE_TAG:-}"
           if [ -n "$override" ]; then
             echo "Using dispatch-provided tag: $override"
             echo "tag=$override" >> "$GITHUB_OUTPUT"
