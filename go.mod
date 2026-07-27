@@ -11,7 +11,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
 	github.com/celestiaorg/celestia-app/v9 v9.0.4
-	github.com/celestiaorg/go-header v0.8.5
+	github.com/celestiaorg/go-header v0.8.6
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc5
@@ -20,9 +20,9 @@ require (
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cristalhq/jwt/v5 v5.4.0
-	github.com/dgraph-io/badger/v4 v4.9.4
+	github.com/dgraph-io/badger/v4 v4.9.5
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
-	github.com/filecoin-project/go-jsonrpc v0.10.1
+	github.com/filecoin-project/go-jsonrpc v0.10.2
 	github.com/gammazero/workerpool v1.2.1
 	github.com/gofrs/flock v0.13.0
 	github.com/gogo/protobuf v1.3.3
