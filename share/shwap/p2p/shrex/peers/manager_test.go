@@ -491,6 +491,72 @@ func TestManager_blacklistedHashesBounded(t *testing.T) {
 		"blacklisted hashes cache must stay bounded")
 }
 
+// TestManager_kickPeerAfterStrikes tests that a peer failing peerStrikeLimit consecutive
+// requests is dropped from the nodes pool instead of returning to rotation after each
+// cooldown, and that a successful request in between clears its accumulated failures.
+func TestManager_kickPeerAfterStrikes(t *testing.T) {
+	peerID := peer.ID("peer1")
+
+	t.Run("kicked after limit", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		manager, err := testManager(ctx, newSubLock(h, nil))
+		require.NoError(t, err)
+		manager.UpdateNodePool(peerID, true)
+
+		for range peerStrikeLimit - 1 {
+			failRequest(ctx, t, manager, h, peerID)
+			require.True(t, manager.nodes.has(peerID))
+			// skip the cooldown wait to keep the peer available for the next attempt
+			manager.nodes.afterCooldown(peerID)
+		}
+
+		failRequest(ctx, t, manager, h, peerID)
+		require.False(t, manager.nodes.has(peerID),
+			"peer must be dropped from the pool after %d strikes", peerStrikeLimit)
+		stopManager(t, manager)
+	})
+
+	t.Run("strikes reset on success", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+
+		h := testHeader()
+		manager, err := testManager(ctx, newSubLock(h, nil))
+		require.NoError(t, err)
+		manager.UpdateNodePool(peerID, true)
+
+		for range peerStrikeLimit * 2 {
+			failRequest(ctx, t, manager, h, peerID)
+			manager.nodes.afterCooldown(peerID)
+
+			pID, done, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
+			require.NoError(t, err)
+			require.Equal(t, peerID, pID)
+			done(ResultNoop)
+		}
+
+		require.True(t, manager.nodes.has(peerID),
+			"peer with intermittent failures must stay in the pool")
+		stopManager(t, manager)
+	})
+}
+
+func failRequest(
+	ctx context.Context,
+	t *testing.T,
+	manager *Manager,
+	h *header.ExtendedHeader,
+	expected peer.ID,
+) {
+	pID, done, err := manager.Peer(ctx, h.DataHash.Bytes(), h.Height())
+	require.NoError(t, err)
+	require.Equal(t, expected, pID)
+	done(ResultCooldownPeer)
+}
+
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
 	host, err := mocknet.New().GenPeer()
 	if err != nil {

@@ -47,6 +47,14 @@ const (
 	// The blacklist is a best-effort spam filter, so evicting the least-recently-used entries
 	// is acceptable and prevents unbounded growth from a stream of invalid datahashes.
 	blacklistedHashesCacheSize = 1024
+
+	// peerStrikeLimit is the amount of consecutive failed requests after which a peer is
+	// disconnected instead of being put on cooldown. Cooldown only keeps a peer out of
+	// rotation for seconds, which is not enough for a peer that fails every request.
+	peerStrikeLimit = 3
+
+	// peerStrikesCacheSize bounds the number of peers with recorded failures kept in memory.
+	peerStrikesCacheSize = 1024
 )
 
 type result string
@@ -82,6 +90,9 @@ type Manager struct {
 
 	// hashes that are not in the chain, bounded by an LRU to avoid unbounded growth
 	blacklistedHashes *lru.Cache[string, struct{}]
+
+	// strikes counts consecutive failed requests per peer, bounded by an LRU as peers churn
+	strikes *lru.Cache[peer.ID, int]
 
 	metrics *metrics
 
@@ -122,12 +133,18 @@ func NewManager(
 		return nil, fmt.Errorf("shrex/peer-manager: creating blacklisted hashes cache: %w", err)
 	}
 
+	strikes, err := lru.New[peer.ID, int](peerStrikesCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("shrex/peer-manager: creating peer strikes cache: %w", err)
+	}
+
 	s := &Manager{
 		params:                params,
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     blacklistedHashes,
+		strikes:               strikes,
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
 		tag:                   tag,
@@ -292,7 +309,12 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		m.metrics.observeDoneResult(source, result)
 		switch result {
 		case ResultNoop:
+			m.resetStrikes(peerID)
 		case ResultCooldownPeer:
+			if m.strike(peerID) >= peerStrikeLimit {
+				m.kickPeer(peerID)
+				return
+			}
 			if source == sourceDiscoveredNodes {
 				m.nodes.putOnCooldown(peerID)
 				return
@@ -306,6 +328,36 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		case ResultBlacklistPeer:
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
+	}
+}
+
+// strike records a failed request for the peer and reports the amount of consecutive failures.
+func (m *Manager) strike(peerID peer.ID) int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	strikes, _ := m.strikes.Get(peerID)
+	strikes++
+	m.strikes.Add(peerID, strikes)
+	return strikes
+}
+
+func (m *Manager) resetStrikes(peerID peer.ID) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.strikes.Remove(peerID)
+}
+
+// kickPeer removes the peer from the nodes pool and disconnects from it. Disconnecting makes
+// discovery drop the peer and back off from redialing it, keeping a peer that fails every
+// request out of rotation for minutes instead of the seconds a cooldown gives.
+func (m *Manager) kickPeer(peerID peer.ID) {
+	log.Warnw("disconnecting peer after consecutive failed requests",
+		"peer", peerID.String(), "strikes", peerStrikeLimit)
+	m.resetStrikes(peerID)
+	m.nodes.remove(peerID)
+	if err := m.host.Network().ClosePeer(peerID); err != nil {
+		log.Warnw("failed to close connection with peer", "peer", peerID.String(), "err", err)
 	}
 }
 
