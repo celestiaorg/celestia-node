@@ -1,16 +1,13 @@
 name: Tastora Weekly
 
-# Weekly bridge-node regression suite. Runs against the newest main commit that has a
-# published celestia-node image, so a regression is localized near the offending PR.
+# Weekly bridge-node E2E regression suite. Builds the celestia-node image from the current
+# main source and runs the Tastora suite against it, so the node image always matches the
+# test code — tests coupled to node behaviour are validated reliably (unlike testing a
+# separately published image, which lags the source). Release-image validation lives elsewhere.
 on:
   schedule:
     - cron: "0 7 * * 1" # Monday 07:00 UTC
   workflow_dispatch:
-    inputs:
-      node_tag:
-        description: "celestia-node image tag to test (blank = newest main commit with a published image)"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -26,13 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
-      tag: ${{ steps.resolve.outputs.tag }}
-      commit: ${{ steps.resolve.outputs.commit }}
+      commit: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: main
-          fetch-depth: 50
 
       - uses: actions/setup-go@v7
         with:
@@ -41,41 +36,12 @@ jobs:
       - name: Log in to ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Resolve node image tag
-        id: resolve
-        env:
-          NODE_TAG: ${{ github.event.inputs.node_tag }}
-        run: |
-          set -euo pipefail
-          image="ghcr.io/celestiaorg/celestia-node"
-
-          override="${NODE_TAG:-}"
-          if [ -n "$override" ]; then
-            echo "Using dispatch-provided tag: $override"
-            echo "tag=$override" >> "$GITHUB_OUTPUT"
-            echo "commit=$override" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Walk back from main HEAD to the newest commit whose 7-char SHA has a published
-          # image (the tag format used by docker-build-publish.yml, e.g. 32627d9).
-          for sha in $(git rev-list -n 50 HEAD); do
-            short="${sha:0:7}"
-            if docker manifest inspect "$image:$short" >/dev/null 2>&1; then
-              echo "Resolved image: $image:$short (commit $sha)"
-              echo "tag=$short" >> "$GITHUB_OUTPUT"
-              echo "commit=$sha" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "no image for $short, walking back..."
-          done
-
-          echo "::error::no published celestia-node image found in the last 50 main commits"
-          exit 1
+      - name: Build node image from source
+        run: docker build -t ghcr.io/celestiaorg/celestia-node:tastora-ci .
 
       - name: Run Tastora suite
         env:
-          CELESTIA_NODE_TAG: ${{ steps.resolve.outputs.tag }}
+          CELESTIA_NODE_TAG: tastora-ci
         run: make test-tastora
 
   # TODO: enable once we ensure tests work correctly
@@ -93,5 +59,5 @@ jobs:
   #         webhook-type: incoming-webhook
   #         payload: |
   #           {
-  #             "text": "Tastora weekly regression failed (image tag `${{ needs.tastora.outputs.tag }}`, commit `${{ needs.tastora.outputs.commit }}`). <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+  #             "text": "Tastora weekly regression failed (commit `${{ needs.tastora.outputs.commit }}`). <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
   #           }
