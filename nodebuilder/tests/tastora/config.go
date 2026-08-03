@@ -60,9 +60,8 @@ func WithMultiSource() Option {
 	}
 }
 
-// WithAvailabilityWindow shrinks the availability window of the DA nodes via the
-// CELESTIA_OVERRIDE_AVAILABILITY_WINDOW env var, so heights age out of the window
-// within a test's runtime.
+// WithAvailabilityWindow shrinks the DA nodes' availability window (via
+// CELESTIA_OVERRIDE_AVAILABILITY_WINDOW) so heights age out within a test.
 func WithAvailabilityWindow(window time.Duration) Option {
 	return func(c *Config) {
 		c.AvailabilityWindow = window

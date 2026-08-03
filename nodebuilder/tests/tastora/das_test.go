@@ -16,7 +16,8 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// DASTestSuite runs verifies that sampling works correctly.
+// DASTestSuite verifies a light node samples a blob square and reconstructs its EDS
+// from the bridge over shrex (bitswap disabled).
 type DASTestSuite struct {
 	suite.Suite
 	framework *Framework
@@ -43,7 +44,8 @@ func (s *DASTestSuite) TearDownSuite() {
 	}
 }
 
-// TestBasicDASFlow asserts the data-availability sampling pipeline over shrex
+// TestBasicDASFlow submits a blob, verifies the light node samples it, then reconstructs
+// its EDS over shrex.
 func (s *DASTestSuite) TestBasicDASFlow() {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()

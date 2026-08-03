@@ -37,7 +37,7 @@ func ResolveWindow(window time.Duration) time.Duration {
 		return window
 	}
 	overrideLogOnce.Do(func() {
-		log.Infow("availability window overridden by", "env", overrideWindowEnv, "window", duration)
+		log.Infow("availability window overridden", "env", overrideWindowEnv, "window", duration)
 	})
 	return duration
 }

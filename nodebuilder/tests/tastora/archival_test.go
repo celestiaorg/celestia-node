@@ -17,9 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// archivalAvailabilityWindow is the shrunk availability window for the archival node, so
-// a height submitted early ages out of the window within the test's runtime. It must stay
-// large enough that the node's own head remains "recent" and its syncer doesn't stall.
+// archivalAvailabilityWindow shrinks the window so an early height ages out during the test,
+// but stays large enough that the node's head stays recent and the syncer doesn't stall.
 const archivalAvailabilityWindow = 2 * time.Minute
 
 // ArchivalTestSuite runs a bridge node started with `--archival` and a shrunk availability
@@ -50,11 +49,9 @@ func (s *ArchivalTestSuite) TearDownSuite() {
 	}
 }
 
-// TestArchivalNodeKeepsData submits a blob at an early height, lets the chain advance
-// until that height is outside the (shrunk) availability window, and asserts the archival
-// node still serves the header, shares and blob. On an archival node SharesAvailable
-// bypasses the window gate, whereas a non-archival node would reject an out-of-window
-// height and prune its data — so this exercises the archival retention guarantee.
+// TestArchivalNodeKeepsData submits a blob, advances past the shrunk availability window,
+// and asserts the archival node still serves the header, shares and blob — a non-archival
+// node would reject the out-of-window height and prune its data.
 func (s *ArchivalTestSuite) TestArchivalNodeKeepsData() {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
