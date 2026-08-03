@@ -5,6 +5,10 @@ name: Dependabot Go Mod Tidy
 # fail on every bot PR. This workflow runs `go mod tidy` across every module on
 # Dependabot PRs and pushes the fixup back onto the PR branch with the built-in
 # GITHUB_TOKEN (elevated to contents: write below).
+#
+# checkout uses persist-credentials: false so the token is never left in
+# .git/config while `go mod tidy` runs; it is supplied explicitly only for the
+# final push.
 
 on:
   pull_request:
@@ -30,6 +34,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
+          persist-credentials: false
 
       - uses: actions/setup-go@v7
         with:
@@ -47,6 +52,8 @@ jobs:
       - name: Commit and push fixup if anything changed
         env:
           HEAD_REF: ${{ github.head_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           if git diff --quiet; then
             echo "all modules already tidy — nothing to do"
@@ -55,4 +62,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "chore(deps): go mod tidy after dependabot bump"
-          git push origin "HEAD:$HEAD_REF"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:$HEAD_REF"
