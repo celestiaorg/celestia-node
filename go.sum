@@ -379,8 +379,8 @@ github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1/go.mod h1:ZXNYxsqcloTdSy/rNShjY
 github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f/go.mod h1:xH/i4TFMt8koVQZ6WFms69WAsDWr2XsYL3Hkl7jkoLE=
 github.com/desertbit/timer v1.0.1 h1:yRpYNn5Vaaj6QXecdLMPMJsW81JLiI1eokUft5nBmeo=
 github.com/desertbit/timer v1.0.1/go.mod h1:htRrYeY5V/t4iu1xCJ5XsQvp4xve8QulXXctAzxqcwE=
-github.com/dgraph-io/badger/v4 v4.9.4 h1:bcw+waCpzRZ2nmcSPbnPvDVhiEsn98TKmvnAhK7r7LM=
-github.com/dgraph-io/badger/v4 v4.9.4/go.mod h1:nJjaJTUOSsQEBhsq209FmwCvMJzEA3e74RjZw6V2pQI=
+github.com/dgraph-io/badger/v4 v4.9.5 h1:zT46OMrF3ntqsfI3ynKp7hUkQrGlcK2CX5psQmH0iW0=
+github.com/dgraph-io/badger/v4 v4.9.5/go.mod h1:Xa9dAupjbwAacupWFCpa6YEn9E1PjBXkfZYr2I/8aWg=
 github.com/dgraph-io/ristretto/v2 v2.2.0 h1:bkY3XzJcXoMuELV8F+vS8kzNgicwQFAaGINAEJdWGOM=
 github.com/dgraph-io/ristretto/v2 v2.2.0/go.mod h1:RZrm63UmcBAaYWC1DotLYBmTvgkrs0+XhBd7Npn7/zI=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
@@ -435,8 +435,8 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/filecoin-project/go-clock v0.1.0 h1:SFbYIM75M8NnFm1yMHhN9Ahy3W5bEZV9gd6MPfXbKVU=
 github.com/filecoin-project/go-clock v0.1.0/go.mod h1:4uB/O4PvOjlx1VCMdZ9MyDZXRm//gkj1ELEbxfI1AZs=
-github.com/filecoin-project/go-jsonrpc v0.10.1 h1:iEhgrjO0+rawwOZWRNgexLrWGLA+IEUyWiRRL134Ob8=
-github.com/filecoin-project/go-jsonrpc v0.10.1/go.mod h1:OG7kVBVh/AbDFHIwx7Kw0l9ARmKOS6gGOr0LbdBpbLc=
+github.com/filecoin-project/go-jsonrpc v0.10.2 h1:Lk1IE43n1KUuOanvD5Pl2t3zX+3B6Ed4kaP0KSWn68k=
+github.com/filecoin-project/go-jsonrpc v0.10.2/go.mod h1:U4dFi7TqMb1t5Fp5sTfiF1rX+cPrK/C/q4twXYNxyss=
 github.com/flynn/noise v1.1.0 h1:KjPQoQCEFdZDiP03phOvGi11+SVVhBG2wOWAorLsstg=
 github.com/flynn/noise v1.1.0/go.mod h1:xbMo+0i6+IGbYdJhF31t2eR1BIU0CYc12+BNAKwUTag=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=
