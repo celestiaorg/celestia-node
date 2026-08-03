@@ -1,12 +1,15 @@
 package tastora
 
+import "time"
+
 // Config represents configuration options for the Tastora testing framework.
 type Config struct {
-	NumValidators   int
-	BridgeNodeCount int
-	LightNodeCount  int
-	ArchivalBridge  bool
-	MultiSource     bool
+	NumValidators      int
+	BridgeNodeCount    int
+	LightNodeCount     int
+	ArchivalBridge     bool
+	MultiSource        bool
+	AvailabilityWindow time.Duration
 }
 
 // Option for modifying Tastora's Config.
@@ -54,5 +57,14 @@ func WithArchivalBridge() Option {
 func WithMultiSource() Option {
 	return func(c *Config) {
 		c.MultiSource = true
+	}
+}
+
+// WithAvailabilityWindow shrinks the availability window of the DA nodes via the
+// CELESTIA_OVERRIDE_AVAILABILITY_WINDOW env var, so heights age out of the window
+// within a test's runtime.
+func WithAvailabilityWindow(window time.Duration) Option {
+	return func(c *Config) {
+		c.AvailabilityWindow = window
 	}
 }

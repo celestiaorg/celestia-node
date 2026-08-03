@@ -17,8 +17,13 @@ import (
 	"github.com/celestiaorg/celestia-node/state"
 )
 
-// ArchivalTestSuite runs a bridge node started with `--archival`, so it must retain
-// block data past the storage window.
+// archivalAvailabilityWindow is the shrunk availability window for the archival node, so
+// a height submitted early ages out of the window within the test's runtime. It must stay
+// large enough that the node's own head remains "recent" and its syncer doesn't stall.
+const archivalAvailabilityWindow = 2 * time.Minute
+
+// ArchivalTestSuite runs a bridge node started with `--archival` and a shrunk availability
+// window, so it must retain and serve block data even after it falls outside that window.
 type ArchivalTestSuite struct {
 	suite.Suite
 	framework *Framework
@@ -32,7 +37,8 @@ func TestArchivalTestSuite(t *testing.T) {
 }
 
 func (s *ArchivalTestSuite) SetupSuite() {
-	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(0), WithArchivalBridge())
+	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(0),
+		WithArchivalBridge(), WithAvailabilityWindow(archivalAvailabilityWindow))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
@@ -44,10 +50,13 @@ func (s *ArchivalTestSuite) TearDownSuite() {
 	}
 }
 
-// TestArchivalNodeKeepsData submits a blob at an early height and waits until it is
-// outside the availability window to ensure the whole data stays servable.
+// TestArchivalNodeKeepsData submits a blob at an early height, lets the chain advance
+// until that height is outside the (shrunk) availability window, and asserts the archival
+// node still serves the header, shares and blob. On an archival node SharesAvailable
+// bypasses the window gate, whereas a non-archival node would reject an out-of-window
+// height and prune its data — so this exercises the archival retention guarantee.
 func (s *ArchivalTestSuite) TestArchivalNodeKeepsData() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 
 	bridge := s.framework.GetBridgeNodes()[0]
@@ -70,8 +79,10 @@ func (s *ArchivalTestSuite) TestArchivalNodeKeepsData() {
 	earlyHdr, err := client.Header.GetByHeight(ctx, earlyHeight)
 	s.Require().NoError(err, "should get early header")
 
-	_, err = client.Header.WaitForHeight(ctx, earlyHeight+30)
-	s.Require().NoError(err, "chain should advance well past the early height")
+	// Advance well past the availability window (block time ~1s, window 2m) so the early
+	// height is firmly outside it.
+	_, err = client.Header.WaitForHeight(ctx, earlyHeight+140)
+	s.Require().NoError(err, "chain should advance past the availability window")
 
 	postHdr, err := client.Header.GetByHeight(ctx, earlyHeight)
 	s.Require().NoError(err, "early header should still be served after advancing")

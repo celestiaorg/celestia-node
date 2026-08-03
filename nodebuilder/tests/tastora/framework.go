@@ -76,8 +76,9 @@ type Framework struct {
 	fundingWallet        *types.Wallet
 	defaultFundingAmount int64
 
-	archivalBridge bool
-	multisource    bool
+	archivalBridge     bool
+	multisource        bool
+	availabilityWindow time.Duration
 }
 
 // NewFramework creates a new Tastora testing framework instance.
@@ -96,6 +97,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	}
 	f.archivalBridge = cfg.ArchivalBridge
 	f.multisource = cfg.MultiSource
+	f.availabilityWindow = cfg.AvailabilityWindow
 
 	f.logger.Info("Setting up Tastora framework", zap.String("test", t.Name()))
 	f.client, f.network = docker.Setup(t)
@@ -578,16 +580,19 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 		startArgs = append(startArgs, "--archival")
 	}
 
+	env := map[string]string{
+		"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
+		"P2P_NETWORK":           testChainID,
+		"CELESTIA_BOOTSTRAPPER": "true",
+	}
+	if f.availabilityWindow > 0 {
+		env["CELESTIA_OVERRIDE_AVAILABILITY_WINDOW"] = f.availabilityWindow.String()
+	}
+
 	startOpts := []dataavailability.StartOption{
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(startArgs...),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
-				"P2P_NETWORK":           testChainID,
-				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
-			},
-		),
+		dataavailability.WithEnvironmentVariables(env),
 	}
 	if f.multisource {
 		startOpts = append(startOpts, dataavailability.WithConfigModifications(f.additionalCoreEndpointMod(ctx, chain)))
