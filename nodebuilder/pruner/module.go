@@ -56,7 +56,9 @@ func ConstructModule(tp node.Type) fx.Option {
 		// LNs enforce pruning by default
 		return fx.Module("prune",
 			baseComponents,
-			fx.Supply(modshare.Window(availability.SamplingWindow)),
+			fx.Provide(func() modshare.Window {
+				return modshare.Window(availability.ResolveWindow(availability.SamplingWindow))
+			}),
 			// TODO(@walldiss @renaynay): remove conversion after Availability and Pruner interfaces are merged
 			//  note this provide exists in pruner module to avoid cyclical imports
 			fx.Provide(func(la *light.ShareAvailability) pruner.Pruner { return la }),
@@ -71,7 +73,9 @@ func ConstructModule(tp node.Type) fx.Option {
 				return []core.Option{core.WithArchivalMode()}, []fullavail.Option{fullavail.WithArchivalMode()}
 			}),
 			fx.Provide(func(fa *fullavail.ShareAvailability) pruner.Pruner { return fa }),
-			fx.Supply(modshare.Window(availability.StorageWindow)),
+			fx.Provide(func() modshare.Window {
+				return modshare.Window(availability.ResolveWindow(availability.StorageWindow))
+			}),
 			fx.Invoke(convertToPruned),
 		)
 	default:
