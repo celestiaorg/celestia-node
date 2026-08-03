@@ -14,7 +14,7 @@ updates:
         applies-to: version-updates
         update-types:
           - "patch"
-  - package-ecosystem: gomod
+  - package-ecosystem: "gomod"
     directories:
       - "/"
       - "/nodebuilder/tests/tastora"
@@ -22,23 +22,42 @@ updates:
       interval: weekly
       day: monday
       time: "11:00"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     reviewers:
-      - Wondertan
       - renaynay
+      - vgonkivs
     labels:
       - kind:deps
+    # Major bumps need import-path rewrites, so keep them manual.
     ignore:
-      - dependency-name: "*otel*"
-        update-types: ["version-update:semver-patch"]
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
-      patch-updates:
+      # Narrow group first: a dep lands in the first group whose pattern matches.
+      # libp2p and its multiformats primitives break far more often than the
+      # rest, so isolate them — a broken libp2p bump must not block the batch.
+      libp2p:
         applies-to: version-updates
-        update-types:
-          - "patch"
-      otel:
         patterns:
-          - "go.opentelemetry.io/otel*"
+          - "github.com/libp2p/*"
+          - "github.com/multiformats/*"
+          - "github.com/celestiaorg/go-libp2p-messenger"
+        update-types:
+          - "minor"
+          - "patch"
+      # exclude-patterns MUST stay identical to the libp2p patterns above,
+      # otherwise those deps get duplicated across both PRs.
+      go-deps:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github.com/libp2p/*"
+          - "github.com/multiformats/*"
+          - "github.com/celestiaorg/go-libp2p-messenger"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: docker
     directory: "/"
     schedule:
