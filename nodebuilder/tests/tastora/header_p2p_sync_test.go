@@ -10,16 +10,15 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// archivalHeaderWindow is the shrunk availability window given to the catching-up
-// bridge.
-const archivalHeaderWindow = 2 * time.Minute
+// consensusRetainBlocks is how many recent blocks the consensus node keeps; older blocks
+// are pruned from its store, so a bridge must source them from the archival peer over p2p.
+// celestia-app floors min-retain-blocks at 3000, so this is the smallest usable value;
+// the framework pairs it with fast blocks so the chain clears it within the test.
+const consensusRetainBlocks = 3000
 
-// historyHeight is how much chain the archival bridge builds before the small-window
-// bridge joins.
-const historyHeight = 150
-
-// HeaderP2PSyncTestSuite runs a 2-bridge topology where bridge[0] (A) is archival and
-// bridge[1] (B) is non-archival with a small availability window.
+// HeaderP2PSyncTestSuite runs a pruned consensus node, an archival bridge (A) that retains
+// every block, and a fresh non-archival bridge (B). B must backfill blocks the consensus
+// node has already pruned, which it can only obtain from A over the p2p header exchange.
 type HeaderP2PSyncTestSuite struct {
 	suite.Suite
 	framework *Framework
@@ -34,7 +33,8 @@ func TestHeaderP2PSyncTestSuite(t *testing.T) {
 
 func (s *HeaderP2PSyncTestSuite) SetupSuite() {
 	s.framework = NewFramework(s.T(),
-		WithValidators(1), WithBridgeNodes(2), WithLightNodes(0), WithArchivalBridge())
+		WithValidators(1), WithBridgeNodes(2), WithLightNodes(0),
+		WithArchivalBridge(), WithPrunedConsensus(consensusRetainBlocks))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
@@ -46,30 +46,43 @@ func (s *HeaderP2PSyncTestSuite) TearDownSuite() {
 	}
 }
 
-// TestBridgeArchivalHeaderSyncViaP2P asserts a non-archival bridge fetches headers that
-// are older than its availability window from an archival bridge over p2p.
+// TestBridgeArchivalHeaderSyncViaP2P asserts a bridge backfills headers the consensus node
+// has pruned from an archival bridge over p2p. The consensus node keeps only the last few
+// blocks (min-retain-blocks), so when B fetches an early height core has no block and
+// core.Exchange falls back to the p2p header exchange (archival A) — logged at INFO.
 func (s *HeaderP2PSyncTestSuite) TestBridgeArchivalHeaderSyncViaP2P() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 
 	archival := s.framework.GetBridgeNodes()[0]
 	clientA := s.framework.GetNodeRPCClient(ctx, archival)
 
-	_, err := clientA.Header.WaitForHeight(ctx, historyHeight)
-	s.Require().NoError(err, "chain should build enough history before B joins")
+	// Advance past the retain window so early blocks (incl. prunedHeight) are pruned from
+	// the consensus node while archival A keeps them.
+	_, err := clientA.Header.WaitForHeight(ctx, consensusRetainBlocks+100)
+	s.Require().NoError(err, "chain should advance past the consensus retain window")
 
-	// the early out-of-window heights route to the p2p header exchange and
-	// the recent ones to core.
-	bridgeB := s.framework.StartBridgeNodeWithSmallWindow(ctx, archivalHeaderWindow)
+	// Fresh non-archival bridge B, peered to archival A (window 0 = no override).
+	bridgeB := s.framework.StartBridgeNodeWithSmallWindow(ctx, 0)
 	clientB := s.framework.GetNodeRPCClient(ctx, bridgeB)
 
 	headA, err := clientA.Header.LocalHead(ctx)
 	s.Require().NoError(err, "should get A's head")
 	_, err = clientB.Header.WaitForHeight(ctx, headA.Height())
-	s.Require().NoError(err, "B should sync to the head")
+	s.Require().NoError(err, "B should sync to the head, backfilling pruned blocks from A over p2p")
 
+	// An early height was pruned from the consensus node, so B could only get its header
+	// from archival A over p2p; it must match A's canonical header.
+	const prunedHeight = 5
+	hdrB, err := clientB.Header.GetByHeight(ctx, prunedHeight)
+	s.Require().NoError(err, "B should hold the pruned-from-core header at %d", prunedHeight)
+	hdrA, err := clientA.Header.GetByHeight(ctx, prunedHeight)
+	s.Require().NoError(err, "archival A should hold the header at %d", prunedHeight)
+	s.Assert().Equal(hdrA.Hash(), hdrB.Hash(), "B's p2p-fetched header should match A's")
+
+	// B's own logs are the direct evidence the header came from p2p rather than core.
 	_, logs := s.framework.bridgeContainerExit(ctx, bridgeB)
-	s.Require().Contains(logs, "range from p2p network",
-		"B's logs should show it fetched out-of-window headers over p2p")
-	s.T().Log("confirmed: B fetched archival headers via the p2p route")
+	s.Require().Contains(logs, "fetched extended header from p2p (core unavailable)",
+		"B should have fetched pruned headers from p2p")
+	s.T().Log("confirmed: B fetched pruned-from-core headers via the p2p fallback")
 }

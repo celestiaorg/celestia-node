@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,10 @@ const (
 
 	// brokenCoreIP is a valid but unroutable address.
 	brokenCoreIP = "192.0.2.1"
+
+	// prunedEvidenceMaxAgeBlocks shrinks the genesis evidence window well below the 3000-block
+	// min-retain floor so that min-retain-blocks governs pruning (see shrinkEvidenceWindow).
+	prunedEvidenceMaxAgeBlocks = 100
 )
 
 // defaultNodeTag can be overridden at build time using ldflags
@@ -76,9 +81,14 @@ type Framework struct {
 	fundingWallet        *types.Wallet
 	defaultFundingAmount int64
 
-	archivalBridge     bool
-	multisource        bool
-	availabilityWindow time.Duration
+	archivalBridge      bool
+	multisource         bool
+	availabilityWindow  time.Duration
+	consensusRetainBlks uint64
+
+	// genesisHash is memoized on first computation; a pruned consensus node discards block 1,
+	// from which it is derived, once the chain advances past its retain window.
+	genesisHash string
 }
 
 // NewFramework creates a new Tastora testing framework instance.
@@ -98,6 +108,7 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	f.archivalBridge = cfg.ArchivalBridge
 	f.multisource = cfg.MultiSource
 	f.availabilityWindow = cfg.AvailabilityWindow
+	f.consensusRetainBlks = cfg.ConsensusRetainBlks
 
 	f.logger.Info("Setting up Tastora framework", zap.String("test", t.Name()))
 	f.client, f.network = docker.Setup(t)
@@ -211,14 +222,18 @@ func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window t
 	hostname := networkInfo.Internal.Hostname
 
 	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"}
+	env := map[string]string{
+		"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
+		"P2P_NETWORK":     testChainID,
+	}
+	// window == 0 leaves the default availability window (a plain non-archival bridge).
+	if window > 0 {
+		env["CELESTIA_OVERRIDE_AVAILABILITY_WINDOW"] = window.String()
+	}
 	err = bridgeNode.Start(ctx,
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(startArgs...),
-		dataavailability.WithEnvironmentVariables(map[string]string{
-			"CELESTIA_CUSTOM":                       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
-			"P2P_NETWORK":                           testChainID,
-			"CELESTIA_OVERRIDE_AVAILABILITY_WINDOW": window.String(),
-		}),
+		dataavailability.WithEnvironmentVariables(env),
 		dataavailability.WithConfigModifications(bitswapOffMod()),
 	)
 	require.NoError(f.t, err, "failed to start small-window bridge node")
@@ -482,27 +497,53 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		UIDGID:     "10001:10001",
 	}
 
+	// Fast commit so a single validator clears the ~3000-block retain floor within the test.
+	commitTimeout := "1s"
+	if cfg.ConsensusRetainBlks > 0 {
+		commitTimeout = "10ms"
+	}
+	consensusArgs := []string{
+		"--force-no-bbr",
+		"--grpc.enable",
+		"--grpc.address", "0.0.0.0:9090",
+		"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
+		"--timeout-commit", commitTimeout,
+	}
+	if cfg.ConsensusRetainBlks > 0 {
+		consensusArgs = append(consensusArgs, "--min-retain-blocks", strconv.FormatUint(cfg.ConsensusRetainBlks, 10))
+	}
+
 	chainBuilder := cosmos.NewChainBuilderWithTestName(f.t, f.t.Name()).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(chainImage).
 		WithEncodingConfig(&enc).
-		WithAdditionalStartArgs(
-			"--force-no-bbr",
-			"--grpc.enable",
-			"--grpc.address", "0.0.0.0:9090",
-			"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
-			"--timeout-commit", "1s",
-		).
+		WithAdditionalStartArgs(consensusArgs...).
 		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			if err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-				cfg.TxIndex.Indexer = "kv"
+			if err := config.Modify(ctx, node, "config/config.toml", func(cometCfg *cometcfg.Config) {
+				cometCfg.TxIndex.Indexer = "kv"
 			}); err != nil {
 				return err
 			}
-			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-				cfg.GRPC.Enable = true
-			})
+			if err := config.Modify(ctx, node, "config/app.toml", func(appCfg *servercfg.Config) {
+				appCfg.GRPC.Enable = true
+			}); err != nil {
+				return err
+			}
+			if cfg.ConsensusRetainBlks == 0 {
+				return nil
+			}
+			// CometBFT keeps max(min-retain-blocks, evidence.max_age_num_blocks) blocks; the
+			// default evidence window dwarfs min-retain, so it must be shrunk here (PostInit
+			// runs after the final genesis is written, before consensus starts) for pruning
+			// to ever kick in within a test.
+			var patchErr error
+			if err := config.Modify(ctx, node, "config/genesis.json", func(genesis *map[string]any) {
+				patchErr = shrinkEvidenceWindow(*genesis, prunedEvidenceMaxAgeBlocks)
+			}); err != nil {
+				return err
+			}
+			return patchErr
 		})
 
 	// Add validator nodes based on config
@@ -540,6 +581,27 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		WithNodes(nodeConfigs...)
 
 	return chainBuilder, daNetworkBuilder
+}
+
+// shrinkEvidenceWindow sets consensus.params.evidence.max_age_num_blocks in a decoded genesis
+// map, erroring loudly if the expected structure is absent so a genesis-format change can't
+// silently disable pruning.
+func shrinkEvidenceWindow(genesis map[string]any, maxAgeBlocks int64) error {
+	consensus, ok := genesis["consensus"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("genesis: consensus not found or of unexpected type")
+	}
+	params, ok := consensus["params"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("genesis: consensus.params not found or of unexpected type")
+	}
+	ev, ok := params["evidence"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("genesis: consensus.params.evidence not found or of unexpected type")
+	}
+	// cosmos-sdk's AppGenesis reader requires int64 consensus params to be string-encoded.
+	ev["max_age_num_blocks"] = strconv.FormatInt(maxAgeBlocks, 10)
+	return nil
 }
 
 // createAndStartCelestiaChain initializes and starts the Celestia chain.
@@ -717,8 +779,15 @@ func (f *Framework) nodeP2PAddr(ctx context.Context, node *dataavailability.Node
 	return p2pAddr
 }
 
-// getGenesisHash returns the genesis hash of the chain.
+// getGenesisHash returns the genesis hash of the chain. It memoizes the result because it is
+// derived from block height 1, which a pruned consensus node discards once the chain advances
+// past its retain window — so later callers (e.g. a bridge started mid-test) must reuse the
+// value captured while block 1 was still available.
 func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) string {
+	if f.genesisHash != "" {
+		return f.genesisHash
+	}
+
 	node := chain.GetNodes()[0]
 	c, err := node.GetRPCClient()
 	require.NoError(f.t, err, "failed to get node client")
@@ -729,6 +798,7 @@ func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) str
 
 	genesisHash := block.Block.Header.Hash().String()
 	require.NotEmpty(f.t, genesisHash, "genesis hash is empty")
+	f.genesisHash = genesisHash
 	return genesisHash
 }
 

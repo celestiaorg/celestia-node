@@ -4,12 +4,13 @@ import "time"
 
 // Config represents configuration options for the Tastora testing framework.
 type Config struct {
-	NumValidators      int
-	BridgeNodeCount    int
-	LightNodeCount     int
-	ArchivalBridge     bool
-	MultiSource        bool
-	AvailabilityWindow time.Duration
+	NumValidators       int
+	BridgeNodeCount     int
+	LightNodeCount      int
+	ArchivalBridge      bool
+	MultiSource         bool
+	AvailabilityWindow  time.Duration
+	ConsensusRetainBlks uint64
 }
 
 // Option for modifying Tastora's Config.
@@ -65,5 +66,14 @@ func WithMultiSource() Option {
 func WithAvailabilityWindow(window time.Duration) Option {
 	return func(c *Config) {
 		c.AvailabilityWindow = window
+	}
+}
+
+// WithPrunedConsensus makes the consensus node retain only the last `blocks` blocks
+// (app.toml min-retain-blocks), so older blocks are pruned from its store and a bridge
+// must source them from an archival peer over p2p.
+func WithPrunedConsensus(blocks uint64) Option {
+	return func(c *Config) {
+		c.ConsensusRetainBlks = blocks
 	}
 }
