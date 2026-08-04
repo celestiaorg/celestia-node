@@ -6,7 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
-	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -24,7 +23,6 @@ func registerEndpoints(
 	p2pMod p2p.Module,
 	nodeMod node.Module,
 	blobMod blob.Module,
-	daMod da.Module, //nolint: staticcheck
 	blobstreamMod blobstream.Module,
 	serv *rpc.Server,
 ) {
@@ -35,7 +33,6 @@ func registerEndpoints(
 	serv.RegisterService("p2p", p2pMod, &p2p.API{})
 	serv.RegisterService("node", nodeMod, &node.API{})
 	serv.RegisterService("blob", blobMod, &blob.API{})
-	serv.RegisterService("da", daMod, &da.API{})
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
 }
 

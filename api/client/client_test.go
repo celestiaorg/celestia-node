@@ -29,8 +29,6 @@ import (
 	blobapi "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
 	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
-	"github.com/celestiaorg/celestia-node/nodebuilder/da"
-	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
 	headerapi "github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -282,7 +280,6 @@ type mockAPI struct {
 	P2P        *p2pMock.MockModule
 	Node       *nodeMock.MockModule
 	Blob       *blobMock.MockModule
-	DA         *daMock.MockModule
 	Blobstream *blobstreamMock.MockModule
 }
 
@@ -298,7 +295,6 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 		p2pMock.NewMockModule(ctrl),
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
-		daMock.NewMockModule(ctrl),
 		blobstreamMock.NewMockModule(ctrl),
 	}
 	t.Cleanup(ctrl.Finish)
@@ -313,7 +309,6 @@ func setupMockRPCServer(t *testing.T, ctx context.Context) (*nodebuilder.Node, *
 		srv.RegisterService("p2p", mockAPI.P2P, &p2p.API{})
 		srv.RegisterService("node", mockAPI.Node, &node.API{})
 		srv.RegisterService("blob", mockAPI.Blob, &blobapi.API{})
-		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 
 	// Setup node with authenticated RPC
