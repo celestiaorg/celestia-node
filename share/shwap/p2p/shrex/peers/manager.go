@@ -312,7 +312,7 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 			m.resetStrikes(peerID)
 		case ResultCooldownPeer:
 			if m.strike(peerID) >= peerStrikeLimit {
-				m.kickPeer(peerID)
+				m.kickPeer(peerID, source)
 				return
 			}
 			if source == sourceDiscoveredNodes {
@@ -351,9 +351,10 @@ func (m *Manager) resetStrikes(peerID peer.ID) {
 // kickPeer removes the peer from the nodes pool and disconnects from it. Disconnecting makes
 // discovery drop the peer and back off from redialing it, keeping a peer that fails every
 // request out of rotation for minutes instead of the seconds a cooldown gives.
-func (m *Manager) kickPeer(peerID peer.ID) {
+func (m *Manager) kickPeer(peerID peer.ID, source peerSource) {
 	log.Warnw("disconnecting peer after consecutive failed requests",
-		"peer", peerID.String(), "strikes", peerStrikeLimit)
+		"peer", peerID.String(), "source", source, "strikes", peerStrikeLimit)
+	m.metrics.observeKickPeer(source)
 	m.resetStrikes(peerID)
 	m.nodes.remove(peerID)
 	if err := m.host.Network().ClosePeer(peerID); err != nil {
