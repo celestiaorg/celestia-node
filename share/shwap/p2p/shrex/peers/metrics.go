@@ -63,6 +63,7 @@ type metrics struct {
 	getPeerPoolSizeHistogram metric.Int64Histogram // attributes: source
 	doneResult               metric.Int64Counter   // attributes: source, done_result
 	validationResult         metric.Int64Counter   // attributes: validation_result
+	kickedPeers              metric.Int64Counter   // attributes: source
 
 	shrexPools               metric.Int64ObservableGauge // attributes: pool_status
 	discoveredPool           metric.Int64ObservableGauge // attributes: pool_status
@@ -107,6 +108,12 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		return nil, err
 	}
 
+	kickedPeers, err := meter.Int64Counter(manager.tag+"_peer_manager_kicked_peers_counter",
+		metric.WithDescription("peers disconnected after consecutive failed requests counter"))
+	if err != nil {
+		return nil, err
+	}
+
 	shrexPools, err := meter.Int64ObservableGauge(manager.tag+"_peer_manager_pools_gauge",
 		metric.WithDescription("pools amount"))
 	if err != nil {
@@ -132,6 +139,7 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		getPeerWaitTimeHistogram: getPeerWaitTimeHistogram,
 		doneResult:               doneResult,
 		validationResult:         validationResult,
+		kickedPeers:              kickedPeers,
 		shrexPools:               shrexPools,
 		discoveredPool:           discoveredPool,
 		getPeerPoolSizeHistogram: getPeerPoolSizeHistogram,
@@ -212,6 +220,17 @@ func (m *metrics) observeDoneResult(source peerSource, result result) {
 		metric.WithAttributes(
 			attribute.String(sourceKey, string(source)),
 			attribute.String(doneResultKey, string(result))))
+}
+
+// observeKickPeer counts peers disconnected for failing peerStrikeLimit consecutive requests
+func (m *metrics) observeKickPeer(source peerSource) {
+	if m == nil {
+		return
+	}
+
+	m.kickedPeers.Add(context.Background(), 1,
+		metric.WithAttributes(
+			attribute.String(sourceKey, string(source))))
 }
 
 // validationObserver is a middleware that observes validation results as metrics

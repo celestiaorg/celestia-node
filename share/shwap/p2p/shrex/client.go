@@ -19,6 +19,9 @@ import (
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 )
 
+// streamOpenTimeout bounds dialing a peer to a healthy timeout.
+var streamOpenTimeout = 5 * time.Second
+
 // Client implements client side of shrex protocol to obtain data from remote
 // peers.
 type Client struct {
@@ -86,7 +89,7 @@ func (c *Client) doRequest(
 	resp response,
 	peer peer.ID,
 ) (int64, status, error) {
-	streamOpenCtx, cancel := context.WithTimeout(ctx, c.params.ReadTimeout)
+	streamOpenCtx, cancel := context.WithTimeout(ctx, streamOpenTimeout)
 	defer cancel()
 
 	var err error
