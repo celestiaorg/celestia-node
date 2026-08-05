@@ -7,7 +7,7 @@
 //
 //	"{networkID}/eds-sub/v0.1.0"
 //
-// where networkID is the network ID of the celestia-node that is running the protocol. (e.g. "arabica")
+// where networkID is the network ID of the celestia-node that is running the protocol. (e.g. "mocha")
 //
 // # Usage
 //
