@@ -24,8 +24,6 @@ import (
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
-	"github.com/celestiaorg/celestia-node/nodebuilder/da"
-	daMock "github.com/celestiaorg/celestia-node/nodebuilder/da/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
@@ -133,7 +131,6 @@ type api struct {
 	Node       node.Module
 	P2P        p2p.Module
 	Blob       blob.Module
-	DA         da.Module //nolint: staticcheck
 	Blobstream blobstream.Module
 }
 
@@ -346,7 +343,6 @@ func setupNodeWithAuthedRPC(t *testing.T,
 		p2pMock.NewMockModule(ctrl),
 		nodeMock.NewMockModule(ctrl),
 		blobMock.NewMockModule(ctrl),
-		daMock.NewMockModule(ctrl),
 		blobstreamMock.NewMockModule(ctrl),
 	}
 
@@ -360,7 +356,6 @@ func setupNodeWithAuthedRPC(t *testing.T,
 		srv.RegisterService("p2p", mockAPI.P2P, &p2p.API{})
 		srv.RegisterService("node", mockAPI.Node, &node.API{})
 		srv.RegisterService("blob", mockAPI.Blob, &blob.API{})
-		srv.RegisterService("da", mockAPI.DA, &da.API{})
 	})
 	// fx.Replace does not work here, but fx.Decorate does
 	nd := nodebuilder.TestNode(t, node.Bridge, invokeRPC, fx.Decorate(func() (jwt.Signer, jwt.Verifier, error) {
@@ -384,6 +379,5 @@ type mockAPI struct {
 	P2P        *p2pMock.MockModule
 	Node       *nodeMock.MockModule
 	Blob       *blobMock.MockModule
-	DA         *daMock.MockModule
 	Blobstream *blobstreamMock.MockModule
 }
