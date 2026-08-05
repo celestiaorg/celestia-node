@@ -39,8 +39,13 @@ jobs:
 
       - name: Trim branch name
         id: trim_ref
+        env:
+          REF: ${{ github.ref }}
         run: |
-          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+          # Strip refs/heads/ or refs/tags/ without interpolating github.ref into the script text.
+          branch="${REF#refs/heads/}"
+          branch="${branch#refs/tags/}"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
 
       - name: Set debug output
         id: debug
@@ -97,15 +102,21 @@ jobs:
 
       - name: Set LATEST_TAG for release
         if: github.event_name == 'release'
-        run: echo "LATEST_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: echo "LATEST_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
 
       - name: Set LATEST_TAG for workflow_dispatch
         if: github.event_name == 'workflow_dispatch'
-        run: echo "LATEST_TAG=${{ inputs.run-on-tag }}" >> $GITHUB_ENV
+        env:
+          RUN_ON_TAG: ${{ inputs.run-on-tag }}
+        run: echo "LATEST_TAG=${RUN_ON_TAG}" >> "$GITHUB_ENV"
 
       - name: Checkout a given tag
         if: github.event_name == 'workflow_dispatch'
-        run: git checkout ${{ inputs.run-on-tag }}
+        env:
+          RUN_ON_TAG: ${{ inputs.run-on-tag }}
+        run: git checkout "$RUN_ON_TAG"
 
       - uses: actions/setup-go@v7
         with:
@@ -146,15 +157,21 @@ jobs:
 
       - name: Set LATEST_TAG for release
         if: github.event_name == 'release'
-        run: echo "LATEST_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: echo "LATEST_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
 
       - name: Set LATEST_TAG for workflow_dispatch
         if: github.event_name == 'workflow_dispatch'
-        run: echo "LATEST_TAG=${{ inputs.run-on-tag }}" >> $GITHUB_ENV
+        env:
+          RUN_ON_TAG: ${{ inputs.run-on-tag }}
+        run: echo "LATEST_TAG=${RUN_ON_TAG}" >> "$GITHUB_ENV"
 
       - name: Checkout a given tag
         if: github.event_name == 'workflow_dispatch'
-        run: git checkout ${{ inputs.run-on-tag }}
+        env:
+          RUN_ON_TAG: ${{ inputs.run-on-tag }}
+        run: git checkout "$RUN_ON_TAG"
 
       - run: |
           set -e
