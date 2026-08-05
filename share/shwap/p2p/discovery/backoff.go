@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -16,11 +17,20 @@ const (
 	gcInterval = time.Minute
 	// connectTimeout is the timeout used for dialing peers and discovering peer addresses.
 	connectTimeout = time.Minute * 2
+
+	// minBackoff and maxBackoff bound the backoff applied to a peer on connection
+	// failure or loss. The delay is minBackoff*backoffBase^failures, capped at maxBackoff.
+	minBackoff = time.Second * 10
+	maxBackoff = time.Minute * 10
+	// backoffBase is the base of the exponent growing the delay per failure.
+	backoffBase = 2
 )
 
 var (
-	defaultBackoffFactory = backoff.NewFixedBackoff(time.Minute * 10)
-	errBackoffNotEnded    = errors.New("share/discovery: backoff period has not ended")
+	defaultBackoffFactory = backoff.NewExponentialBackoff(
+		minBackoff, maxBackoff, backoff.NoJitter, minBackoff, backoffBase, 0, rand.NewSource(0),
+	)
+	errBackoffNotEnded = errors.New("share/discovery: backoff period has not ended")
 )
 
 // backoffConnector wraps a libp2p.Host to establish a connection with peers
@@ -57,6 +67,10 @@ func (b *backoffConnector) Connect(ctx context.Context, p peer.AddrInfo) error {
 	defer cancel()
 
 	err := b.h.Connect(ctx, p)
+	if err == nil {
+		// a reachable peer should not carry the delay accumulated by past failures
+		b.reset(p.ID)
+	}
 	// we don't want to add backoff when the context is canceled.
 	if !errors.Is(err, context.Canceled) {
 		b.Backoff(p.ID)
@@ -80,6 +94,16 @@ func (b *backoffConnector) Backoff(p peer.ID) {
 	b.cacheData[p] = data
 }
 
+// reset restarts the peer's delay growth from minBackoff.
+func (b *backoffConnector) reset(p peer.ID) {
+	b.cacheLk.Lock()
+	defer b.cacheLk.Unlock()
+
+	if data, ok := b.cacheData[p]; ok {
+		data.backoff.Reset()
+	}
+}
+
 // HasBackoff checks if peer is in backoff.
 func (b *backoffConnector) HasBackoff(p peer.ID) bool {
 	b.cacheLk.Lock()
@@ -98,13 +122,20 @@ func (b *backoffConnector) GC(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			b.cacheLk.Lock()
-			for id, cache := range b.cacheData {
-				if cache.nexttry.Before(time.Now()) {
-					delete(b.cacheData, id)
-				}
-			}
-			b.cacheLk.Unlock()
+			b.gc()
+		}
+	}
+}
+
+// gc drops peers that have been out of backoff for longer than maxBackoff. The grace
+// period keeps the accumulated delay of a repeatedly failing peer from being forgotten.
+func (b *backoffConnector) gc() {
+	b.cacheLk.Lock()
+	defer b.cacheLk.Unlock()
+
+	for id, cache := range b.cacheData {
+		if time.Now().After(cache.nexttry.Add(maxBackoff)) {
+			delete(b.cacheData, id)
 		}
 	}
 }
