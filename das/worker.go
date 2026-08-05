@@ -7,10 +7,22 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	libhead "github.com/celestiaorg/go-header"
+	libshare "github.com/celestiaorg/go-square/v4/share"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/availability"
+)
+
+const (
+	// baseSampleTimeout covers the size-independent part of sampling a height: peer
+	// selection, stream setup and round trips.
+	baseSampleTimeout = 20 * time.Second
+	// assumedThroughput is a pessimistic health floor, not a measured rate: the size term
+	// counts full EDS bytes, while shrex may send only the ODS and re-encode parity locally.
+	assumedThroughput = 1 << 20 // bytes per second
+	maxEDSWidth       = 2 * appconsts.SquareSizeUpperBound
 )
 
 type jobType string
@@ -112,6 +124,9 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 	}
 
 	start := time.Now()
+	if timeout == 0 {
+		timeout = deriveSampleTimeout(len(h.DAH.RowRoots))
+	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -156,6 +171,18 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 		"finished (s)", time.Since(start),
 	)
 	return nil
+}
+
+// deriveSampleTimeout returns the sampling deadline for an extended square of the given
+// width, which is len(DAH.RowRoots).
+func deriveSampleTimeout(edsWidth int) time.Duration {
+	if edsWidth <= 0 || edsWidth > maxEDSWidth {
+		// malformed DAH: clamp to prevent overflow and absurd deadlines
+		edsWidth = maxEDSWidth
+	}
+
+	edsBytes := edsWidth * edsWidth * libshare.ShareSize
+	return baseSampleTimeout + time.Duration(edsBytes)*time.Second/assumedThroughput
 }
 
 func (w *worker) getHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {

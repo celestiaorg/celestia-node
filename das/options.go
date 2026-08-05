@@ -34,7 +34,9 @@ type Parameters struct {
 	BackgroundStoreInterval time.Duration
 
 	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
-	// canceled.
+	// canceled. Zero derives the timeout per height from the square size.
+	//
+	// Deprecated: set to zero and let the DASer derive the timeout.
 	SampleTimeout time.Duration
 }
 
@@ -47,7 +49,7 @@ func DefaultParameters() Parameters {
 		SamplingRange:           16,
 		ConcurrencyLimit:        16,
 		BackgroundStoreInterval: 10 * time.Minute,
-		SampleTimeout:           time.Minute,
+		SampleTimeout:           0, // derived per height
 	}
 }
 
@@ -75,11 +77,11 @@ func (p *Parameters) Validate() error {
 		)
 	}
 
-	// SampleTimeout = 0 would fail every sample operation with timeout error
-	if p.SampleTimeout <= 0 {
+	// SampleTimeout = 0 derives the timeout per height
+	if p.SampleTimeout < 0 {
 		return errInvalidOptionValue(
 			"SampleTimeout",
-			"negative or 0",
+			"negative",
 		)
 	}
 
