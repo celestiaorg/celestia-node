@@ -80,6 +80,9 @@ type Manager struct {
 	// nodes collects nodes' peer.IDs found via discovery
 	nodes *pool
 
+	// scores ranks peers by observed throughput and is shared by all pools
+	scores *scoreboard
+
 	// hashes that are not in the chain, bounded by an LRU to avoid unbounded growth
 	blacklistedHashes *lru.Cache[string, struct{}]
 
@@ -91,8 +94,9 @@ type Manager struct {
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
-// peer from Peer method
-type DoneFunc func(result)
+// peer from Peer method. Samples of successful transfers are optional and update the peer's
+// throughput score.
+type DoneFunc func(result, ...Sample)
 
 type syncPool struct {
 	*pool
@@ -122,12 +126,18 @@ func NewManager(
 		return nil, fmt.Errorf("shrex/peer-manager: creating blacklisted hashes cache: %w", err)
 	}
 
+	scores, err := newScoreboard()
+	if err != nil {
+		return nil, fmt.Errorf("shrex/peer-manager: creating scoreboard: %w", err)
+	}
+
 	s := &Manager{
 		params:                params,
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     blacklistedHashes,
+		scores:                scores,
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
 		tag:                   tag,
@@ -140,7 +150,7 @@ func NewManager(
 		}
 	}
 
-	s.nodes = newPool(s.params.PeerCooldown)
+	s.nodes = newPool(s.params.PeerCooldown, s.scores)
 	return s, nil
 }
 
@@ -283,7 +293,11 @@ func (m *Manager) newPeer(
 }
 
 func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerSource) DoneFunc {
-	return func(result result) {
+	return func(result result, samples ...Sample) {
+		for _, sample := range samples {
+			m.scores.observe(peerID, sample)
+		}
+
 		log.Debugw("set peer result",
 			"hash", datahash.String(),
 			"peer", peerID.String(),
@@ -415,7 +429,7 @@ func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	if !ok {
 		p = &syncPool{
 			height:    height,
-			pool:      newPool(m.params.PeerCooldown),
+			pool:      newPool(m.params.PeerCooldown, m.scores),
 			createdAt: time.Now(),
 		}
 		m.pools[datahash] = p
