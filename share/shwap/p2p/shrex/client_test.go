@@ -39,7 +39,7 @@ func TestClient_StreamOpenTimeout(t *testing.T) {
 	t.Cleanup(cancel)
 
 	start := time.Now()
-	err = client.Get(ctx, &id, &shwap.NamespaceData{}, hosts[1].ID())
+	_, _, err = client.Get(ctx, &id, &shwap.NamespaceData{}, hosts[1].ID())
 	require.ErrorContains(t, err, "open stream")
 	require.Less(t, time.Since(start), 2*time.Second)
 }

@@ -9,9 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newTestPool(t *testing.T, peerCooldownTime time.Duration) *pool {
+	t.Helper()
+
+	scores, err := newScoreboard()
+	require.NoError(t, err)
+	return newPool(peerCooldownTime, scores)
+}
+
 func TestPool(t *testing.T) {
 	t.Run("add / remove peers", func(t *testing.T) {
-		p := newPool(time.Second)
+		p := newTestPool(t, time.Second)
 
 		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
 		// adding same peer twice should not produce copies
@@ -32,37 +40,69 @@ func TestPool(t *testing.T) {
 		require.False(t, ok)
 	})
 
-	t.Run("round robin", func(t *testing.T) {
-		p := newPool(time.Second)
+	t.Run("prefers peer with higher throughput", func(t *testing.T) {
+		p := newTestPool(t, time.Second)
+		p.add("fast", "slow")
 
-		peers := []peer.ID{"peer1", "peer1", "peer2", "peer3"}
-		// adding same peer twice should not produce copies
+		p.scores.observe("fast", Sample{Bytes: 100 << 20, Duration: time.Second})
+		p.scores.observe("slow", Sample{Bytes: 1 << 10, Duration: time.Second})
+
+		// with two active peers both are always sampled, so the faster one always wins
+		for range 10 {
+			peerID, ok := p.tryGet()
+			require.True(t, ok)
+			require.Equal(t, peer.ID("fast"), peerID)
+		}
+	})
+
+	t.Run("unmeasured peer wins against measured slow peer", func(t *testing.T) {
+		p := newTestPool(t, time.Second)
+		p.add("slow", "unmeasured")
+
+		p.scores.observe("slow", Sample{Bytes: 1 << 10, Duration: time.Second})
+
+		for range 10 {
+			peerID, ok := p.tryGet()
+			require.True(t, ok)
+			require.Equal(t, peer.ID("unmeasured"), peerID)
+		}
+	})
+
+	t.Run("does not herd onto the fastest peer", func(t *testing.T) {
+		p := newTestPool(t, time.Second)
+		p.add("fast", "mid1", "mid2", "mid3")
+
+		p.scores.observe("fast", Sample{Bytes: 100 << 20, Duration: time.Second})
+		for _, mid := range []peer.ID{"mid1", "mid2", "mid3"} {
+			p.scores.observe(mid, Sample{Bytes: 1 << 20, Duration: time.Second})
+		}
+
+		got := make(map[peer.ID]int)
+		for range 100 {
+			peerID, ok := p.tryGet()
+			require.True(t, ok)
+			got[peerID]++
+		}
+
+		// the fastest peer wins every pair it is sampled in, but the pairs it is not
+		// sampled in still go to other peers
+		require.Greater(t, got["fast"], 0)
+		require.Less(t, got["fast"], 100)
+	})
+
+	t.Run("removed peers are never returned", func(t *testing.T) {
+		p := newTestPool(t, time.Second)
+
+		peers := []peer.ID{"peer1", "peer2", "peer3"}
 		p.add(peers...)
-		require.Equal(t, 3, p.activeCount)
-
-		peerID, ok := p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peer.ID("peer1"), peerID)
-
-		peerID, ok = p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peer.ID("peer2"), peerID)
-
-		peerID, ok = p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peer.ID("peer3"), peerID)
-
-		peerID, ok = p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peer.ID("peer1"), peerID)
-
 		p.remove("peer2", "peer3")
 		require.Equal(t, 1, p.activeCount)
 
-		// pointer should skip removed items until found active one
-		peerID, ok = p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peer.ID("peer1"), peerID)
+		for range 10 {
+			peerID, ok := p.tryGet()
+			require.True(t, ok)
+			require.Equal(t, peer.ID("peer1"), peerID)
+		}
 	})
 
 	t.Run("wait for peer", func(t *testing.T) {
@@ -73,7 +113,7 @@ func TestPool(t *testing.T) {
 		longCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		t.Cleanup(cancel)
 
-		p := newPool(time.Second)
+		p := newTestPool(t, time.Second)
 		done := make(chan struct{})
 
 		go func() {
@@ -103,30 +143,13 @@ func TestPool(t *testing.T) {
 		}
 	})
 
-	t.Run("nextIdx got removed", func(t *testing.T) {
-		p := newPool(time.Second)
-
-		peers := []peer.ID{"peer1", "peer2", "peer3"}
-		p.add(peers...)
-		p.nextIdx = 2
-		p.remove(peers[p.nextIdx])
-
-		// if previous nextIdx was removed, tryGet should iterate until available peer found
-		peerID, ok := p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peers[0], peerID)
-	})
-
 	t.Run("cleanup", func(t *testing.T) {
-		p := newPool(time.Second)
+		p := newTestPool(t, time.Second)
 		p.cleanupThreshold = 3
 
 		peers := []peer.ID{"peer1", "peer2", "peer3", "peer4", "peer5"}
 		p.add(peers...)
 		require.Equal(t, len(peers), p.activeCount)
-
-		// point to last element that will be removed, to check how pointer will be updated
-		p.nextIdx = len(peers) - 1
 
 		// remove some, but not trigger cleanup yet
 		p.remove(peers[3:]...)
@@ -137,15 +160,11 @@ func TestPool(t *testing.T) {
 		p.remove(peers[2])
 		require.Equal(t, len(peers)-3, p.activeCount)
 		require.Equal(t, len(peers)-3, len(p.statuses))
-
-		// nextIdx pointer should be updated after next tryGet
-		p.tryGet()
-		require.Equal(t, 1, p.nextIdx)
 	})
 
 	t.Run("cooldown blocks get", func(t *testing.T) {
 		ttl := time.Second / 10
-		p := newPool(ttl)
+		p := newTestPool(t, ttl)
 
 		peerID := peer.ID("peer1")
 		p.add(peerID)
@@ -168,7 +187,7 @@ func TestPool(t *testing.T) {
 	})
 
 	t.Run("put on cooldown removed item should be noop", func(t *testing.T) {
-		p := newPool(time.Second)
+		p := newTestPool(t, time.Second)
 		p.cleanupThreshold = 3
 
 		peerID := peer.ID("peer1")

@@ -20,7 +20,8 @@
 //
 // This gives the peer manager an ability to block peers that gossip invalid shares, but also access a list of peers
 // that are known to have been gossiping valid shares.
-// The peers are then returned on request using a round-robin algorithm to return a different peer each time.
+// The peers are then returned on request by power-of-two-choices: two random peers are sampled and
+// the one with the higher observed throughput is returned.
 // If no peers are found, the peer manager will rely on full nodes retrieved from discovery.
 //
 // The peer manager is only concerned with recent heights, thus it retrieves peers that
