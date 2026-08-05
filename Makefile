@@ -14,7 +14,7 @@ VERSION = $(shell \
                   git rev-parse --short HEAD; \
               fi)
 
-# Note: the network suffix (-mocha/-arabica) is intentionally kept in VERSION,
+# Note: the network suffix (e.g. -mocha) is intentionally kept in VERSION,
 # so semanticVersion and defaultNodeTag are no longer stripped with `cut`.
 LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ) \
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
