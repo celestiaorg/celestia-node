@@ -107,9 +107,12 @@ func (r *Retriever) Retrieve(ctx context.Context, roots *share.AxisRoots) (*rsmt
 // quadrant request retries. Also, provides an API
 // to reconstruct the block once enough shares are fetched.
 type retrievalSession struct {
-	roots *share.AxisRoots
-	bget  blockservice.BlockGetter
-	adder *ipld.NmtNodeAdder
+	roots           *share.AxisRoots
+	bget            blockservice.BlockGetter
+	adder           *ipld.NmtNodeAdder
+	cancelAdder     context.CancelFunc
+	stopAdderCancel func() bool
+	commitTimeout   time.Duration
 
 	// TODO(@Wondertan): Extract into a separate data structure
 	// https://github.com/celestiaorg/rsmt2d/issues/135
@@ -128,7 +131,9 @@ type retrievalSession struct {
 func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*retrievalSession, error) {
 	size := len(roots.RowRoots)
 
-	adder := ipld.NewNmtNodeAdder(ctx, r.bServ, ipld.MaxSizeBatchOption(size))
+	// Keep the write batch alive long enough to commit after the retrieval context is canceled.
+	adderCtx, cancelAdder := context.WithCancel(context.WithoutCancel(ctx))
+	adder := ipld.NewNmtNodeAdder(adderCtx, r.bServ, ipld.MaxSizeBatchOption(size))
 	proofsVisitor := ipld.ProofsAdderFromCtx(ctx).VisitFn()
 	visitor := func(hash []byte, children ...[]byte) {
 		// use proofs adder if provided, to cache collected proofs while recomputing the eds
@@ -145,6 +150,7 @@ func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*re
 
 	square, err := rsmt2d.NewExtendedDataSquare(share.DefaultRSMT2DCodec(), treeFn, uint(size), libshare.ShareSize)
 	if err != nil {
+		cancelAdder()
 		return nil, err
 	}
 
@@ -152,6 +158,8 @@ func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*re
 		roots:           roots,
 		bget:            blockservice.NewSession(ctx, r.bServ),
 		adder:           adder,
+		cancelAdder:     cancelAdder,
+		commitTimeout:   blockTime,
 		squareQuadrants: newQuadrants(roots),
 		squareCellsLks:  make([][]sync.Mutex, size),
 		squareSig:       make(chan struct{}, 1),
@@ -159,6 +167,15 @@ func (r *Retriever) newSession(ctx context.Context, roots *share.AxisRoots) (*re
 		square:          square,
 		span:            trace.SpanFromContext(ctx),
 	}
+	ses.stopAdderCancel = context.AfterFunc(ctx, func() {
+		timer := time.NewTimer(ses.commitTimeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			ses.cancelAdder()
+		case <-adderCtx.Done():
+		}
+	})
 	for i := range ses.squareCellsLks {
 		ses.squareCellsLks[i] = make([]sync.Mutex, size)
 	}
@@ -211,9 +228,14 @@ func (rs *retrievalSession) isReconstructed() bool {
 
 func (rs *retrievalSession) close(success bool) {
 	defer rs.span.End()
+	defer rs.cancelAdder()
+	defer rs.stopAdderCancel()
 	if success {
 		return
 	}
+	// Bound the detached batch so a stalled write cannot block retrieval shutdown forever.
+	commitTimer := time.AfterFunc(rs.commitTimeout, rs.cancelAdder)
+	defer commitTimer.Stop()
 	// commit intermediate nodes to the blockservice if failed to reconstruct
 	err := rs.adder.Commit()
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/blockservice"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -94,6 +95,143 @@ func TestRetriever_MultipleRandQuadrants(t *testing.T) {
 
 	_, err = ses.Reconstruct(ctx)
 	assert.NoError(t, err)
+}
+
+func TestRetriever_PersistsIntermediateNodesAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	started := make(chan struct{}, 1)
+	gate := make(chan struct{})
+	bServ := &gatedBlockService{
+		BlockService: ipld.NewMemBlockservice(),
+		started:      started,
+		gate:         gate,
+	}
+	ses, roots, flattened, width := newPartialRetrievalSession(t, ctx, bServ)
+
+	reconstructed := make(chan error, 1)
+	go func() {
+		_, err := ses.Reconstruct(ctx)
+		reconstructed <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		close(gate)
+		t.Fatal("timed out waiting for intermediate NMT write")
+	}
+	cancel()
+	close(gate)
+	require.ErrorIs(t, <-reconstructed, rsmt2d.ErrUnrepairableDataSquare)
+	ses.close(false)
+
+	gotShare, err := ipld.GetShare(
+		context.Background(),
+		bServ,
+		ipld.MustCidFromNamespacedSha256(roots.RowRoots[3]),
+		0,
+		width,
+	)
+	require.NoError(t, err)
+	require.Equal(t, flattened[12], gotShare.ToBytes())
+}
+
+func TestRetriever_IntermediateNodeCommitIsBounded(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	started := make(chan struct{}, 1)
+	canceled := make(chan struct{}, 1)
+	gate := make(chan struct{})
+	defer close(gate)
+	bServ := &gatedBlockService{
+		BlockService: ipld.NewMemBlockservice(),
+		started:      started,
+		canceled:     canceled,
+		gate:         gate,
+	}
+	ses, _, _, _ := newPartialRetrievalSession(t, ctx, bServ)
+	ses.commitTimeout = 10 * time.Millisecond
+
+	reconstructed := make(chan error, 1)
+	go func() {
+		_, err := ses.Reconstruct(ctx)
+		reconstructed <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for intermediate NMT write")
+	}
+	cancel()
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("timed out canceling intermediate NMT write")
+	}
+	select {
+	case err := <-reconstructed:
+		require.ErrorIs(t, err, rsmt2d.ErrUnrepairableDataSquare)
+	case <-time.After(time.Second):
+		t.Fatal("timed out reconstructing after cancellation")
+	}
+	closed := make(chan struct{})
+	go func() {
+		ses.close(false)
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("timed out closing retrieval session")
+	}
+}
+
+func newPartialRetrievalSession(
+	t *testing.T,
+	ctx context.Context,
+	bServ blockservice.BlockService,
+) (*retrievalSession, *share.AxisRoots, [][]byte, int) {
+	t.Helper()
+	eds := edstest.RandEDS(t, 2)
+	roots, err := share.NewAxisRoots(eds)
+	require.NoError(t, err)
+	ses, err := NewRetriever(bServ).newSession(ctx, roots)
+	require.NoError(t, err)
+	flattened := eds.Flattened()
+	width := int(eds.Width())
+	// These cells repair row 3 while leaving the rest of the square unrepairable.
+	for _, index := range []int{11, 14, 15} {
+		row, column := index/width, index%width
+		require.NoError(t, ses.square.SetCell(uint(row), uint(column), flattened[index]))
+	}
+	return ses, roots, flattened, width
+}
+
+type gatedBlockService struct {
+	blockservice.BlockService
+	started  chan<- struct{}
+	canceled chan<- struct{}
+	gate     <-chan struct{}
+}
+
+func (b *gatedBlockService) AddBlocks(ctx context.Context, blks []blocks.Block) error {
+	select {
+	case b.started <- struct{}{}:
+	default:
+	}
+	select {
+	case <-b.gate:
+	case <-ctx.Done():
+		select {
+		case b.canceled <- struct{}{}:
+		default:
+		}
+		return ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return b.BlockService.AddBlocks(ctx, blks)
 }
 
 func TestByzantineError(t *testing.T) {
