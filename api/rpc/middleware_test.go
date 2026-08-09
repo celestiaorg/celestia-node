@@ -126,6 +126,51 @@ func TestRateLimit_DifferentIPsIndependent(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestRateLimit_ConcurrentFirstRequestsShareBurst(t *testing.T) {
+	const (
+		runs     = 50
+		requests = 64
+	)
+
+	for run := range runs {
+		handler := rateLimit(0, 1, testCacheSize, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		ready := make(chan struct{}, requests)
+		start := make(chan struct{})
+		statuses := make(chan int, requests)
+
+		for range requests {
+			req := httptest.NewRequest("GET", "/", nil)
+			req.RemoteAddr = testRemoteAddr
+			go func() {
+				ready <- struct{}{}
+				<-start
+
+				w := httptest.NewRecorder()
+				handler.ServeHTTP(w, req)
+				statuses <- w.Code
+			}()
+		}
+
+		for range requests {
+			<-ready
+		}
+		close(start)
+
+		allowed := 0
+		for range requests {
+			status := <-statuses
+			if status == http.StatusOK {
+				allowed++
+				continue
+			}
+			require.Equal(t, http.StatusTooManyRequests, status)
+		}
+		require.Equal(t, 1, allowed, "run %d", run)
+	}
+}
+
 // TestRateLimit_EvictedIPGetsFreshBurst verifies that when the LRU cache fills
 // up and an IP's limiter is evicted, the IP gets a brand-new bucket (full burst)
 // on its next request — not the old, exhausted state.

@@ -37,9 +37,13 @@ func rateLimit(rps, burst, cacheSize int, next http.Handler) http.Handler {
 	rateL := rate.Limit(rps)
 	getLimiter := func(ip string) *rate.Limiter {
 		limiter, ok := cache.Get(ip)
-		if !ok {
-			limiter = rate.NewLimiter(rateL, burst)
-			cache.Add(ip, limiter)
+		if ok {
+			return limiter
+		}
+
+		limiter = rate.NewLimiter(rateL, burst)
+		if existing, found, _ := cache.PeekOrAdd(ip, limiter); found {
+			return existing
 		}
 		return limiter
 	}
