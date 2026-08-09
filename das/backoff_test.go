@@ -53,6 +53,7 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 		backoff             retryStrategy
 		args                args
 		wantRetry           retryAttempt
+		wantMaxDelay        time.Duration
 		wantRetriesExceeded bool
 	}{
 		{
@@ -76,8 +77,8 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 			},
 			wantRetry: retryAttempt{
 				count: 2,
-				after: tNow.Add(time.Minute),
 			},
+			wantMaxDelay:        time.Minute,
 			wantRetriesExceeded: false,
 		},
 		{
@@ -89,21 +90,24 @@ func Test_retryStrategy_nextRetry(t *testing.T) {
 			},
 			wantRetry: retryAttempt{
 				count: 3,
-				after: tNow.Add(time.Minute),
 			},
+			wantMaxDelay:        time.Minute,
 			wantRetriesExceeded: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := retryStrategy{
-				retryIntervals: tt.backoff.retryIntervals,
-			}
-			gotRetry, gotRetriesExceeded := s.nextRetry(tt.args.retry, tt.args.lastAttempt)
-			assert.Equalf(t, tt.wantRetry, gotRetry,
+			gotRetry, gotRetriesExceeded := tt.backoff.nextRetry(tt.args.retry, tt.args.lastAttempt)
+			assert.Equalf(t, tt.wantRetry.count, gotRetry.count,
 				"nextRetry(%v, %v)", tt.args.retry, tt.args.lastAttempt)
 			assert.Equalf(t, tt.wantRetriesExceeded, gotRetriesExceeded,
 				"nextRetry(%v, %v)", tt.args.retry, tt.args.lastAttempt)
+			if tt.wantMaxDelay == 0 {
+				assert.True(t, gotRetry.after.IsZero())
+				return
+			}
+			assert.False(t, gotRetry.after.Before(tt.args.lastAttempt))
+			assert.True(t, gotRetry.after.Before(tt.args.lastAttempt.Add(tt.wantMaxDelay)))
 		})
 	}
 }
