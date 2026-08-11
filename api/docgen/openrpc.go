@@ -21,24 +21,35 @@ import (
 )
 
 const (
-	APIDescription = "The Celestia Node API is the collection of RPC methods that " +
-		"can be used to interact with the services provided by Celestia Data Availability Nodes."
 	APIName  = "Celestia Node API"
 	DocsURL  = "https://github.com/celestiaorg/celestia-node"
 	DocsName = "Celestia Node GitHub"
 )
 
-// authDescriptionTmpl renders the description for authenticated methods (#4817).
-const authDescriptionTmpl = "Auth level: `%s`\n\n" +
-	"Requests need an `Authorization: Bearer <token>` header. " +
-	"Generate a token with `celestia <node-type> auth %s`.\n\n" +
+// APIDescription documents the auth header requirement once so per-method
+// descriptions can stay short. See #4817.
+const APIDescription = "The Celestia Node API is the collection of RPC methods that " +
+	"can be used to interact with the services provided by Celestia Data Availability Nodes.\n\n" +
+	"## Authentication\n\n" +
+	"Methods labeled with an `Auth level` require an `Authorization: Bearer <token>` header. " +
+	"Generate a token for the desired permission level with:\n\n" +
+	"```bash\n" +
+	"celestia <node-type> auth <perm>\n" +
+	"```\n\n" +
+	"Example request:\n\n" +
 	"```bash\n" +
 	"curl -X POST \\\n" +
 	"  -H \"Content-Type: application/json\" \\\n" +
 	"  -H \"Authorization: Bearer $CELESTIA_NODE_AUTH_TOKEN\" \\\n" +
-	"  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"%s\",\"params\":[]}' \\\n" +
+	"  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"<METHOD>\",\"params\":[<PARAMS>]}' \\\n" +
 	"  http://localhost:26658\n" +
-	"```"
+	"```\n\n" +
+	"Replace `<METHOD>` with the method name and `<PARAMS>` with the parameters documented " +
+	"per method. `http://localhost:26658` is the default RPC endpoint; adjust host, port and " +
+	"scheme to match your node's configuration."
+
+const authDescriptionTmpl = "Auth level: `%s`. Generate a token with " +
+	"`celestia <node-type> auth %s`. See the API description for the request format."
 
 type Visitor struct {
 	Methods map[string]ast.Node
@@ -178,8 +189,7 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 		if !ok {
 			return "", nil
 		}
-		methodName := extractPackageNameFromAPIMethod(m) + "." + m.Name
-		return fmt.Sprintf(authDescriptionTmpl, perm, perm, methodName), nil
+		return fmt.Sprintf(authDescriptionTmpl, perm, perm), nil
 	}
 
 	appReflector.FnGetMethodName = func(
