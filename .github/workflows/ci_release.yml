@@ -157,8 +157,9 @@ jobs:
         run: git checkout ${{ inputs.run-on-tag }}
 
       - run: |
-          set -e
+          set -eo pipefail
           make openrpc-gen > openrpc.json
+          jq -e . openrpc.json > /dev/null
           gh release upload "$LATEST_TAG" openrpc.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
