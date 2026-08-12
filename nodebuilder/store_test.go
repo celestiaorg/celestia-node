@@ -71,7 +71,7 @@ func TestDiscoverOpened(t *testing.T) {
 	})
 
 	t.Run("multiple open nodes by preference order", func(t *testing.T) {
-		networks := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Arabica, p2p.Private}
+		networks := []p2p.Network{p2p.Mainnet, p2p.Mocha, p2p.Private}
 		nodeTypes := []node.Type{node.Bridge, node.Light}
 
 		// Store opened stores in a map (network + node -> dir/store)

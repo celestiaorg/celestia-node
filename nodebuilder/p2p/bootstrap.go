@@ -48,10 +48,6 @@ var bootstrapList = map[Network][]string{
 		"/dnsaddr/celestia-bootstrapper.binary.builders/p2p/12D3KooWDKvTzMnfh9j7g4RpvU6BXwH3AydTrzr1HTW6TMBQ61HF",
 		"/dnsaddr/celestia-mainnet-boot.01node.com/p2p/12D3KooWJ77n9mC9xpKHeoEc49UkP4M5EixcPoKf5Xb1tsHo99P7",
 	},
-	Arabica: {
-		"/dnsaddr/da-bootstrapper-1.celestia-arabica-11.com/p2p/12D3KooWGqwzdEqM54Dce6LXzfFr97Bnhvm6rN7KM7MFwdomfm4S",
-		"/dnsaddr/da-bootstrapper-2.celestia-arabica-11.com/p2p/12D3KooWCMGM5eZWVfCN9ZLAViGfLUWAfXP5pCm78NFKb9jpBtua",
-	},
 	Mocha: {
 		"/dnsaddr/da-bootstrapper-1-mocha-4.celestia-mocha.com/p2p/12D3KooWCBAbQbJSpCpCGKzqz3rAN4ixYbc63K68zJg9aisuAajg",
 		"/dnsaddr/da-bootstrapper-2-mocha-4.celestia-mocha.com/p2p/12D3KooWCUHPLqQXZzpTx1x3TAsdn3vYmTNDhzg66yG8hqoxGGN8",

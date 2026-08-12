@@ -162,7 +162,7 @@ type fsStore struct {
 // If multiple store exists, it only returns the path of the first found.
 // Network is favored over node type.
 //
-// Network preference order: Mainnet, Mocha, Arabica, Private, Custom
+// Network preference order: Mainnet, Mocha, Private, Custom
 // Type preference order: Bridge, Full, Light
 func DiscoverStopped() (string, error) {
 	defaultNetwork := p2p.GetNetworks()
@@ -189,7 +189,7 @@ func DiscoverStopped() (string, error) {
 // If multiple nodes are running, it only returns the path of the first found node.
 // Network is favored over node type.
 //
-// Network preference order: Mainnet, Mocha, Arabica, Private, Custom
+// Network preference order: Mainnet, Mocha, Private, Custom
 // Type preference order: Bridge, Full, Light
 func DiscoverOpened() (string, error) {
 	defaultNetwork := p2p.GetNetworks()

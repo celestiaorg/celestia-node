@@ -14,12 +14,12 @@ import (
 func TestParseNetwork_matchesByAlias(t *testing.T) {
 	cmd := createCmdWithNetworkFlag()
 
-	err := cmd.Flags().Set(networkFlag, "arabica")
+	err := cmd.Flags().Set(networkFlag, "mocha")
 	require.NoError(t, err)
 
 	net, err := ParseNetwork(cmd)
 	require.NoError(t, err)
-	assert.Equal(t, Arabica, net)
+	assert.Equal(t, Mocha, net)
 }
 
 // TestParseNetwork_matchesByValue checks to ensure flag parsing
@@ -27,12 +27,12 @@ func TestParseNetwork_matchesByAlias(t *testing.T) {
 func TestParseNetwork_matchesByValue(t *testing.T) {
 	cmd := createCmdWithNetworkFlag()
 
-	err := cmd.Flags().Set(networkFlag, string(Arabica))
+	err := cmd.Flags().Set(networkFlag, string(Mocha))
 	require.NoError(t, err)
 
 	net, err := ParseNetwork(cmd)
 	require.NoError(t, err)
-	assert.Equal(t, Arabica, net)
+	assert.Equal(t, Mocha, net)
 }
 
 // TestParseNetwork_parsesFromEnv checks to ensure flag parsing

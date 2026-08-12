@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/core"
-	"github.com/celestiaorg/celestia-node/nodebuilder/da"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	modhead "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -49,7 +48,6 @@ func ConstructModule(tp node.Type, network p2p.Network, cfg *Config, store Store
 		state.ConstructModule(tp, &cfg.State, &cfg.Core),
 		das.ConstructModule(&cfg.DASer),
 		blob.ConstructModule(),
-		da.ConstructModule(),
 		node.ConstructModule(tp),
 		pruner.ConstructModule(tp),
 		rpc.ConstructModule(tp, &cfg.RPC),

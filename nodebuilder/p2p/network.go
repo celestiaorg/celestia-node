@@ -13,8 +13,6 @@ import (
 const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Mainnet
-	// Arabica testnet. See: celestiaorg/networks.
-	Arabica Network = "arabica-11"
 	// Mocha testnet. See: celestiaorg/networks.
 	Mocha Network = "mocha-4"
 	// Private can be used to set up any private network, including local testing setups.
@@ -55,7 +53,6 @@ func (n Network) String() string {
 // networksList is a strict list of all known long-standing networks.
 var networksList = map[Network]struct{}{
 	Mainnet: {},
-	Arabica: {},
 	Mocha:   {},
 	Private: {},
 }
@@ -65,7 +62,6 @@ var networksList = map[Network]struct{}{
 // their actual value) to the Network.
 var networkAliases = map[string]Network{
 	"mainnet": Mainnet,
-	"arabica": Arabica,
 	"mocha":   Mocha,
 	"private": Private,
 }
@@ -76,7 +72,7 @@ func GetNetwork(networkStr string) Network {
 }
 
 // orderedNetworks is a list of all known networks in order of priority.
-var orderedNetworks = []Network{Mainnet, Mocha, Arabica, Private}
+var orderedNetworks = []Network{Mainnet, Mocha, Private}
 
 // GetNetworks provides a list of all known networks in order of priority.
 func GetNetworks() []Network {
