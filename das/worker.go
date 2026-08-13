@@ -19,10 +19,10 @@ const (
 	// baseSampleTimeout covers the size-independent part of sampling a height: peer
 	// selection, stream setup and round trips.
 	baseSampleTimeout = 20 * time.Second
-	// assumedThroughput is a pessimistic health floor, not a measured rate: the size term
-	// counts full EDS bytes, while shrex may send only the ODS and re-encode parity locally.
-	assumedThroughput = 1 << 20 // bytes per second
-	maxEDSWidth       = 2 * appconsts.SquareSizeUpperBound
+	// sampleTimeoutPerMiB bounds how long a peer may take per MiB of ODS, the bytes
+	// actually sent, before the height is abandoned and retried against another peer.
+	sampleTimeoutPerMiB = 4 * time.Second
+	maxEDSWidth         = 2 * appconsts.SquareSizeUpperBound
 )
 
 type jobType string
@@ -182,8 +182,9 @@ func deriveSampleTimeout(edsWidth int) time.Duration {
 		panic(fmt.Sprintf("das: malformed DAH: square width %d", edsWidth))
 	}
 
-	edsBytes := edsWidth * edsWidth * libshare.ShareSize
-	return baseSampleTimeout + time.Duration(edsBytes)*time.Second/assumedThroughput
+	odsWidth := edsWidth / 2
+	odsBytes := odsWidth * odsWidth * libshare.ShareSize
+	return baseSampleTimeout + sampleTimeoutPerMiB*time.Duration(odsBytes)/(1<<20)
 }
 
 func (w *worker) getHeader(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
