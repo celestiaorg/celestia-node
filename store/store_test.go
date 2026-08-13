@@ -15,10 +15,33 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/store/cache"
 	"github.com/celestiaorg/celestia-node/store/file"
 )
+
+func TestStore_GetPersistedByHeightBypassesCache(t *testing.T) {
+	ctx := context.Background()
+	height := uint64(1)
+	square, _ := randomEDS(t)
+	edsStore, err := NewStore(DefaultParameters(), t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, edsStore.Stop(ctx)) })
+
+	cached, err := edsStore.cache.GetOrLoad(ctx, height, accessorLoader(&eds.Rsmt2D{
+		ExtendedDataSquare: square,
+	}))
+	require.NoError(t, err)
+	require.NoError(t, cached.Close())
+
+	accessor, err := edsStore.GetByHeight(ctx, height)
+	require.NoError(t, err)
+	require.NoError(t, accessor.Close())
+
+	_, err = edsStore.GetPersistedByHeight(ctx, height)
+	require.ErrorIs(t, err, ErrNotFound)
+}
 
 func TestEDSStore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

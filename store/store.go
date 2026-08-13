@@ -366,6 +366,19 @@ func (s *Store) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStr
 	return f, err
 }
 
+// GetPersistedByHeight opens the filesystem-backed EDS at the given height,
+// bypassing the recent-block cache.
+func (s *Store) GetPersistedByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
+	lock := s.stripLock.byHeight(height)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	tNow := time.Now()
+	f, err := s.openAccessor(ctx, s.heightToPath(height, odsFileExt))
+	s.metrics.observeGet(ctx, time.Since(tNow), err != nil)
+	return f, err
+}
+
 func (s *Store) getByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
 	f, err := s.cache.Get(height)
 	if err == nil {
