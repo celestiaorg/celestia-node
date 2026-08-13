@@ -177,8 +177,9 @@ func (w *worker) sample(ctx context.Context, timeout time.Duration, height uint6
 // width, which is len(DAH.RowRoots).
 func deriveSampleTimeout(edsWidth int) time.Duration {
 	if edsWidth <= 0 || edsWidth > maxEDSWidth {
-		// malformed DAH: clamp to prevent overflow and absurd deadlines
-		edsWidth = maxEDSWidth
+		// DAH validation bounds the square width, so an out-of-range width means the
+		// header reached the DASer unvalidated
+		panic(fmt.Sprintf("das: malformed DAH: square width %d", edsWidth))
 	}
 
 	edsBytes := edsWidth * edsWidth * libshare.ShareSize

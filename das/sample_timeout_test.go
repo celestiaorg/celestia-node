@@ -40,13 +40,10 @@ func TestDeriveSampleTimeout(t *testing.T) {
 	}
 }
 
-// TestDeriveSampleTimeoutIllegalWidth tests that a width outside the legal range returns
-// the widest legal square's timeout.
+// TestDeriveSampleTimeoutIllegalWidth tests that a width outside the legal range panics.
 func TestDeriveSampleTimeoutIllegalWidth(t *testing.T) {
-	ceiling := deriveSampleTimeout(maxEDSWidth)
-
 	for _, edsWidth := range []int{0, -1, -maxEDSWidth, maxEDSWidth + 1, 1 << 40} {
-		require.Equal(t, ceiling, deriveSampleTimeout(edsWidth), "width %d", edsWidth)
+		require.Panics(t, func() { deriveSampleTimeout(edsWidth) }, "width %d", edsWidth)
 	}
 }
 
