@@ -35,8 +35,6 @@ type Parameters struct {
 
 	// SampleTimeout is a maximum amount time sampling of single block may take until it will be
 	// canceled. Zero derives the timeout per height from the square size.
-	//
-	// Deprecated: set to zero and let the DASer derive the timeout.
 	SampleTimeout time.Duration
 }
 
