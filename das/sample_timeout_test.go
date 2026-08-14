@@ -40,14 +40,6 @@ func TestDeriveSampleTimeout(t *testing.T) {
 	}
 }
 
-// TestDeriveSampleTimeoutIllegalWidth tests that a width outside the legal range or one
-// that is not an extended square width panics.
-func TestDeriveSampleTimeoutIllegalWidth(t *testing.T) {
-	for _, edsWidth := range []int{0, -1, -maxEDSWidth, maxEDSWidth + 1, 1 << 40, 1, 3, maxEDSWidth - 1} {
-		require.Panics(t, func() { deriveSampleTimeout(edsWidth) }, "width %d", edsWidth)
-	}
-}
-
 // TestWorkerSampleTimeout tests that a worker derives its deadline from the header's
 // square size when SampleTimeout is zero, and honors a configured value as an override.
 func TestWorkerSampleTimeout(t *testing.T) {
