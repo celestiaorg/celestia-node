@@ -152,7 +152,7 @@ func newTestnet(ctx context.Context, t *testing.T) *testnet {
 	require.NoError(t, err)
 	hst.Start()
 
-	_, err = dht.New(ctx, hst,
+	_, err = dht.New(hst,
 		dht.Mode(dht.ModeServer),
 		dht.BootstrapPeers(),
 		dht.ProtocolPrefix("/test"),
@@ -190,7 +190,7 @@ func (t *testnet) peer() (host.Host, discovery.Discovery) {
 	err = hst.Connect(t.ctx, t.bootstrapper)
 	require.NoError(t.T, err)
 
-	dht, err := dht.New(t.ctx, hst,
+	dht, err := dht.New(hst,
 		dht.Mode(dht.ModeServer),
 		dht.ProtocolPrefix("/test"),
 	)
