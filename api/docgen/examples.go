@@ -30,6 +30,7 @@ import (
 	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/state"
 )
@@ -75,6 +76,7 @@ func init() {
 	add([]byte("byte array"))
 	add(time.Second)
 	add(node.Bridge)
+	add(p2p.Mainnet)
 	add(auth.Permission("admin"))
 
 	add(errors.New("error"))

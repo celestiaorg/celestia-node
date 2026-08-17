@@ -184,14 +184,18 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 		return "", nil // noComment
 	}
 
-	appReflector.FnSchemaExamples = func(ty reflect.Type) (examples *meta_schema.Examples, err error) {
+	appReflector.FnSchemaExamples = func(ty reflect.Type) (*meta_schema.Examples, error) {
 		v, err := exampleValue(ty, ty) // This isn't ideal, but seems to work well enough.
 		if err != nil {
-			fmt.Println(err)
+			return nil, err
 		}
 		return &meta_schema.Examples{
 			meta_schema.AlwaysTrue(v),
 		}, nil
+	}
+
+	appReflector.FnSchemaTypeMap = func() func(ty reflect.Type) *jsonschema.Type {
+		return schemaTypeMap
 	}
 
 	appReflector.FnGetMethodDeprecated = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (bool, error) {
@@ -213,6 +217,15 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 
 	d.WithReflector(appReflector)
 	return d
+}
+
+// schemaTypeMap overrides the reflected JSON schema for types whose
+// MarshalJSON representation differs from their underlying Go kind.
+func schemaTypeMap(ty reflect.Type) *jsonschema.Type {
+	if ty == reflect.TypeOf(node.Type(0)) {
+		return &jsonschema.Type{Type: "string"}
+	}
+	return nil
 }
 
 const integerD = `{ "title": "number", "type": "number", "description": "Number is a number" }`
