@@ -44,10 +44,8 @@ type Config struct {
 	TLSCertPath string
 	TLSKeyPath  string
 	RateLimit   RateLimitConfig
-	// MaxConcurrentConns caps simultaneous HTTP connections to bound
-	// goroutine/FD usage. Websocket subscriptions count against this limit
-	// for the lifetime of the connection, so operators exposing many
-	// long-lived subscribers should raise this. Must be > 0.
+	// MaxConcurrentConns caps simultaneous HTTP connections. Websocket
+	// subscriptions hold a slot for the whole connection lifetime.
 	MaxConcurrentConns int
 }
 
@@ -130,11 +128,12 @@ func (cfg *Config) Validate() error {
 		}
 	}
 
-	// A missing MaxConcurrentConns in an older config.toml decodes to 0. Fall
-	// back to the default instead of rejecting so binary upgrades don't require
-	// the operator to run `celestia config update` before the node can start.
 	if cfg.MaxConcurrentConns <= 0 {
-		cfg.MaxConcurrentConns = rpc.DefaultMaxConcurrentConns
+		return fmt.Errorf(
+			"service/rpc: MaxConcurrentConns must be > 0, got %d "+
+				"(run `celestia config update` if upgrading from a config without this field)",
+			cfg.MaxConcurrentConns,
+		)
 	}
 
 	return nil

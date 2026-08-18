@@ -476,10 +476,6 @@ func TestServer_WithMetrics_WebSocketSubscription(t *testing.T) {
 	}
 }
 
-// TestServer_MaxConcurrentConns_Configurable verifies that a non-zero
-// maxConcurrentConns passed to NewServer flows through to connLimit,
-// so operators can raise the cap when many long-lived websocket
-// subscribers would otherwise exhaust the default 500 slots.
 func TestServer_MaxConcurrentConns_Configurable(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 	srv := NewServer("localhost", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 1, signer, verifier)
@@ -506,7 +502,6 @@ func TestServer_MaxConcurrentConns_Configurable(t *testing.T) {
 
 	<-blocked
 
-	// Second concurrent request must be rejected — the single slot is held.
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 	stack.ServeHTTP(w, req)
@@ -516,9 +511,6 @@ func TestServer_MaxConcurrentConns_Configurable(t *testing.T) {
 	<-done
 }
 
-// TestServer_MaxConcurrentConns_ZeroFallsBackToDefault verifies that passing
-// 0 falls back to DefaultMaxConcurrentConns, so callers that leave the field
-// unset get the same behavior as before this became configurable.
 func TestServer_MaxConcurrentConns_ZeroFallsBackToDefault(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 	srv := NewServer("localhost", "0", true, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, 0, signer, verifier)

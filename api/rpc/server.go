@@ -30,9 +30,8 @@ const (
 	// to cover base64 + JSON envelope overhead (~1.5×) on a worst-case blob.Submit,
 	// which packs all blobs into a single PFB tx capped at MaxTxSize.
 	maxRequestSize = int64(appconsts.MaxTxSize * 2)
-	// DefaultMaxConcurrentConns is the default cap on simultaneous connections
-	// to bound goroutine/FD usage. Operators can override via config; websocket
-	// subscriptions count against this limit for the lifetime of the connection.
+	// DefaultMaxConcurrentConns caps simultaneous HTTP connections. Raise it
+	// when long-lived websocket subscriptions push you near the limit.
 	DefaultMaxConcurrentConns = 500
 )
 
@@ -68,13 +67,9 @@ type Server struct {
 	listener     net.Listener
 	authDisabled bool
 
-	started      atomic.Bool
-	corsConfig   CORSConfig
-	rateLimitCfg RateLimitConfig
-
-	// maxConcurrentConns caps simultaneous HTTP connections. Websocket
-	// subscriptions count against this for the lifetime of the connection,
-	// so operators exposing many long-lived subscribers should raise it.
+	started            atomic.Bool
+	corsConfig         CORSConfig
+	rateLimitCfg       RateLimitConfig
 	maxConcurrentConns int
 
 	tlsEnabled  bool
