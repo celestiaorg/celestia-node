@@ -96,8 +96,7 @@ func Flags() *flag.FlagSet {
 	flags.Int(
 		maxConcurrentConnsFlag,
 		0,
-		"Cap on simultaneous RPC connections; websocket subscriptions count for their lifetime. "+
-			"0 keeps the config file value (default 500)",
+		"Cap on simultaneous RPC connections (0 keeps the config value)",
 	)
 
 	return flags
