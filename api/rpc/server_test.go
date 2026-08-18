@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"math/big"
 	"net"
@@ -15,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -280,8 +282,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	}
 }
 
-// TestServer_VerifyAuth tests the auth verification logic
-func TestServer_VerifyAuth(t *testing.T) {
+func TestServer_Authenticate(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
 	tests := []struct {
@@ -327,13 +328,13 @@ func TestServer_VerifyAuth(t *testing.T) {
 				noopRevoker{},
 			)
 
-			permissions, err := server.verifyAuth(context.Background(), tt.token)
+			p, err := server.authenticate(tt.token)
 
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedPerms, permissions)
+				assert.Equal(t, tt.expectedPerms, p.Allow)
 			}
 		})
 	}
@@ -497,7 +498,123 @@ func (s *stubRevoker) IsRevoked(nonce []byte) bool {
 	return ok
 }
 
-func TestServer_VerifyAuth_RejectsRevoked(t *testing.T) {
+// TestServer_OnRevoke_ForceClosesWSConn verifies WS connections close when token is revoked.
+func TestServer_OnRevoke_ForceClosesWSConn(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+
+	tokenBytes, err := perms.NewTokenWithPerms(signer, perms.AllPerms)
+	require.NoError(t, err)
+	token := string(tokenBytes)
+	payload, err := authtoken.ExtractSignedPayload(verifier, token)
+	require.NoError(t, err)
+
+	revoker := newTestRevoker()
+	srv := NewServer(
+		"127.0.0.1", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{},
+		signer, verifier, revoker,
+	)
+	srv.RegisterService("test", wsTestService{}, &wsTestServiceAPI{})
+	revoker.AddSink(srv)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+	require.NoError(t, srv.Start(ctx))
+	t.Cleanup(func() { require.NoError(t, srv.Stop(context.Background())) })
+
+	var client struct {
+		Updates func(context.Context) (<-chan int, error)
+	}
+	closer, err := jsonrpc.NewClient(ctx, "ws://"+srv.ListenAddr(), "test", &client,
+		http.Header{"Authorization": []string{"Bearer " + token}})
+	require.NoError(t, err)
+	t.Cleanup(closer)
+
+	ch, err := client.Updates(ctx)
+	require.NoError(t, err)
+
+	// Drain the initial value so the subscription is established end-to-end
+	// before we revoke.
+	select {
+	case v := <-ch:
+		assert.Equal(t, 7, v)
+	case <-ctx.Done():
+		t.Fatal("initial subscription value not received")
+	}
+
+	require.Eventually(t, func() bool { return srv.sessionCount(payload.Nonce) == 1 },
+		2*time.Second, 10*time.Millisecond, "session should be registered after WS upgrade")
+
+	revoker.revoke(t, payload.Nonce)
+
+	select {
+	case _, ok := <-ch:
+		assert.False(t, ok, "channel must close once the WS conn is torn down")
+	case <-time.After(5 * time.Second):
+		t.Fatal("subscription channel did not close after revoke")
+	}
+
+	assert.Zero(t, srv.sessionCount(payload.Nonce), "session map must be empty after revoke")
+}
+
+// wsTestServiceAPI is the permissioned proxy for RegisterService.
+type wsTestServiceAPI struct {
+	Internal struct {
+		Ping    func(context.Context) (string, error)     `perm:"admin"`
+		Updates func(context.Context) (<-chan int, error) `perm:"admin"`
+	}
+}
+
+func (a *wsTestServiceAPI) Ping(ctx context.Context) (string, error) { return a.Internal.Ping(ctx) }
+
+func (a *wsTestServiceAPI) Updates(ctx context.Context) (<-chan int, error) {
+	return a.Internal.Updates(ctx)
+}
+
+// testRevoker is a minimal RevocationChecker for tests.
+type testRevoker struct {
+	mu      sync.Mutex
+	revoked map[string]struct{}
+	sinks   []interface{ OnRevoke(string) }
+}
+
+func newTestRevoker() *testRevoker {
+	return &testRevoker{revoked: map[string]struct{}{}}
+}
+
+func (r *testRevoker) IsRevoked(nonce []byte) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.revoked[string(nonce)]
+	return ok
+}
+
+func (r *testRevoker) AddSink(s interface{ OnRevoke(string) }) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sinks = append(r.sinks, s)
+}
+
+func (r *testRevoker) revoke(t *testing.T, nonce []byte) {
+	t.Helper()
+	r.mu.Lock()
+	r.revoked[string(nonce)] = struct{}{}
+	sinks := append([]interface{ OnRevoke(string) }(nil), r.sinks...)
+	r.mu.Unlock()
+	id := hex.EncodeToString(nonce)
+	for _, s := range sinks {
+		s.OnRevoke(id)
+	}
+}
+
+// sessionCount returns the number of tracked hijacked conns for the given
+// nonce. Test-only introspection.
+func (s *Server) sessionCount(nonce []byte) int {
+	s.sessionsMu.Lock()
+	defer s.sessionsMu.Unlock()
+	return len(s.sessions[hex.EncodeToString(nonce)])
+}
+
+func TestServer_Authenticate_RejectsRevoked(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
 	tokenBytes, err := perms.NewTokenWithPerms(signer, perms.ReadPerms)
@@ -514,15 +631,15 @@ func TestServer_VerifyAuth_RejectsRevoked(t *testing.T) {
 		signer, verifier, revoker,
 	)
 
-	_, err = server.verifyAuth(context.Background(), token)
+	_, err = server.authenticate(token)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "revoked")
 
 	other, err := perms.NewTokenWithPerms(signer, perms.ReadPerms)
 	require.NoError(t, err)
-	got, err := server.verifyAuth(context.Background(), string(other))
+	p, err := server.authenticate(string(other))
 	require.NoError(t, err)
-	assert.Equal(t, perms.ReadPerms, got)
+	assert.Equal(t, perms.ReadPerms, p.Allow)
 }
 
 func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {

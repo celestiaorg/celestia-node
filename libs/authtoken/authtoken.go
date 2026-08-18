@@ -12,16 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 )
 
-// ExtractSignedPermissions returns the permissions granted to the token by the passed signer.
-// If the token isn't signed by the signer, it will not pass verification.
-func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permission, error) {
-	p, err := ExtractSignedPayload(verifier, token)
-	if err != nil {
-		return nil, err
-	}
-	return p.Allow, nil
-}
-
 // ExtractSignedPayload verifies the token's signature and returns its parsed payload.
 func ExtractSignedPayload(verifier jwt.Verifier, token string) (*perms.JWTPayload, error) {
 	tk, err := jwt.Parse([]byte(token), verifier)

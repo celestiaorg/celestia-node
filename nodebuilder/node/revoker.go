@@ -15,11 +15,17 @@ import (
 // input, so the //nolint:gosec directives on os.ReadFile / os.CreateTemp /
 // os.Rename suppress gosec's taint-analysis false positives.
 
+// RevocationSink is notified after a nonce is persisted so consumers (e.g. RPC server) can react.
+type RevocationSink interface {
+	OnRevoke(nonceHex string)
+}
+
 // Revoker is a persistent set of revoked JWT nonces.
 type Revoker struct {
-	path string
-	mu   sync.RWMutex
-	set  map[string]struct{}
+	path  string
+	mu    sync.RWMutex
+	set   map[string]struct{}
+	sinks []RevocationSink
 }
 
 // NewRevoker loads (or initializes) the revocation set at path.
@@ -34,6 +40,13 @@ func NewRevoker(path string) (*Revoker, error) {
 	return r, nil
 }
 
+// AddSink registers a sink to be notified after each successful Revoke (with lock released).
+func (r *Revoker) AddSink(sink RevocationSink) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sinks = append(r.sinks, sink)
+}
+
 // Revoke adds nonce to the set and persists. Empty nonces are rejected — they identify nothing.
 func (r *Revoker) Revoke(nonce []byte) error {
 	if len(nonce) == 0 {
@@ -41,14 +54,20 @@ func (r *Revoker) Revoke(nonce []byte) error {
 	}
 	id := hex.EncodeToString(nonce)
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if _, ok := r.set[id]; ok {
+		r.mu.Unlock()
 		return nil
 	}
 	r.set[id] = struct{}{}
 	if err := r.persistLocked(); err != nil {
 		delete(r.set, id)
+		r.mu.Unlock()
 		return err
+	}
+	sinks := append([]RevocationSink(nil), r.sinks...)
+	r.mu.Unlock()
+	for _, s := range sinks {
+		s.OnRevoke(id)
 	}
 	return nil
 }
