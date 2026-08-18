@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/privval"
-	"github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -276,16 +274,4 @@ func (s *Swamp) SetBootstrapper(t *testing.T, bootstrappers ...*nodebuilder.Node
 		require.NoError(t, err)
 		s.Bootstrappers = append(s.Bootstrappers, addrs[0])
 	}
-}
-
-// Validators retrieves keys from the app node in order to build the validators.
-func (s *Swamp) Validators(t *testing.T) (*types.ValidatorSet, types.PrivValidator) {
-	privPath := s.cfg.TmConfig.PrivValidatorKeyFile()
-	statePath := s.cfg.TmConfig.PrivValidatorStateFile()
-	priv := privval.LoadFilePV(privPath, statePath)
-	key, err := priv.GetPubKey()
-	require.NoError(t, err)
-	validator := types.NewValidator(key, 100)
-	set := types.NewValidatorSet([]*types.Validator{validator})
-	return set, priv
 }

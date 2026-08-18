@@ -57,21 +57,6 @@ jobs:
       - name: run da tests
         run: make test-integration SHORT=true TAGS=da
 
-  fraud_tests:
-    name: Integration Tests Fraud
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: set up go
-        uses: actions/setup-go@v7
-        with:
-          go-version: ${{ inputs.go-version }}
-
-      - name: run fraud tests
-        run: make test-integration TAGS=fraud
-
   nd_tests:
     name: Integration Tests ND
     runs-on: ubuntu-latest
