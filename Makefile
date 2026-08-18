@@ -193,10 +193,10 @@ test-e2e-sanity:
 	@echo "--> Running E2ESanityTestSuite"
 	cd nodebuilder/tests/tastora && go test -v -tags integration -run TestE2ESanityTestSuite -timeout 10m
 
-## test-tastora: Run all Tastora framework tests.
+## test-tastora: Run Tastora framework tests. Use RUN=TestXxxTestSuite for a single suite and TIMEOUT to override the 60m default.
 test-tastora:
-	@echo "--> Running all Tastora tests"
-	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -timeout 60m ./...
+	@echo "--> Running Tastora tests $(if $(RUN),($(RUN)),(all))"
+	cd nodebuilder/tests/tastora && go test ${LDFLAGS} -v -tags integration -timeout $(or $(TIMEOUT),60m) $(if $(RUN),-run '^$(RUN)$$') ./...
 
 ## benchmark: Run all benchmarks.
 benchmark:

@@ -56,7 +56,7 @@ func (s *ArchivalTestSuite) TestArchivalNodeKeepsData() {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 
-	bridge := s.framework.GetBridgeNodes()[0]
+	bridge := s.framework.GetArchivalNode()
 	client := s.framework.GetNodeRPCClient(ctx, bridge)
 
 	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x05}, 10))

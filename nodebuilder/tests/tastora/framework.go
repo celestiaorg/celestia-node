@@ -159,6 +159,14 @@ func (f *Framework) GetLightNodes() []*dataavailability.Node {
 	return f.lightNodes
 }
 
+// GetArchivalNode returns the archival bridge node. It requires the framework to have been
+// configured with WithArchivalBridge; the archival node is always the primary bridge (index 0).
+func (f *Framework) GetArchivalNode() *dataavailability.Node {
+	require.True(f.t, f.archivalBridge, "framework was not configured with WithArchivalBridge")
+	require.NotEmpty(f.t, f.bridgeNodes, "no bridge nodes have been started")
+	return f.bridgeNodes[0]
+}
+
 // NewBridgeNode creates, starts and appends a new bridge node.
 func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)

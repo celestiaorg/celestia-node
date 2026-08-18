@@ -54,7 +54,7 @@ func (s *HeaderP2PSyncTestSuite) TestBridgeArchivalHeaderSyncViaP2P() {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 
-	archival := s.framework.GetBridgeNodes()[0]
+	archival := s.framework.GetArchivalNode()
 	clientA := s.framework.GetNodeRPCClient(ctx, archival)
 
 	// Advance past the retain window so early blocks (incl. prunedHeight) are pruned from

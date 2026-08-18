@@ -21,8 +21,9 @@ import (
 // catchupWindow is the shrunk availability window given to the catching-up bridge
 const catchupWindow = 10 * time.Second
 
-// CatchupTestSuite runs a 2-bridge topology where bridge[0] (A) is archival and bridge[1] (B) is a
-// non-archival node started with a shrunk availability window.
+// CatchupTestSuite runs a 2-bridge topology: an archival node A (see Framework.GetArchivalNode)
+// and a non-archival node B started with a shrunk availability window (see
+// Framework.StartBridgeNodeWithSmallWindow).
 type CatchupTestSuite struct {
 	suite.Suite
 	framework *Framework
@@ -53,7 +54,7 @@ func (s *CatchupTestSuite) TestBridgeCatchupViaShrex() {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 
-	archival := s.framework.GetBridgeNodes()[0]
+	archival := s.framework.GetArchivalNode()
 	clientA := s.framework.GetNodeRPCClient(ctx, archival)
 
 	// Bring B up with a small window, let it catch up to the current head, then take it offline.

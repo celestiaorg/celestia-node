@@ -1,9 +1,10 @@
 name: Tastora Weekly
 
-# Weekly bridge-node E2E regression suite. Builds the celestia-node image from the current
-# main source and runs the Tastora suite against it, so the node image always matches the
-# test code — tests coupled to node behaviour are validated reliably (unlike testing a
-# separately published image, which lags the source). Release-image validation lives elsewhere.
+# Weekly bridge-node E2E regression suite. Builds the celestia-node image once from the current
+# main source, then fans every Tastora suite out across a matrix so each runs in parallel against
+# that image and reports its own pass/fail. Keeping the node image matched to the test code means
+# tests coupled to node behaviour are validated reliably (unlike testing a separately published
+# image, which lags the source). Release-image validation lives elsewhere.
 on:
   schedule:
     - cron: "0 7 * * 1" # Monday 07:00 UTC
@@ -17,13 +18,53 @@ concurrency:
   group: tastora-weekly
   cancel-in-progress: false
 
+env:
+  NODE_TAG: tastora-ci
+
 jobs:
-  tastora:
-    name: Tastora E2E
+  build-image:
+    name: Build node image
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    outputs:
-      commit: ${{ github.sha }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Build node image from source
+        run: docker build -t ghcr.io/celestiaorg/celestia-node:${NODE_TAG} .
+
+      - name: Export image
+        run: docker save ghcr.io/celestiaorg/celestia-node:${NODE_TAG} | gzip > /tmp/node-image.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tastora-node-image
+          path: /tmp/node-image.tar.gz
+          retention-days: 1
+
+  test:
+    name: ${{ matrix.suite }}
+    needs: build-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - TestArchivalTestSuite
+          - TestBlobInclusionTestSuite
+          - TestBlobTestSuite
+          - TestCatchupTestSuite
+          - TestCoreControlTestSuite
+          - TestCoreFailoverTestSuite
+          - TestDASTestSuite
+          - TestE2ESanityTestSuite
+          - TestHeaderP2PSyncTestSuite
+          - TestHeaderTestSuite
+          - TestLightRestartTestSuite
+          - TestP2PTestSuite
+          - TestRestartTestSuite
     steps:
       - uses: actions/checkout@v7
         with:
@@ -33,31 +74,15 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Log in to ghcr.io
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - uses: actions/download-artifact@v4
+        with:
+          name: tastora-node-image
+          path: /tmp
 
-      - name: Build node image from source
-        run: docker build -t ghcr.io/celestiaorg/celestia-node:tastora-ci .
+      - name: Load node image
+        run: docker load --input /tmp/node-image.tar.gz
 
-      - name: Run Tastora suite
+      - name: Run ${{ matrix.suite }}
         env:
-          CELESTIA_NODE_TAG: tastora-ci
-        run: make test-tastora
-
-  # TODO: enable once we ensure tests work correctly
-  # Alerts the channel whenever the weekly regression run fails.
-  # notify-slack-on-failure:
-  #   name: Notify Slack on Failure
-  #   needs: [tastora]
-  #   runs-on: ubuntu-latest
-  #   if: ${{ always() && needs.tastora.result == 'failure' }}
-  #   steps:
-  #     - name: Notify Slack
-  #       uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
-  #       with:
-  #         webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-  #         webhook-type: incoming-webhook
-  #         payload: |
-  #           {
-  #             "text": "Tastora weekly regression failed (commit `${{ needs.tastora.outputs.commit }}`). <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
-  #           }
+          CELESTIA_NODE_TAG: ${{ env.NODE_TAG }}
+        run: make test-tastora RUN=${{ matrix.suite }} TIMEOUT=30m
