@@ -219,7 +219,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		return nil, err
 	}
 
-	response := &edsResponse{ctx: ctx, root: header.DAH}
+	response := &edsResponse{odsSize: len(header.DAH.RowRoots) / 2}
 
 	logger := log.With(
 		"source", "shrex_getter",
@@ -228,15 +228,15 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 	)
 
 	req := func(ctx context.Context, peer libpeer.ID) error {
-		response.eds = nil
+		response.shares = nil
 		return sg.client.Get(ctx, &request, response, peer)
 	}
 
 	build := func() error {
-		if response.eds == nil {
+		if response.shares == nil {
 			return errors.New("nil response")
 		}
-		return nil
+		return response.verify(ctx, header.DAH)
 	}
 
 	err = sg.executeRequest(ctx, logger, header, request.Name(), req, build)

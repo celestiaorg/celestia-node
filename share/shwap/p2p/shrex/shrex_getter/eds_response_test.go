@@ -26,11 +26,12 @@ func TestEDSResponse_ReadFrom(t *testing.T) {
 	reader, err := (&eds.Rsmt2D{ExtendedDataSquare: square}).Reader()
 	require.NoError(t, err)
 
-	resp := &edsResponse{ctx: ctx, root: roots}
+	resp := &edsResponse{odsSize: odsSize}
 	n, err := resp.ReadFrom(reader)
 	require.NoError(t, err)
-
 	require.Equal(t, int64(odsSize*odsSize*libshare.ShareSize), n)
+
+	require.NoError(t, resp.verify(ctx, roots))
 	require.NotNil(t, resp.eds)
 	require.True(t, square.Equals(resp.eds.ExtendedDataSquare))
 }
@@ -43,13 +44,15 @@ func TestEDSResponse_ReadFrom_RootMismatch(t *testing.T) {
 	reader, err := (&eds.Rsmt2D{ExtendedDataSquare: square}).Reader()
 	require.NoError(t, err)
 
-	// roots of an unrelated square make ReadAccessor fail the integrity check
+	// roots of an unrelated square make verify fail the integrity check
 	otherRoots, err := share.NewAxisRoots(edstest.RandEDS(t, odsSize))
 	require.NoError(t, err)
 
-	resp := &edsResponse{ctx: ctx, root: otherRoots}
+	resp := &edsResponse{odsSize: odsSize}
 	_, err = resp.ReadFrom(reader)
-	require.Error(t, err)
+	require.NoError(t, err)
+
+	require.Error(t, resp.verify(ctx, otherRoots))
 	require.Nil(t, resp.eds)
 }
 
