@@ -1,10 +1,16 @@
 package tastora
 
+import "time"
+
 // Config represents configuration options for the Tastora testing framework.
 type Config struct {
-	NumValidators   int
-	BridgeNodeCount int
-	LightNodeCount  int
+	NumValidators       int
+	BridgeNodeCount     int
+	LightNodeCount      int
+	ArchivalBridge      bool
+	MultiSource         bool
+	AvailabilityWindow  time.Duration
+	ConsensusRetainBlks uint64
 }
 
 // Option for modifying Tastora's Config.
@@ -37,5 +43,37 @@ func WithBridgeNodes(count int) Option {
 func WithLightNodes(count int) Option {
 	return func(c *Config) {
 		c.LightNodeCount = count
+	}
+}
+
+// WithArchivalBridge starts bridge nodes in archival mode with disabled pruner
+func WithArchivalBridge() Option {
+	return func(c *Config) {
+		c.ArchivalBridge = true
+	}
+}
+
+// WithMultiSource starts each bridge with a second core endpoint added to its
+// config.toml
+func WithMultiSource() Option {
+	return func(c *Config) {
+		c.MultiSource = true
+	}
+}
+
+// WithAvailabilityWindow shrinks the DA nodes' availability window (via
+// CELESTIA_OVERRIDE_AVAILABILITY_WINDOW) so heights age out within a test.
+func WithAvailabilityWindow(window time.Duration) Option {
+	return func(c *Config) {
+		c.AvailabilityWindow = window
+	}
+}
+
+// WithPrunedConsensus makes the consensus node retain only the last `blocks` blocks
+// (app.toml min-retain-blocks), so older blocks are pruned from its store and a bridge
+// must source them from an archival peer over p2p.
+func WithPrunedConsensus(blocks uint64) Option {
+	return func(c *Config) {
+		c.ConsensusRetainBlks = blocks
 	}
 }

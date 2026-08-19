@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	dockerclient "github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -29,6 +31,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/dataavailability"
 	"github.com/celestiaorg/tastora/framework/testutil/config"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
+	tomlutil "github.com/celestiaorg/tastora/framework/testutil/toml"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	"github.com/celestiaorg/tastora/framework/testutil/wallet"
 	"github.com/celestiaorg/tastora/framework/types"
@@ -41,11 +44,18 @@ const (
 	defaultCelestiaTag = "v5.0.1"
 	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
 	testChainID        = "test"
+
+	// brokenCoreIP is a valid but unroutable address.
+	brokenCoreIP = "192.0.2.1"
+
+	// prunedEvidenceMaxAgeBlocks shrinks the genesis evidence window well below the 3000-block
+	// min-retain floor so that min-retain-blocks governs pruning (see shrinkEvidenceWindow).
+	prunedEvidenceMaxAgeBlocks = 100
 )
 
 // defaultNodeTag can be overridden at build time using ldflags
 // Example: go build -ldflags "-X github.com/celestiaorg/celestia-node/nodebuilder/tests/tastora.defaultNodeTag=v1.2.3"
-var defaultNodeTag = "37c99f2" // fallback if not set via ldflags
+var defaultNodeTag = "32627d9" // fallback if not set via ldflags
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
 // It provides Docker-based chain and node setup, similar to how Swamp provides
@@ -70,6 +80,15 @@ type Framework struct {
 	// Private funding infrastructure (not exposed to tests)
 	fundingWallet        *types.Wallet
 	defaultFundingAmount int64
+
+	archivalBridge      bool
+	multisource         bool
+	availabilityWindow  time.Duration
+	consensusRetainBlks uint64
+
+	// genesisHash is memoized on first computation; a pruned consensus node discards block 1,
+	// from which it is derived, once the chain advances past its retain window.
+	genesisHash string
 }
 
 // NewFramework creates a new Tastora testing framework instance.
@@ -86,6 +105,10 @@ func NewFramework(t *testing.T, options ...Option) *Framework {
 	for _, opt := range options {
 		opt(cfg)
 	}
+	f.archivalBridge = cfg.ArchivalBridge
+	f.multisource = cfg.MultiSource
+	f.availabilityWindow = cfg.AvailabilityWindow
+	f.consensusRetainBlks = cfg.ConsensusRetainBlks
 
 	f.logger.Info("Setting up Tastora framework", zap.String("test", t.Name()))
 	f.client, f.network = docker.Setup(t)
@@ -136,11 +159,130 @@ func (f *Framework) GetLightNodes() []*dataavailability.Node {
 	return f.lightNodes
 }
 
+// GetArchivalNode returns the archival bridge node. It requires the framework to have been
+// configured with WithArchivalBridge; the archival node is always the primary bridge (index 0).
+func (f *Framework) GetArchivalNode() *dataavailability.Node {
+	require.True(f.t, f.archivalBridge, "framework was not configured with WithArchivalBridge")
+	require.NotEmpty(f.t, f.bridgeNodes, "no bridge nodes have been started")
+	return f.bridgeNodes[0]
+}
+
 // NewBridgeNode creates, starts and appends a new bridge node.
 func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)
 	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
 	return bridgeNode
+}
+
+// RestartNode restarts any DA node's container keeping all the data
+func (f *Framework) RestartNode(ctx context.Context, node *dataavailability.Node) {
+	require.NoError(f.t, node.Stop(ctx), "failed to stop node")
+	require.NoError(f.t, node.Start(ctx), "failed to restart node")
+}
+
+func (f *Framework) RestartBridgeNode(ctx context.Context, node *dataavailability.Node) {
+	f.RestartNode(ctx, node)
+}
+
+// StartBridgeNodeWithBrokenCore starts a bridge pointed at an unreachable core
+func (f *Framework) StartBridgeNodeWithBrokenCore(ctx context.Context) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	idx := len(f.bridgeNodes)
+	if idx >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", idx, len(bridgeNodes))
+	}
+	bridgeNode := bridgeNodes[idx]
+
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", brokenCoreIP, "--rpc.addr", "0.0.0.0"}
+	err := bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
+				"P2P_NETWORK":     testChainID,
+			},
+		),
+	)
+	require.NoError(f.t, err, "container should start even with an unreachable core")
+
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
+
+// StartBridgeNodeWithSmallWindow starts a non-archival bridge with a tiny availability window
+func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window time.Duration) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	idx := len(f.bridgeNodes)
+	if idx >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", idx, len(bridgeNodes))
+	}
+	require.Positive(f.t, idx, "small-window bridge must be peered to an existing bridge[0]")
+	bridgeNode := bridgeNodes[idx]
+
+	trustedPeer := f.nodeP2PAddr(ctx, f.bridgeNodes[0])
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"}
+	env := map[string]string{
+		"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
+		"P2P_NETWORK":     testChainID,
+	}
+	// window == 0 leaves the default availability window (a plain non-archival bridge).
+	if window > 0 {
+		env["CELESTIA_OVERRIDE_AVAILABILITY_WINDOW"] = window.String()
+	}
+	err = bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(env),
+		dataavailability.WithConfigModifications(bitswapOffMod()),
+	)
+	require.NoError(f.t, err, "failed to start small-window bridge node")
+
+	f.fundNodeAccount(ctx, bridgeNode, f.defaultFundingAmount)
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount)
+
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
+
+func bitswapOffMod() map[string]tomlutil.Toml {
+	return map[string]tomlutil.Toml{
+		"config.toml": {
+			"RPC":   tomlutil.Toml{"SkipAuth": true},
+			"Share": tomlutil.Toml{"UseBitswap": false},
+		},
+	}
+}
+
+func (f *Framework) bridgeContainerRunning(ctx context.Context, node *dataavailability.Node) bool {
+	return node.ContainerLifecycle.Running(ctx) == nil
+}
+
+func (f *Framework) bridgeContainerExit(ctx context.Context, node *dataavailability.Node) (int, string) {
+	id := node.ContainerLifecycle.ContainerID()
+
+	inspect, err := f.client.ContainerInspect(ctx, id, dockerclient.ContainerInspectOptions{})
+	require.NoError(f.t, err, "failed to inspect container")
+
+	logs, err := f.client.ContainerLogs(ctx, id, dockerclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	require.NoError(f.t, err, "failed to read container logs")
+	defer logs.Close()
+
+	// ContainerLogs returns Docker's multiplexed stream (8-byte header per frame); demux it
+	// so the returned logs are clean text, not binary-prefixed.
+	var sb strings.Builder
+	_, err = stdcopy.StdCopy(&sb, &sb, logs)
+	require.NoError(f.t, err, "failed to copy container logs")
+
+	return inspect.Container.State.ExitCode, sb.String()
 }
 
 // NewLightNode creates, starts and appends a new light node.
@@ -158,7 +300,19 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Verify funds are available by checking balance
-	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount, "light node")
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
+
+	f.lightNodes = append(f.lightNodes, lightNode)
+	return lightNode
+}
+
+// NewLightNodeBitswapOff starts a light node connected  to bridge with bitswap disabled
+func (f *Framework) NewLightNodeBitswapOff(ctx context.Context) *dataavailability.Node {
+	bridgeNode := f.bridgeNodes[0]
+	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia,
+		dataavailability.WithConfigModifications(bitswapOffMod()))
+	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
+	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
 
 	f.lightNodes = append(f.lightNodes, lightNode)
 	return lightNode
@@ -171,6 +325,20 @@ func (f *Framework) GetCelestiaChain() *cosmos.Chain {
 
 // GetNodeRPCClient retrieves an RPC client for the provided DA node.
 func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailability.Node) *rpcclient.Client {
+	rpcClient, err := rpcclient.NewClient(ctx, "http://"+f.nodeRPCAddr(ctx, daNode), "")
+	require.NoError(f.t, err)
+	return rpcClient
+}
+
+// GetNodeRPCClientWS is like GetNodeRPCClient but dials over WebSocket, which
+// go-jsonrpc requires for subscription methods (e.g. Header.Subscribe).
+func (f *Framework) GetNodeRPCClientWS(ctx context.Context, daNode *dataavailability.Node) *rpcclient.Client {
+	rpcClient, err := rpcclient.NewClient(ctx, "ws://"+f.nodeRPCAddr(ctx, daNode), "")
+	require.NoError(f.t, err)
+	return rpcClient
+}
+
+func (f *Framework) nodeRPCAddr(ctx context.Context, daNode *dataavailability.Node) string {
 	networkInfo, err := daNode.GetNetworkInfo(ctx)
 	require.NoError(f.t, err, "failed to get network info")
 	rpcAddr := fmt.Sprintf("%s:%s", networkInfo.External.Hostname, networkInfo.External.Ports.RPC)
@@ -180,10 +348,7 @@ func (f *Framework) GetNodeRPCClient(ctx context.Context, daNode *dataavailabili
 	if strings.HasPrefix(rpcAddr, "0.0.0.0:") {
 		rpcAddr = "127.0.0.1:" + strings.TrimPrefix(rpcAddr, "0.0.0.0:")
 	}
-
-	rpcClient, err := rpcclient.NewClient(ctx, "http://"+rpcAddr, "")
-	require.NoError(f.t, err)
-	return rpcClient
+	return rpcAddr
 }
 
 // CreateTestWallet creates a new test wallet on the chain, funding it with the specified amount.
@@ -227,7 +392,7 @@ func (f *Framework) newBridgeNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Bridge node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Verify funds are available by checking balance
-	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount, "bridge node")
+	f.verifyNodeBalance(ctx, bridgeNode, f.defaultFundingAmount)
 
 	return bridgeNode
 }
@@ -280,7 +445,8 @@ func (f *Framework) fundWallet(ctx context.Context, fromWallet *types.Wallet, to
 // verifyNodeBalance verifies that a DA node has the expected balance after funding.
 // This function provides deterministic balance verification with retries and waiting.
 // It should be called after fundNodeAccount to ensure funding was successful.
-func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailability.Node, expectedAmount int64, nodeType string) {
+func (f *Framework) verifyNodeBalance(ctx context.Context, daNode *dataavailability.Node, expectedAmount int64) {
+	nodeType := daNode.GetType()
 	nodeClient := f.GetNodeRPCClient(ctx, daNode)
 	nodeAddr, err := nodeClient.State.AccountAddress(ctx)
 	require.NoError(f.t, err, "failed to get %s account address", nodeType)
@@ -339,27 +505,53 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		UIDGID:     "10001:10001",
 	}
 
+	// Fast commit so a single validator clears the ~3000-block retain floor within the test.
+	commitTimeout := "1s"
+	if cfg.ConsensusRetainBlks > 0 {
+		commitTimeout = "10ms"
+	}
+	consensusArgs := []string{
+		"--force-no-bbr",
+		"--grpc.enable",
+		"--grpc.address", "0.0.0.0:9090",
+		"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
+		"--timeout-commit", commitTimeout,
+	}
+	if cfg.ConsensusRetainBlks > 0 {
+		consensusArgs = append(consensusArgs, "--min-retain-blocks", strconv.FormatUint(cfg.ConsensusRetainBlks, 10))
+	}
+
 	chainBuilder := cosmos.NewChainBuilderWithTestName(f.t, f.t.Name()).
 		WithDockerClient(f.client).
 		WithDockerNetworkID(f.network).
 		WithImage(chainImage).
 		WithEncodingConfig(&enc).
-		WithAdditionalStartArgs(
-			"--force-no-bbr",
-			"--grpc.enable",
-			"--grpc.address", "0.0.0.0:9090",
-			"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
-			"--timeout-commit", "1s",
-		).
+		WithAdditionalStartArgs(consensusArgs...).
 		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-			if err := config.Modify(ctx, node, "config/config.toml", func(cfg *cometcfg.Config) {
-				cfg.TxIndex.Indexer = "kv"
+			if err := config.Modify(ctx, node, "config/config.toml", func(cometCfg *cometcfg.Config) {
+				cometCfg.TxIndex.Indexer = "kv"
 			}); err != nil {
 				return err
 			}
-			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
-				cfg.GRPC.Enable = true
-			})
+			if err := config.Modify(ctx, node, "config/app.toml", func(appCfg *servercfg.Config) {
+				appCfg.GRPC.Enable = true
+			}); err != nil {
+				return err
+			}
+			if cfg.ConsensusRetainBlks == 0 {
+				return nil
+			}
+			// CometBFT keeps max(min-retain-blocks, evidence.max_age_num_blocks) blocks; the
+			// default evidence window dwarfs min-retain, so it must be shrunk here (PostInit
+			// runs after the final genesis is written, before consensus starts) for pruning
+			// to ever kick in within a test.
+			var patchErr error
+			if err := config.Modify(ctx, node, "config/genesis.json", func(genesis *map[string]any) {
+				patchErr = shrinkEvidenceWindow(*genesis, prunedEvidenceMaxAgeBlocks)
+			}); err != nil {
+				return err
+			}
+			return patchErr
 		})
 
 	// Add validator nodes based on config
@@ -399,6 +591,27 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 	return chainBuilder, daNetworkBuilder
 }
 
+// shrinkEvidenceWindow sets consensus.params.evidence.max_age_num_blocks in a decoded genesis
+// map, erroring loudly if the expected structure is absent so a genesis-format change can't
+// silently disable pruning.
+func shrinkEvidenceWindow(genesis map[string]any, maxAgeBlocks int64) error {
+	consensus, ok := genesis["consensus"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("genesis: consensus not found or of unexpected type")
+	}
+	params, ok := consensus["params"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("genesis: consensus.params not found or of unexpected type")
+	}
+	ev, ok := params["evidence"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("genesis: consensus.params.evidence not found or of unexpected type")
+	}
+	// cosmos-sdk's AppGenesis reader requires int64 consensus params to be string-encoded.
+	ev["max_age_num_blocks"] = strconv.FormatInt(maxAgeBlocks, 10)
+	return nil
+}
+
 // createAndStartCelestiaChain initializes and starts the Celestia chain.
 func (f *Framework) createAndStartCelestiaChain(ctx context.Context) *cosmos.Chain {
 	celestia, err := f.chainBuilder.Build(ctx)
@@ -423,34 +636,100 @@ func (f *Framework) startBridgeNode(ctx context.Context, chain *cosmos.Chain) *d
 	}
 	bridgeNode := bridgeNodes[bridgeNodeIndex]
 
+	var trustedPeer string
+	if bridgeNodeIndex > 0 {
+		trustedPeer = f.nodeP2PAddr(ctx, f.bridgeNodes[0])
+	}
+
 	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
 	require.NoError(f.t, err, "failed to get network info")
 	hostname := networkInfo.Internal.Hostname
 
-	err = bridgeNode.Start(ctx,
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"}
+	if f.archivalBridge {
+		startArgs = append(startArgs, "--archival")
+	}
+
+	env := map[string]string{
+		"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
+		"P2P_NETWORK":           testChainID,
+		"CELESTIA_BOOTSTRAPPER": "true",
+	}
+	if f.availabilityWindow > 0 {
+		env["CELESTIA_OVERRIDE_AVAILABILITY_WINDOW"] = f.availabilityWindow.String()
+	}
+
+	startOpts := []dataavailability.StartOption{
 		dataavailability.WithChainID(testChainID),
-		dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM":       types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, ""),
-				"P2P_NETWORK":           testChainID,
-				"CELESTIA_BOOTSTRAPPER": "true", // Make bridge node act as DHT bootstrapper
-			},
-		),
-	)
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(env),
+	}
+	if f.multisource {
+		startOpts = append(startOpts, dataavailability.WithConfigModifications(f.additionalCoreEndpointMod(ctx, chain)))
+	}
+
+	err = bridgeNode.Start(ctx, startOpts...)
 	require.NoError(f.t, err, "failed to start bridge node")
 	return bridgeNode
 }
 
+func (f *Framework) additionalCoreEndpointMod(ctx context.Context, chain *cosmos.Chain) map[string]tomlutil.Toml {
+	require.GreaterOrEqual(f.t, len(chain.Validators), 2, "failover core requires at least two validators")
+	info, err := chain.Validators[1].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get additional core endpoint network info")
+
+	port := info.Internal.Ports.GRPC
+	if port == "" {
+		port = "9090" // celestia-core default gRPC port
+	}
+
+	return map[string]tomlutil.Toml{
+		"config.toml": {
+			"RPC": tomlutil.Toml{
+				"SkipAuth": true,
+			},
+			"Core": tomlutil.Toml{
+				"AdditionalCoreEndpoints": []map[string]any{
+					{"IP": info.Internal.Hostname, "Port": port, "TLSEnabled": false, "XTokenPath": ""},
+				},
+			},
+		},
+	}
+}
+
+// StopValidator stops the container of the validator at idx to simulating a core endpoint going down.
+func (f *Framework) StopValidator(ctx context.Context, idx int) {
+	require.Less(f.t, idx, len(f.celestia.Validators), "validator index %d out of range", idx)
+	require.NoError(f.t, f.celestia.Validators[idx].StopContainer(ctx), "failed to stop validator %d", idx)
+}
+
+// StartValidator restarts the previously stopped container of the validator at idx.
+func (f *Framework) StartValidator(ctx context.Context, idx int) {
+	require.Less(f.t, idx, len(f.celestia.Validators), "validator index %d out of range", idx)
+	require.NoError(f.t, f.celestia.Validators[idx].StartContainer(ctx), "failed to start validator %d", idx)
+}
+
+// WaitValidatorSynced blocks until the validator at idx reports it is up to date
+func (f *Framework) WaitValidatorSynced(ctx context.Context, idx int, timeout time.Duration) {
+	require.Less(f.t, idx, len(f.celestia.Validators), "validator index %d out of range", idx)
+	rpc, err := f.celestia.Validators[idx].GetRPCClient()
+	require.NoError(f.t, err, "failed to get validator %d rpc client", idx)
+	require.Eventually(f.t, func() bool {
+		st, err := rpc.Status(ctx)
+		return err == nil && !st.SyncInfo.CatchingUp
+	}, timeout, 2*time.Second, "validator %d should catch up after restart", idx)
+}
+
 // startLightNode initializes and starts a light node.
-func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailability.Node, chain *cosmos.Chain) *dataavailability.Node {
+func (f *Framework) startLightNode(
+	ctx context.Context,
+	bridgeNode *dataavailability.Node,
+	chain *cosmos.Chain,
+	extraOpts ...dataavailability.StartOption,
+) *dataavailability.Node {
 	genesisHash := f.getGenesisHash(ctx, chain)
 
-	p2pInfo, err := bridgeNode.GetP2PInfo(ctx)
-	require.NoError(f.t, err, "failed to get bridge node p2p info")
-
-	p2pAddr, err := p2pInfo.GetP2PAddress()
-	require.NoError(f.t, err, "failed to get bridge node p2p address")
+	p2pAddr := f.nodeP2PAddr(ctx, bridgeNode)
 
 	// Get the core node hostname for state access
 	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
@@ -467,19 +746,23 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
 
-	// Try starting the light node, with a retry to avoid occasional docker flakiness
+	startOpts := append([]dataavailability.StartOption{
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(
+			"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0",
+		),
+		dataavailability.WithEnvironmentVariables(
+			map[string]string{
+				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+				"P2P_NETWORK":     testChainID,
+			},
+		),
+	}, extraOpts...)
+
+	// Try starting the light node with a retry to avoid docker flakiness
 	var lastErr error
 	for attempt := 1; attempt <= 2; attempt++ {
-		err = lightNode.Start(ctx,
-			dataavailability.WithChainID(testChainID),
-			dataavailability.WithAdditionalStartArguments("--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0"),
-			dataavailability.WithEnvironmentVariables(
-				map[string]string{
-					"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-					"P2P_NETWORK":     testChainID,
-				},
-			),
-		)
+		err = lightNode.Start(ctx, startOpts...)
 		if err == nil {
 			return lightNode
 		}
@@ -496,8 +779,23 @@ func (f *Framework) startLightNode(ctx context.Context, bridgeNode *dataavailabi
 	return nil
 }
 
-// getGenesisHash returns the genesis hash of the chain.
+func (f *Framework) nodeP2PAddr(ctx context.Context, node *dataavailability.Node) string {
+	p2pInfo, err := node.GetP2PInfo(ctx)
+	require.NoError(f.t, err, "failed to get node p2p info")
+	p2pAddr, err := p2pInfo.GetP2PAddress()
+	require.NoError(f.t, err, "failed to get node p2p address")
+	return p2pAddr
+}
+
+// getGenesisHash returns the genesis hash of the chain. It memoizes the result because it is
+// derived from block height 1, which a pruned consensus node discards once the chain advances
+// past its retain window — so later callers (e.g. a bridge started mid-test) must reuse the
+// value captured while block 1 was still available.
 func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) string {
+	if f.genesisHash != "" {
+		return f.genesisHash
+	}
+
 	node := chain.GetNodes()[0]
 	c, err := node.GetRPCClient()
 	require.NoError(f.t, err, "failed to get node client")
@@ -508,6 +806,7 @@ func (f *Framework) getGenesisHash(ctx context.Context, chain *cosmos.Chain) str
 
 	genesisHash := block.Block.Header.Hash().String()
 	require.NotEmpty(f.t, genesisHash, "genesis hash is empty")
+	f.genesisHash = genesisHash
 	return genesisHash
 }
 

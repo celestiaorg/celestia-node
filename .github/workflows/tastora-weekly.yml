@@ -1,0 +1,88 @@
+name: Tastora Weekly
+
+# Weekly bridge-node E2E regression suite. Builds the celestia-node image once from the current
+# main source, then fans every Tastora suite out across a matrix so each runs in parallel against
+# that image and reports its own pass/fail. Keeping the node image matched to the test code means
+# tests coupled to node behaviour are validated reliably (unlike testing a separately published
+# image, which lags the source). Release-image validation lives elsewhere.
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Monday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: tastora-weekly
+  cancel-in-progress: false
+
+env:
+  NODE_TAG: tastora-ci
+
+jobs:
+  build-image:
+    name: Build node image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Build node image from source
+        run: docker build -t ghcr.io/celestiaorg/celestia-node:${NODE_TAG} .
+
+      - name: Export image
+        run: docker save ghcr.io/celestiaorg/celestia-node:${NODE_TAG} | gzip > /tmp/node-image.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tastora-node-image
+          path: /tmp/node-image.tar.gz
+          retention-days: 1
+
+  test:
+    name: ${{ matrix.suite }}
+    needs: build-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - TestArchivalTestSuite
+          - TestBlobInclusionTestSuite
+          - TestBlobTestSuite
+          - TestCatchupTestSuite
+          - TestCoreControlTestSuite
+          - TestCoreFailoverTestSuite
+          - TestDASTestSuite
+          - TestE2ESanityTestSuite
+          - TestHeaderP2PSyncTestSuite
+          - TestHeaderTestSuite
+          - TestLightRestartTestSuite
+          - TestP2PTestSuite
+          - TestRestartTestSuite
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tastora-node-image
+          path: /tmp
+
+      - name: Load node image
+        run: docker load --input /tmp/node-image.tar.gz
+
+      - name: Run ${{ matrix.suite }}
+        env:
+          CELESTIA_NODE_TAG: ${{ env.NODE_TAG }}
+        run: make test-tastora RUN=${{ matrix.suite }} TIMEOUT=30m
