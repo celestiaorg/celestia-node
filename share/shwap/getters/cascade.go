@@ -201,8 +201,8 @@ func cascadeGetters[V any](
 
 		var byzantineErr *byzantine.ErrByzantine
 		if errors.As(err, &byzantineErr) {
-			// short circuit if byzantine error was detected (to be able to handle it correctly
-			// and create the BEFP)
+			// short circuit if byzantine data was detected: the square is provably
+			// incorrectly encoded, so there is no point trying the remaining getters.
 			utils.SetStatusAndEnd(span, byzantineErr)
 			return zero, byzantineErr
 		}

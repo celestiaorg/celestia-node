@@ -58,7 +58,7 @@ func NewErrByzantine(
 		}
 
 		sharesWithProof[index] = swp
-		// it is enough to collect half of the shares to construct the befp
+		// collecting half of the shares on the axis is enough to prove the byzantine encoding
 		if count++; count >= len(roots.RowRoots)/2 {
 			break
 		}
