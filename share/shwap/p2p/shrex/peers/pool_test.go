@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
@@ -180,5 +181,79 @@ func TestPool(t *testing.T) {
 
 		_, ok := p.tryGet()
 		require.False(t, ok)
+	})
+
+	t.Run("stale cooldown callback", func(t *testing.T) {
+		ttl := time.Second
+		mock := clock.NewMock()
+		p := newPool(ttl)
+		p.cooldown.clock = mock
+
+		peerID := peer.ID("peer1")
+		p.add(peerID)
+		p.putOnCooldown(peerID)
+		firstToken := p.cooldownTokens[peerID]
+
+		callbackStarted := make(chan struct{})
+		releaseCallback := make(chan struct{})
+		callbackDone := make(chan uint64, 1)
+		onPop := p.cooldown.onPop
+		p.cooldown.onPop = func(id peer.ID, token uint64) {
+			if token == firstToken {
+				close(callbackStarted)
+				<-releaseCallback
+			}
+			onPop(id, token)
+			callbackDone <- token
+		}
+
+		advanceDone := make(chan struct{})
+		go func() {
+			mock.Add(ttl)
+			close(advanceDone)
+		}()
+
+		select {
+		case <-callbackStarted:
+		case <-time.After(ttl):
+			t.Fatal("first cooldown callback did not start")
+		}
+
+		p.remove(peerID)
+		require.NotContains(t, p.cooldownTokens, peerID)
+		p.add(peerID)
+		p.putOnCooldown(peerID)
+		secondToken := p.cooldownTokens[peerID]
+		require.NotEqual(t, firstToken, secondToken)
+
+		close(releaseCallback)
+		select {
+		case token := <-callbackDone:
+			require.Equal(t, firstToken, token)
+		case <-time.After(ttl):
+			t.Fatal("first cooldown callback did not finish")
+		}
+		select {
+		case <-advanceDone:
+		case <-time.After(ttl):
+			t.Fatal("clock advance did not finish")
+		}
+
+		_, ok := p.tryGet()
+		require.False(t, ok)
+		require.Equal(t, 1, p.cooldown.len())
+
+		mock.Add(ttl)
+		select {
+		case token := <-callbackDone:
+			require.Equal(t, secondToken, token)
+		case <-time.After(ttl):
+			t.Fatal("second cooldown callback did not finish")
+		}
+
+		actual, ok := p.tryGet()
+		require.True(t, ok)
+		require.Equal(t, peerID, actual)
+		require.Zero(t, p.cooldown.len())
 	})
 }

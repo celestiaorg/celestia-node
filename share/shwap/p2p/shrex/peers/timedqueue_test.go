@@ -15,11 +15,13 @@ func TestTimedQueue(t *testing.T) {
 		ttl := time.Second
 
 		popCh := make(chan peer.ID, 1)
-		queue := newTimedQueue(ttl, func(id peer.ID) {
+		queue := newTimedQueue(ttl, func(id peer.ID, _ uint64) {
 			popCh <- id
 		})
 		mock := clock.NewMock()
 		queue.clock = mock
+		queue.releaseExpired()
+		require.Zero(t, queue.len())
 
 		// push first item | global time : 0
 		queue.push(peers[0])
@@ -63,7 +65,7 @@ func TestTimedQueue(t *testing.T) {
 		callbackDone := make(chan peer.ID, 1)
 
 		var queue *timedQueue
-		queue = newTimedQueue(ttl, func(id peer.ID) {
+		queue = newTimedQueue(ttl, func(id peer.ID, _ uint64) {
 			queue.push("peer2")
 			callbackDone <- id
 		})
