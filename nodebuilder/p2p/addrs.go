@@ -8,17 +8,26 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// Listen returns invoke function that starts listening for inbound connections with libp2p.Host.
+func parseListenAddrs(addrs []string) ([]ma.Multiaddr, error) {
+	parsed := make([]ma.Multiaddr, len(addrs))
+	for i, addr := range addrs {
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, fmt.Errorf("failure to parse config.P2P.ListenAddresses: %w", err)
+		}
+		parsed[i] = maddr
+	}
+	return parsed, nil
+}
+
+// Listen returns a function that starts listening for inbound connections with libp2p.Host.
 func Listen(cfg *Config) func(h hst.Host) (err error) {
 	return func(h hst.Host) (err error) {
-		maListen := make([]ma.Multiaddr, len(cfg.ListenAddresses))
-		for i, addr := range cfg.ListenAddresses {
-			maListen[i], err = ma.NewMultiaddr(addr)
-			if err != nil {
-				return fmt.Errorf("failure to parse config.P2P.ListenAddresses: %w", err)
-			}
+		addrs, err := parseListenAddrs(cfg.ListenAddresses)
+		if err != nil {
+			return err
 		}
-		return h.Network().Listen(maListen...)
+		return h.Network().Listen(addrs...)
 	}
 }
 

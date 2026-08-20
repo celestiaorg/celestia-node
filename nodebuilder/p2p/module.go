@@ -2,6 +2,7 @@ package p2p
 
 import (
 	logging "github.com/ipfs/go-log/v2"
+	hst "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/metrics"
 	"go.uber.org/fx"
 
@@ -13,7 +14,12 @@ var log = logging.Logger("module/p2p")
 
 // ConstructModule collects all the components and services related to p2p.
 func ConstructModule(tp node.Type, cfg *Config) fx.Option {
-	// sanitize config values before constructing module
+	// validate config values before constructing module
+	_, err := parseListenAddrs(cfg.ListenAddresses)
+	if err != nil {
+		return fx.Error(err)
+	}
+
 	baseComponents := fx.Options(
 		fx.Supply(cfg),
 		fx.Provide(Key),
@@ -30,7 +36,8 @@ func ConstructModule(tp node.Type, cfg *Config) fx.Option {
 		fx.Provide(addrsFactory(cfg.AnnounceAddresses, cfg.NoAnnounceAddresses)),
 		fx.Provide(metrics.NewBandwidthCounter),
 		fx.Provide(newModule),
-		fx.Invoke(Listen(cfg)),
+		// Construct the routed host eagerly so the P2P lifecycle hooks are registered.
+		fx.Invoke(func(_ hst.Host) {}),
 		fx.Provide(resourceManager),
 		fx.Provide(resourceManagerOpt(allowList)),
 	)
