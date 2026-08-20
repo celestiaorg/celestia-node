@@ -1,14 +1,20 @@
 package rpc
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/hex"
+	"errors"
 	"net"
 	"net/http"
 	"reflect"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
@@ -16,8 +22,6 @@ import (
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace/noop"
-
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
@@ -60,6 +64,11 @@ type CORSConfig struct {
 	AllowedHeaders []string
 }
 
+// RevocationChecker reports whether a token nonce has been revoked.
+type RevocationChecker interface {
+	IsRevoked(nonce []byte) bool
+}
+
 type Server struct {
 	srv          *http.Server
 	rpc          *jsonrpc.RPCServer
@@ -76,6 +85,11 @@ type Server struct {
 
 	signer   jwt.Signer
 	verifier jwt.Verifier
+	revoker  RevocationChecker
+
+	// sessions maps nonce → hijacked WS connections for force-close on revoke.
+	sessionsMu sync.Mutex
+	sessions   map[string]map[*trackedConn]struct{}
 
 	metrics *rpcMetrics
 }
@@ -94,10 +108,12 @@ func NewServer(
 	rateLimitCfg RateLimitConfig,
 	signer jwt.Signer,
 	verifier jwt.Verifier,
+	revoker RevocationChecker,
 ) *Server {
 	srv := &Server{
 		signer:       signer,
 		verifier:     verifier,
+		revoker:      revoker,
 		authDisabled: authDisabled,
 		corsConfig:   corsConfig,
 		rateLimitCfg: rateLimitCfg,
@@ -181,22 +197,143 @@ func (s *Server) WithMetrics() error {
 	return nil
 }
 
-// verifyAuth is the RPC server's auth middleware. This middleware is only
-// reached if a token is provided in the header of the request, otherwise only
-// methods with `read` permissions are accessible.
-func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission, error) {
+// authenticate verifies the token and checks revocation status.
+func (s *Server) authenticate(token string) (*perms.JWTPayload, error) {
 	if s.authDisabled {
-		return perms.AllPerms, nil
+		return &perms.JWTPayload{Allow: perms.AllPerms}, nil
 	}
-	return authtoken.ExtractSignedPermissions(s.verifier, token)
+	p, err := authtoken.ExtractSignedPayload(s.verifier, token)
+	if err != nil {
+		return nil, err
+	}
+	if s.revoker.IsRevoked(p.Nonce) {
+		return nil, errors.New("token revoked")
+	}
+	return p, nil
 }
 
-// authHandler wraps the handler with authentication.
+// authHandler validates tokens, attaches permissions, and wraps writer to register WS Hijacks for revocation.
 func (s *Server) authHandler(next http.Handler) http.Handler {
-	return &auth.Handler{
-		Verify: s.verifyAuth,
-		Next:   next.ServeHTTP,
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, ok := extractBearer(r)
+		if !ok {
+			log.Warnf("malformed auth header from %s", r.RemoteAddr)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		ctx := r.Context()
+		if token != "" {
+			p, err := s.authenticate(token)
+			if err != nil {
+				log.Warnf("JWT verification failed (originating from %s): %s", r.RemoteAddr, err)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			ctx = auth.WithPerm(ctx, p.Allow)
+			if len(p.Nonce) > 0 {
+				w = &trackingResponseWriter{
+					ResponseWriter: w,
+					server:         s,
+					nonceHex:       hex.EncodeToString(p.Nonce),
+				}
+			}
+		}
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func extractBearer(r *http.Request) (string, bool) {
+	raw := r.Header.Get("Authorization")
+	if raw == "" {
+		if t := r.FormValue("token"); t != "" {
+			raw = "Bearer " + t
+		}
 	}
+	if raw == "" {
+		return "", true
+	}
+	if !strings.HasPrefix(raw, "Bearer ") {
+		return "", false
+	}
+	return strings.TrimPrefix(raw, "Bearer "), true
+}
+
+// OnRevoke closes all hijacked connections for the revoked nonce.
+func (s *Server) OnRevoke(nonceHex string) {
+	s.sessionsMu.Lock()
+	conns := s.sessions[nonceHex]
+	delete(s.sessions, nonceHex)
+	s.sessionsMu.Unlock()
+	for c := range conns {
+		_ = c.Conn.Close()
+	}
+}
+
+func (s *Server) registerSession(nonceHex string, c *trackedConn) {
+	s.sessionsMu.Lock()
+	defer s.sessionsMu.Unlock()
+	if s.sessions == nil {
+		s.sessions = make(map[string]map[*trackedConn]struct{})
+	}
+	m := s.sessions[nonceHex]
+	if m == nil {
+		m = make(map[*trackedConn]struct{})
+		s.sessions[nonceHex] = m
+	}
+	m[c] = struct{}{}
+}
+
+func (s *Server) unregisterSession(nonceHex string, c *trackedConn) {
+	s.sessionsMu.Lock()
+	defer s.sessionsMu.Unlock()
+	m := s.sessions[nonceHex]
+	if m == nil {
+		return
+	}
+	delete(m, c)
+	if len(m) == 0 {
+		delete(s.sessions, nonceHex)
+	}
+}
+
+// trackingResponseWriter intercepts Hijack to register hijacked conns for revocation.
+type trackingResponseWriter struct {
+	http.ResponseWriter
+	server   *Server
+	nonceHex string
+}
+
+func (t *trackingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := t.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	conn, rw, err := hj.Hijack()
+	if err != nil {
+		return conn, rw, err
+	}
+	tc := &trackedConn{Conn: conn, server: t.server, nonceHex: t.nonceHex}
+	t.server.registerSession(t.nonceHex, tc)
+	return tc, rw, nil
+}
+
+func (t *trackingResponseWriter) Flush() {
+	if f, ok := t.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// trackedConn unregisters itself on Close, whether from normal exit or OnRevoke.
+type trackedConn struct {
+	net.Conn
+	server   *Server
+	nonceHex string
+	once     sync.Once
+}
+
+func (t *trackedConn) Close() error {
+	t.once.Do(func() { t.server.unregisterSession(t.nonceHex, t) })
+	return t.Conn.Close()
 }
 
 // corsAny applies permissive CORS (allows all origins, methods, headers)

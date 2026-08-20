@@ -2,6 +2,9 @@ package node
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
@@ -17,13 +20,15 @@ type module struct {
 	tp       Type
 	signer   jwt.Signer
 	verifier jwt.Verifier
+	revoker  *Revoker
 }
 
-func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
+func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier, revoker *Revoker) Module {
 	return &module{
 		tp:       tp,
 		signer:   signer,
 		verifier: verifier,
+		revoker:  revoker,
 	}
 }
 
@@ -54,7 +59,14 @@ func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 }
 
 func (m *module) AuthVerify(_ context.Context, token string) ([]auth.Permission, error) {
-	return authtoken.ExtractSignedPermissions(m.verifier, token)
+	p, err := authtoken.ExtractSignedPayload(m.verifier, token)
+	if err != nil {
+		return nil, err
+	}
+	if m.revoker.IsRevoked(p.Nonce) {
+		return nil, errors.New("token revoked")
+	}
+	return p.Allow, nil
 }
 
 func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (string, error) {
@@ -65,4 +77,27 @@ func (m *module) AuthNewWithExpiry(_ context.Context,
 	permissions []auth.Permission, ttl time.Duration,
 ) (string, error) {
 	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
+}
+
+func (m *module) AuthRevoke(_ context.Context, token string) error {
+	p, err := authtoken.ExtractSignedPayload(m.verifier, token)
+	if err != nil {
+		return err
+	}
+	if len(p.Nonce) == 0 {
+		return errors.New("token has no nonce; rotate the signing key to revoke")
+	}
+	return m.revoker.Revoke(p.Nonce)
+}
+
+func (m *module) AuthRevokeNonce(_ context.Context, nonceHex string) error {
+	nonce, err := hex.DecodeString(nonceHex)
+	if err != nil {
+		return fmt.Errorf("invalid nonce hex: %w", err)
+	}
+	return m.revoker.Revoke(nonce)
+}
+
+func (m *module) AuthRevoked(_ context.Context) ([]string, error) {
+	return m.revoker.List(), nil
 }

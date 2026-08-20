@@ -36,8 +36,8 @@ func registerEndpoints(
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
 }
 
-func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
-	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, rpc.CORSConfig{
+func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier, revoker *node.Revoker) *rpc.Server {
+	srv := rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, rpc.CORSConfig{
 		Enabled:        cfg.CORS.Enabled,
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
 		AllowedMethods: cfg.CORS.AllowedMethods,
@@ -51,5 +51,9 @@ func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
 		RequestsPerSec: cfg.RateLimit.RequestsPerSec,
 		Burst:          cfg.RateLimit.Burst,
 		CacheSize:      cfg.RateLimit.CacheSize,
-	}, signer, verifier)
+	}, signer, verifier, revoker)
+	// Close hijacked WS conns whose nonce gets revoked, so subscriptions
+	// don't outlive the token that authed them.
+	revoker.AddSink(srv)
+	return srv
 }
