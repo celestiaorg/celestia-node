@@ -12,12 +12,13 @@ const defaultCleanupThreshold = 2
 
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
-	m           sync.RWMutex
-	peersList   []peer.ID
-	statuses    map[peer.ID]status
-	cooldown    *timedQueue
-	activeCount int
-	nextIdx     int
+	m              sync.RWMutex
+	peersList      []peer.ID
+	statuses       map[peer.ID]status
+	cooldown       *timedQueue
+	cooldownTokens map[peer.ID]uint64
+	activeCount    int
+	nextIdx        int
 
 	hasPeer   bool
 	hasPeerCh chan struct{}
@@ -38,6 +39,7 @@ func newPool(peerCooldownTime time.Duration) *pool {
 	p := &pool{
 		peersList:        make([]peer.ID, 0),
 		statuses:         make(map[peer.ID]status),
+		cooldownTokens:   make(map[peer.ID]uint64),
 		hasPeerCh:        make(chan struct{}),
 		cleanupThreshold: defaultCleanupThreshold,
 	}
@@ -129,6 +131,7 @@ func (p *pool) remove(peers ...peer.ID) {
 	for _, peerID := range peers {
 		if status, ok := p.statuses[peerID]; ok && status != removed {
 			p.statuses[peerID] = removed
+			delete(p.cooldownTokens, peerID)
 			if status == active {
 				p.activeCount--
 			}
@@ -183,7 +186,7 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	defer p.m.Unlock()
 
 	if status, ok := p.statuses[peerID]; ok && status == active {
-		p.cooldown.push(peerID)
+		p.cooldownTokens[peerID] = p.cooldown.push(peerID)
 
 		p.statuses[peerID] = cooldown
 		p.activeCount--
@@ -191,15 +194,17 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	}
 }
 
-func (p *pool) afterCooldown(peerID peer.ID) {
+func (p *pool) afterCooldown(peerID peer.ID, token uint64) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	// item could have been already removed by the time afterCooldown is called
-	if status, ok := p.statuses[peerID]; !ok || status != cooldown {
+	// The peer could have been removed or entered a new cooldown cycle.
+	currentToken, ok := p.cooldownTokens[peerID]
+	if p.statuses[peerID] != cooldown || !ok || currentToken != token {
 		return
 	}
 
+	delete(p.cooldownTokens, peerID)
 	p.statuses[peerID] = active
 	p.activeCount++
 	p.checkHasPeers()
