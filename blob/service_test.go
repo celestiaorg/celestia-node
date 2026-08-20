@@ -774,6 +774,67 @@ func TestService_Subscribe(t *testing.T) {
 	})
 }
 
+func TestService_SubscribeStopCancelsInFlightWork(t *testing.T) {
+	ctx := context.Background()
+	namespace := libshare.RandomBlobNamespace()
+	head := headertest.RandExtendedHeader(t)
+	testTimeout := 2 * time.Second
+
+	ctrl := gomock.NewController(t)
+	shareGetter := mock.NewMockGetter(ctrl)
+	retrievalCtxCh := make(chan context.Context, 1)
+	shareGetter.EXPECT().GetNamespaceData(gomock.Any(), gomock.Any(), namespace).
+		DoAndReturn(func(ctx context.Context, _ *header.ExtendedHeader, _ libshare.Namespace) (shwap.NamespaceData, error) {
+			retrievalCtxCh <- ctx
+			<-ctx.Done()
+			return nil, ctx.Err()
+		})
+
+	headerCtxCh := make(chan context.Context, 1)
+	headerSub := func(ctx context.Context) (<-chan *header.ExtendedHeader, error) {
+		headerCtxCh <- ctx
+		headerCh := make(chan *header.ExtendedHeader, 1)
+		headerCh <- head
+		return headerCh, nil
+	}
+	headerGetter := func(context.Context, uint64) (*header.ExtendedHeader, error) {
+		return head, nil
+	}
+
+	service := NewService(nil, shareGetter, headerGetter, headerSub)
+	require.NoError(t, service.Start(ctx))
+	responseCh, err := service.Subscribe(ctx, namespace)
+	require.NoError(t, err)
+	headerCtx := <-headerCtxCh
+
+	var retrievalCtx context.Context
+	select {
+	case retrievalCtx = <-retrievalCtxCh:
+	case <-time.After(testTimeout):
+		t.Fatal("blob retrieval did not start")
+	}
+
+	require.NoError(t, service.Stop(context.Background()))
+	require.NoError(t, ctx.Err())
+
+	select {
+	case <-retrievalCtx.Done():
+	case <-time.After(testTimeout):
+		t.Fatal("service stop did not cancel blob retrieval")
+	}
+	select {
+	case <-headerCtx.Done():
+	case <-time.After(testTimeout):
+		t.Fatal("service stop did not cancel header subscription")
+	}
+	select {
+	case _, ok := <-responseCh:
+		require.False(t, ok)
+	case <-time.After(testTimeout):
+		t.Fatal("service stop did not close blob subscription")
+	}
+}
+
 func TestService_Subscribe_MultipleNamespaces(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
