@@ -424,11 +424,20 @@ func (s *Service) retrieve(
 		"namespace", namespace.String(),
 	)
 
-	span := trace.SpanFromContext(ctx)
 	header, err := s.headerGetter(ctx, height)
 	if err != nil {
 		return nil, nil, err
 	}
+	return s.retrieveWithHeader(ctx, header, namespace, sharesParser)
+}
+
+func (s *Service) retrieveWithHeader(
+	ctx context.Context,
+	header *header.ExtendedHeader,
+	namespace libshare.Namespace,
+	sharesParser *parser,
+) (_ *Blob, _ *Proof, err error) {
+	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(
 		attribute.Int64("eds-size", int64(len(header.DAH.RowRoots))),
 	)
@@ -537,7 +546,7 @@ func (s *Service) retrieve(
 	for _, sh := range appShares {
 		if !sh.IsPadding() {
 			err = fmt.Errorf("incomplete blob with the "+
-				"namespace: %s detected at %d: %w", namespace.String(), height, err)
+				"namespace: %s detected at %d: %w", namespace.String(), header.Height(), err)
 			log.Error(err)
 		}
 	}
@@ -563,7 +572,7 @@ func (s *Service) getBlobs(
 	}
 	sharesParser := &parser{verifyFn: verifyFn}
 
-	_, _, err = s.retrieve(ctx, header.Height(), namespace, sharesParser)
+	_, _, err = s.retrieveWithHeader(ctx, header, namespace, sharesParser)
 	if err != nil && !errors.Is(err, ErrBlobNotFound) {
 		log.Errorf("retrieving blobs for the namespace (%s): %v", namespace.String(), err)
 		span.RecordError(err)

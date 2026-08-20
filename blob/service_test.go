@@ -10,6 +10,7 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -463,6 +464,39 @@ func TestBlobService_Get(t *testing.T) {
 			tt.expectedResult(blobs, err)
 		})
 	}
+}
+
+func TestServiceGetAllFetchesHeaderOnce(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	namespace, err := libshare.NewV0Namespace([]byte("present"))
+	require.NoError(t, err)
+	libBlob, err := libshare.NewBlob(namespace, []byte("data"), libshare.ShareVersionZero, nil)
+	require.NoError(t, err)
+	blobs, err := convertBlobs(libBlob)
+	require.NoError(t, err)
+	shares, err := BlobsToShares(blobs...)
+	require.NoError(t, err)
+
+	service := createService(ctx, t, shares)
+	headerGetter := service.headerGetter
+	var headerCalls atomic.Int32
+	service.headerGetter = func(ctx context.Context, height uint64) (*header.ExtendedHeader, error) {
+		headerCalls.Add(1)
+		return headerGetter(ctx, height)
+	}
+
+	absent1, err := libshare.NewV0Namespace([]byte("absent1"))
+	require.NoError(t, err)
+	absent2, err := libshare.NewV0Namespace([]byte("absent2"))
+	require.NoError(t, err)
+
+	got, err := service.GetAll(ctx, 1, []libshare.Namespace{namespace, absent1, absent2})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, blobs[0].Commitment, got[0].Commitment)
+	require.Equal(t, int32(1), headerCalls.Load())
 }
 
 // TestService_GetSingleBlobWithoutPadding creates two blobs with the same namespace
