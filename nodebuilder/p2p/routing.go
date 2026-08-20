@@ -16,6 +16,7 @@ import (
 func newDHT(
 	ctx context.Context,
 	lc fx.Lifecycle,
+	cfg *Config,
 	tp node.Type,
 	network Network,
 	bootstrappers Bootstrappers,
@@ -42,13 +43,16 @@ func newDHT(
 	if err != nil {
 		return nil, err
 	}
-	stopFn := func(context.Context) error {
+	// Register cleanup first so Fx runs it if Listen or Bootstrap fails.
+	lc.Append(fx.Hook{OnStop: func(context.Context) error {
 		return dht.Close()
-	}
-	lc.Append(fx.Hook{
-		OnStart: dht.Bootstrap,
-		OnStop:  stopFn,
-	})
+	}})
+	lc.Append(fx.Hook{OnStart: func(ctx context.Context) error {
+		if err := Listen(cfg)(host); err != nil {
+			return err
+		}
+		return dht.Bootstrap(ctx)
+	}})
 	return dht, nil
 }
 
