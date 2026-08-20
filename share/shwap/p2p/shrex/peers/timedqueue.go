@@ -36,19 +36,23 @@ func newTimedQueue(ttl time.Duration, onPop func(peer.ID)) *timedQueue {
 	}
 }
 
-// releaseExpired will release all expired items
+// releaseExpired releases all expired items.
 func (q *timedQueue) releaseExpired() {
 	q.Lock()
-	defer q.Unlock()
-	q.releaseUnsafe()
+	expired := q.releaseUnsafe()
+	q.Unlock()
+
+	for _, peerID := range expired {
+		q.onPop(peerID)
+	}
 }
 
-func (q *timedQueue) releaseUnsafe() {
+func (q *timedQueue) releaseUnsafe() []peer.ID {
 	if len(q.items) == 0 {
-		return
+		return nil
 	}
 
-	var i int
+	var expired []peer.ID
 	for _, next := range q.items {
 		timeIn := q.clock.Since(next.createdAt)
 		if timeIn < q.ttl {
@@ -59,14 +63,14 @@ func (q *timedQueue) releaseUnsafe() {
 		}
 
 		// item is expired
-		q.onPop(next.ID)
-		i++
+		expired = append(expired, next.ID)
 	}
 
-	if i > 0 {
-		copy(q.items, q.items[i:])
-		q.items = q.items[:len(q.items)-i]
+	if len(expired) > 0 {
+		copy(q.items, q.items[len(expired):])
+		q.items = q.items[:len(q.items)-len(expired)]
 	}
+	return expired
 }
 
 func (q *timedQueue) push(peerID peer.ID) {
