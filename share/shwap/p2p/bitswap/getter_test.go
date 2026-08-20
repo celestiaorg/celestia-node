@@ -43,13 +43,14 @@ func (m *mockSessionExchange) NewSession(ctx context.Context) exchange.Fetcher {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sessionCount++
-	return &mockFetcher{id: m.sessionCount}
+	return &mockFetcher{id: m.sessionCount, ctx: ctx}
 }
 
 // mockFetcher is a mock implementation of exchange.Fetcher
 type mockFetcher struct {
 	exchange.Fetcher
-	id int
+	id  int
+	ctx context.Context
 }
 
 func TestPoolGetFromEmptyPool(t *testing.T) {
@@ -58,9 +59,11 @@ func TestPoolGetFromEmptyPool(t *testing.T) {
 	ctx := context.Background()
 	p.ctx = ctx
 
-	ses := p.get().(*mockFetcher)
-	require.NotNil(t, ses)
-	require.Equal(t, 1, ses.id)
+	ses, release := p.get()
+	defer release()
+	fetcher := ses.(*mockFetcher)
+	require.NotNil(t, fetcher)
+	require.Equal(t, 1, fetcher.id)
 }
 
 func TestPoolPutAndGet(t *testing.T) {
@@ -70,15 +73,16 @@ func TestPoolPutAndGet(t *testing.T) {
 	p.ctx = ctx
 
 	// Get a session
-	ses := p.get().(*mockFetcher)
+	ses, release := p.get()
 
 	// Put it back
-	p.put(ses)
+	release()
 
 	// Get again
-	ses2 := p.get().(*mockFetcher)
+	ses2, release2 := p.get()
+	defer release2()
 
-	require.Equal(t, ses.id, ses2.id)
+	require.Equal(t, ses.(*mockFetcher).id, ses2.(*mockFetcher).id)
 }
 
 func TestPoolConcurrency(t *testing.T) {
@@ -90,27 +94,57 @@ func TestPoolConcurrency(t *testing.T) {
 	const numGoroutines = 50
 	var wg sync.WaitGroup
 
-	sessionIDSet := make(map[int]struct{})
-	lock := sync.Mutex{}
-
 	// Start multiple goroutines to get sessions
 	for range numGoroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ses := p.get()
-			mockSes := ses.(*mockFetcher)
-			p.put(ses)
-			lock.Lock()
-			sessionIDSet[mockSes.id] = struct{}{}
-			lock.Unlock()
+			_, release := p.get()
+			release()
 		}()
 	}
 	wg.Wait()
 
-	// Since the pool reuses sessions, the number of unique session IDs should be less than or equal to numGoroutines
-	if len(sessionIDSet) > numGoroutines {
-		t.Fatalf("expected number of unique sessions to be less than or equal to %d, got %d",
-			numGoroutines, len(sessionIDSet))
+	require.LessOrEqual(t, len(p.sessions), maxIdleSessions)
+}
+
+func TestPoolBoundsIdleSessions(t *testing.T) {
+	ex := &mockSessionExchange{}
+	p := newPool(ex)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	p.ctx = ctx
+
+	sessions := make([]exchange.Fetcher, maxIdleSessions+1)
+	releases := make([]func(), maxIdleSessions+1)
+	for i := range sessions {
+		sessions[i], releases[i] = p.get()
 	}
+	for _, release := range releases {
+		release()
+	}
+
+	require.Len(t, p.sessions, maxIdleSessions)
+	require.ErrorIs(t, sessions[maxIdleSessions].(*mockFetcher).ctx.Err(), context.Canceled)
+	for _, ses := range sessions[:maxIdleSessions] {
+		require.NoError(t, ses.(*mockFetcher).ctx.Err())
+	}
+
+	_, release := p.get()
+	release()
+	require.Equal(t, maxIdleSessions+1, ex.sessionCount)
+}
+
+func TestPoolDiscardsSessionReleasedAfterStop(t *testing.T) {
+	ex := &mockSessionExchange{}
+	p := newPool(ex)
+	ctx, cancel := context.WithCancel(context.Background())
+	p.ctx = ctx
+
+	ses, release := p.get()
+	cancel()
+	release()
+
+	require.Empty(t, p.sessions)
+	require.ErrorIs(t, ses.(*mockFetcher).ctx.Err(), context.Canceled)
 }

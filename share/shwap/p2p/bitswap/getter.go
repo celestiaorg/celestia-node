@@ -28,6 +28,9 @@ var disablePooling = os.Getenv("CELESTIA_BITSWAP_DISABLE_POOLING") == "1"
 
 var tracer = otel.Tracer("shwap/bitswap")
 
+// Keep at most one idle session per default DAS worker in each pool.
+const maxIdleSessions = 16
+
 // Getter implements share.Getter.
 type Getter struct {
 	exchange  exchange.SessionExchange
@@ -283,7 +286,7 @@ func (g *Getter) isArchival(hdr *header.ExtendedHeader) bool {
 }
 
 // getSession takes a session out of the respective session pool
-func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func()) {
+func (g *Getter) getSession(isArchival bool) (exchange.Fetcher, func()) {
 	if disablePooling {
 		ctx, cancel := context.WithCancel(context.Background())
 		f := g.exchange.NewSession(ctx)
@@ -291,11 +294,9 @@ func (g *Getter) getSession(isArchival bool) (ses exchange.Fetcher, release func
 	}
 
 	if isArchival {
-		ses = g.archivalPool.get()
-		return ses, func() { g.archivalPool.put(ses) }
+		return g.archivalPool.get()
 	}
-	ses = g.availablePool.get()
-	return ses, func() { g.availablePool.put(ses) }
+	return g.availablePool.get()
 }
 
 // edsFromRows imports given Rows and computes EDS out of them, assuming enough Rows were provided.
@@ -333,36 +334,51 @@ func edsFromRows(roots *share.AxisRoots, rows []shwap.Row) (*rsmt2d.ExtendedData
 // pool is a pool of Bitswap sessions.
 type pool struct {
 	lock     sync.Mutex
-	sessions []exchange.Fetcher
+	sessions []*pooledSession
 	ctx      context.Context
 	exchange exchange.SessionExchange
+}
+
+type pooledSession struct {
+	exchange.Fetcher
+	cancel context.CancelFunc
 }
 
 func newPool(ex exchange.SessionExchange) *pool {
 	return &pool{
 		exchange: ex,
-		sessions: make([]exchange.Fetcher, 0),
+		sessions: make([]*pooledSession, 0, maxIdleSessions),
 	}
 }
 
 // get returns a session from the pool or creates a new one if the pool is empty.
-func (p *pool) get() exchange.Fetcher {
+func (p *pool) get() (exchange.Fetcher, func()) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
+	var ses *pooledSession
 	if len(p.sessions) == 0 {
-		return p.exchange.NewSession(p.ctx)
+		ctx, cancel := context.WithCancel(p.ctx)
+		ses = &pooledSession{
+			Fetcher: p.exchange.NewSession(ctx),
+			cancel:  cancel,
+		}
+	} else {
+		ses = p.sessions[len(p.sessions)-1]
+		p.sessions = p.sessions[:len(p.sessions)-1]
 	}
 
-	ses := p.sessions[len(p.sessions)-1]
-	p.sessions = p.sessions[:len(p.sessions)-1]
-	return ses
+	return ses.Fetcher, func() { p.put(ses) }
 }
 
 // put returns a session to the pool.
-func (p *pool) put(ses exchange.Fetcher) {
+func (p *pool) put(ses *pooledSession) {
 	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	p.sessions = append(p.sessions, ses)
+	if p.ctx.Err() == nil && len(p.sessions) < maxIdleSessions {
+		p.sessions = append(p.sessions, ses)
+		p.lock.Unlock()
+		return
+	}
+	p.lock.Unlock()
+	ses.cancel()
 }
