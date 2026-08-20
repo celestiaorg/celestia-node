@@ -1,8 +1,10 @@
 package shrex_getter //nolint:stylecheck // underscore in pkg name will be fixed with shrex refactoring
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"sync/atomic"
 	"testing"
@@ -11,6 +13,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
@@ -511,6 +515,215 @@ func TestShrexGetter(t *testing.T) {
 	})
 }
 
+func TestGetter_PrefersHigherThroughputPeer(t *testing.T) {
+	test := newPeerScoringTest(t)
+	test.slow.delay = 30 * time.Millisecond
+
+	// The first two requests give each unmeasured peer one request to establish its score.
+	test.getEDS(t)
+	test.getEDS(t)
+	require.EqualValues(t, 1, test.fast.requests.Load())
+	require.EqualValues(t, 1, test.slow.requests.Load())
+
+	for range 5 {
+		test.getEDS(t)
+	}
+	require.EqualValues(t, 6, test.fast.requests.Load())
+	require.EqualValues(t, 1, test.slow.requests.Load())
+}
+
+func TestGetter_FallsBackWhenPreferredPeerDegrades(t *testing.T) {
+	test := newPeerScoringTest(t)
+	test.slow.delay = 30 * time.Millisecond
+	test.getEDS(t)
+	test.getEDS(t)
+
+	var rejected atomic.Int64
+	test.fastHost.SetStreamHandler(test.edsProtocol(t), func(stream network.Stream) {
+		var request shwap.EdsID
+		_, _ = request.ReadFrom(stream)
+		rejected.Add(1)
+		_ = stream.ResetWithError(network.StreamResourceLimitExceeded)
+	})
+
+	test.getEDS(t)
+	require.EqualValues(t, 1, rejected.Load())
+	require.EqualValues(t, 2, test.slow.requests.Load())
+
+	peerID, done, err := test.manager.Peer(test.ctx, test.header.DAH.Hash(), test.header.Height())
+	require.NoError(t, err)
+	done(peers.ResultNoop)
+	require.Equal(t, test.slowHost.ID(), peerID, "the degraded peer must remain on cooldown")
+}
+
+func TestGetter_InvalidResponseUsesTemporaryCooldown(t *testing.T) {
+	test := newPeerScoringTest(t)
+	test.slow.delay = 30 * time.Millisecond
+	test.getEDS(t)
+	test.getEDS(t)
+
+	test.fast.corrupt.Store(true)
+	test.getEDS(t)
+	require.EqualValues(t, 2, test.fast.requests.Load())
+	require.EqualValues(t, 2, test.slow.requests.Load())
+	require.True(t, test.connGater.InterceptPeerDial(test.fastHost.ID()),
+		"blacklisting is disabled, so the connection gater must not block the peer")
+
+	test.fast.corrupt.Store(false)
+	require.Eventually(t, func() bool {
+		peerID, done, err := test.manager.Peer(test.ctx, test.header.DAH.Hash(), test.header.Height())
+		if err != nil {
+			return false
+		}
+		done(peers.ResultNoop)
+		return peerID == test.fastHost.ID()
+	}, time.Second, 10*time.Millisecond, "the peer must return after its temporary cooldown")
+
+	test.getEDS(t)
+	require.EqualValues(t, 3, test.fast.requests.Load(), "the invalid response must not reset the peer score")
+	require.EqualValues(t, 2, test.slow.requests.Load())
+}
+
+type peerScoringTest struct {
+	ctx context.Context
+
+	getter    *Getter
+	manager   *peers.Manager
+	connGater *conngater.BasicConnectionGater
+	header    *header.ExtendedHeader
+	expected  *rsmt2d.ExtendedDataSquare
+	fast      *observedStore
+	slow      *observedStore
+	fastHost  host.Host
+	slowHost  host.Host
+}
+
+func newPeerScoringTest(t *testing.T) *peerScoringTest {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	net, err := mocknet.FullMeshConnected(3)
+	require.NoError(t, err)
+	hosts := net.Hosts()
+	clientHost, fastHost, slowHost := hosts[0], hosts[1], hosts[2]
+
+	st, err := newStore(t)
+	require.NoError(t, err)
+	expected, roots, _ := generateTestEDS(t)
+	const height = 1
+	require.NoError(t, st.PutODSQ4(ctx, roots, height, expected))
+
+	fast := &observedStore{AccessorGetter: st}
+	slow := &observedStore{AccessorGetter: st}
+	newShrexServer(ctx, t, fast, fastHost)
+	newShrexServer(ctx, t, slow, slowHost)
+
+	client, err := shrex.NewClient(shrex.DefaultClientParameters(), clientHost)
+	require.NoError(t, err)
+	require.NoError(t, client.WithMetrics())
+
+	connGater, err := conngater.NewBasicConnectionGater(ds_sync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+	params := *peers.DefaultParameters()
+	params.PeerCooldown = 200 * time.Millisecond
+	manager, err := peers.NewManager(params, clientHost, connGater, "scored_full")
+	require.NoError(t, err)
+	archivalManager, err := peers.NewManager(params, clientHost, connGater, "scored_archival")
+	require.NoError(t, err)
+
+	getter := NewGetter(client, manager, archivalManager, availability.RequestWindow)
+	require.NoError(t, getter.Start(ctx))
+	t.Cleanup(func() {
+		stopCtx, stop := context.WithTimeout(context.Background(), time.Second)
+		defer stop()
+		require.NoError(t, getter.Stop(stopCtx))
+	})
+
+	manager.UpdateNodePool(fastHost.ID(), true)
+	manager.UpdateNodePool(slowHost.ID(), true)
+
+	extHeader := headertest.RandExtendedHeaderWithRoot(t, roots)
+	extHeader.RawHeader.Height = height
+	extHeader.RawHeader.Time = time.Now()
+
+	return &peerScoringTest{
+		ctx:       ctx,
+		getter:    getter,
+		manager:   manager,
+		connGater: connGater,
+		header:    extHeader,
+		expected:  expected,
+		fast:      fast,
+		slow:      slow,
+		fastHost:  fastHost,
+		slowHost:  slowHost,
+	}
+}
+
+func (test *peerScoringTest) getEDS(t *testing.T) {
+	t.Helper()
+
+	got, err := test.getter.GetEDS(test.ctx, test.header)
+	require.NoError(t, err)
+	require.Equal(t, test.expected.Flattened(), got.Flattened())
+}
+
+func (test *peerScoringTest) edsProtocol(t *testing.T) protocol.ID {
+	t.Helper()
+
+	id, err := shwap.NewEdsID(test.header.Height())
+	require.NoError(t, err)
+	return shrex.ProtocolID(shrex.DefaultClientParameters().NetworkID(), id.Name())
+}
+
+type observedStore struct {
+	store.AccessorGetter
+
+	delay    time.Duration
+	requests atomic.Int64
+	corrupt  atomic.Bool
+}
+
+func (s *observedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
+	s.requests.Add(1)
+	if s.delay > 0 {
+		timer := time.NewTimer(s.delay)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	accessor, err := s.AccessorGetter.GetByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return observedAccessor{AccessorStreamer: accessor, corrupt: &s.corrupt}, nil
+}
+
+type observedAccessor struct {
+	eds.AccessorStreamer
+	corrupt *atomic.Bool
+}
+
+func (a observedAccessor) Reader() (io.Reader, error) {
+	reader, err := a.AccessorStreamer.Reader()
+	if err != nil || !a.corrupt.Load() {
+		return reader, err
+	}
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	data[0] ^= 0xFF
+	return bytes.NewReader(data), nil
+}
+
 func newStore(t *testing.T) (*store.Store, error) {
 	t.Helper()
 
@@ -552,7 +765,22 @@ func testManager(
 func newShrexClientServer(
 	ctx context.Context, t *testing.T, edsStore store.AccessorGetter, srvHost, clHost host.Host,
 ) (*shrex.Client, *shrex.Server) {
-	// create server and register handler
+	t.Helper()
+
+	server := newShrexServer(ctx, t, edsStore, srvHost)
+
+	// create client and connect it to server
+	client, err := shrex.NewClient(shrex.DefaultClientParameters(), clHost)
+	require.NoError(t, err)
+	require.NoError(t, client.WithMetrics())
+	return client, server
+}
+
+func newShrexServer(
+	ctx context.Context, t *testing.T, edsStore store.AccessorGetter, srvHost host.Host,
+) *shrex.Server {
+	t.Helper()
+
 	server, err := shrex.NewServer(shrex.DefaultServerParameters(), srvHost, edsStore)
 	require.NoError(t, err)
 	require.NoError(t, server.WithMetrics())
@@ -560,12 +788,7 @@ func newShrexClientServer(
 	t.Cleanup(func() {
 		_ = server.Stop(ctx)
 	})
-
-	// create client and connect it to server
-	client, err := shrex.NewClient(shrex.DefaultClientParameters(), clHost)
-	require.NoError(t, err)
-	require.NoError(t, client.WithMetrics())
-	return client, server
+	return server
 }
 
 type wrappedStore struct {
