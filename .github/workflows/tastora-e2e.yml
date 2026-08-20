@@ -1,22 +1,27 @@
-name: Tastora Weekly
+name: Tastora E2E
 
-# Weekly bridge-node E2E regression suite. Builds the celestia-node image once from the current
-# main source, then fans every Tastora suite out across a matrix so each runs in parallel against
-# that image and reports its own pass/fail. Keeping the node image matched to the test code means
-# tests coupled to node behaviour are validated reliably (unlike testing a separately published
-# image, which lags the source). Release-image validation lives elsewhere.
+# Bridge-node E2E regression suite, gated on PRs marked ready for review. Builds the celestia-node
+# image once from the PR's source, then fans every Tastora suite out across a matrix so each runs in
+# parallel against that image and reports its own pass/fail. Keeping the node image matched to the
+# test code means tests coupled to node behaviour are validated reliably (unlike testing a separately
+# published image, which lags the source). Release-image validation lives elsewhere.
 on:
-  schedule:
-    - cron: "0 7 * * 1" # Monday 07:00 UTC
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: read
 
+# One run per PR. A new push (synchronize) cancels the previous in-flight run.
 concurrency:
-  group: tastora-weekly
-  cancel-in-progress: false
+  group: tastora-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_TAG: tastora-ci
@@ -24,12 +29,12 @@ env:
 jobs:
   build-image:
     name: Build node image
+    # Skip draft PRs; only run once ready for review.
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: main
 
       - name: Build node image from source
         run: docker build -t ghcr.io/celestiaorg/celestia-node:${NODE_TAG} .
@@ -45,6 +50,7 @@ jobs:
 
   test:
     name: ${{ matrix.suite }}
+    if: github.event.pull_request.draft == false
     needs: build-image
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -67,8 +73,6 @@ jobs:
           - TestRestartTestSuite
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: main
 
       - uses: actions/setup-go@v7
         with:
