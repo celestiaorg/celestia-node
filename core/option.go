@@ -3,6 +3,8 @@ package core
 import (
 	"time"
 
+	"github.com/ipfs/go-datastore"
+
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -18,6 +20,7 @@ type params struct {
 	availabilityWindow time.Duration
 	archival           bool
 	p2pExchange        libhead.Exchange[*header.ExtendedHeader]
+	publicationStore   datastore.Datastore
 }
 
 func defaultParams() params {
@@ -50,6 +53,15 @@ func WithAvailabilityWindow(window time.Duration) Option {
 func WithArchivalMode() Option {
 	return func(p *params) {
 		p.archival = true
+	}
+}
+
+// WithPublicationJournal enables best-effort durable retries of interrupted live
+// publications within the availability window. Duplicates are possible, and
+// durability follows the Sync guarantees of ds.
+func WithPublicationJournal(ds datastore.Datastore) Option {
+	return func(p *params) {
+		p.publicationStore = ds
 	}
 }
 

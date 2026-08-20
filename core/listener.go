@@ -68,6 +68,11 @@ type blockSource interface {
 // TODO(@vgonkivs): make timeout configurable
 const blockFetchTimeout = 10 * time.Second
 
+const (
+	publicationRetryInterval = 30 * time.Second
+	publicationRetryTimeout  = 10 * time.Second
+)
+
 var (
 	_ Fetcher     = (*BlockFetcher)(nil)
 	_ Fetcher     = (*MultiSource)(nil)
@@ -89,8 +94,11 @@ type Listener struct {
 	availabilityWindow time.Duration
 	archival           bool
 
-	headerBroadcaster libhead.Broadcaster[*header.ExtendedHeader]
-	hashBroadcaster   shrexsub.BroadcastFn
+	headerBroadcaster   libhead.Broadcaster[*header.ExtendedHeader]
+	hashBroadcaster     shrexsub.BroadcastFn
+	publications        *publicationJournal
+	publicationCursor   string
+	publicationSweepEnd string
 
 	metrics *listenerMetrics
 
@@ -125,6 +133,10 @@ func NewListener(
 			return nil, err
 		}
 	}
+	var publications *publicationJournal
+	if p.publicationStore != nil {
+		publications = newPublicationJournal(p.publicationStore)
+	}
 
 	return &Listener{
 		fetcher:            fetcher,
@@ -137,6 +149,7 @@ func NewListener(
 		listenerTimeout:    5 * blocktime,
 		metrics:            metrics,
 		chainID:            p.chainID,
+		publications:       publications,
 	}, nil
 }
 
@@ -189,6 +202,19 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan BlockEvent) {
 	defer log.Info("listener: listening stopped")
 	timeout := time.NewTimer(cl.listenerTimeout)
 	defer timeout.Stop()
+	if cl.publications != nil {
+		// Keep recovery work from delaying new Core block events.
+		retryCtx, cancelRetries := context.WithCancel(ctx)
+		retriesDone := make(chan struct{})
+		go func() {
+			defer close(retriesDone)
+			cl.retryPublications(retryCtx)
+		}()
+		defer func() {
+			cancelRetries()
+			<-retriesDone
+		}()
+	}
 	for {
 		select {
 		case ev, ok := <-sub:
@@ -212,6 +238,19 @@ func (cl *Listener) listen(ctx context.Context, sub <-chan BlockEvent) {
 			return
 		}
 		timeout.Reset(cl.listenerTimeout)
+	}
+}
+
+func (cl *Listener) retryPublications(ctx context.Context) {
+	ticker := time.NewTicker(publicationRetryInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			cl.retryPendingPublications(ctx)
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
@@ -325,6 +364,13 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, ev BlockEvent, b *
 	span.AddEvent("listener: constructed extended header",
 		trace.WithAttributes(attribute.Int("square_size", eh.DAH.SquareSize())),
 	)
+	journaled := cl.publications != nil && !syncing
+	if journaled {
+		err = cl.publications.put(ctx, eh)
+		if err != nil {
+			return fmt.Errorf("saving pending publication: %w", err)
+		}
+	}
 
 	err = storeEDS(ctx, eh, eds, cl.store, cl.availabilityWindow, cl.archival)
 	if err != nil {
@@ -332,30 +378,42 @@ func (cl *Listener) handleNewSignedBlock(ctx context.Context, ev BlockEvent, b *
 	}
 	span.AddEvent("listener: stored square")
 
+	err = cl.broadcast(ctx, eh, syncing)
+	if err == nil && journaled {
+		err = cl.publications.remove(ctx, eh.Height())
+		if err != nil {
+			log.Errorw("listener: removing pending publication", "height", eh.Height(), "err", err)
+		}
+	}
+
+	cl.metrics.blockProcessed(ctx, b.Header.Time)
+	return nil
+}
+
+func (cl *Listener) broadcast(ctx context.Context, eh *header.ExtendedHeader, syncing bool) error {
+	var hashErr error
 	// notify network of new EDS hash only if the announcing source is already
 	// synced (sync state was fetched from it in handleNewBlockEvent)
 	if !syncing {
-		err = cl.hashBroadcaster(ctx, shrexsub.Notification{
+		hashErr = cl.hashBroadcaster(ctx, shrexsub.Notification{
 			DataHash: eh.DataHash.Bytes(),
 			Height:   eh.Height(),
 		})
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if hashErr != nil && !errors.Is(hashErr, context.Canceled) {
 			log.Errorw("listener: broadcasting data hash",
-				"height", b.Header.Height,
-				"datahash", eh.DAH.String(), "err", err)
+				"height", eh.Height(),
+				"datahash", eh.DAH.String(), "err", hashErr)
 		}
 	}
 
 	// broadcast new ExtendedHeader, but if core is still syncing, notify only local subscribers
 	bcastStart := time.Now()
-	err = cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
-	cl.metrics.headerPublished(ctx, time.Since(bcastStart), syncing, err)
-	if err != nil && !errors.Is(err, context.Canceled) {
+	headerErr := cl.headerBroadcaster.Broadcast(ctx, eh, pubsub.WithLocalPublication(syncing))
+	cl.metrics.headerPublished(ctx, time.Since(bcastStart), syncing, headerErr)
+	if headerErr != nil && !errors.Is(headerErr, context.Canceled) {
 		log.Errorw("listener: broadcasting next header",
-			"height", b.Header.Height,
-			"err", err)
+			"height", eh.Height(),
+			"err", headerErr)
 	}
-
-	cl.metrics.blockProcessed(ctx, b.Header.Time)
-	return nil
+	return errors.Join(hashErr, headerErr)
 }
