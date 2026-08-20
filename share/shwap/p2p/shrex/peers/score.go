@@ -8,66 +8,110 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-// Sample is an observed data transfer, reported by the caller of Peer through DoneFunc.
-type Sample struct {
+const (
+	peerStatsCacheSize = 1024
+	defaultPeerScore   = 10 << 20
+	peerScoreAlpha     = 0.25
+	peerScoreDecay     = 0.8
+)
+
+// TransferStats describes a successful data transfer reported through DoneFunc.
+type TransferStats struct {
 	Bytes    int64
 	Duration time.Duration
 }
 
-// scoreboard keeps an EWMA of observed throughput (bytes/s) per peer. It is shared by all pools
-// of a Manager, so a peer keeps its score across datahashes.
-type scoreboard struct {
-	m      sync.Mutex
-	scores *lru.Cache[peer.ID, float64]
-
-	// seed is the score of a peer that has not been measured yet.
-	seed float64
-	// alpha is the weight given to the newest sample.
-	alpha float64
+type peerStat struct {
+	score    float64
+	measured bool
 }
 
-func newScoreboard() (*scoreboard, error) {
-	// scores of evicted peers are simply re-seeded on next observation, so bounding the cache
-	// only costs accuracy for peers we have not talked to in a long time.
-	scores, err := lru.New[peer.ID, float64](1024)
+// peerStats keeps an EWMA of observed throughput (bytes/s) per peer. It is shared by all pools
+// of a Manager, so a peer keeps its score across data hashes.
+type peerStats struct {
+	m      sync.Mutex
+	scores *lru.Cache[peer.ID, peerStat]
+}
+
+func newPeerStats() (*peerStats, error) {
+	// Scores of evicted peers are measured again on their next successful request. Bounding the
+	// cache only costs accuracy for peers we have not talked to in a long time.
+	scores, err := lru.New[peer.ID, peerStat](peerStatsCacheSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return &scoreboard{
+	return &peerStats{
 		scores: scores,
-		// optimistic seed: above the throughput a single peer serves in practice, so an
-		// unmeasured peer wins against measured mediocre ones and gets a chance to prove itself
-		seed: 10 << 20,
-		// adapt over a handful of requests
-		alpha: 0.25,
 	}, nil
 }
 
-// score returns the peer's throughput in bytes/s.
-func (s *scoreboard) score(peerID peer.ID) float64 {
+// score returns the peer's throughput in bytes/s and whether it has been measured.
+func (s *peerStats) score(peerID peer.ID) (float64, bool) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	if score, ok := s.scores.Get(peerID); ok {
-		return score
-	}
-	return s.seed
+	stat, ok := s.scores.Get(peerID)
+	return stat.score, ok && stat.measured
 }
 
-// observe folds the sample into the peer's throughput score.
-func (s *scoreboard) observe(peerID peer.ID, sample Sample) {
-	if sample.Bytes <= 0 || sample.Duration <= 0 {
+// selectPeer returns the better of two peers. A new peer gets one priority selection, then uses
+// defaultPeerScore until the request reports its result.
+func (s *peerStats) selectPeer(first, second peer.ID) peer.ID {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	firstStat, firstKnown := s.scores.Get(first)
+	secondStat, secondKnown := s.scores.Get(second)
+
+	selected := first
+	switch {
+	case firstKnown && !secondKnown:
+		selected = second
+	case firstKnown && secondKnown && secondStat.score > firstStat.score:
+		selected = second
+	}
+
+	selectedKnown := firstKnown
+	if selected == second {
+		selectedKnown = secondKnown
+	}
+	if !selectedKnown {
+		s.scores.Add(selected, peerStat{score: defaultPeerScore})
+	}
+	return selected
+}
+
+// updateStats folds a successful transfer into the peer's throughput score.
+func (s *peerStats) updateStats(peerID peer.ID, stats TransferStats) {
+	if stats.Bytes <= 0 || stats.Duration <= 0 {
 		return
 	}
-	rate := float64(sample.Bytes) / sample.Duration.Seconds()
+	rate := float64(stats.Bytes) / stats.Duration.Seconds()
 
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	prev, ok := s.scores.Get(peerID)
-	if !ok {
-		prev = s.seed
+	if !ok || !prev.measured {
+		s.scores.Add(peerID, peerStat{score: rate, measured: true})
+		return
 	}
-	s.scores.Add(peerID, prev+s.alpha*(rate-prev))
+	prev.score += peerScoreAlpha * (rate - prev.score)
+	s.scores.Add(peerID, prev)
+}
+
+// decreaseScore lowers a peer's score after a failed request. An unmeasured peer starts from
+// defaultPeerScore so one failing peer cannot remain permanently preferred for exploration.
+func (s *peerStats) decreaseScore(peerID peer.ID) {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	stat, ok := s.scores.Get(peerID)
+	if !ok {
+		stat.score = defaultPeerScore
+	}
+	stat.score *= peerScoreDecay
+	stat.measured = true
+	s.scores.Add(peerID, stat)
 }

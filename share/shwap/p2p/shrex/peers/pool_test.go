@@ -12,9 +12,9 @@ import (
 func newTestPool(t *testing.T, peerCooldownTime time.Duration) *pool {
 	t.Helper()
 
-	scores, err := newScoreboard()
+	stats, err := newPeerStats()
 	require.NoError(t, err)
-	return newPool(peerCooldownTime, scores)
+	return newPool(peerCooldownTime, stats)
 }
 
 func TestPool(t *testing.T) {
@@ -44,8 +44,8 @@ func TestPool(t *testing.T) {
 		p := newTestPool(t, time.Second)
 		p.add("fast", "slow")
 
-		p.scores.observe("fast", Sample{Bytes: 100 << 20, Duration: time.Second})
-		p.scores.observe("slow", Sample{Bytes: 1 << 10, Duration: time.Second})
+		p.stats.updateStats("fast", TransferStats{Bytes: 100 << 20, Duration: time.Second})
+		p.stats.updateStats("slow", TransferStats{Bytes: 1 << 10, Duration: time.Second})
 
 		// with two active peers both are always sampled, so the faster one always wins
 		for range 10 {
@@ -55,26 +55,24 @@ func TestPool(t *testing.T) {
 		}
 	})
 
-	t.Run("unmeasured peer wins against measured slow peer", func(t *testing.T) {
+	t.Run("unmeasured peer wins against any measured peer", func(t *testing.T) {
 		p := newTestPool(t, time.Second)
-		p.add("slow", "unmeasured")
+		p.add("fast", "unmeasured")
 
-		p.scores.observe("slow", Sample{Bytes: 1 << 10, Duration: time.Second})
+		p.stats.updateStats("fast", TransferStats{Bytes: 100 << 20, Duration: time.Second})
 
-		for range 10 {
-			peerID, ok := p.tryGet()
-			require.True(t, ok)
-			require.Equal(t, peer.ID("unmeasured"), peerID)
-		}
+		peerID, ok := p.tryGet()
+		require.True(t, ok)
+		require.Equal(t, peer.ID("unmeasured"), peerID)
 	})
 
 	t.Run("does not herd onto the fastest peer", func(t *testing.T) {
 		p := newTestPool(t, time.Second)
 		p.add("fast", "mid1", "mid2", "mid3")
 
-		p.scores.observe("fast", Sample{Bytes: 100 << 20, Duration: time.Second})
+		p.stats.updateStats("fast", TransferStats{Bytes: 100 << 20, Duration: time.Second})
 		for _, mid := range []peer.ID{"mid1", "mid2", "mid3"} {
-			p.scores.observe(mid, Sample{Bytes: 1 << 20, Duration: time.Second})
+			p.stats.updateStats(mid, TransferStats{Bytes: 1 << 20, Duration: time.Second})
 		}
 
 		got := make(map[peer.ID]int)

@@ -19,9 +19,9 @@ type pool struct {
 	cooldown    *timedQueue
 	activeCount int
 
-	// scores ranks peers by observed throughput and is shared with all other pools of the
+	// stats ranks peers by observed throughput and is shared with all other pools of the
 	// same Manager
-	scores *scoreboard
+	stats *peerStats
 
 	hasPeer   bool
 	hasPeerCh chan struct{}
@@ -38,11 +38,11 @@ const (
 )
 
 // newPool returns new empty pool.
-func newPool(peerCooldownTime time.Duration, scores *scoreboard) *pool {
+func newPool(peerCooldownTime time.Duration, stats *peerStats) *pool {
 	p := &pool{
 		peersList:        make([]peer.ID, 0),
 		statuses:         make(map[peer.ID]status),
-		scores:           scores,
+		stats:            stats,
 		hasPeerCh:        make(chan struct{}),
 		cleanupThreshold: defaultCleanupThreshold,
 	}
@@ -52,8 +52,8 @@ func newPool(peerCooldownTime time.Duration, scores *scoreboard) *pool {
 
 // tryGet returns peer along with bool flag indicating success of operation.
 // Peers are selected by power-of-two-choices: two random active peers are sampled and the one
-// with the higher throughput score wins. Sampling instead of always taking the best score keeps
-// concurrent callers from herding onto a single peer.
+// with the higher throughput score wins. Unmeasured peers get priority so every peer can establish
+// a score. Sampling instead of always taking the best score limits herding onto a single peer.
 func (p *pool) tryGet() (peer.ID, bool) {
 	p.m.Lock()
 	defer p.m.Unlock()
@@ -79,10 +79,7 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return first, true
 	}
 
-	if p.scores.score(second) > p.scores.score(first) {
-		return second, true
-	}
-	return first, true
+	return p.stats.selectPeer(first, second), true
 }
 
 // activeFrom returns the first active peer at or after idx, wrapping around the peers list.
