@@ -444,6 +444,7 @@ func (sg *Getter) executeRequest(
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 
 		bytesRead, getErr := req(reqCtx, peer)
+		requestDuration := time.Since(reqStart)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -455,9 +456,12 @@ func (sg *Getter) executeRequest(
 			}
 			// report throughput of verified data only, so a peer can't earn a good score by
 			// serving invalid responses fast
-			setStatus(peers.ResultNoop, peers.Sample{Bytes: bytesRead, Duration: time.Since(reqStart)})
+			setStatus(peers.ResultNoop, peers.TransferStats{Bytes: bytesRead, Duration: requestDuration})
 			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
 			return nil
+		case ctx.Err() != nil:
+			// The caller stopped the request; this says nothing about the peer's health.
+			setStatus(peers.ResultNoop)
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)

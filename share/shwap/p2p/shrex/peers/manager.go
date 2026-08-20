@@ -31,8 +31,8 @@ const (
 	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
 	// method for some time
 	ResultCooldownPeer = "result_cooldown_peer"
-	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
-	// any p2p communication in future by libp2p Gater
+	// ResultBlacklistPeer puts the peer on cooldown. When blacklisting is enabled, the peer is also
+	// disconnected and blocked from future p2p communication by the libp2p connection gater.
 	ResultBlacklistPeer = "result_blacklist_peer"
 
 	// eventbusBufSize is the size of the buffered channel to handle
@@ -80,8 +80,8 @@ type Manager struct {
 	// nodes collects nodes' peer.IDs found via discovery
 	nodes *pool
 
-	// scores ranks peers by observed throughput and is shared by all pools
-	scores *scoreboard
+	// stats ranks peers by observed throughput and is shared by all pools
+	stats *peerStats
 
 	// hashes that are not in the chain, bounded by an LRU to avoid unbounded growth
 	blacklistedHashes *lru.Cache[string, struct{}]
@@ -94,9 +94,9 @@ type Manager struct {
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
-// peer from Peer method. Samples of successful transfers are optional and update the peer's
+// peer from Peer method. Stats from a successful transfer are optional and update the peer's
 // throughput score.
-type DoneFunc func(result, ...Sample)
+type DoneFunc func(result, ...TransferStats)
 
 type syncPool struct {
 	*pool
@@ -126,9 +126,9 @@ func NewManager(
 		return nil, fmt.Errorf("shrex/peer-manager: creating blacklisted hashes cache: %w", err)
 	}
 
-	scores, err := newScoreboard()
+	peerStats, err := newPeerStats()
 	if err != nil {
-		return nil, fmt.Errorf("shrex/peer-manager: creating scoreboard: %w", err)
+		return nil, fmt.Errorf("shrex/peer-manager: creating peer stats: %w", err)
 	}
 
 	s := &Manager{
@@ -137,7 +137,7 @@ func NewManager(
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     blacklistedHashes,
-		scores:                scores,
+		stats:                 peerStats,
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
 		tag:                   tag,
@@ -150,7 +150,7 @@ func NewManager(
 		}
 	}
 
-	s.nodes = newPool(s.params.PeerCooldown, s.scores)
+	s.nodes = newPool(s.params.PeerCooldown, s.stats)
 	return s, nil
 }
 
@@ -293,11 +293,7 @@ func (m *Manager) newPeer(
 }
 
 func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerSource) DoneFunc {
-	return func(result result, samples ...Sample) {
-		for _, sample := range samples {
-			m.scores.observe(peerID, sample)
-		}
-
+	return func(result result, stats ...TransferStats) {
 		log.Debugw("set peer result",
 			"hash", datahash.String(),
 			"peer", peerID.String(),
@@ -306,20 +302,24 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		m.metrics.observeDoneResult(source, result)
 		switch result {
 		case ResultNoop:
+			for _, transfer := range stats {
+				m.stats.updateStats(peerID, transfer)
+			}
 		case ResultCooldownPeer:
-			if source == sourceDiscoveredNodes {
-				m.nodes.putOnCooldown(peerID)
-				return
-			}
-			p := m.getPool(datahash.String())
-			if p == nil {
-				// pool was removed
-				return
-			}
-			p.putOnCooldown(peerID)
+			m.stats.decreaseScore(peerID)
+			m.putOnCooldown(datahash, peerID)
 		case ResultBlacklistPeer:
+			m.putOnCooldown(datahash, peerID)
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
+	}
+}
+
+// putOnCooldown makes a peer unavailable in both places it can be selected from.
+func (m *Manager) putOnCooldown(datahash share.DataHash, peerID peer.ID) {
+	m.nodes.putOnCooldown(peerID)
+	if p := m.getPool(datahash.String()); p != nil {
+		p.putOnCooldown(peerID)
 	}
 }
 
@@ -429,7 +429,7 @@ func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	if !ok {
 		p = &syncPool{
 			height:    height,
-			pool:      newPool(m.params.PeerCooldown, m.scores),
+			pool:      newPool(m.params.PeerCooldown, m.stats),
 			createdAt: time.Now(),
 		}
 		m.pools[datahash] = p
