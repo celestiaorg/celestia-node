@@ -74,7 +74,16 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 			sc.runWorker(ctx, next)
 		}
 
+		var retryDeadline <-chan time.Time
+		if !sc.concurrencyLimitReached() {
+			if after, found := sc.state.nextRetryTime(); found {
+				retryDeadline = time.After(time.Until(after))
+			}
+		}
+
 		select {
+		case <-retryDeadline:
+			// Check for retries that have reached their deadline.
 		case head := <-sc.updHeadCh:
 			if sc.state.isNewHead(head.Height()) {
 				if !sc.recentJobsLimitReached() {
