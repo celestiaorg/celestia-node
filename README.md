@@ -124,9 +124,16 @@ make light-mocha-up CORE_IP=<ip>     # Use custom core IP
 
 ## Environment variables
 
-| Variable                | Explanation                         | Default value | Required |
-| ----------------------- | ----------------------------------- | ------------- | -------- |
-| `CELESTIA_BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
+| Variable                                | Explanation                                                                                        | Default value                    | Required |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------- | -------- |
+| `CELESTIA_BOOTSTRAPPER`                 | Start the node in bootstrapper mode                                                                | `false`                          | Optional |
+| `CELESTIA_HOME`                         | Override the node store path, bypassing the default `<node type>/<network>` layout                 | derived from node type & network | Optional |
+| `CELESTIA_CUSTOM`                       | Join a custom network instead of a well-known one                                                  | unset                            | Optional |
+| `CELESTIA_TLS_PATH`                     | Directory holding `cert.pem` and `key.pem`; enables TLS for the RPC server when set                | unset (TLS disabled)             | Optional |
+| `CELESTIA_OVERRIDE_AVAILABILITY_WINDOW` | Override the sampling availability window, as a Go duration (e.g. `720h`)                          | unset (uses the built-in window) | Optional |
+| `CELESTIA_BITSWAP_DISABLE_POOLING`      | Set to `1` to disable bitswap session pooling                                                      | unset                            | Optional |
+| `CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS`| Set to `1` to lift shrex resource-manager limits. For debugging and testing; not for production     | unset                            | Optional |
+| `CELESTIA_SHREX_DISABLE_RATE_LIMITING`  | Set to `1` to disable the per-IP shrex rate limiter. For debugging and testing; not for production  | unset                            | Optional |
 
 ## Package-specific documentation
 
