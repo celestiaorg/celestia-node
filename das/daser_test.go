@@ -2,6 +2,7 @@ package das
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -104,6 +105,43 @@ func TestDASer_Restart(t *testing.T) {
 	assert.EqualValues(t, 60, checkpoint.SampleFrom-1)
 }
 
+func TestDASer_StartFailureAllowsRetry(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("checkpoint", func(t *testing.T) {
+		checkpointErr := errors.New("checkpoint failed")
+		daser, err := NewDASer(
+			mocks.NewMockAvailability(gomock.NewController(t)),
+			new(headertest.Subscriber),
+			errorTailStore{err: checkpointErr},
+			ds_sync.MutexWrap(datastore.NewMapDatastore()),
+		)
+		require.NoError(t, err)
+
+		for range 2 {
+			require.ErrorIs(t, daser.Start(ctx), checkpointErr)
+		}
+		require.NoError(t, daser.Stop(ctx))
+	})
+
+	t.Run("subscription", func(t *testing.T) {
+		getter, _ := createDASerSubcomponents(t, 1, 0)
+		subscribeErr := errors.New("subscribe failed")
+		daser, err := NewDASer(
+			mocks.NewMockAvailability(gomock.NewController(t)),
+			errorSubscriber{err: subscribeErr},
+			getter,
+			ds_sync.MutexWrap(datastore.NewMapDatastore()),
+		)
+		require.NoError(t, err)
+
+		for range 2 {
+			require.ErrorIs(t, daser.Start(ctx), subscribeErr)
+		}
+		require.NoError(t, daser.Stop(ctx))
+	})
+}
+
 func TestDASerSampleTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
@@ -193,6 +231,27 @@ func (m benchGetterStub) GetByHeight(context.Context, uint64) (*header.ExtendedH
 }
 
 type getterStub struct{}
+
+type errorTailStore struct {
+	libhead.Store[*header.ExtendedHeader]
+	err error
+}
+
+func (s errorTailStore) Tail(context.Context) (*header.ExtendedHeader, error) {
+	return nil, s.err
+}
+
+type errorSubscriber struct {
+	err error
+}
+
+func (s errorSubscriber) Subscribe() (libhead.Subscription[*header.ExtendedHeader], error) {
+	return nil, s.err
+}
+
+func (errorSubscriber) SetVerifier(func(context.Context, *header.ExtendedHeader) error) error {
+	return nil
+}
 
 func (m getterStub) Head(
 	context.Context,
