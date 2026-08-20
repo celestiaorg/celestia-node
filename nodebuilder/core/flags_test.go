@@ -44,6 +44,22 @@ func TestParseFlags(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "only core.ip IPv6",
+			args: []string{"--core.ip=::1"},
+			inputCfg: Config{
+				EndpointConfig: EndpointConfig{
+					Port: DefaultPort,
+				},
+			},
+			expectedCfg: Config{
+				EndpointConfig: EndpointConfig{
+					IP:   "::1",
+					Port: DefaultPort,
+				},
+			},
+			expectError: false,
+		},
+		{
 			name:     "only core.ip, empty port values",
 			args:     []string{"--core.ip=127.0.0.1"},
 			inputCfg: Config{},
