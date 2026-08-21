@@ -75,12 +75,20 @@ func ReadShares(r io.Reader, shareSize, odsSize int) ([]libshare.Share, error) {
 
 // fillRow parses buf into the given row of shares. The shares alias buf, so it must not be reused.
 func fillRow(shares []libshare.Share, buf []byte, row, shareSize, odsSize int) error {
-	for i := 0; i*shareSize < len(buf); i++ {
+	if len(buf)%shareSize != 0 {
+		return fmt.Errorf("row buffer of %d bytes is not share-aligned (share size %d)", len(buf), shareSize)
+	}
+	nShares := len(buf) / shareSize
+	start := row * odsSize
+	if row < 0 || start+nShares > len(shares) {
+		return fmt.Errorf("row %d writes shares [%d:%d) out of %d", row, start, start+nShares, len(shares))
+	}
+	for i := range nShares {
 		sh, err := libshare.NewShare(buf[i*shareSize : (i+1)*shareSize])
 		if err != nil {
 			return err
 		}
-		shares[row*odsSize+i] = sh
+		shares[start+i] = sh
 	}
 	return nil
 }

@@ -243,7 +243,10 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 	if err != nil {
 		return nil, err
 	}
-	return response.eds.ExtendedDataSquare, err
+	if response.eds == nil {
+		return nil, errors.New("shrex/eds: verified response missing reconstructed square")
+	}
+	return response.eds.ExtendedDataSquare, nil
 }
 
 func (sg *Getter) GetNamespaceData(
