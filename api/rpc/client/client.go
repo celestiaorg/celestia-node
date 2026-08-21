@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/filecoin-project/go-jsonrpc"
 
@@ -40,6 +41,7 @@ type Client struct {
 // multiClientCloser is a wrapper struct to close clients across multiple namespaces.
 type multiClientCloser struct {
 	closers []jsonrpc.ClientCloser
+	once    sync.Once
 }
 
 // register adds a new closer to the multiClientCloser
@@ -49,12 +51,14 @@ func (m *multiClientCloser) register(closer jsonrpc.ClientCloser) {
 
 // closeAll closes all saved clients.
 func (m *multiClientCloser) closeAll() {
-	for _, closer := range m.closers {
-		closer()
-	}
+	m.once.Do(func() {
+		for _, closer := range m.closers {
+			closer()
+		}
+	})
 }
 
-// Close closes the connections to all namespaces registered on the staticClient.
+// Close closes the connections to all namespaces registered on the client.
 func (c *Client) Close() {
 	c.closer.closeAll()
 }
@@ -70,14 +74,14 @@ func NewClient(ctx context.Context, addr, token string) (*Client, error) {
 }
 
 func newClient(ctx context.Context, addr string, authHeader http.Header) (*Client, error) {
-	var multiCloser multiClientCloser
 	var client Client
 	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
 		if err != nil {
+			client.Close()
 			return nil, err
 		}
-		multiCloser.register(closer)
+		client.closer.register(closer)
 	}
 
 	return &client, nil
