@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/require"
+
+	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
 func TestRowsWithNamespace(t *testing.T) {
