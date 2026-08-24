@@ -1,7 +1,6 @@
 package shrex_getter
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -220,10 +219,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		return nil, err
 	}
 
-	var (
-		buff     = bytes.NewBuffer(make([]byte, 0))
-		response = &eds.Rsmt2D{}
-	)
+	response := &edsResponse{odsSize: len(header.DAH.RowRoots) / 2}
 
 	logger := log.With(
 		"source", "shrex_getter",
@@ -232,23 +228,25 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 	)
 
 	req := func(ctx context.Context, peer libpeer.ID) error {
-		buff.Reset()
-		return sg.client.Get(ctx, &request, buff, peer)
+		response.shares = nil
+		return sg.client.Get(ctx, &request, response, peer)
 	}
 
 	build := func() error {
-		if buff.Len() == 0 {
+		if response.shares == nil {
 			return errors.New("nil response")
 		}
-		response, err = eds.ReadAccessor(ctx, buff, header.DAH)
-		return err
+		return response.verify(ctx, header.DAH)
 	}
 
 	err = sg.executeRequest(ctx, logger, header, request.Name(), req, build)
 	if err != nil {
 		return nil, err
 	}
-	return response.ExtendedDataSquare, err
+	if response.eds == nil {
+		return nil, errors.New("shrex/eds: verified response missing reconstructed square")
+	}
+	return response.eds.ExtendedDataSquare, nil
 }
 
 func (sg *Getter) GetNamespaceData(
