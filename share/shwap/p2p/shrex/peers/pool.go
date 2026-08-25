@@ -70,13 +70,10 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return first, true
 	}
 
-	second, _, ok := p.activeFrom(rand.IntN(len(p.peersList))) //nolint:gosec
+	second, _, _ := p.activeFrom(rand.IntN(len(p.peersList))) //nolint:gosec
 	if second == first {
 		// both draws landed on the same peer, take the next active one instead
-		second, _, ok = p.activeFrom(idx + 1)
-	}
-	if !ok {
-		return first, true
+		second, _, _ = p.activeFrom(idx + 1)
 	}
 
 	return p.stats.selectPeer(first, second), true
