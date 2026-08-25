@@ -68,6 +68,32 @@ func TestManager(t *testing.T) {
 		require.Zero(t, manager.pools[hash.String()].len())
 	})
 
+	t.Run("cooldown without penalty preserves score", func(t *testing.T) {
+		stats, err := newPeerStats()
+		require.NoError(t, err)
+
+		hash := share.DataHash{1}
+		manager := &Manager{
+			stats: stats,
+			nodes: newPool(time.Hour, stats),
+			pools: map[string]*syncPool{
+				hash.String(): {pool: newPool(time.Hour, stats)},
+			},
+		}
+		manager.nodes.add("peer1")
+		manager.pools[hash.String()].add("peer1")
+		transfer := TransferStats{Bytes: 100 << 20, Duration: time.Second}
+		stats.updateStats("peer1", transfer)
+
+		manager.doneFunc(hash, "peer1", sourceDiscoveredNodes)(ResultCooldownPeerNoPenalty)
+
+		score, measured := stats.score("peer1")
+		require.True(t, measured)
+		require.Equal(t, float64(transfer.Bytes), score)
+		require.Zero(t, manager.nodes.len())
+		require.Zero(t, manager.pools[hash.String()].len())
+	})
+
 	t.Run("Verify pool by headerSub", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		t.Cleanup(cancel)

@@ -31,6 +31,8 @@ const (
 	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
 	// method for some time
 	ResultCooldownPeer = "result_cooldown_peer"
+	// ResultCooldownPeerNoPenalty puts the returned peer on cooldown without decreasing its score.
+	ResultCooldownPeerNoPenalty = "result_cooldown_peer_no_penalty"
 	// ResultBlacklistPeer puts the peer on cooldown. When blacklisting is enabled, the peer is also
 	// disconnected and blocked from future p2p communication by the libp2p connection gater.
 	ResultBlacklistPeer = "result_blacklist_peer"
@@ -307,6 +309,8 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 			}
 		case ResultCooldownPeer:
 			m.stats.decreaseScore(peerID)
+			m.putOnCooldown(datahash, peerID)
+		case ResultCooldownPeerNoPenalty:
 			m.putOnCooldown(datahash, peerID)
 		case ResultBlacklistPeer:
 			m.putOnCooldown(datahash, peerID)

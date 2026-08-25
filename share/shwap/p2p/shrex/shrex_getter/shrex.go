@@ -465,7 +465,7 @@ func (sg *Getter) executeRequest(
 			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, shrex.ErrNotFound):
 			getErr = shwap.ErrNotFound
-			setStatus(peers.ResultCooldownPeer)
+			setStatus(peers.ResultCooldownPeerNoPenalty)
 		case errors.Is(getErr, shrex.ErrResourceExhausted):
 			// peer is temporarily overloaded, not misbehaving; put it on cooldown so
 			// the peer manager won't hand it out again until it has had time to recover,
