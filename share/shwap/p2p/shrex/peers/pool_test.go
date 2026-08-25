@@ -55,6 +55,19 @@ func TestPool(t *testing.T) {
 		}
 	})
 
+	t.Run("finds second active peer", func(t *testing.T) {
+		p := newTestPool(t, time.Second)
+		p.add("peer1", "peer2")
+
+		first, idx, ok := p.activeFrom(0)
+		require.True(t, ok)
+
+		second, _, ok := p.activeFrom(idx + 1)
+		require.True(t, ok)
+		require.NotEmpty(t, second)
+		require.NotEqual(t, first, second)
+	})
+
 	t.Run("unmeasured peer wins against any measured peer", func(t *testing.T) {
 		p := newTestPool(t, time.Second)
 		p.add("fast", "unmeasured")
