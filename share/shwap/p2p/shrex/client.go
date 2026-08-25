@@ -51,13 +51,13 @@ func (c *Client) WithMetrics() error {
 	return nil
 }
 
-// Get requests data from the given peer and returns the amount of bytes received.
+// Get requests data from the given peer and returns the received byte count and payload-read duration.
 func (c *Client) Get(
 	ctx context.Context,
 	req request,
 	resp response,
 	peer peer.ID,
-) (int64, error) {
+) (int64, time.Duration, error) {
 	logger := log.With(
 		"source", "client",
 		"name", req.Name(),
@@ -65,7 +65,7 @@ func (c *Client) Get(
 		"peer", peer.String(),
 	)
 	requestTime := time.Now()
-	n, status, err := c.doRequest(ctx, logger, req, resp, peer)
+	n, payloadDuration, status, err := c.doRequest(ctx, logger, req, resp, peer)
 	// Surface ctx.Err() without masking typed wire errors like ErrNotFound.
 	if err != nil && ctx.Err() != nil {
 		err = errors.Join(err, ctx.Err())
@@ -78,7 +78,7 @@ func (c *Client) Get(
 		"status", status, "duration",
 		time.Since(requestTime), "total bytes received", n,
 	)
-	return n, err
+	return n, payloadDuration, err
 }
 
 // doRequest performs a request to the given peer
@@ -89,7 +89,7 @@ func (c *Client) doRequest(
 	req request,
 	resp response,
 	peer peer.ID,
-) (int64, status, error) {
+) (int64, time.Duration, status, error) {
 	streamOpenCtx, cancel := context.WithTimeout(ctx, streamOpenTimeout)
 	defer cancel()
 
@@ -102,9 +102,9 @@ func (c *Client) doRequest(
 	stream, err := c.host.NewStream(streamOpenCtx, peer, ProtocolID(c.params.NetworkID(), req.Name()))
 	if err != nil {
 		if isResourceExhausted(err) {
-			return 0, statusResourceExhaustedErr, ErrResourceExhausted
+			return 0, 0, statusResourceExhaustedErr, ErrResourceExhausted
 		}
-		return 0, statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
+		return 0, 0, statusOpenStreamErr, fmt.Errorf("open stream: %w", err)
 	}
 	defer func() {
 		utils.CloseAndLog(log, "shrex/client stream", stream)
@@ -121,7 +121,7 @@ func (c *Client) doRequest(
 
 	_, err = req.WriteTo(stream)
 	if err != nil {
-		return 0, statusSendReqErr, fmt.Errorf("writing request: %w", err)
+		return 0, 0, statusSendReqErr, fmt.Errorf("writing request: %w", err)
 	}
 	span.AddEvent("wrote request to stream")
 
@@ -134,9 +134,10 @@ func (c *Client) doRequest(
 	statusLength, err := serde.Read(stream, &statusResp)
 	if err != nil {
 		if isResourceExhausted(err) {
-			return int64(statusLength), statusResourceExhaustedErr, ErrResourceExhausted
+			return int64(statusLength), 0, statusResourceExhaustedErr, ErrResourceExhausted
 		}
 		return int64(statusLength),
+			0,
 			statusReadStatusErr,
 			fmt.Errorf("unexpected error during reading the status from stream: %w", err)
 	}
@@ -146,16 +147,18 @@ func (c *Client) doRequest(
 	case shrexpb.Status_OK:
 	case shrexpb.Status_NOT_FOUND:
 		err = ErrNotFound
-		return int64(statusLength), statusNotFound, err
+		return int64(statusLength), 0, statusNotFound, err
 	case shrexpb.Status_INTERNAL:
 		err = ErrInternalServer
-		return int64(statusLength), statusInternalErr, err
+		return int64(statusLength), 0, statusInternalErr, err
 	default:
 		err = ErrInvalidRequest
-		return int64(statusLength), statusReadRespErr, err
+		return int64(statusLength), 0, statusReadRespErr, err
 	}
 
+	payloadStart := time.Now()
 	bytesRead, err := resp.ReadFrom(stream)
+	payloadDuration := time.Since(payloadStart)
 	st := statusSuccess
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrInvalidResponse, err)
@@ -164,7 +167,7 @@ func (c *Client) doRequest(
 
 	span.AddEvent("read response from stream",
 		trace.WithAttributes(attribute.Int64("size", bytesRead)))
-	return int64(statusLength) + bytesRead, st, err
+	return int64(statusLength) + bytesRead, payloadDuration, st, err
 }
 
 func (c *Client) setStreamDeadlines(ctx context.Context, logger *zap.SugaredLogger, stream network.Stream) {

@@ -517,7 +517,7 @@ func TestShrexGetter(t *testing.T) {
 
 func TestGetter_PrefersHigherThroughputPeer(t *testing.T) {
 	test := newPeerScoringTest(t)
-	test.slow.delay = 30 * time.Millisecond
+	test.slow.payloadDelay = 30 * time.Millisecond
 
 	// The first two requests give each unmeasured peer one request to establish its score.
 	test.getEDS(t)
@@ -534,7 +534,7 @@ func TestGetter_PrefersHigherThroughputPeer(t *testing.T) {
 
 func TestGetter_FallsBackWhenPreferredPeerDegrades(t *testing.T) {
 	test := newPeerScoringTest(t)
-	test.slow.delay = 30 * time.Millisecond
+	test.slow.payloadDelay = 30 * time.Millisecond
 	test.getEDS(t)
 	test.getEDS(t)
 
@@ -558,7 +558,7 @@ func TestGetter_FallsBackWhenPreferredPeerDegrades(t *testing.T) {
 
 func TestGetter_InvalidResponseUsesTemporaryCooldown(t *testing.T) {
 	test := newPeerScoringTest(t)
-	test.slow.delay = 30 * time.Millisecond
+	test.slow.payloadDelay = 30 * time.Millisecond
 	test.getEDS(t)
 	test.getEDS(t)
 
@@ -681,39 +681,40 @@ func (test *peerScoringTest) edsProtocol(t *testing.T) protocol.ID {
 type observedStore struct {
 	store.AccessorGetter
 
-	delay    time.Duration
-	requests atomic.Int64
-	corrupt  atomic.Bool
+	payloadDelay time.Duration
+	requests     atomic.Int64
+	corrupt      atomic.Bool
 }
 
 func (s *observedStore) GetByHeight(ctx context.Context, height uint64) (eds.AccessorStreamer, error) {
 	s.requests.Add(1)
-	if s.delay > 0 {
-		timer := time.NewTimer(s.delay)
-		defer timer.Stop()
-		select {
-		case <-timer.C:
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-
 	accessor, err := s.AccessorGetter.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
-	return observedAccessor{AccessorStreamer: accessor, corrupt: &s.corrupt}, nil
+	return observedAccessor{
+		AccessorStreamer: accessor,
+		payloadDelay:     s.payloadDelay,
+		corrupt:          &s.corrupt,
+	}, nil
 }
 
 type observedAccessor struct {
 	eds.AccessorStreamer
-	corrupt *atomic.Bool
+	payloadDelay time.Duration
+	corrupt      *atomic.Bool
 }
 
 func (a observedAccessor) Reader() (io.Reader, error) {
 	reader, err := a.AccessorStreamer.Reader()
-	if err != nil || !a.corrupt.Load() {
+	if err != nil {
 		return reader, err
+	}
+	if a.payloadDelay > 0 {
+		reader = &delayedReader{Reader: reader, delay: a.payloadDelay}
+	}
+	if !a.corrupt.Load() {
+		return reader, nil
 	}
 
 	data, err := io.ReadAll(reader)
@@ -722,6 +723,20 @@ func (a observedAccessor) Reader() (io.Reader, error) {
 	}
 	data[0] ^= 0xFF
 	return bytes.NewReader(data), nil
+}
+
+type delayedReader struct {
+	io.Reader
+	delay   time.Duration
+	delayed bool
+}
+
+func (r *delayedReader) Read(data []byte) (int, error) {
+	if !r.delayed {
+		time.Sleep(r.delay)
+		r.delayed = true
+	}
+	return r.Reader.Read(data)
 }
 
 func newStore(t *testing.T) (*store.Store, error) {

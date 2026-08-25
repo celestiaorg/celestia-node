@@ -2,6 +2,7 @@ package shrex
 
 import (
 	"context"
+	"io"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		id, err := shwap.NewNamespaceDataID(height, namespace)
 		data := shwap.NamespaceData{}
 		require.NoError(t, err)
-		_, err = client.Get(ctx, &id, &data, server.host.ID())
+		_, _, err = client.Get(ctx, &id, &data, server.host.ID())
 		require.ErrorIs(t, err, ErrNotFound)
 	})
 
@@ -59,8 +60,10 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 		data := shwap.NamespaceData{}
 		require.NoError(t, err)
 
-		_, err = client.Get(ctx, &id, &data, server.host.ID())
+		resp := delayedResponse{ReaderFrom: &data, delay: 20 * time.Millisecond}
+		_, payloadDuration, err := client.Get(ctx, &id, &resp, server.host.ID())
 		require.NoError(t, err)
+		require.GreaterOrEqual(t, payloadDuration, resp.delay)
 		require.Empty(t, data.Flatten())
 	})
 }
@@ -94,7 +97,7 @@ func TestClient_AbortsOnCtxCancel(t *testing.T) {
 
 	result := make(chan error, 1)
 	go func() {
-		_, err := client.Get(ctx, &id, &shwap.NamespaceData{}, hosts[1].ID())
+		_, _, err := client.Get(ctx, &id, &shwap.NamespaceData{}, hosts[1].ID())
 		result <- err
 	}()
 
@@ -112,6 +115,16 @@ func TestClient_AbortsOnCtxCancel(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("client did not return promptly after context cancellation")
 	}
+}
+
+type delayedResponse struct {
+	io.ReaderFrom
+	delay time.Duration
+}
+
+func (r *delayedResponse) ReadFrom(reader io.Reader) (int64, error) {
+	time.Sleep(r.delay)
+	return r.ReaderFrom.ReadFrom(reader)
 }
 
 func createMocknet(t *testing.T, amount int) []libhost.Host {

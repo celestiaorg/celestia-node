@@ -131,7 +131,7 @@ func (sg *Getter) GetSamples(
 			"colIndex", request.ShareIndex,
 		)
 		errGroup.Go(func() error {
-			req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
+			req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 				return sg.client.Get(ctx, &request, &samples[i], peer)
 			}
 			verify := func() error {
@@ -183,7 +183,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 		"rowIndex", rowIndex,
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -227,7 +227,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		"hash", header.DAH.String(),
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		response.shares = nil
 		return sg.client.Get(ctx, &request, response, peer)
 	}
@@ -289,7 +289,7 @@ func (sg *Getter) GetNamespaceData(
 		"namespace", namespace.String(),
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -348,7 +348,7 @@ func (sg *Getter) GetRangeNamespaceData(
 		"to", to,
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) (int64, error) {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -395,8 +395,9 @@ func (sg *Getter) getPeer(
 
 // requestFn defines a function type that wraps the actual request logic as a closure.
 // The closure captures additional request parameters and then executes
-// the request with the provided context and peer ID, returning the amount of bytes received.
-type requestFn func(context.Context, libpeer.ID) (int64, error)
+// the request with the provided context and peer ID, returning the received byte count and
+// payload-read duration.
+type requestFn func(context.Context, libpeer.ID) (int64, time.Duration, error)
 
 // handleFn defines a function type that wraps response handling logic as a closure.
 // The closure captures the response data and validation parameters performing the verification.
@@ -441,8 +442,7 @@ func (sg *Getter) executeRequest(
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 
-		bytesRead, getErr := req(reqCtx, peer)
-		requestDuration := time.Since(reqStart)
+		bytesRead, payloadDuration, getErr := req(reqCtx, peer)
 		cancel()
 		switch {
 		case getErr == nil:
@@ -454,7 +454,7 @@ func (sg *Getter) executeRequest(
 			}
 			// report throughput of verified data only, so a peer can't earn a good score by
 			// serving invalid responses fast
-			setStatus(peers.ResultNoop, peers.TransferStats{Bytes: bytesRead, Duration: requestDuration})
+			setStatus(peers.ResultNoop, peers.TransferStats{Bytes: bytesRead, Duration: payloadDuration})
 			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
 			return nil
 		case ctx.Err() != nil:
