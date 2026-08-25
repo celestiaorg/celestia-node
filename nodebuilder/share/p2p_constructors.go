@@ -127,8 +127,12 @@ func archivalDiscoveryAndPeerManager(cfg *Config) fx.Option {
 				discOpts = append(discOpts, discOpt)
 			}
 
+			// archival peers are a small subset of the network, so we limit
+			// the number of peers to discover to 5
+			archivalParams := limitArchivalPeers(*cfg.Discovery)
+
 			archivalDisc, err := discovery.NewDiscovery(
-				cfg.Discovery,
+				&archivalParams,
 				h,
 				disc,
 				archivalNodesTag,
@@ -146,6 +150,11 @@ func archivalDiscoveryAndPeerManager(cfg *Config) fx.Option {
 			managers := map[string]*peers.Manager{fullNodesTag: fullManager, archivalNodesTag: archivalPeerManager}
 			return managers, []*discovery.Discovery{fullDisc, archivalDisc}, nil
 		})
+}
+
+func limitArchivalPeers(params discovery.Parameters) discovery.Parameters {
+	params.PeersLimit = min(params.PeersLimit, 5)
+	return params
 }
 
 func routingDiscovery(dht *dht.IpfsDHT) p2pdisc.Discovery {
