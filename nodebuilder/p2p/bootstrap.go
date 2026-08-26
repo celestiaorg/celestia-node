@@ -49,11 +49,8 @@ var bootstrapList = map[Network][]string{
 		"/dnsaddr/celestia-mainnet-boot.01node.com/p2p/12D3KooWJ77n9mC9xpKHeoEc49UkP4M5EixcPoKf5Xb1tsHo99P7",
 	},
 	Mocha: {
-		"/dnsaddr/da-bootstrapper-1-mocha-4.celestia-mocha.com/p2p/12D3KooWCBAbQbJSpCpCGKzqz3rAN4ixYbc63K68zJg9aisuAajg",
-		"/dnsaddr/da-bootstrapper-2-mocha-4.celestia-mocha.com/p2p/12D3KooWCUHPLqQXZzpTx1x3TAsdn3vYmTNDhzg66yG8hqoxGGN8",
-		"/dnsaddr/mocha-boot.pops.one/p2p/12D3KooWDzNyDSvTBdKQAmnsUdAyQCQWwM3ReXTmPaaf6LzfNwRs",
-		"/dnsaddr/celestia-mocha.qubelabs.io/p2p/12D3KooWQVmHy7JpfxpKZfLjvn12GjvMgKrWdsHkFbV2kKqQFBCG",
-		"/dnsaddr/celestia-testnet-boot.01node.com/p2p/12D3KooWR923Tc8SCzweyaGZ5VU2ahyS9VWrQ8mDz56RbHjHFdzW",
+		"/dns4/da-bootstrapper-1.celestia-mocha.com/tcp/2121/p2p/12D3KooWPHgLgPTtPjuKtZjXbZRiUSVMvFpqek8T1we93auG3uoK",
+		"/dns4/da-bootstrapper-2.celestia-mocha.com/tcp/2121/p2p/12D3KooWRmUch5JsfLgkDrhEGu8rSCeTP2nJvGPygkqRUWfqiAJ4",
 	},
 	Private: {},
 }
