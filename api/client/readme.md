@@ -42,7 +42,7 @@ cfg := client.Config{
     },
     SubmitConfig: client.SubmitConfig{
         DefaultKeyName: "my_key",
-        Network:        "mocha-4",
+        Network:        "mocha-5",
         CoreGRPCConfig: client.CoreGRPCConfig{
             Addr:       "celestia-consensus.example.com:9090",
             TLSEnabled: true,
@@ -111,7 +111,7 @@ balance, err := celestiaClient.State.Balance(ctx)
 ### SubmitConfig
 
 - `DefaultKeyName`: Default key to use for transactions
-- `Network`: Network name (e.g., "mocha-4", "private")
+- `Network`: Network name (e.g., "mocha-5", "private")
 - `CoreGRPCConfig`: Configuration for Core node connection
 - `TxWorkerAccounts`: (Optional) Number of worker accounts for transaction submission. Default: 0
   - Value of 0 submits transactions immediately (without a submission queue)
