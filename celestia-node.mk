@@ -51,7 +51,7 @@ check-and-fund:
 		echo "Balance too low. Requesting funds from faucet..."; \
 		curl -X POST 'https://faucet.celestia-arabica-11.com/api/v1/faucet/give_me' \
 			-H 'Content-Type: application/json' \
-			-d '{"address": "'$$address'", "chainId": "mocha-5" }'; \
+			-d '{"address": "'$$address'", "chainId": "arabica-11" }'; \
 		echo "Waiting 10 seconds for transaction to process..."; \
 		sleep 10; \
 	fi
@@ -66,7 +66,7 @@ reset-node:
 	latest_hash=$$(echo $$block_response | jq -r '.result.block_id.hash'); \
 	echo "Latest block height: $$latest_block"; \
 	echo "Latest block hash: $$latest_hash"; \
-	config_file="$$HOME/.celestia-light-mocha-5/config.toml"; \
+	config_file="$$HOME/.celestia-light-arabica-11/config.toml"; \
 	echo "Updating config.toml..."; \
 	sed -i.bak -e "s/\(TrustedHash[[:space:]]*=[[:space:]]*\).*/\1\"$$latest_hash\"/" \
 		   -e "s/\(SampleFrom[[:space:]]*=[[:space:]]*\).*/\1$$latest_block/" \
@@ -74,9 +74,9 @@ reset-node:
 	echo "Configuration updated successfully"
 
 # Start the Celestia light node
-# Usage: make light-mocha-up [COMMAND=again] [CORE_IP=custom_ip]
-light-mocha-up:
-	@config_file="$$HOME/.celestia-light-mocha-5/config.toml"; \
+# Usage: make light-arabica-up [COMMAND=again] [CORE_IP=custom_ip]
+light-arabica-up:
+	@config_file="$$HOME/.celestia-light-arabica-11/config.toml"; \
 	if [ "$(COMMAND)" = "again" ]; then \
 		$(MAKE) reset-node; \
 	fi; \
@@ -97,7 +97,7 @@ light-mocha-up:
 			--p2p.network arabica; \
 	else \
 		celestia light start \
-			--core.ip consensus.celestia-mocha.com \
+			--core.ip validator-1.celestia-arabica-11.com \
 			--core.port $(if $(CORE_PORT),$(CORE_PORT),9090) \
 			--rpc.skip-auth \
 			--rpc.addr 0.0.0.0 \

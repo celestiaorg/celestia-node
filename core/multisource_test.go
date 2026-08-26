@@ -175,10 +175,10 @@ func TestMultiSource_ChainID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("first source responds", func(t *testing.T) {
-		ms := newMultiSource(tagged("a", &fakeSource{chainID: "mocha-5"}))
+		ms := newMultiSource(tagged("a", &fakeSource{chainID: "arabica-11"}))
 		id, err := ms.ChainID(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "mocha-5", id)
+		assert.Equal(t, "arabica-11", id)
 	})
 
 	t.Run("falls back past a failing source", func(t *testing.T) {
@@ -303,7 +303,7 @@ func TestMultiSource_Verify(t *testing.T) {
 	t.Run("wrong-chain source is pruned, others kept", func(t *testing.T) {
 		ms := newMultiSource(
 			tagged("good", &fakeSource{chainID: "mocha-5"}),
-			tagged("bad", &fakeSource{chainID: "celestia"}),
+			tagged("bad", &fakeSource{chainID: "arabica-11"}),
 		)
 		require.NoError(t, ms.Verify(ctx, "mocha-5"))
 		require.Len(t, ms.sources, 1)
@@ -384,9 +384,9 @@ func TestMultiSource_SingleSource(t *testing.T) {
 	t.Run("chainID passthrough", func(t *testing.T) {
 		ctx := context.Background()
 
-		id, err := newMultiSource(tagged("only", &fakeSource{chainID: "mocha-5"})).ChainID(ctx)
+		id, err := newMultiSource(tagged("only", &fakeSource{chainID: "arabica-11"})).ChainID(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "mocha-5", id)
+		assert.Equal(t, "arabica-11", id)
 
 		_, err = newMultiSource(tagged("only", &fakeSource{chainIDErr: errors.New("down")})).ChainID(ctx)
 		require.Error(t, err, "a failing single source must surface as an error, like the bare fetcher")
