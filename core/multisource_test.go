@@ -175,20 +175,20 @@ func TestMultiSource_ChainID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("first source responds", func(t *testing.T) {
-		ms := newMultiSource(tagged("a", &fakeSource{chainID: "arabica-11"}))
+		ms := newMultiSource(tagged("a", &fakeSource{chainID: "mocha-5"}))
 		id, err := ms.ChainID(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "arabica-11", id)
+		assert.Equal(t, "mocha-5", id)
 	})
 
 	t.Run("falls back past a failing source", func(t *testing.T) {
 		ms := newMultiSource(
 			tagged("a", &fakeSource{chainIDErr: errors.New("down")}),
-			tagged("b", &fakeSource{chainID: "mocha-4"}),
+			tagged("b", &fakeSource{chainID: "mocha-5"}),
 		)
 		id, err := ms.ChainID(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "mocha-4", id)
+		assert.Equal(t, "mocha-5", id)
 	})
 
 	t.Run("errors when all sources fail", func(t *testing.T) {
@@ -287,25 +287,25 @@ func TestMultiSource_Verify(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("empty expected is an error: a node must know its network", func(t *testing.T) {
-		ms := newMultiSource(tagged("a", &fakeSource{chainID: "mocha-4"}))
+		ms := newMultiSource(tagged("a", &fakeSource{chainID: "mocha-5"}))
 		require.Error(t, ms.Verify(ctx, ""))
 	})
 
 	t.Run("all on expected chain are kept", func(t *testing.T) {
 		ms := newMultiSource(
-			tagged("a", &fakeSource{chainID: "mocha-4"}),
-			tagged("b", &fakeSource{chainID: "mocha-4"}),
+			tagged("a", &fakeSource{chainID: "mocha-5"}),
+			tagged("b", &fakeSource{chainID: "mocha-5"}),
 		)
-		require.NoError(t, ms.Verify(ctx, "mocha-4"))
+		require.NoError(t, ms.Verify(ctx, "mocha-5"))
 		assert.Len(t, ms.sources, 2)
 	})
 
 	t.Run("wrong-chain source is pruned, others kept", func(t *testing.T) {
 		ms := newMultiSource(
-			tagged("good", &fakeSource{chainID: "mocha-4"}),
-			tagged("bad", &fakeSource{chainID: "arabica-11"}),
+			tagged("good", &fakeSource{chainID: "mocha-5"}),
+			tagged("bad", &fakeSource{chainID: "celestia"}),
 		)
-		require.NoError(t, ms.Verify(ctx, "mocha-4"))
+		require.NoError(t, ms.Verify(ctx, "mocha-5"))
 		require.Len(t, ms.sources, 1)
 		_, ok := ms.sources["good"]
 		assert.True(t, ok, "the surviving source must be the good one")
@@ -313,10 +313,10 @@ func TestMultiSource_Verify(t *testing.T) {
 
 	t.Run("unreachable source is pruned even when another is confirmed good", func(t *testing.T) {
 		ms := newMultiSource(
-			tagged("good", &fakeSource{chainID: "mocha-4"}),
+			tagged("good", &fakeSource{chainID: "mocha-5"}),
 			tagged("down", &fakeSource{chainIDErr: errors.New("unreachable")}),
 		)
-		require.NoError(t, ms.Verify(ctx, "mocha-4"))
+		require.NoError(t, ms.Verify(ctx, "mocha-5"))
 		require.Len(t, ms.sources, 1,
 			"a source that cannot vouch for its network must not enter the active set")
 		_, ok := ms.sources["good"]
@@ -328,7 +328,7 @@ func TestMultiSource_Verify(t *testing.T) {
 			tagged("a", &fakeSource{chainID: "arabica-11"}),
 			tagged("b", &fakeSource{chainID: "arabica-11"}),
 		)
-		err := ms.Verify(ctx, "mocha-4")
+		err := ms.Verify(ctx, "mocha-5")
 		require.Error(t, err)
 		assert.Empty(t, ms.sources, "all wrong-chain sources pruned")
 	})
@@ -338,7 +338,7 @@ func TestMultiSource_Verify(t *testing.T) {
 			tagged("a", &fakeSource{chainIDErr: errors.New("down")}),
 			tagged("b", &fakeSource{chainIDErr: errors.New("down")}),
 		)
-		err := ms.Verify(ctx, "mocha-4")
+		err := ms.Verify(ctx, "mocha-5")
 		require.Error(t, err, "cannot start without confirming at least one source")
 	})
 }
@@ -384,9 +384,9 @@ func TestMultiSource_SingleSource(t *testing.T) {
 	t.Run("chainID passthrough", func(t *testing.T) {
 		ctx := context.Background()
 
-		id, err := newMultiSource(tagged("only", &fakeSource{chainID: "arabica-11"})).ChainID(ctx)
+		id, err := newMultiSource(tagged("only", &fakeSource{chainID: "mocha-5"})).ChainID(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "arabica-11", id)
+		assert.Equal(t, "mocha-5", id)
 
 		_, err = newMultiSource(tagged("only", &fakeSource{chainIDErr: errors.New("down")})).ChainID(ctx)
 		require.Error(t, err, "a failing single source must surface as an error, like the bare fetcher")

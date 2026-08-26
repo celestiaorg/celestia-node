@@ -77,7 +77,7 @@ func init() {
 	flags.String("core.grpc", "", "address of the core gRPC server (e.g. localhost:9090)")
 	flags.String("key.name", "", "name of the key to use for signing")
 	flags.String("key.path", "", "path to the keyring directory")
-	flags.String("network", "", "network name (e.g. arabica-11)")
+	flags.String("network", "", "network name (e.g. mocha-5)")
 	flags.String("metrics.endpoint", "", "OTLP metrics endpoint")
 	flags.Bool("metrics.tls", true, "Enable TLS connection to OTLP metric backend")
 	flags.Int("num-blobs", 10, "number of blobs to pre-generate for the monitor loop")
