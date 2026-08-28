@@ -20,6 +20,7 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	"github.com/stretchr/testify/require"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -557,7 +558,84 @@ func TestManager_UpdateNodePoolWaitsForIdentify(t *testing.T) {
 
 	require.NoError(t, local.Connect(ctx, peer.AddrInfo{ID: remote.ID(), Addrs: remote.Addrs()}))
 	manager.UpdateNodePool(remote.ID(), true)
-	require.True(t, manager.nodes.has(remote.ID()))
+	require.Eventually(t, func() bool {
+		return manager.nodes.has(remote.ID())
+	}, time.Second, time.Millisecond*10)
+}
+
+func TestManager_UpdateNodePoolDoesNotBlockOnIdentify(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	local, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, local.Close()) })
+	remote, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, remote.Close()) })
+
+	identifyDone := make(chan struct{})
+	host := identifyTestHost{
+		Host:      local,
+		idService: controlledIDService{done: identifyDone},
+	}
+	required := protocol.ID("/test/shrex/v0.1.0/sample")
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+	manager, err := NewManager(*DefaultParameters(), host, connGater, "test", WithProtocols(required))
+	require.NoError(t, err)
+
+	require.NoError(t, local.Connect(ctx, peer.AddrInfo{ID: remote.ID(), Addrs: remote.Addrs()}))
+	require.NoError(t, local.Peerstore().AddProtocols(remote.ID(), required))
+
+	callbackReturned := make(chan struct{})
+	go func() {
+		manager.UpdateNodePool(remote.ID(), true)
+		close(callbackReturned)
+	}()
+
+	select {
+	case <-callbackReturned:
+	case <-ctx.Done():
+		t.Fatal("discovery callback blocked on Identify")
+	}
+	require.False(t, manager.nodes.has(remote.ID()))
+
+	compatible := peer.ID("compatible")
+	require.NoError(t, local.Peerstore().AddProtocols(compatible, required))
+	manager.UpdateNodePool(compatible, true)
+	require.True(t, manager.nodes.has(compatible))
+
+	manager.UpdateNodePool(remote.ID(), false)
+	close(identifyDone)
+	require.Never(t, func() bool {
+		return manager.nodes.has(remote.ID())
+	}, time.Millisecond*100, time.Millisecond*10)
+}
+
+type identifyTestHost struct {
+	host.Host
+	idService identify.IDService
+}
+
+func (h identifyTestHost) IDService() identify.IDService {
+	return h.idService
+}
+
+type controlledIDService struct {
+	done <-chan struct{}
+}
+
+func (controlledIDService) IdentifyConn(network.Conn) {}
+
+func (s controlledIDService) IdentifyWait(network.Conn) <-chan struct{} {
+	return s.done
+}
+
+func (controlledIDService) Start() {}
+
+func (controlledIDService) Close() error {
+	return nil
 }
 
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {

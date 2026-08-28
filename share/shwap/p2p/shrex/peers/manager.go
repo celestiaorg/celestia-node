@@ -71,6 +71,9 @@ type Manager struct {
 	connGater *conngater.BasicConnectionGater
 	protocols []protocol.ID
 
+	nodeUpdateMu      sync.Mutex
+	pendingIdentifies map[peer.ID]chan struct{}
+
 	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
 
@@ -134,6 +137,7 @@ func NewManager(
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
+		pendingIdentifies:     make(map[peer.ID]chan struct{}),
 		blacklistedHashes:     blacklistedHashes,
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
@@ -188,6 +192,7 @@ func (m *Manager) Start(startCtx context.Context) error {
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
+	m.cancelPendingIdentifies()
 	m.cancel()
 
 	if err := m.metrics.close(); err != nil {
@@ -257,12 +262,34 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 
 // UpdateNodePool is called by discovery when new node is discovered or removed.
 func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
+	m.nodeUpdateMu.Lock()
+	defer m.nodeUpdateMu.Unlock()
+
 	if isAdded {
 		if m.isBlacklistedPeer(peerID) {
 			log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
 			return
 		}
-		m.waitForIdentify(peerID)
+		if len(m.protocols) == 0 {
+			m.nodes.add(peerID)
+			log.Debugw("added to discovered nodes pool", "peer", peerID)
+			return
+		}
+
+		identifyDone := m.identifyWait(peerID)
+		if identifyDone != nil {
+			select {
+			case <-identifyDone:
+			default:
+				if _, pending := m.pendingIdentifies[peerID]; !pending {
+					canceled := make(chan struct{})
+					m.pendingIdentifies[peerID] = canceled
+					go m.addAfterIdentify(peerID, identifyDone, canceled)
+				}
+				return
+			}
+		}
+
 		if !m.supportsAnyProtocol(peerID) {
 			log.Debugw("ignoring discovered peer with incompatible protocols", "peer", peerID.String())
 			return
@@ -272,21 +299,60 @@ func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
 		return
 	}
 
+	if canceled, pending := m.pendingIdentifies[peerID]; pending {
+		delete(m.pendingIdentifies, peerID)
+		close(canceled)
+	}
 	log.Debugw("removing peer from discovered nodes pool", "peer", peerID.String())
 	m.nodes.remove(peerID)
 }
 
-func (m *Manager) waitForIdentify(peerID peer.ID) {
+func (m *Manager) identifyWait(peerID peer.ID) <-chan struct{} {
 	host, ok := m.host.(identifyHost)
 	if !ok {
-		return
+		return nil
 	}
 
 	connections := m.host.Network().ConnsToPeer(peerID)
 	if len(connections) == 0 {
-		return
+		return nil
 	}
-	<-host.IDService().IdentifyWait(connections[0])
+	return host.IDService().IdentifyWait(connections[0])
+}
+
+func (m *Manager) addAfterIdentify(
+	peerID peer.ID,
+	identifyDone <-chan struct{},
+	canceled <-chan struct{},
+) {
+	select {
+	case <-identifyDone:
+		m.nodeUpdateMu.Lock()
+		defer m.nodeUpdateMu.Unlock()
+
+		pending, ok := m.pendingIdentifies[peerID]
+		if !ok || pending != canceled {
+			return
+		}
+		delete(m.pendingIdentifies, peerID)
+
+		if m.isBlacklistedPeer(peerID) || !m.supportsAnyProtocol(peerID) {
+			return
+		}
+		m.nodes.add(peerID)
+		log.Debugw("added to discovered nodes pool after identify", "peer", peerID)
+	case <-canceled:
+	}
+}
+
+func (m *Manager) cancelPendingIdentifies() {
+	m.nodeUpdateMu.Lock()
+	defer m.nodeUpdateMu.Unlock()
+
+	for peerID, canceled := range m.pendingIdentifies {
+		delete(m.pendingIdentifies, peerID)
+		close(canceled)
+	}
 }
 
 func (m *Manager) supportsAnyProtocol(peerID peer.ID) bool {
