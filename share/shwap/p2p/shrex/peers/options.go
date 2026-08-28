@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	libhead "github.com/celestiaorg/go-header"
 	"github.com/libp2p/go-libp2p/core/protocol"
+
+	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"

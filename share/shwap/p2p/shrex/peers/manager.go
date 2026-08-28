@@ -18,6 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	"github.com/libp2p/go-libp2p/p2p/protocol/identify"
 
 	libhead "github.com/celestiaorg/go-header"
 
@@ -90,6 +91,10 @@ type Manager struct {
 	headerSubDone         chan struct{}
 	disconnectedPeersDone chan struct{}
 	cancel                context.CancelFunc
+}
+
+type identifyHost interface {
+	IDService() identify.IDService
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
@@ -257,6 +262,7 @@ func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
 			log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
 			return
 		}
+		m.waitForIdentify(peerID)
 		if !m.supportsAnyProtocol(peerID) {
 			log.Debugw("ignoring discovered peer with incompatible protocols", "peer", peerID.String())
 			return
@@ -268,6 +274,19 @@ func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
 
 	log.Debugw("removing peer from discovered nodes pool", "peer", peerID.String())
 	m.nodes.remove(peerID)
+}
+
+func (m *Manager) waitForIdentify(peerID peer.ID) {
+	host, ok := m.host.(identifyHost)
+	if !ok {
+		return
+	}
+
+	connections := m.host.Network().ConnsToPeer(peerID)
+	if len(connections) == 0 {
+		return
+	}
+	<-host.IDService().IdentifyWait(connections[0])
 }
 
 func (m *Manager) supportsAnyProtocol(peerID peer.ID) bool {

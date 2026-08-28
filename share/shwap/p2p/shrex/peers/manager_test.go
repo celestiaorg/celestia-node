@@ -14,6 +14,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
@@ -525,6 +526,38 @@ func TestManager_UpdateNodePoolProtocolCompatibility(t *testing.T) {
 
 	manager.UpdateNodePool(compatible, false)
 	require.False(t, manager.nodes.has(compatible))
+
+	unfiltered, err := NewManager(*DefaultParameters(), host, connGater, "test")
+	require.NoError(t, err)
+	peerWithoutProtocols := peer.ID("unfiltered")
+	unfiltered.UpdateNodePool(peerWithoutProtocols, true)
+	require.True(t, unfiltered.nodes.has(peerWithoutProtocols))
+}
+
+func TestManager_UpdateNodePoolWaitsForIdentify(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(cancel)
+
+	local, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, local.Close()) })
+	remote, err := libp2p.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, remote.Close()) })
+
+	required := protocol.ID("/test/shrex/v0.1.0/sample")
+	remote.SetStreamHandler(required, func(stream network.Stream) {
+		require.NoError(t, stream.Close())
+	})
+
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+	manager, err := NewManager(*DefaultParameters(), local, connGater, "test", WithProtocols(required))
+	require.NoError(t, err)
+
+	require.NoError(t, local.Connect(ctx, peer.AddrInfo{ID: remote.ID(), Addrs: remote.Addrs()}))
+	manager.UpdateNodePool(remote.ID(), true)
+	require.True(t, manager.nodes.has(remote.ID()))
 }
 
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
