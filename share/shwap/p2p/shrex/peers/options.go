@@ -5,6 +5,7 @@ import (
 	"time"
 
 	libhead "github.com/celestiaorg/go-header"
+	"github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
@@ -60,6 +61,15 @@ func DefaultParameters() *Parameters {
 		// blacklisting is off by default //TODO(@walldiss): enable blacklisting once all related issues
 		// are resolved
 		EnableBlackListing: false,
+	}
+}
+
+// WithProtocols configures the protocols that discovered peers must support. A peer that supports
+// at least one protocol is eligible for the node pool.
+func WithProtocols(protocols ...protocol.ID) Option {
+	return func(m *Manager) error {
+		m.protocols = append([]protocol.ID(nil), protocols...)
+		return nil
 	}
 }
 

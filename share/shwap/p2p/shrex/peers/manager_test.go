@@ -15,6 +15,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -489,6 +490,41 @@ func TestManager_blacklistedHashesBounded(t *testing.T) {
 
 	require.Equal(t, blacklistedHashesCacheSize, manager.blacklistedHashes.Len(),
 		"blacklisted hashes cache must stay bounded")
+}
+
+func TestManager_UpdateNodePoolProtocolCompatibility(t *testing.T) {
+	host, err := mocknet.New().GenPeer()
+	require.NoError(t, err)
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+
+	required := []protocol.ID{"/test/shrex/v0.1.0/eds", "/test/shrex/v0.1.0/sample"}
+	manager, err := NewManager(
+		*DefaultParameters(),
+		host,
+		connGater,
+		"test",
+		WithProtocols(required...),
+	)
+	require.NoError(t, err)
+
+	compatible := peer.ID("compatible")
+	require.NoError(t, host.Peerstore().AddProtocols(compatible, required...))
+	manager.UpdateNodePool(compatible, true)
+	require.True(t, manager.nodes.has(compatible))
+
+	partiallyCompatible := peer.ID("partially-compatible")
+	require.NoError(t, host.Peerstore().AddProtocols(partiallyCompatible, required[0]))
+	manager.UpdateNodePool(partiallyCompatible, true)
+	require.True(t, manager.nodes.has(partiallyCompatible))
+
+	incompatible := peer.ID("incompatible")
+	require.NoError(t, host.Peerstore().AddProtocols(incompatible, "/test/other/v1"))
+	manager.UpdateNodePool(incompatible, true)
+	require.False(t, manager.nodes.has(incompatible))
+
+	manager.UpdateNodePool(compatible, false)
+	require.False(t, manager.nodes.has(compatible))
 }
 
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {

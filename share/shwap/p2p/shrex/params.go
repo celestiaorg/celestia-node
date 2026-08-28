@@ -95,3 +95,12 @@ func (p *Parameters) NetworkID() string {
 func ProtocolID(networkID, protocolName string) protocol.ID {
 	return protocol.ID(fmt.Sprintf("/%s%s%s", networkID, protocolString, protocolName))
 }
+
+// ProtocolIDs returns all protocols served by the current shrex implementation.
+func ProtocolIDs(networkID string) []protocol.ID {
+	protocols := make([]protocol.ID, 0, len(registry))
+	for _, newRequest := range registry {
+		protocols = append(protocols, ProtocolID(networkID, newRequest().Name()))
+	}
+	return protocols
+}

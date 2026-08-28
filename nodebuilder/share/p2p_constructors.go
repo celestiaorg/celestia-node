@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
+	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
@@ -55,6 +56,7 @@ func fullDiscoveryAndPeerManager(tp node.Type, cfg *Config) fx.Option {
 			_ *sync.Syncer[*header.ExtendedHeader],
 		) (*peers.Manager, *discovery.Discovery, error) {
 			var managerOpts []peers.Option
+			managerOpts = append(managerOpts, peers.WithProtocols(shrex.ProtocolIDs(cfg.ShrexClient.NetworkID())...))
 			if tp != node.Bridge {
 				// BNs do not need the overhead of shrexsub peer pools as
 				// BNs do not sync blocks off the DA network.
@@ -117,6 +119,7 @@ func archivalDiscoveryAndPeerManager(cfg *Config) fx.Option {
 				h,
 				gater,
 				archivalNodesTag,
+				peers.WithProtocols(shrex.ProtocolIDs(cfg.ShrexClient.NetworkID())...),
 			)
 			if err != nil {
 				return nil, nil, err

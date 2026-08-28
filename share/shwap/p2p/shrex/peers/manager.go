@@ -15,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 
@@ -67,6 +68,7 @@ type Manager struct {
 	shrexSub  *shrexsub.PubSub
 	host      host.Host
 	connGater *conngater.BasicConnectionGater
+	protocols []protocol.ID
 
 	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
@@ -255,6 +257,10 @@ func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
 			log.Debugw("got blacklisted peer from discovery", "peer", peerID.String())
 			return
 		}
+		if !m.supportsAnyProtocol(peerID) {
+			log.Debugw("ignoring discovered peer with incompatible protocols", "peer", peerID.String())
+			return
+		}
 		m.nodes.add(peerID)
 		log.Debugw("added to discovered nodes pool", "peer", peerID)
 		return
@@ -262,6 +268,19 @@ func (m *Manager) UpdateNodePool(peerID peer.ID, isAdded bool) {
 
 	log.Debugw("removing peer from discovered nodes pool", "peer", peerID.String())
 	m.nodes.remove(peerID)
+}
+
+func (m *Manager) supportsAnyProtocol(peerID peer.ID) bool {
+	if len(m.protocols) == 0 {
+		return true
+	}
+
+	supported, err := m.host.Peerstore().SupportsProtocols(peerID, m.protocols...)
+	if err != nil {
+		log.Debugw("failed to get peer protocols", "peer", peerID.String(), "err", err)
+		return false
+	}
+	return len(supported) > 0
 }
 
 func (m *Manager) newPeer(
