@@ -69,6 +69,10 @@ linters:
           - revive
         text: "var-naming: avoid package names that conflict with Go standard library package names"
         path: "rpc"
+      # temporarily commented-out docgen code, see https://github.com/celestiaorg/celestia-node/issues/5212
+      - linters:
+          - dupword
+        path: api/docgen
     paths:
       - third_party$
       - builtin$
