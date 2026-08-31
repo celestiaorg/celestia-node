@@ -51,6 +51,8 @@ var bootstrapList = map[Network][]string{
 	Mocha: {
 		"/dns4/da-bootstrapper-1.celestia-mocha.com/tcp/2121/p2p/12D3KooWPHgLgPTtPjuKtZjXbZRiUSVMvFpqek8T1we93auG3uoK",
 		"/dns4/da-bootstrapper-2.celestia-mocha.com/tcp/2121/p2p/12D3KooWRmUch5JsfLgkDrhEGu8rSCeTP2nJvGPygkqRUWfqiAJ4",
+		"/dnsaddr/mocha-boot.pops.one/p2p/12D3KooWAj2P9akCYyzKUwmicvi1g6jxVE9Ld3tdmLqTque5NuZP",
+		"/dnsaddr/celestia-mocha.qubelabs.io/p2p/12D3KooWQVmHy7JpfxpKZfLjvn12GjvMgKrWdsHkFbV2kKqQFBCG",
 	},
 	Private: {},
 }
