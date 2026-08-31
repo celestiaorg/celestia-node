@@ -184,22 +184,23 @@ jobs:
   #     - name: execute test run
   #       run: make test-unit-race ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
-  openrpc_gen_check:
-    name: OpenRPC Gen Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ inputs.go-version }}
-
-      - name: generate and validate openrpc.json
-        run: |
-          set -eo pipefail
-          make openrpc-gen > openrpc.json
-          jq -e . openrpc.json > /dev/null
+  # openrpc-gen is temporarily disabled, see https://github.com/celestiaorg/celestia-node/issues/5212
+  # openrpc_gen_check:
+  #   name: OpenRPC Gen Check
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #
+  #     - uses: actions/setup-go@v6
+  #       with:
+  #         go-version: ${{ inputs.go-version }}
+  #
+  #     - name: generate and validate openrpc.json
+  #       run: |
+  #         set -eo pipefail
+  #         make openrpc-gen > openrpc.json
+  #         jq -e . openrpc.json > /dev/null
 
   integration_test:
     name: Integration Tests

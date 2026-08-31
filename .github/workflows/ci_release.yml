@@ -140,43 +140,45 @@ jobs:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           GORELEASER_CURRENT_TAG: ${{ env.LATEST_TAG }}
 
-  upload-docs:
-    needs: [setup]
-    if: |
-      github.event_name == 'release' ||
-      github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - run: git fetch --force --tags
-
-      - name: Set LATEST_TAG for release
-        if: github.event_name == 'release'
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: echo "LATEST_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
-
-      - name: Set LATEST_TAG for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          RUN_ON_TAG: ${{ inputs.run-on-tag }}
-        run: echo "LATEST_TAG=${RUN_ON_TAG}" >> "$GITHUB_ENV"
-
-      - name: Checkout a given tag
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          RUN_ON_TAG: ${{ inputs.run-on-tag }}
-        run: git checkout "$RUN_ON_TAG"
-
-      - run: |
-          set -eo pipefail
-          make openrpc-gen > openrpc.json
-          jq -e . openrpc.json > /dev/null
-          gh release upload "$LATEST_TAG" openrpc.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # upload-docs (openrpc.json generation) is temporarily disabled,
+  # see https://github.com/celestiaorg/celestia-node/issues/5212
+  # upload-docs:
+  #   needs: [setup]
+  #   if: |
+  #     github.event_name == 'release' ||
+  #     github.event_name == 'workflow_dispatch'
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #
+  #     - run: git fetch --force --tags
+  #
+  #     - name: Set LATEST_TAG for release
+  #       if: github.event_name == 'release'
+  #       env:
+  #         RELEASE_TAG: ${{ github.event.release.tag_name }}
+  #       run: echo "LATEST_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+  #
+  #     - name: Set LATEST_TAG for workflow_dispatch
+  #       if: github.event_name == 'workflow_dispatch'
+  #       env:
+  #         RUN_ON_TAG: ${{ inputs.run-on-tag }}
+  #       run: echo "LATEST_TAG=${RUN_ON_TAG}" >> "$GITHUB_ENV"
+  #
+  #     - name: Checkout a given tag
+  #       if: github.event_name == 'workflow_dispatch'
+  #       env:
+  #         RUN_ON_TAG: ${{ inputs.run-on-tag }}
+  #       run: git checkout "$RUN_ON_TAG"
+  #
+  #     - run: |
+  #         set -eo pipefail
+  #         make openrpc-gen > openrpc.json
+  #         jq -e . openrpc.json > /dev/null
+  #         gh release upload "$LATEST_TAG" openrpc.json
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
