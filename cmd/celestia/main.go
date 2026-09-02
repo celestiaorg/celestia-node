@@ -29,9 +29,7 @@ func init() {
 	rootCmd.AddCommand(
 		bridgeCmd,
 		lightCmd,
-		// docgen is temporarily disabled: its dependency github.com/etclabscore/go-jsonschema-walk
-		// is no longer available. See https://github.com/celestiaorg/celestia-node/issues/5212.
-		// docgenCmd,
+		docgenCmd,
 		versionCmd,
 	)
 	rootCmd.SetHelpCommand(&cobra.Command{})
