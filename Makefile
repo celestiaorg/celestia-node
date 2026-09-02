@@ -223,10 +223,8 @@ pb-gen:
 .PHONY: pb-gen
 
 ## openrpc-gen: Generate OpenRPC spec for celestia-node's RPC API.
-## Temporarily disabled, see https://github.com/celestiaorg/celestia-node/issues/5212.
 openrpc-gen:
-	@echo "openrpc-gen is temporarily disabled, see https://github.com/celestiaorg/celestia-node/issues/5212" && exit 1
-# 	@go run ${LDFLAGS} ./cmd/celestia docgen
+	@go run ${LDFLAGS} ./cmd/celestia docgen
 .PHONY: openrpc-gen
 
 ## lint-imports: Lint only Go imports.
