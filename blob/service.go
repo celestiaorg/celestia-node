@@ -113,20 +113,27 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 	log.Infow("subscribing for blobs",
 		"namespaces", ns.String(),
 	)
-	headerCh, err := s.headerSub(ctx)
+	serviceCtx := s.ctx
+	subCtx, cancel := context.WithCancel(ctx)
+	stopPropagate := context.AfterFunc(serviceCtx, cancel)
+	headerCh, err := s.headerSub(subCtx)
 	if err != nil {
+		stopPropagate()
+		cancel()
 		return nil, err
 	}
 
 	blobCh := make(chan *SubscriptionResponse, 16)
 	go func() {
 		defer close(blobCh)
+		defer cancel()
+		defer stopPropagate()
 
 		for {
 			select {
 			case header, ok := <-headerCh:
-				if ctx.Err() != nil {
-					log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+				if subCtx.Err() != nil {
+					log.Debugw("blobsub: canceling subscription due to subscription ctx closing", "namespace", ns.ID())
 					return
 				}
 				if !ok {
@@ -142,10 +149,10 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 				var blobs []*Blob
 				var err error
 				for {
-					blobs, err = s.getAll(ctx, header, []libshare.Namespace{ns})
-					if ctx.Err() != nil {
+					blobs, err = s.getAll(subCtx, header, []libshare.Namespace{ns})
+					if subCtx.Err() != nil {
 						// context canceled, continuing would lead to unexpected missed heights for the client
-						log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
+						log.Debugw("blobsub: canceling subscription due to subscription ctx closing", "namespace", ns.ID())
 						return
 					}
 					if err == nil {
@@ -158,6 +165,9 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 				case <-ctx.Done():
 					log.Debugw("blobsub: pending response canceled due to user ctx closing", "namespace", ns.ID())
 					return
+				case <-serviceCtx.Done():
+					log.Debugw("blobsub: pending response canceled due to service ctx closing", "namespace", ns.ID())
+					return
 				case blobCh <- &SubscriptionResponse{
 					Blobs:  blobs,
 					Height: header.Height(),
@@ -167,7 +177,7 @@ func (s *Service) Subscribe(ctx context.Context, ns libshare.Namespace) (<-chan 
 			case <-ctx.Done():
 				log.Debugw("blobsub: canceling subscription due to user ctx closing", "namespace", ns.ID())
 				return
-			case <-s.ctx.Done():
+			case <-serviceCtx.Done():
 				log.Debugw("blobsub: canceling subscription due to service ctx closing", "namespace", ns.ID())
 				return
 			}
