@@ -73,7 +73,8 @@ func (cfg *Config) Validate() error {
 	seen := map[string]struct{}{
 		net.JoinHostPort(cfg.IP, cfg.Port): {},
 	}
-	for _, additionalCfg := range cfg.AdditionalCoreEndpoints {
+	for i := range cfg.AdditionalCoreEndpoints {
+		additionalCfg := &cfg.AdditionalCoreEndpoints[i]
 		if err := additionalCfg.validate(); err != nil {
 			return fmt.Errorf("nodebuilder/core: invalid additional core endpoint configuration: %w", err)
 		}

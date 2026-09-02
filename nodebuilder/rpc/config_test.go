@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const ipv4Loopback = "127.0.0.1"
+
 // TestDefaultConfig tests that the default rpc config is correct.
 func TestDefaultConfig(t *testing.T) {
 	expected := Config{
@@ -24,6 +26,41 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, expected, DefaultConfig())
 }
 
+func TestRequestURL(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{
+			name: "IPv4",
+			cfg:  Config{Address: ipv4Loopback, Port: "8080"},
+			want: "http://127.0.0.1:8080",
+		},
+		{
+			name: "IPv6",
+			cfg:  Config{Address: "::1", Port: "8080"},
+			want: "http://[::1]:8080",
+		},
+		{
+			name: "bracketed IPv6",
+			cfg:  Config{Address: "[::1]", Port: "8080"},
+			want: "http://[::1]:8080",
+		},
+		{
+			name: "TLS IPv6",
+			cfg:  Config{Address: "2001:db8::1", Port: "8080", TLSEnabled: true},
+			want: "https://[2001:db8::1]:8080",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, test.cfg.RequestURL())
+		})
+	}
+}
+
 func TestConfigValidate(t *testing.T) {
 	tests := []struct {
 		name string
@@ -33,7 +70,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid config",
 			cfg: Config{
-				Address: "127.0.0.1",
+				Address: ipv4Loopback,
 				Port:    "8080",
 			},
 			err: false,
@@ -49,7 +86,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "invalid port",
 			cfg: Config{
-				Address: "127.0.0.1",
+				Address: ipv4Loopback,
 				Port:    "invalid",
 			},
 			err: true,
