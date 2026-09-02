@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 
+	"github.com/ipfs/go-datastore"
 	"go.uber.org/fx"
 
 	libhead "github.com/celestiaorg/go-header"
@@ -79,10 +80,11 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 					pubsub *shrexsub.PubSub,
 					construct header.ConstructFn,
 					store *store.Store,
+					ds datastore.Batching,
 					chainID p2p.Network,
 					opts []core.Option,
 				) (*core.Listener, error) {
-					opts = append(opts, core.WithChainID(chainID))
+					opts = append(opts, core.WithChainID(chainID), core.WithPublicationJournal(ds))
 
 					if MetricsEnabled {
 						opts = append(opts, core.WithMetrics())
