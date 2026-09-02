@@ -1,22 +1,23 @@
 package das
 
 import (
+	"math/rand/v2"
 	"time"
 )
 
 var (
-	// first retry attempt should happen after defaultBackoffInitialInterval
+	// defaultBackoffInitialInterval is the upper bound for the first retry delay
 	defaultBackoffInitialInterval = time.Minute
-	// next retry attempt will happen with delay of previous one multiplied by defaultBackoffMultiplier
+	// each retry delay upper bound grows by defaultBackoffMultiplier
 	defaultBackoffMultiplier = 4
-	// after defaultBackoffMaxRetryCount amount of attempts retry backoff interval will stop growing
+	// after defaultBackoffMaxRetryCount attempts the retry delay upper bound will stop growing
 	// and each retry attempt will produce WARN log
 	defaultBackoffMaxRetryCount = 4
 )
 
 // retryStrategy defines a backoff for retries.
 type retryStrategy struct {
-	// attempts delays will follow durations stored in retryIntervals
+	// retryIntervals stores the upper bound for each retry delay
 	retryIntervals []time.Duration
 }
 
@@ -38,11 +39,11 @@ func (s retryStrategy) nextRetry(lastRetry retryAttempt, lastAttempt time.Time,
 
 	if lastRetry.count > len(s.retryIntervals) {
 		// try count exceeded backoff try limit
-		lastRetry.after = lastAttempt.Add(s.retryIntervals[len(s.retryIntervals)-1])
+		lastRetry.after = lastAttempt.Add(rand.N(s.retryIntervals[len(s.retryIntervals)-1])) //nolint:gosec
 		return lastRetry, true
 	}
 
-	lastRetry.after = lastAttempt.Add(s.retryIntervals[lastRetry.count-1])
+	lastRetry.after = lastAttempt.Add(rand.N(s.retryIntervals[lastRetry.count-1])) //nolint:gosec
 	return lastRetry, false
 }
 
