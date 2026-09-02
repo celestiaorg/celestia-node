@@ -14,7 +14,7 @@ const (
 	// DefaultNetwork is the default network of the current build.
 	DefaultNetwork = Mainnet
 	// Mocha testnet. See: celestiaorg/networks.
-	Mocha Network = "mocha-4"
+	Mocha Network = "mocha-5"
 	// Private can be used to set up any private network, including local testing setups.
 	Private Network = "private"
 	// Celestia mainnet. See: celestiaorg/networks.
