@@ -24,7 +24,7 @@ func init() {
 }
 
 var hashCmd = &cobra.Command{
-	Use:   "hash [subcommand] [flags]",
+	Use:   "hash [command]",
 	Short: "Commands to interact with EDS hashes",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		path, err := cmd.Flags().GetString(nodeStorePathFlag)
@@ -55,7 +55,7 @@ var hashCmd = &cobra.Command{
 }
 
 var hasHashCmd = &cobra.Command{
-	Use:     "has [root hash] [flags]",
+	Use:     "has root_hash",
 	Aliases: []string{"exists"},
 	Short:   "Command to check whether a hash is present in the eds store",
 	Args:    cobra.ExactArgs(1),
@@ -80,7 +80,7 @@ var hasHashCmd = &cobra.Command{
 }
 
 var getByHashCmd = &cobra.Command{
-	Use:   "get [root hash] [flag]",
+	Use:   "get root_hash",
 	Short: "Command to get the eds from the eds store by its hash",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, _ []string) error {
