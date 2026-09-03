@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 )
 
 // startNetwork creates and starts a test Network with retry logic to handle
@@ -45,13 +45,22 @@ func isAddressInUseError(err error) bool {
 // reallocateTestNodePorts assigns fresh free ports to all network addresses in cfg,
 // replacing the ones allocated at config-creation time that may now be taken.
 func reallocateTestNodePorts(cfg *testnode.Config) {
-	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 	// PrivValidatorGRPCListenAddr is also bound by the comet node on start; if it
 	// is the conflicting port and we don't reassign it here, every retry rebinds
 	// the same taken port and the "address already in use" error still surfaces.
-	cfg.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.MustGetFreePort())
-	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.MustGetFreePort())
+	cfg.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
+	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
+	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+}
+
+// mustGetFreePort returns a free port and panics in case of an error.
+func mustGetFreePort() int {
+	port, err := testnode.GetFreePort()
+	if err != nil {
+		panic(err)
+	}
+	return port
 }
