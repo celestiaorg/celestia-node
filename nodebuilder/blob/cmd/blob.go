@@ -38,7 +38,7 @@ var Cmd = &cobra.Command{
 }
 
 var getCmd = &cobra.Command{
-	Use:  "get [height] [namespace] [commitment]",
+	Use:  "get height namespace commitment",
 	Args: cobra.ExactArgs(3),
 	Short: "Returns the blob for the given namespace by commitment at a particular height.\n" +
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",
@@ -79,7 +79,7 @@ var getCmd = &cobra.Command{
 }
 
 var getAllCmd = &cobra.Command{
-	Use:  "get-all [height] [namespace]",
+	Use:  "get-all height namespace",
 	Args: cobra.ExactArgs(2),
 	Short: "Returns all blobs for the given namespace at a particular height.\n" +
 		"Note:\n* Namespace input parameter is expected to be in its hex representation.",
@@ -112,7 +112,7 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use: "submit [namespace] [blobData]",
+	Use: "submit [namespace blobData]",
 	Args: func(cmd *cobra.Command, args []string) error {
 		path, err := cmd.Flags().GetString(flagFileInput)
 		if err != nil {
@@ -237,7 +237,7 @@ func getBlobFromArguments(namespaceArg, blobArg string) (*blob.Blob, error) {
 }
 
 var getProofCmd = &cobra.Command{
-	Use:  "get-proof [height] [namespace] [commitment]",
+	Use:  "get-proof height namespace commitment",
 	Args: cobra.ExactArgs(3),
 	Short: "Retrieves the blob in the given namespaces at the given height by commitment and returns its Proof.\n" +
 		"Note:\n* Both namespace and commitment input parameters are expected to be in their hex representation.",

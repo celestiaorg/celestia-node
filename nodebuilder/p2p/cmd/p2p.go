@@ -109,7 +109,7 @@ var peersCmd = &cobra.Command{
 }
 
 var peerInfoCmd = &cobra.Command{
-	Use:   "peer-info [param]",
+	Use:   "peer-info peer.ID",
 	Short: "Gets PeerInfo for a given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -141,7 +141,7 @@ var peerInfoCmd = &cobra.Command{
 }
 
 var connectCmd = &cobra.Command{
-	Use:   "connect [peer.ID, address]",
+	Use:   "connect peer.ID address",
 	Short: "Establishes a connection with the given peer",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -175,7 +175,7 @@ var connectCmd = &cobra.Command{
 }
 
 var closePeerCmd = &cobra.Command{
-	Use:   "close-peer [peer.ID]",
+	Use:   "close-peer peer.ID",
 	Short: "Closes the connection with the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -199,7 +199,7 @@ var closePeerCmd = &cobra.Command{
 }
 
 var connectednessCmd = &cobra.Command{
-	Use:   "connectedness [peer.ID]",
+	Use:   "connectedness peer.ID",
 	Short: "Checks the connection state between current and given peers",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -254,7 +254,7 @@ var natStatusCmd = &cobra.Command{
 }
 
 var blockPeerCmd = &cobra.Command{
-	Use:   "block-peer [peer.ID]",
+	Use:   "block-peer peer.ID",
 	Short: "Blocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -290,7 +290,7 @@ var blockPeerCmd = &cobra.Command{
 }
 
 var unblockPeerCmd = &cobra.Command{
-	Use:   "unblock-peer [peer.ID]",
+	Use:   "unblock-peer peer.ID",
 	Short: "Unblocks the given peer",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -356,7 +356,7 @@ var blockedPeersCmd = &cobra.Command{
 }
 
 var protectCmd = &cobra.Command{
-	Use:   "protect [peer.ID, tag]",
+	Use:   "protect peer.ID tag",
 	Short: "Protects the given peer from being pruned by the given tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -392,7 +392,7 @@ var protectCmd = &cobra.Command{
 }
 
 var unprotectCmd = &cobra.Command{
-	Use:   "unprotect [peer.ID, tag]",
+	Use:   "unprotect peer.ID tag",
 	Short: "Removes protection from the given peer.",
 	Long: "Removes a protection that may have been placed on a peer, under the specified tag." +
 		"The return value indicates whether the peer continues to be protected after this call, by way of a different tag",
@@ -430,7 +430,7 @@ var unprotectCmd = &cobra.Command{
 }
 
 var protectedCmd = &cobra.Command{
-	Use:   "protected [peer.ID, tag]",
+	Use:   "protected peer.ID tag",
 	Short: "Ensures that a given peer is protected under a specific tag",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -486,7 +486,7 @@ var bandwidthStatsCmd = &cobra.Command{
 }
 
 var peerBandwidthCmd = &cobra.Command{
-	Use:   "peer-bandwidth [peer.ID]",
+	Use:   "peer-bandwidth peer.ID",
 	Short: "Gets stats struct with bandwidth metrics associated with the given peer.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -517,7 +517,7 @@ var peerBandwidthCmd = &cobra.Command{
 }
 
 var bandwidthForProtocolCmd = &cobra.Command{
-	Use:   "protocol-bandwidth [protocol.ID]",
+	Use:   "protocol-bandwidth protocol.ID",
 	Short: "Gets stats struct with bandwidth metrics associated with the given protocol.ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -543,7 +543,7 @@ var bandwidthForProtocolCmd = &cobra.Command{
 }
 
 var pubsubPeersCmd = &cobra.Command{
-	Use:   "pubsub-peers [topic]",
+	Use:   "pubsub-peers topic",
 	Short: "Lists the peers we are connected to in the given topic",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -573,7 +573,7 @@ var pubsubPeersCmd = &cobra.Command{
 }
 
 var pubsubTopicsCmd = &cobra.Command{
-	Use:   "pubsub-topics ",
+	Use:   "pubsub-topics",
 	Short: "Lists pubsub(GossipSub) topics the node participates in",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -597,7 +597,7 @@ var pubsubTopicsCmd = &cobra.Command{
 }
 
 var connectionInfoCmd = &cobra.Command{
-	Use:   "connection-state [peerID]",
+	Use:   "connection-state peer.ID",
 	Short: "Gets connection info for a given peer ID",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -643,7 +643,7 @@ var connectionInfoCmd = &cobra.Command{
 }
 
 var pingCmd = &cobra.Command{
-	Use:   "ping [peerID]",
+	Use:   "ping peer.ID",
 	Short: "Pings given peer and tell how much time that took or errors",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

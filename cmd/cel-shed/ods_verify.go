@@ -27,7 +27,7 @@ func init() {
 }
 
 var odsVerifyCmd = &cobra.Command{
-	Use:   "ods-verify <node_store_path>",
+	Use:   "ods-verify node_store_path",
 	Short: "Verifies ODS files against header store. Reads by height and datahash, validates metadata.",
 	Long: `Loops over header store and for each header:
 - Reads ODS file by height

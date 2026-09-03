@@ -19,12 +19,12 @@ func init() {
 }
 
 var squareCmd = &cobra.Command{
-	Use:   "square [subcommand]",
+	Use:   "square [command]",
 	Short: "Collection of square-related utilities",
 }
 
 var constructFromCoreCmd = &cobra.Command{
-	Use:   "construct-from-core [core endpoint in ip:port format] [height]",
+	Use:   "construct-from-core core_endpoint height",
 	Short: "Constructs a complete data square and extended header from a signed core block",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conn, err := grpc.NewClient(args[0], grpc.WithTransportCredentials(insecure.NewCredentials()))

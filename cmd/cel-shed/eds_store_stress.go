@@ -62,7 +62,7 @@ func init() {
 }
 
 var edsStoreCmd = &cobra.Command{
-	Use:   "eds-store [subcommand]",
+	Use:   "eds-store [command]",
 	Short: "Collection of eds-store related utilities",
 }
 
