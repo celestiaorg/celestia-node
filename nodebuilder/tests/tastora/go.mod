@@ -418,3 +418,7 @@ replace github.com/celestiaorg/celestia-node => ../../..
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
 replace nhooyr.io/websocket => github.com/coder/websocket v1.8.6
+
+// the etclabscore repo was deleted from GitHub and purged from proxy.golang.org;
+// LexLuthr/go-jsonschema-walk is a verified mirror (see #5212)
+replace github.com/etclabscore/go-jsonschema-walk => github.com/LexLuthr/go-jsonschema-walk v1.0.0
