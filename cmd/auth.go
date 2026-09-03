@@ -24,7 +24,7 @@ var ttlFlagName = "ttl"
 
 func AuthCmd(fsets ...*flag.FlagSet) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "auth (read | write | admin)",
+		Use:   "auth (public | read | write | admin)",
 		Short: "Signs and outputs a hex-encoded JWT token with the given permissions.",
 		Long: "Signs and outputs a hex-encoded JWT token with the given permissions. NOTE: only use this command when " +
 			"the node has already been initialized and started.",
