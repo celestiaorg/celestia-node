@@ -14,40 +14,28 @@ import (
 
 var _ Module = (*API)(nil)
 
-// Module defines the API related to interacting with the Fibre network.
-// Fibre enables off-chain blob storage via Fibre Storage Providers (FSPs) with on-chain
-// payment settlement. Full blob submission (upload + on-chain MsgPayForFibre) is available
-// through blob.SubmitFibreBlob; this module exposes upload-only, retrieval, and escrow operations.
+// Module is the RPC API for the Fibre network: off-chain blob storage via Fibre
+// Storage Providers (FSPs) with on-chain payment settlement. Only v0 blobs are
+// supported for now. The signer for escrow/settlement operations is resolved from
+// the TxConfig (SignerAddress or KeyName), falling back to the node's default account.
 //
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
 type Module interface {
-	// Submit submits a v0 Fibre blob via the Fibre network.
-	// It performs the full Fibre flow: uploads blob data to FSPs, aggregates validator
-	// availability signatures, and submits MsgPayForFibre on-chain.
-	// Returns the submission result including the on-chain height and transaction hash.
-	// Requires the node to be connected to a core endpoint with Fibre support.
-	// NOTE: Currently only v0 Fibre blobs are supported.
+	// Submit runs the full flow: upload to FSPs, aggregate validator signatures,
+	// and settle MsgPayForFibre on-chain. Requires a Fibre-capable core endpoint.
 	Submit(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*SubmitResult, error)
-	// Upload performs the off-chain portion of v0 Fibre blob submission only.
-	// It encodes the blob, constructs a payment promise, uploads encoded rows to FSPs,
-	// and aggregates validator availability signatures. It does NOT submit MsgPayForFibre on-chain.
-	// Use fibre.Submit for the full submit flow.
-	// NOTE: Currently only v0 Fibre blobs are supported.
+	// Upload does the off-chain half only (encode, promise, upload, aggregate
+	// signatures) and does NOT settle on-chain. Use Submit for the full flow.
 	Upload(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*UploadResult, error)
-	// Download retrieves a Fibre blob from FSPs by blobID.
-	// It reconstructs the original blob data from the encoded rows stored off-chain.
+	// Download reconstructs a blob from FSPs by blobID.
 	Download(context.Context, appfibre.BlobID) (*GetBlobResult, error)
-	// QueryEscrowAccount returns the escrow account details for the given signer address,
-	// including total balance and available (spendable) balance.
+	// QueryEscrowAccount returns the escrow account for the given signer.
 	QueryEscrowAccount(_ context.Context, signer string) (*fibre.EscrowAccount, error)
-	// Deposit adds funds to the node's Fibre escrow account.
-	// The signer is resolved from cfg (SignerAddress or KeyName) or the node's default account.
+	// Deposit adds funds to the node's escrow account.
 	Deposit(context.Context, sdktypes.Coin, *txclient.TxConfig) error
-	// Withdraw requests a withdrawal from the node's Fibre escrow account.
-	// The signer is resolved from cfg (SignerAddress or KeyName) or the node's default account.
-	// The withdrawal enters an unbonding period before funds become claimable.
+	// Withdraw requests a withdrawal; funds unbond before becoming claimable.
 	Withdraw(context.Context, sdktypes.Coin, *txclient.TxConfig) error
-	// PendingWithdrawals returns all pending (not yet claimable) withdrawals for the given signer.
+	// PendingWithdrawals returns not-yet-claimable withdrawals for the signer.
 	PendingWithdrawals(_ context.Context, signer string) ([]fibre.PendingWithdrawal, error)
 }
 

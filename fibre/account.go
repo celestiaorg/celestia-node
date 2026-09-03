@@ -13,26 +13,20 @@ import (
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
-// EscrowAccount represents a Fibre escrow account used for prepaid blob storage fees.
+// EscrowAccount is a Fibre escrow account holding prepaid blob storage fees.
 type EscrowAccount struct {
-	// Signer is the account address that owns the escrow.
-	Signer string `json:"signer"`
-	// Balance is the total deposited balance in the escrow account.
+	Signer  string        `json:"signer"`
 	Balance sdktypes.Coin `json:"balance"`
-	// AvailableBalance is the balance available for spending (excluding pending withdrawals).
+	// AvailableBalance excludes funds locked in pending withdrawals.
 	AvailableBalance sdktypes.Coin `json:"available_balance"`
 }
 
-// PendingWithdrawal represents a withdrawal request from a Fibre escrow account
-// that is pending the unbonding period.
+// PendingWithdrawal is an escrow withdrawal waiting out the unbonding period.
 type PendingWithdrawal struct {
-	// Signer is the account address that requested the withdrawal.
-	Signer string `json:"signer"`
-	// Amount is the withdrawal amount.
-	Amount sdktypes.Coin `json:"amount"`
-	// RequestedTimestamp is when the withdrawal was requested.
-	RequestedTimestamp time.Time `json:"requested_timestamp"`
-	// AvailableTimestamp is when the withdrawal will become available for claim.
+	Signer             string        `json:"signer"`
+	Amount             sdktypes.Coin `json:"amount"`
+	RequestedTimestamp time.Time     `json:"requested_timestamp"`
+	// AvailableTimestamp is when the withdrawal becomes claimable.
 	AvailableTimestamp time.Time `json:"available_timestamp"`
 }
 

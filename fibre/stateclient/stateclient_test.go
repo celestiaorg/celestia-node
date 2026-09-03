@@ -116,9 +116,8 @@ func TestGetHostABCIErrors(t *testing.T) {
 	})
 }
 
-// TestGetHostServesWithinRefreshWindow checks that within the refresh window a
-// GetHost call serves the last known host without an ABCI query and retains the
-// entry for subsequent dials.
+// TestGetHostServesWithinRefreshWindow checks that within the window GetHost serves
+// the cached host without an ABCI query and keeps the entry for later dials.
 func TestGetHostServesWithinRefreshWindow(t *testing.T) {
 	stub := &stubABCI{}
 	c := newTestClient(t, stub, p2p.Private)
@@ -143,9 +142,8 @@ func TestGetHostServesWithinRefreshWindow(t *testing.T) {
 	require.True(t, present, "within-window read must retain the entry")
 }
 
-// TestGetHostFallsBackOnQueryFailure checks that once the refresh window has
-// elapsed, a failed re-query falls back to the last known host instead of
-// failing the dial.
+// TestGetHostFallsBackOnQueryFailure checks that after the window elapses, a failed
+// re-query falls back to the last known host instead of failing the dial.
 func TestGetHostFallsBackOnQueryFailure(t *testing.T) {
 	stub := &stubABCI{err: errors.New("boom")}
 	c := newTestClient(t, stub, p2p.Private)
@@ -189,10 +187,8 @@ func TestGetHostRateLimitsQueries(t *testing.T) {
 	require.Equal(t, int64(1), stub.calls.Load(), "within-window call must not re-query")
 }
 
-// TestStartPrefetchToleratesErrors verifies that Start completes
-// successfully even when every per-validator ABCI query fails, leaving
-// the cache empty. Failures here include both transport errors and
-// malformed responses.
+// TestStartPrefetchToleratesErrors checks that Start still succeeds with an empty
+// cache when every per-validator prefetch query fails.
 func TestStartPrefetchToleratesErrors(t *testing.T) {
 	t.Run("transport error", func(t *testing.T) {
 		stub := &stubABCI{err: errors.New("boom")}

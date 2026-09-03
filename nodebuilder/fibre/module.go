@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
-// module wraps the fibre Client and AccountClient to implement Module.
+// module implements Module on top of a local *fibre.Service.
 type module struct {
 	service *fibre.Service
 }

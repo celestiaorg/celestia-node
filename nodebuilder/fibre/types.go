@@ -7,55 +7,38 @@ import (
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
-// ValidatorSignature is a signature from a validator.
+// ValidatorSignature is a validator's blob-availability attestation.
 type ValidatorSignature []byte
 
-// UploadResult is the result of uploading a blob to FSPs without on-chain submission.
-// It contains the blob ID, aggregated validator signatures, and the payment promise
-// that can be used for a later on-chain MsgPayForFibre submission.
+// UploadResult is returned by an off-chain Fibre upload; PaymentPromise can later
+// settle it on-chain via MsgPayForFibre.
 type UploadResult struct {
-	// BlobID is the Fibre blob identifier for the uploaded blob.
-	BlobID appfibre.BlobID `json:"blob_id"`
-	// ValidatorSignatures are attestations from validators confirming blob availability.
+	BlobID              appfibre.BlobID      `json:"blob_id"`
 	ValidatorSignatures []ValidatorSignature `json:"validator_signatures"`
-	// PaymentPromise is the signed promise used for on-chain fee settlement.
-	PaymentPromise *PaymentPromise `json:"payment_promise,omitempty"`
+	PaymentPromise      *PaymentPromise      `json:"payment_promise,omitempty"`
 }
 
-// SubmitResult is the result of a full Fibre blob submission including on-chain MsgPayForFibre.
-// It extends UploadResult with chain inclusion details (height and transaction hash).
+// SubmitResult is an UploadResult plus the on-chain inclusion details of its settlement.
 type SubmitResult struct {
 	UploadResult
-	// Height is the block height at which MsgPayForFibre was included on-chain.
 	Height uint64 `json:"height"`
-	// TxHash is the transaction hash of the on-chain MsgPayForFibre.
 	TxHash string `json:"tx_hash"`
 }
 
-// PaymentPromise represents the signed payment promise between a user and the Fibre network.
-// It is constructed during upload and submitted on-chain as part of MsgPayForFibre.
+// PaymentPromise is the signed user↔network promise, settled on-chain via MsgPayForFibre.
 type PaymentPromise struct {
-	// ChainID is the chain identifier for which the promise is valid.
-	ChainID string `json:"chain_id"`
-	// Namespace is the blob namespace.
-	Namespace libshare.Namespace `json:"namespace"`
-	// BlobSize is the size of the uploaded blob data in bytes.
-	BlobSize uint32 `json:"blob_size"`
-	// Commitment is the Fibre commitment for the blob.
-	Commitment appfibre.Commitment `json:"commitment"`
-	// RowVersion is the blob/share version used for encoding.
-	RowVersion uint32 `json:"row_version"`
-	// ValsetHeight is the validator set height at the time the promise was created.
-	ValsetHeight uint64 `json:"valset_height"`
-	// CreationTimestamp is the time when the payment promise was created.
-	CreationTimestamp time.Time `json:"creation_timestamp"`
-	// Signature is the cryptographic signature over the promise fields.
-	Signature []byte `json:"signature"`
+	ChainID           string              `json:"chain_id"`
+	Namespace         libshare.Namespace  `json:"namespace"`
+	BlobSize          uint32              `json:"blob_size"`
+	Commitment        appfibre.Commitment `json:"commitment"`
+	RowVersion        uint32              `json:"row_version"`
+	ValsetHeight      uint64              `json:"valset_height"`
+	CreationTimestamp time.Time           `json:"creation_timestamp"`
+	Signature         []byte              `json:"signature"`
 }
 
-// GetBlobResult is the response from retrieving a Fibre blob.
+// GetBlobResult holds a blob reconstructed from FSPs.
 type GetBlobResult struct {
-	// Data is the raw blob data reconstructed from FSPs.
 	Data []byte `json:"data"`
 }
 
