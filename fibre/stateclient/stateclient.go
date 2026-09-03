@@ -281,3 +281,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 // Stop is a no-op: the gRPC conn and header store are owned elsewhere.
 func (c *Client) Stop(context.Context) error { return nil }
+
+// FullStakeStorageBudget is a no-op on light nodes: they store no shards, so there
+// is no local store to size a budget for.
+func (c *Client) FullStakeStorageBudget(context.Context) (int64, error) { return 0, nil }
