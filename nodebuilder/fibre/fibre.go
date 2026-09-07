@@ -24,8 +24,9 @@ type Module interface {
 	// Submit runs the full flow: upload to FSPs, aggregate validator signatures,
 	// and settle MsgPayForFibre on-chain. Requires a Fibre-capable core endpoint.
 	Submit(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*SubmitResult, error)
-	// Upload does the off-chain half only (encode, promise, upload, aggregate
-	// signatures) and does NOT settle on-chain. Use Submit for the full flow.
+	// Upload does the off-chain half (encode, promise, upload, aggregate
+	// signatures) and then sumbits MsgPayForFibre on-chain
+	// asynchronously in the background. Use Submit for the full flow.
 	Upload(context.Context, libshare.Namespace, []byte, *txclient.TxConfig) (*UploadResult, error)
 	// Download reconstructs a blob from FSPs by blobID.
 	Download(context.Context, appfibre.BlobID) (*GetBlobResult, error)
