@@ -70,7 +70,12 @@ func (s *Service) Submit(
 		return nil, nil, err
 	}
 
-	promise, err := s.upload(ctx, ns, blob)
+	keyName, err := s.txClient.GetTxAuthorKeyName(options)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolving signer key: %w", err)
+	}
+
+	promise, err := s.upload(ctx, ns, blob, keyName)
 	if err != nil {
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
 		return nil, nil, err
@@ -132,7 +137,12 @@ func (s *Service) Upload(
 		return nil, nil, err
 	}
 
-	promise, err := s.upload(ctx, ns, blob)
+	keyName, err := s.txClient.GetTxAuthorKeyName(options)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolving signer key: %w", err)
+	}
+
+	promise, err := s.upload(ctx, ns, blob, keyName)
 	if err != nil {
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
 		return nil, nil, err
@@ -221,12 +231,19 @@ func (s *Service) Download(ctx context.Context, blobID appfibre.BlobID) ([]byte,
 	return data, nil
 }
 
+// upload signs the payment promise with keyName so it matches the account that
+// settles MsgPayForFibre; an empty keyName falls back to the client's default.
 func (s *Service) upload(
 	ctx context.Context,
 	ns libshare.Namespace,
 	blob *appfibre.Blob,
+	keyName string,
 ) (_ *appfibre.SignedPaymentPromise, err error) {
-	promise, err := s.fibreClient.Upload(ctx, ns, blob)
+	var opts []appfibre.UploadOption
+	if keyName != "" {
+		opts = append(opts, appfibre.WithKeyName(keyName))
+	}
+	promise, err := s.fibreClient.Upload(ctx, ns, blob, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload blob:%w", err)
 	}

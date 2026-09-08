@@ -41,6 +41,10 @@ import (
 // payments must be rejected.
 const noEscrowKeyName = "no-escrow-account"
 
+// altKeyName is a non-default funded account used to exercise submitting under
+// an account selected via TxConfig.
+const altKeyName = "alt-account"
+
 // keep the withdrawal locked for the whole run so the pending-withdrawal
 // assertion does not race the module's auto-execution.
 const testWithdrawalDelay = time.Hour
@@ -73,7 +77,7 @@ func (s *FibreE2ESuite) SetupSuite() {
 
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().
-		WithFundedAccounts(appfibre.DefaultKeyName, noEscrowKeyName).
+		WithFundedAccounts(appfibre.DefaultKeyName, noEscrowKeyName, altKeyName).
 		WithDelayedPrecommitTimeout(500 * time.Millisecond).
 		WithModifiers(setFibreWithdrawalDelay(ecfg.Codec, testWithdrawalDelay))
 
@@ -233,6 +237,36 @@ func (s *FibreE2ESuite) TestSubmit() {
 	require.NoError(t, err)
 	require.Equal(t, wantDebit, before.Balance.Sub(after.Balance))
 	require.Equal(t, wantDebit, before.AvailableBalance.Sub(after.AvailableBalance))
+}
+
+func (s *FibreE2ESuite) TestSubmitWithSelectedAccount() {
+	t := s.T()
+	ctx := s.cctx.GoContext()
+	require.NoError(t, s.cctx.WaitForNextBlock())
+
+	altAddr := s.address(altKeyName)
+	altCfg := txclient.NewTxConfig(txclient.WithKeyName(altKeyName))
+
+	deposit := sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(10_000_000))
+	require.NoError(t, s.svc.Deposit(ctx, deposit, altCfg))
+	require.NoError(t, s.cctx.WaitForNextBlock())
+
+	before, err := s.svc.QueryEscrowAccount(ctx, altAddr)
+	require.NoError(t, err)
+
+	data := randomBytes(t, 4*1024)
+	ns := libshare.MustNewV0Namespace([]byte{0xA1, 0x7E})
+
+	resp, promise, err := s.svc.Submit(ctx, ns, data, altCfg)
+	require.NoError(t, err)
+	require.NotZero(t, resp.Height)
+	require.NotEmpty(t, promise.ValidatorSignatures)
+
+	uploadSize := uint32(appfibre.DefaultBlobConfigV0().UploadSize(len(data)))
+	wantDebit := fibretypes.PaymentAmount(uploadSize)
+	after, err := s.svc.QueryEscrowAccount(ctx, altAddr)
+	require.NoError(t, err)
+	require.Equal(t, wantDebit, before.Balance.Sub(after.Balance))
 }
 
 func (s *FibreE2ESuite) TestUploadAndDownload() {

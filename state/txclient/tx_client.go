@@ -293,6 +293,27 @@ func (c *TxClient) GetTxAuthorAccAddress(cfg *TxConfig) (types.AccAddress, error
 	}
 }
 
+// GetTxAuthorKeyName resolves the keyring key name of the account that authors a
+// tx for cfg, mapping an address selection back to its key name.
+func (c *TxClient) GetTxAuthorKeyName(cfg *TxConfig) (string, error) {
+	switch {
+	case cfg != nil && cfg.SignerAddress() != "":
+		addr, err := ParseAccAddressFromString(cfg.SignerAddress())
+		if err != nil {
+			return "", err
+		}
+		rec, err := c.keyring.KeyByAddress(addr)
+		if err != nil {
+			return "", err
+		}
+		return rec.Name, nil
+	case cfg != nil && cfg.KeyName() != "":
+		return cfg.KeyName(), nil
+	default:
+		return c.defaultSignerAccount, nil
+	}
+}
+
 // estimateGasPriceAndUsage estimate the gas price and limit.
 // if gas price and gas limit are both set,
 // then these two values will be returned, bypassing other checks.
