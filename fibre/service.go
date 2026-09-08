@@ -148,14 +148,6 @@ func (s *Service) Upload(
 		return nil, nil, err
 	}
 
-	// The goroutine below calls SubmitMessage, which dereferences options
-	// (TxConfig.FeeGranterAddress) without a nil guard. A panic in a detached
-	// goroutine crashes the process, so normalize nil here for both this
-	// Service.Upload path and the async settlement path below.
-	if options == nil {
-		options = txclient.NewTxConfig()
-	}
-
 	// Per ADR-013, Upload settles payment on-chain in the background so the
 	// caller is not blocked on tx inclusion. Errors are logged only; a
 	// follow-up change will add lifecycle tracking to wait for in-flight

@@ -132,6 +132,9 @@ func (c *TxClient) SubmitMessage(
 	msg types.Msg,
 	cfg *TxConfig,
 ) (*user.TxResponse, error) {
+	if cfg == nil {
+		cfg = NewTxConfig()
+	}
 	err := c.setupClient()
 	if err != nil {
 		return nil, err
