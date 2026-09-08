@@ -12,7 +12,7 @@ import (
 )
 
 func TestBootstrapperHealth(t *testing.T) {
-	networks := []Network{Mainnet, Mocha}
+	networks := []Network{Mainnet, Mocha, Corto}
 	for _, network := range networks {
 		t.Run(string(network), func(t *testing.T) {
 			bootstrappers, err := BootstrappersFor(network)

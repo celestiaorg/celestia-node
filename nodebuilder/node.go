@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -73,6 +74,7 @@ type Node struct {
 	BlobServ      blob.Module   // not optional
 	DASer         das.Module    // not optional
 	AdminServ     node.Module   // not optional
+	FibreServ     fibre.Module  // not optional
 	BlobstreamMod blobstream.Module
 
 	// start and stop control ref internal fx.App lifecycle funcs to be called from Start and Stop
