@@ -60,28 +60,18 @@ func (s *Service) withBlobMetrics() error {
 	return nil
 }
 
-func (m *blobMetrics) observeUpload(ctx context.Context, dur time.Duration, blobSize int, err error) {
+func (m *blobMetrics) observeUpload(ctx context.Context, dur time.Duration, err error) {
 	if m == nil {
 		return
 	}
-	m.uploadDuration.Record(ctx, dur.Seconds(), blobAttrs(blobSize, err))
+	m.uploadDuration.Record(ctx, dur.Seconds(), errorAttrs(err))
 }
 
-func (m *blobMetrics) observeSubmit(ctx context.Context, dur time.Duration, blobSize int, err error) {
+func (m *blobMetrics) observeSubmit(ctx context.Context, dur time.Duration, err error) {
 	if m == nil {
 		return
 	}
-	m.submitDuration.Record(ctx, dur.Seconds(), blobAttrs(blobSize, err))
-}
-
-func blobAttrs(blobSize int, err error) metric.MeasurementOption {
-	attrs := []attribute.KeyValue{
-		attribute.Int("blob_size", blobSize),
-	}
-	if err != nil {
-		attrs = append(attrs, attribute.String(attrErrorType, classifyError(err)))
-	}
-	return metric.WithAttributes(attrs...)
+	m.submitDuration.Record(ctx, dur.Seconds(), errorAttrs(err))
 }
 
 func errorAttrs(err error) metric.MeasurementOption {

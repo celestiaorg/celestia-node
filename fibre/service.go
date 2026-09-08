@@ -59,7 +59,7 @@ func (s *Service) Submit(
 
 	start := time.Now()
 	defer func() {
-		s.metrics.observeSubmit(ctx, time.Since(start), len(data), err)
+		s.metrics.observeSubmit(ctx, time.Since(start), err)
 	}()
 
 	log.Infow("submitting blob", "namespace", ns.ID(), "data-size", len(data))
@@ -126,7 +126,7 @@ func (s *Service) Upload(
 
 	start := time.Now()
 	defer func() {
-		s.metrics.observeUpload(ctx, time.Since(start), len(data), err)
+		s.metrics.observeUpload(ctx, time.Since(start), err)
 	}()
 
 	log.Infow("uploading blob", "namespace", ns.ID(), "data-size", len(data))
