@@ -56,12 +56,10 @@ func newAppFibreClient(
 ) (*appfibre.Client, error) {
 	cfg := appfibre.DefaultClientConfig()
 	cfg.DefaultKeyName = string(keyName)
-	cfg.StateAddress = conn.Target()
 
 	if tp == node.Light || tp == node.Bridge {
-		// DA  nodes replace the default trusted gRPC state client with one
-		// that resolves validator sets and hosts via the locally verified
-		// header chain (see fibre/stateclient).
+		// DA nodes resolve validator sets and hosts via the locally verified
+		// header chain instead of a trusted gRPC state client (see fibre/stateclient).
 		sc := stateclient.NewClient(store, conn, network)
 		cfg.StateClientFn = func() (appstate.Client, error) { return sc, nil }
 	}
