@@ -76,11 +76,13 @@ func (d *DASer) Start(ctx context.Context) error {
 
 	cp, err := d.checkpoint(ctx)
 	if err != nil {
+		d.running.Store(false)
 		return err
 	}
 
 	sub, err := d.hsub.Subscribe()
 	if err != nil {
+		d.running.Store(false)
 		return err
 	}
 
