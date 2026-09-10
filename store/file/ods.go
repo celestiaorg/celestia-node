@@ -260,7 +260,7 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
 // implementation. Implementations should indicate the side in the returned AxisHalf.
-func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
+func (o *ODS) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
 	// axis is a column and from the left half of the square.
 	if axisIdx < o.size()/2 {
@@ -277,7 +277,7 @@ func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (sh
 		return shwap.AxisHalf{}, err
 	}
 
-	half, err := ods.computeAxisHalf(axisType, axisIdx)
+	half, err := ods.computeAxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
 		return shwap.AxisHalf{}, fmt.Errorf("computing axis half: %w", err)
 	}

@@ -1,8 +1,10 @@
 package file
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"runtime"
 
 	"golang.org/x/sync/errgroup"
 
@@ -85,55 +87,81 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, err
 }
 
 func (s square) computeAxisHalf(
+	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) (shwap.AxisHalf, error) {
 	shares := make([]libshare.Share, s.size())
+	result := shwap.AxisHalf{
+		Shares:   shares,
+		IsParity: false,
+	}
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+
+	enc, err := codec.Encoder(s.size() * 2)
+	if err != nil {
+		return result, fmt.Errorf("getting encoder: %w", err)
+	}
 
 	// extend opposite half of the square while collecting Shares for the first half of required axis
-	g := errgroup.Group{}
+	g, groupCtx := errgroup.WithContext(ctx)
+	jobs := make(chan int)
+	g.Go(func() error {
+		defer close(jobs)
+		for i := range s.size() {
+			select {
+			case jobs <- i:
+			case <-groupCtx.Done():
+				return groupCtx.Err()
+			}
+		}
+		return nil
+	})
+
 	opposite := oppositeAxis(axisType)
-	for i := range s.size() {
+	for range min(s.size(), runtime.GOMAXPROCS(0)) {
 		g.Go(func() error {
-			half, err := s.axisHalf(opposite, i)
-			if err != nil {
-				return err
-			}
-
-			enc, err := codec.Encoder(s.size() * 2)
-			if err != nil {
-				return fmt.Errorf("getting encoder: %w", err)
-			}
-
 			shards := make([][]byte, s.size()*2)
-			if half.IsParity {
-				copy(shards[s.size():], libshare.ToBytes(half.Shares))
-			} else {
-				copy(shards, libshare.ToBytes(half.Shares))
-			}
-
 			target := make([]bool, s.size()*2)
 			target[axisIdx] = true
 
-			err = enc.ReconstructSome(shards, target)
-			if err != nil {
-				return fmt.Errorf("reconstruct some: %w", err)
-			}
+			for i := range jobs {
+				half, err := s.axisHalf(opposite, i)
+				if err != nil {
+					return err
+				}
 
-			shard, err := libshare.NewShare(shards[axisIdx])
-			if err != nil {
-				return fmt.Errorf("creating share: %w", err)
+				for i := range shards {
+					shards[i] = shards[i][:0]
+				}
+				if half.IsParity {
+					copy(shards[s.size():], libshare.ToBytes(half.Shares))
+				} else {
+					copy(shards, libshare.ToBytes(half.Shares))
+				}
+
+				if err := enc.ReconstructSome(shards, target); err != nil {
+					return fmt.Errorf("reconstruct some: %w", err)
+				}
+
+				raw := shards[axisIdx]
+				shards[axisIdx] = nil
+				share, err := libshare.NewShare(raw)
+				if err != nil {
+					return fmt.Errorf("creating share: %w", err)
+				}
+				shares[i] = share
 			}
-			shares[i] = shard
 			return nil
 		})
 	}
 
-	err := g.Wait()
-	return shwap.AxisHalf{
-		Shares:   shares,
-		IsParity: false,
-	}, err
+	if err := g.Wait(); err != nil {
+		return result, err
+	}
+	return result, ctx.Err()
 }
 
 func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
