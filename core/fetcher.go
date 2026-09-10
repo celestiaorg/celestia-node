@@ -229,7 +229,11 @@ func (f *BlockFetcher) IsSyncing(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return resp.SyncInfo.CatchingUp, nil
+	syncInfo := resp.GetSyncInfo()
+	if syncInfo == nil {
+		return false, fmt.Errorf("core/fetcher: sync info not available in status response")
+	}
+	return syncInfo.CatchingUp, nil
 }
 
 // IsSyncingFrom reports the sync status for the source that announced the
@@ -339,7 +343,10 @@ func partsToBlock(parts []*tmproto.Part) (*types.Block, error) {
 	partSet := types.NewPartSetFromHeader(types.PartSetHeader{
 		Total: uint32(len(parts)),
 	}, types.BlockPartSizeBytes)
-	for _, part := range parts {
+	for i, part := range parts {
+		if part == nil {
+			return nil, fmt.Errorf("core/fetcher: block part at position %d is nil", i)
+		}
 		ok, err := partSet.AddPartWithoutProof(&types.Part{Index: part.Index, Bytes: part.Bytes})
 		if err != nil {
 			return nil, err
