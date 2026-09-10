@@ -124,9 +124,10 @@ make light-mocha-up CORE_IP=<ip>     # Use custom core IP
 
 ## Environment variables
 
-| Variable                | Explanation                         | Default value | Required |
-| ----------------------- | ----------------------------------- | ------------- | -------- |
-| `CELESTIA_BOOTSTRAPPER` | Start the node in bootstrapper mode | `false`       | Optional |
+| Variable                | Explanation                                                               | Default value                             | Required |
+| ----------------------- | ------------------------------------------------------------------------- | ----------------------------------------- | -------- |
+| `CELESTIA_BOOTSTRAPPER` | Start the node in bootstrapper mode                                       | `false`                                   | Optional |
+| `CELESTIA_HOME`         | Use this exact directory as the node store, instead of the default layout | `$HOME/.celestia-<node type>[-<network>]` | Optional |
 
 ## Package-specific documentation
 
