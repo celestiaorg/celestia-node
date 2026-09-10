@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,6 +54,42 @@ func TestReadODSFromFile(t *testing.T) {
 		original := eds.Row(uint(i))[:eds.Width()/2]
 		require.True(t, len(original) == len(row))
 		require.Equal(t, original, libshare.ToBytes(row))
+	}
+}
+
+func TestReadODSConcurrentColdCache(t *testing.T) {
+	previousProcs := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() { runtime.GOMAXPROCS(previousProcs) })
+
+	f := createODSFile(t, edstest.RandEDS(t, 8))
+	t.Cleanup(func() { require.NoError(t, f.Close()) })
+	f.lock.Lock()
+
+	const readers = 8
+	type result struct {
+		ods square
+		err error
+	}
+	results := make(chan result, readers)
+	var ready sync.WaitGroup
+	ready.Add(readers)
+	for range readers {
+		go func() {
+			ready.Done()
+			ods, err := f.readODS()
+			results <- result{ods: ods, err: err}
+		}()
+	}
+	ready.Wait()
+	runtime.Gosched()
+	f.lock.Unlock()
+
+	first := <-results
+	require.NoError(t, first.err)
+	for range readers - 1 {
+		got := <-results
+		require.NoError(t, got.err)
+		require.Same(t, &first.ods[0][0], &got.ods[0][0])
 	}
 }
 
