@@ -44,7 +44,7 @@ var Cmd = &cobra.Command{
 }
 
 var sharesAvailableCmd = &cobra.Command{
-	Use:   "available",
+	Use:   "available height",
 	Short: "Subjectively validates if Shares committed to the given EDS are available on the Network.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -174,7 +174,7 @@ var getEDS = &cobra.Command{
 }
 
 var getRange = &cobra.Command{
-	Use:   "get-range [height] [start] [end(exclusive)]",
+	Use:   "get-range height start end(exclusive)",
 	Short: "Gets a range of shares from the given height within the given ODS indexes",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {

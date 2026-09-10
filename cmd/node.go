@@ -24,7 +24,7 @@ func NewBridge(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command
 		pruner.Flags(),
 	}
 	cmd := &cobra.Command{
-		Use:   "bridge [subcommand]",
+		Use:   "bridge [command]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Bridge node",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -52,7 +52,7 @@ func NewLight(options ...func(*cobra.Command, []*pflag.FlagSet)) *cobra.Command 
 		pruner.Flags(),
 	}
 	cmd := &cobra.Command{
-		Use:   "light [subcommand]",
+		Use:   "light [command]",
 		Args:  cobra.NoArgs,
 		Short: "Manage your Light node",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {

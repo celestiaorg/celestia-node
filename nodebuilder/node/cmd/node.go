@@ -38,7 +38,7 @@ var nodeInfoCmd = &cobra.Command{
 }
 
 var logCmd = &cobra.Command{
-	Use:   "log-level",
+	Use:   "log-level module:level...",
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Sets log level for module.",
 	Long: "Allows to set log level for module to in format <module>:<level>" +
@@ -67,7 +67,7 @@ var logCmd = &cobra.Command{
 }
 
 var verifyCmd = &cobra.Command{
-	Use:   "permissions",
+	Use:   "permissions token",
 	Args:  cobra.ExactArgs(1),
 	Short: "Returns the permissions assigned to the given token.",
 
@@ -84,7 +84,7 @@ var verifyCmd = &cobra.Command{
 }
 
 var authCmd = &cobra.Command{
-	Use:   "set-permissions",
+	Use:   "set-permissions permission...",
 	Args:  cobra.MinimumNArgs(1),
 	Short: "Signs and returns a new token with the given permissions.",
 	RunE: func(cmd *cobra.Command, args []string) error {

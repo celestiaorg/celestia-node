@@ -103,7 +103,7 @@ var balanceCmd = &cobra.Command{
 }
 
 var balanceForAddressCmd = &cobra.Command{
-	Use: "balance-for-address [address]",
+	Use: "balance-for-address address",
 	Short: "Retrieves the Celestia coin balance for the given address and verifies the returned balance against " +
 		"the corresponding block's AppHash.",
 	Args: cobra.ExactArgs(1),
@@ -125,7 +125,7 @@ var balanceForAddressCmd = &cobra.Command{
 }
 
 var transferCmd = &cobra.Command{
-	Use:   "transfer [address] [amount]",
+	Use:   "transfer address amount",
 	Short: "Sends the given amount of coins from default wallet of the node to the given account address.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -156,7 +156,7 @@ var transferCmd = &cobra.Command{
 }
 
 var cancelUnbondingDelegationCmd = &cobra.Command{
-	Use:   "cancel-unbonding-delegation [address] [amount] [height]",
+	Use:   "cancel-unbonding-delegation validator_address amount height",
 	Short: "Cancels a user's pending undelegation from a validator.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -193,7 +193,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 }
 
 var beginRedelegateCmd = &cobra.Command{
-	Use:   "begin-redelegate [srcAddress] [dstAddress] [amount]",
+	Use:   "begin-redelegate source_validator_address destination_validator_address amount",
 	Short: "Sends a user's delegated tokens to a new validator for redelegation",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -230,9 +230,9 @@ var beginRedelegateCmd = &cobra.Command{
 }
 
 var undelegateCmd = &cobra.Command{
-	Use:   "undelegate [valAddress] [amount]",
+	Use:   "undelegate validator_address amount",
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -261,9 +261,9 @@ var undelegateCmd = &cobra.Command{
 }
 
 var delegateCmd = &cobra.Command{
-	Use:   "delegate [valAddress] [amount]",
+	Use:   "delegate validator_address amount",
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -292,7 +292,7 @@ var delegateCmd = &cobra.Command{
 }
 
 var withdrawDelegatorRewardCmd = &cobra.Command{
-	Use:   "withdraw-delegator-reward [valAddress]",
+	Use:   "withdraw-delegator-reward validator_address",
 	Short: "Withdraws a delegator's rewards from a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -317,7 +317,7 @@ var withdrawDelegatorRewardCmd = &cobra.Command{
 }
 
 var queryDelegationRewardsCmd = &cobra.Command{
-	Use:   "get-delegation-rewards [valAddress]",
+	Use:   "get-delegation-rewards validator_address",
 	Short: "Retrieves the pending rewards for a delegation to a given validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -338,7 +338,7 @@ var queryDelegationRewardsCmd = &cobra.Command{
 }
 
 var queryDelegationCmd = &cobra.Command{
-	Use:   "get-delegation [valAddress]",
+	Use:   "get-delegation validator_address",
 	Short: "Retrieves the delegation information between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -359,7 +359,7 @@ var queryDelegationCmd = &cobra.Command{
 }
 
 var queryUnbondingCmd = &cobra.Command{
-	Use:   "get-unbonding [valAddress]",
+	Use:   "get-unbonding validator_address",
 	Short: "Retrieves the unbonding status between a delegator and a validator.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -380,7 +380,7 @@ var queryUnbondingCmd = &cobra.Command{
 }
 
 var queryRedelegationCmd = &cobra.Command{
-	Use:   "get-redelegations [srcAddress] [dstAddress]",
+	Use:   "get-redelegations source_validator_address destination_validator_address",
 	Short: "Retrieves the status of the redelegations between a delegator and a validator.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -410,7 +410,7 @@ var queryRedelegationCmd = &cobra.Command{
 }
 
 var grantFeeCmd = &cobra.Command{
-	Use: "grant-fee [granteeAddress]",
+	Use: "grant-fee grantee_address",
 	Short: "Grant an allowance to a specified grantee account to pay the fees for their transactions.\n" +
 		"Grantee can spend any amount of tokens in case the spend limit is not set.",
 	Args: cobra.ExactArgs(1),
@@ -436,7 +436,7 @@ var grantFeeCmd = &cobra.Command{
 }
 
 var revokeGrantFeeCmd = &cobra.Command{
-	Use:   "revoke-grant-fee [granteeAddress]",
+	Use:   "revoke-grant-fee grantee_address",
 	Short: "Removes permission for grantee to submit PFB transactions which will be paid by granter.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
