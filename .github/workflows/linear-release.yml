@@ -13,10 +13,14 @@ permissions:
 
 jobs:
   sync:
-    if: github.event.release.prerelease == false
+    # Guard on the tag as well as the prerelease flag: the flag is set per
+    # release and a testnet tag published without it would otherwise sync.
+    if: github.event.release.prerelease == false && !contains(github.event.release.tag_name, '-')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      # Pinned to a commit SHA: this job holds LINEAR_ACCESS_KEY, so a repointed
+      # mutable tag would run third-party code alongside the credential.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
