@@ -25,5 +25,6 @@ func GenesisFor(net Network) (string, error) {
 var genesisList = map[Network]string{
 	Mainnet: "6BE39EFD10BA412A9DB5288488303F5DD32CF386707A5BEF33617F4C43301872",
 	Mocha:   "8D8763ECEF33C0861CBEC98D5BCCD5FD71C09FCC3A980C52AEF8A4AFFCE8BA74",
+	Corto:   "",
 	Private: "",
 }

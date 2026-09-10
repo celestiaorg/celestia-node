@@ -2,6 +2,7 @@ package peers
 
 import (
 	"context"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -10,14 +11,17 @@ import (
 
 const defaultCleanupThreshold = 2
 
-// pool stores peers and provides methods for simple round-robin access.
+// pool stores peers and provides methods for throughput-based access.
 type pool struct {
 	m           sync.RWMutex
 	peersList   []peer.ID
 	statuses    map[peer.ID]status
 	cooldown    *timedQueue
 	activeCount int
-	nextIdx     int
+
+	// stats ranks peers by observed throughput and is shared with all other pools of the
+	// same Manager
+	stats *peerStats
 
 	hasPeer   bool
 	hasPeerCh chan struct{}
@@ -34,10 +38,11 @@ const (
 )
 
 // newPool returns new empty pool.
-func newPool(peerCooldownTime time.Duration) *pool {
+func newPool(peerCooldownTime time.Duration, stats *peerStats) *pool {
 	p := &pool{
 		peersList:        make([]peer.ID, 0),
 		statuses:         make(map[peer.ID]status),
+		stats:            stats,
 		hasPeerCh:        make(chan struct{}),
 		cleanupThreshold: defaultCleanupThreshold,
 	}
@@ -46,6 +51,9 @@ func newPool(peerCooldownTime time.Duration) *pool {
 }
 
 // tryGet returns peer along with bool flag indicating success of operation.
+// Peers are selected by power-of-two-choices: two random active peers are sampled and the one
+// with the higher throughput score wins. Unmeasured peers get priority so every peer can establish
+// a score. Sampling instead of always taking the best score limits herding onto a single peer.
 func (p *pool) tryGet() (peer.ID, bool) {
 	p.m.Lock()
 	defer p.m.Unlock()
@@ -54,29 +62,32 @@ func (p *pool) tryGet() (peer.ID, bool) {
 		return "", false
 	}
 
-	// if pointer is out of range, point to first element
-	if p.nextIdx > len(p.peersList)-1 {
-		p.nextIdx = 0
+	first, idx, ok := p.activeFrom(rand.IntN(len(p.peersList))) //nolint:gosec
+	if !ok {
+		return "", false
+	}
+	if p.activeCount == 1 {
+		return first, true
 	}
 
-	start := p.nextIdx
-	for {
-		peerID := p.peersList[p.nextIdx]
+	second, _, _ := p.activeFrom(rand.IntN(len(p.peersList))) //nolint:gosec
+	if second == first {
+		// both draws landed on the same peer, take the next active one instead
+		second, _, _ = p.activeFrom(idx + 1)
+	}
 
-		p.nextIdx++
-		if p.nextIdx == len(p.peersList) {
-			p.nextIdx = 0
-		}
+	return p.stats.selectPeer(first, second), true
+}
 
-		if p.statuses[peerID] == active {
-			return peerID, true
-		}
-
-		// full circle passed
-		if p.nextIdx == start {
-			return "", false
+// activeFrom returns the first active peer at or after idx, wrapping around the peers list.
+func (p *pool) activeFrom(idx int) (peer.ID, int, bool) {
+	for i := range p.peersList {
+		j := (idx + i) % len(p.peersList)
+		if p.statuses[p.peersList[j]] == active {
+			return p.peersList[j], j, true
 		}
 	}
+	return "", 0, false
 }
 
 // next sends a peer to the returned channel when it becomes available.

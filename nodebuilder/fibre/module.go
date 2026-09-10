@@ -1,0 +1,105 @@
+package fibre
+
+import (
+	"context"
+
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+
+	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
+	libshare "github.com/celestiaorg/go-square/v4/share"
+
+	"github.com/celestiaorg/celestia-node/fibre"
+	"github.com/celestiaorg/celestia-node/state/txclient"
+)
+
+// module implements Module on top of a local *fibre.Service.
+type module struct {
+	service *fibre.Service
+}
+
+// NewModule returns a Module backed by a local *fibre.Service. It is used by
+// bridge nodes to expose the Fibre JSON-RPC API, and by api/client.Client to
+// run all Fibre operations locally against a consensus endpoint and FSPs,
+// without routing through a bridge node.
+func NewModule(service *fibre.Service) Module {
+	return &module{
+		service: service,
+	}
+}
+
+func (m *module) Submit(
+	ctx context.Context,
+	ns libshare.Namespace,
+	data []byte,
+	options *txclient.TxConfig,
+) (*SubmitResult, error) {
+	resp, pp, err := m.service.Submit(ctx, ns, data, options)
+	if err != nil {
+		return nil, err
+	}
+
+	blobID := appfibre.NewBlobID(uint8(pp.BlobVersion), pp.Commitment)
+	uploadRes := UploadResult{
+		BlobID:         blobID,
+		PaymentPromise: toNodePaymentPromise(pp.PaymentPromise),
+	}
+	uploadRes.ValidatorSignatures = make([]ValidatorSignature, len(pp.ValidatorSignatures))
+	for i, sig := range pp.ValidatorSignatures {
+		uploadRes.ValidatorSignatures[i] = sig
+	}
+
+	return &SubmitResult{
+		UploadResult: uploadRes,
+		Height:       uint64(resp.Height),
+		TxHash:       resp.TxHash,
+	}, nil
+}
+
+func (m *module) Upload(
+	ctx context.Context,
+	ns libshare.Namespace,
+	data []byte,
+	options *txclient.TxConfig,
+) (*UploadResult, error) {
+	promise, blobID, err := m.service.Upload(ctx, ns, data, options)
+	if err != nil {
+		return nil, err
+	}
+
+	uploadRes := &UploadResult{
+		BlobID:         blobID,
+		PaymentPromise: toNodePaymentPromise(promise.PaymentPromise),
+	}
+
+	uploadRes.ValidatorSignatures = make([]ValidatorSignature, len(promise.ValidatorSignatures))
+	for i, sig := range promise.ValidatorSignatures {
+		uploadRes.ValidatorSignatures[i] = sig
+	}
+	return uploadRes, nil
+}
+
+func (m *module) Download(ctx context.Context, blobID appfibre.BlobID) (*GetBlobResult, error) {
+	data, err := m.service.Download(ctx, blobID)
+	if err != nil {
+		return nil, err
+	}
+	return &GetBlobResult{
+		Data: data,
+	}, nil
+}
+
+func (m *module) QueryEscrowAccount(ctx context.Context, signer string) (*fibre.EscrowAccount, error) {
+	return m.service.QueryEscrowAccount(ctx, signer)
+}
+
+func (m *module) Deposit(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error {
+	return m.service.Deposit(ctx, amount, cfg)
+}
+
+func (m *module) Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error {
+	return m.service.Withdraw(ctx, amount, cfg)
+}
+
+func (m *module) PendingWithdrawals(ctx context.Context, signer string) ([]fibre.PendingWithdrawal, error) {
+	return m.service.PendingWithdrawals(ctx, signer)
+}

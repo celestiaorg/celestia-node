@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
 )
 
 // TestSetupEstimatorConnection verifies the connection is created lazily and is

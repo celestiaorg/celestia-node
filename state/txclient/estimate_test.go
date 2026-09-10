@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 )
 
 const (

@@ -28,6 +28,8 @@ func DefaultConfig(tp node.Type) Config {
 		Enabled:    true, // Enabled by default
 	}
 	if tp == node.Light {
+		// light nodes sample a fixed amount of shares regardless of square size, so the
+		// size-derived timeout does not apply to them
 		cfg.SampleTimeout = modp2p.BlockTime * time.Duration(cfg.ConcurrencyLimit)
 	}
 	return cfg

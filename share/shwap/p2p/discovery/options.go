@@ -10,6 +10,8 @@ import (
 // Parameters is the set of Parameters that must be configured for the Discovery module
 type Parameters struct {
 	// PeersLimit defines the soft limit of FNs to connect to via discovery.
+	// Node defaults derive this from the DASer's ConcurrencyLimit so that
+	// parallel sampling workers are not bottlenecked on a small peer set.
 	// Set 0 to disable.
 	PeersLimit uint
 	// AdvertiseInterval is a interval between advertising sessions.
@@ -33,7 +35,7 @@ type Option func(*options)
 // for the Discovery module
 func DefaultParameters() *Parameters {
 	return &Parameters{
-		PeersLimit:        5,
+		PeersLimit:        10,
 		AdvertiseInterval: time.Hour,
 	}
 }
