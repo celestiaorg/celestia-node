@@ -20,7 +20,7 @@ func TestNamespaceDataReadFromCapsRows(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
 
-	maxRows := 2 * share.MaxSquareSize
+	maxRows := share.MaxSquareSize
 
 	// serialize a single valid row to replay as the attacker's payload.
 	const odsSize = 8
@@ -34,7 +34,7 @@ func TestNamespaceDataReadFromCapsRows(t *testing.T) {
 	_, err = nd[0].WriteTo(&row)
 	require.NoError(t, err)
 
-	// one more row than the largest possible extended square.
+	// one more row than a namespace can occupy in the largest possible ODS.
 	var stream bytes.Buffer
 	for range maxRows + 1 {
 		stream.Write(row.Bytes())
@@ -60,11 +60,11 @@ func TestNamespaceDataReadFromRoundTrip(t *testing.T) {
 	require.NotEmpty(t, nd)
 
 	var buf bytes.Buffer
-	_, err = shwap.NamespaceData(nd).WriteTo(&buf)
+	_, err = nd.WriteTo(&buf)
 	require.NoError(t, err)
 
 	var got shwap.NamespaceData
 	_, err = got.ReadFrom(&buf)
 	require.NoError(t, err)
-	require.Equal(t, shwap.NamespaceData(nd), got)
+	require.Equal(t, nd, got)
 }
