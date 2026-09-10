@@ -92,9 +92,11 @@ func grpcClient(lc fx.Lifecycle, cfg EndpointConfig) (*grpc.ClientConn, error) {
 		if err != nil {
 			return nil, err
 		}
+		// The base retry interceptors already compose with this chain.
+		// Adding them again would nest retries.
 		opts = append(opts,
-			grpc.WithChainUnaryInterceptor(authInterceptor(xToken), retryInterceptor),
-			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken), retryStreamInterceptor),
+			grpc.WithChainUnaryInterceptor(authInterceptor(xToken)),
+			grpc.WithChainStreamInterceptor(authStreamInterceptor(xToken)),
 		)
 	}
 	opts = append(opts,
