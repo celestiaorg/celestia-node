@@ -1,0 +1,52 @@
+name: linear-release
+
+# Sync each published GitHub release to the celestia-node release pipeline in
+# Linear so issues fixed by PRs in the release move from Merged to Released.
+# Pre-releases (-arabica, -mocha, -corto) are testnet-only and skipped.
+# https://linear.app/celestia/settings/releases/pipelines/celestia-node
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    # Guard on the tag as well as the prerelease flag: the flag is set per
+    # release and a testnet tag published without it would otherwise sync.
+    if: github.event.release.prerelease == false && !contains(github.event.release.tag_name, '-')
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit SHA: this job holds LINEAR_ACCESS_KEY, so a repointed
+      # mutable tag would run third-party code alongside the credential.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      # Scan from the previous mainnet tag reachable from this release. The
+      # action's default base is the previous Linear release, which may be on
+      # another release branch (e.g. v0.31.x vs main) and would misattribute
+      # commits. Pre-release tags contain a hyphen (v0.33.0-mocha) and are
+      # excluded so commits they shipped still land in the next mainnet release.
+      - name: Find previous mainnet tag
+        id: prev
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          prev=$(git describe --tags --abbrev=0 --exclude='*-*' "${TAG}^")
+          echo "tag=${prev}" >> "$GITHUB_OUTPUT"
+      - uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+        with:
+          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
+          version: ${{ github.event.release.tag_name }}
+          base_ref: ${{ steps.prev.outputs.tag }}
+          links: GitHub release=${{ github.event.release.html_url }}
+      # The pipeline is a scheduled pipeline, so sync leaves the release In
+      # Progress. Complete it so linked issues move to Released.
+      - uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+        with:
+          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
+          command: complete
+          version: ${{ github.event.release.tag_name }}
