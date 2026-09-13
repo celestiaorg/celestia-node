@@ -52,8 +52,11 @@ func (m *multiClientCloser) register(closer jsonrpc.ClientCloser) {
 // closeAll closes all saved clients.
 func (m *multiClientCloser) closeAll() {
 	for _, closer := range m.closers {
-		closer()
+		if closer != nil {
+			closer()
+		}
 	}
+	m.closers = nil
 }
 
 // Close closes the connections to all namespaces registered on the staticClient.
@@ -77,11 +80,12 @@ func newClient(ctx context.Context, addr string, authHeader http.Header) (*Clien
 	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewClient(ctx, addr, name, module, authHeader)
 		if err != nil {
+			multiCloser.closeAll()
 			return nil, err
 		}
 		multiCloser.register(closer)
 	}
-
+	client.closer = multiCloser
 	return &client, nil
 }
 
