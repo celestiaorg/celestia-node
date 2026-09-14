@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -24,6 +25,7 @@ func registerEndpoints(
 	nodeMod node.Module,
 	blobMod blob.Module,
 	blobstreamMod blobstream.Module,
+	fibreMod fibre.Module,
 	serv *rpc.Server,
 ) {
 	serv.RegisterService("das", daserMod, &das.API{})
@@ -34,6 +36,7 @@ func registerEndpoints(
 	serv.RegisterService("node", nodeMod, &node.API{})
 	serv.RegisterService("blob", blobMod, &blob.API{})
 	serv.RegisterService("blobstream", blobstreamMod, &blobstream.API{})
+	serv.RegisterService("fibre", fibreMod, &fibre.API{})
 }
 
 func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {

@@ -22,13 +22,16 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/das"
+	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/header"
+	fibre2 "github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/celestiaorg/celestia-node/share"
@@ -177,6 +180,62 @@ func init() {
 
 	add(network.DirUnknown)
 	add(bytes.HexBytes(hash))
+
+	id := make(appfibre.BlobID, appfibre.BlobIDSize)
+	id[0] = 2
+	copy(id[1:], commitment)
+	add(id)
+
+	exampleUploadResult := fibre2.UploadResult{
+		BlobID:              id,
+		ValidatorSignatures: []fibre2.ValidatorSignature{[]byte("validator_signature_bytes")},
+		PaymentPromise: &fibre2.PaymentPromise{
+			ChainID:           "celestia",
+			Namespace:         namespace,
+			BlobSize:          1024,
+			Commitment:        id.Commitment(),
+			RowVersion:        2,
+			ValsetHeight:      100,
+			CreationTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			Signature:         []byte("promise_signature_bytes"),
+		},
+	}
+	add(&exampleUploadResult)
+
+	exampleSubmitResult := fibre2.SubmitResult{
+		UploadResult: exampleUploadResult,
+		Height:       42,
+		TxHash:       "A5CF62609391B17E0340A6E07BD15860AFA4BE7F5DAF28F2E22A1C3B0CE85E64",
+	}
+	add(&exampleSubmitResult)
+
+	add(&fibre2.GetBlobResult{
+		Data: []byte("fibre blob data"),
+	})
+
+	add(&fibre.EscrowAccount{
+		Signer:           "celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h",
+		Balance:          sdk.NewInt64Coin("utia", 1000000),
+		AvailableBalance: sdk.NewInt64Coin("utia", 900000),
+	})
+
+	add(&fibre.PendingWithdrawal{
+		Signer:             "celestia1377k5an3f94v6wyaceu0cf4nq6gk2jtpc46g7h",
+		Amount:             sdk.NewInt64Coin("utia", 100000),
+		RequestedTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		AvailableTimestamp: time.Date(2025, 1, 8, 0, 0, 0, 0, time.UTC),
+	})
+
+	add(fibre2.PaymentPromise{
+		ChainID:           "celestia",
+		Namespace:         namespace,
+		BlobSize:          1024,
+		Commitment:        id.Commitment(),
+		RowVersion:        2,
+		ValsetHeight:      100,
+		CreationTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		Signature:         []byte("promise_signature_bytes"),
+	})
 }
 
 func exampleValue(t, parent reflect.Type) (any, error) {

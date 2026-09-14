@@ -55,6 +55,9 @@ func (nd NamespaceData) Verify(root *share.AxisRoots, namespace libshare.Namespa
 	return nil
 }
 
+// maxNamespaceDataRows bounds the number of rows read from a stream.
+var maxNamespaceDataRows = share.MaxSquareSize
+
 // ReadFrom reads NamespaceData from the provided reader implementing io.ReaderFrom.
 // It reads series of length-delimited RowNamespaceData until EOF draining the stream.
 func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
@@ -71,6 +74,9 @@ func (nd *NamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 			return n, err
 		}
 
+		if len(ndNew) >= maxNamespaceDataRows {
+			return n, fmt.Errorf("namespace data exceeds %d rows", maxNamespaceDataRows)
+		}
 		ndNew = append(ndNew, rnd)
 	}
 
