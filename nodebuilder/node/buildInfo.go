@@ -20,11 +20,11 @@ const (
 
 // BuildInfo represents all necessary information about current build.
 type BuildInfo struct {
-	BuildTime       string
-	LastCommit      string
-	SemanticVersion string
-	SystemVersion   string
-	GolangVersion   string
+	BuildTime       string `json:"build_date"`
+	LastCommit      string `json:"commit"`
+	SemanticVersion string `json:"semantic_version"`
+	SystemVersion   string `json:"system_version"`
+	GolangVersion   string `json:"golang_version"`
 }
 
 func (b *BuildInfo) GetSemanticVersion() string {

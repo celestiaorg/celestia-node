@@ -34,7 +34,7 @@
     }
   },
   "Protocols": {
-    "/celestia/mocha-4/ipfs/bitswap/1.2.0": {
+    "/celestia/mocha-5/ipfs/bitswap/1.2.0": {
       "NumStreamsInbound": 0,
       "NumStreamsOutbound": 4,
       "NumConnsInbound": 0,
@@ -42,7 +42,7 @@
       "NumFD": 0,
       "Memory": 0
     },
-    "/celestia/mocha-4/kad/1.0.0": {
+    "/celestia/mocha-5/kad/1.0.0": {
       "NumStreamsInbound": 0,
       "NumStreamsOutbound": 4,
       "NumConnsInbound": 0,

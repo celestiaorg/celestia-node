@@ -33,7 +33,7 @@ func main() {
 		},
 		SubmitConfig: client.SubmitConfig{
 			DefaultKeyName: keyname,
-			Network:        "mocha-4",
+			Network:        "mocha-5",
 			CoreGRPCConfig: client.CoreGRPCConfig{
 				Addr:       "celestia-testnet-consensus.itrocket.net:9090",
 				TLSEnabled: false,

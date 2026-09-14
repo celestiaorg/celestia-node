@@ -1,7 +1,6 @@
 package shrex_getter
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -132,7 +131,7 @@ func (sg *Getter) GetSamples(
 			"colIndex", request.ShareIndex,
 		)
 		errGroup.Go(func() error {
-			req := func(ctx context.Context, peer libpeer.ID) error {
+			req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 				return sg.client.Get(ctx, &request, &samples[i], peer)
 			}
 			verify := func() error {
@@ -184,7 +183,7 @@ func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, row
 		"rowIndex", rowIndex,
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -220,10 +219,7 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		return nil, err
 	}
 
-	var (
-		buff     = bytes.NewBuffer(make([]byte, 0))
-		response = &eds.Rsmt2D{}
-	)
+	response := &edsResponse{odsSize: len(header.DAH.RowRoots) / 2}
 
 	logger := log.With(
 		"source", "shrex_getter",
@@ -231,24 +227,26 @@ func (sg *Getter) GetEDS(ctx context.Context, header *header.ExtendedHeader) (*r
 		"hash", header.DAH.String(),
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
-		buff.Reset()
-		return sg.client.Get(ctx, &request, buff, peer)
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
+		response.shares = nil
+		return sg.client.Get(ctx, &request, response, peer)
 	}
 
 	build := func() error {
-		if buff.Len() == 0 {
+		if response.shares == nil {
 			return errors.New("nil response")
 		}
-		response, err = eds.ReadAccessor(ctx, buff, header.DAH)
-		return err
+		return response.verify(ctx, header.DAH)
 	}
 
 	err = sg.executeRequest(ctx, logger, header, request.Name(), req, build)
 	if err != nil {
 		return nil, err
 	}
-	return response.ExtendedDataSquare, err
+	if response.eds == nil {
+		return nil, errors.New("shrex/eds: verified response missing reconstructed square")
+	}
+	return response.eds.ExtendedDataSquare, nil
 }
 
 func (sg *Getter) GetNamespaceData(
@@ -291,7 +289,7 @@ func (sg *Getter) GetNamespaceData(
 		"namespace", namespace.String(),
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -350,7 +348,7 @@ func (sg *Getter) GetRangeNamespaceData(
 		"to", to,
 	)
 
-	req := func(ctx context.Context, peer libpeer.ID) error {
+	req := func(ctx context.Context, peer libpeer.ID) (int64, time.Duration, error) {
 		return sg.client.Get(ctx, &request, &response, peer)
 	}
 
@@ -397,8 +395,9 @@ func (sg *Getter) getPeer(
 
 // requestFn defines a function type that wraps the actual request logic as a closure.
 // The closure captures additional request parameters and then executes
-// the request with the provided context and peer ID.
-type requestFn func(context.Context, libpeer.ID) error
+// the request with the provided context and peer ID, returning the received byte count and
+// payload-read duration.
+type requestFn func(context.Context, libpeer.ID) (int64, time.Duration, error)
 
 // handleFn defines a function type that wraps response handling logic as a closure.
 // The closure captures the response data and validation parameters performing the verification.
@@ -443,25 +442,30 @@ func (sg *Getter) executeRequest(
 		reqStart := time.Now()
 		reqCtx, cancel := utils.CtxWithSplitTimeout(ctx, sg.minAttemptsCount-attempt+1, sg.minRequestTimeout)
 
-		getErr = req(reqCtx, peer)
+		bytesRead, payloadDuration, getErr := req(reqCtx, peer)
 		cancel()
 		switch {
 		case getErr == nil:
-			setStatus(peers.ResultNoop)
 			verifyErr := handle()
 			if verifyErr != nil {
 				getErr = verifyErr
 				setStatus(peers.ResultBlacklistPeer)
 				break
 			}
+			// report throughput of verified data only, so a peer can't earn a good score by
+			// serving invalid responses fast
+			setStatus(peers.ResultNoop, peers.TransferStats{Bytes: bytesRead, Duration: payloadDuration})
 			sg.metrics.recordAttempts(ctx, reqType, attempt, true)
 			return nil
+		case ctx.Err() != nil:
+			// The caller stopped the request; this says nothing about the peer's health.
+			setStatus(peers.ResultNoop)
 		case errors.Is(getErr, context.DeadlineExceeded),
 			errors.Is(getErr, context.Canceled):
 			setStatus(peers.ResultCooldownPeer)
 		case errors.Is(getErr, shrex.ErrNotFound):
 			getErr = shwap.ErrNotFound
-			setStatus(peers.ResultCooldownPeer)
+			setStatus(peers.ResultCooldownPeerNoPenalty)
 		case errors.Is(getErr, shrex.ErrResourceExhausted):
 			// peer is temporarily overloaded, not misbehaving; put it on cooldown so
 			// the peer manager won't hand it out again until it has had time to recover,
