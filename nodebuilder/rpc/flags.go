@@ -206,6 +206,8 @@ func ParseFlags(cmd *cobra.Command, cfg *Config) error {
 
 	if val, err := cmd.Flags().GetInt(maxConcurrentConnsFlag); err != nil {
 		return err
+	} else if val < 0 {
+		return fmt.Errorf("%s must be >= 0, got %d", maxConcurrentConnsFlag, val)
 	} else if val > 0 {
 		cfg.MaxConcurrentConns = val
 	}
