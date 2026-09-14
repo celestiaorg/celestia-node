@@ -217,7 +217,7 @@ func TestPool(t *testing.T) {
 	t.Run("remove pending cooldown", func(t *testing.T) {
 		peerID := peer.ID("peer1")
 		mock := clock.NewMock()
-		p := newPool(time.Second)
+		p := newTestPool(t, time.Second)
 		p.cooldown.clock = mock
 		p.add(peerID)
 		p.putOnCooldown(peerID)
@@ -230,7 +230,7 @@ func TestPool(t *testing.T) {
 	t.Run("stale timer after removal and new cooldown", func(t *testing.T) {
 		peerID := peer.ID("peer1")
 		mock := clock.NewMock()
-		p := newPool(time.Second)
+		p := newTestPool(t, time.Second)
 		p.cooldown.clock = mock
 		p.add(peerID)
 		p.putOnCooldown(peerID)
@@ -254,7 +254,7 @@ func TestPool(t *testing.T) {
 
 	t.Run("concurrent cooldown and removal", func(t *testing.T) {
 		peerID := peer.ID("peer1")
-		p := newPool(0)
+		p := newTestPool(t, 0)
 		var workers sync.WaitGroup
 		for range 4 {
 			workers.Go(func() {
