@@ -1,8 +1,8 @@
 # CODEOWNERS: <https://help.github.com/articles/about-codeowners/>
 
-# Everything goes through the protocol team by default. The team's review
+# Everything goes through the celestia-node team by default. The team's review
 # assignment settings control how many reviewers are auto-assigned per PR.
-# See: https://github.com/orgs/celestiaorg/teams/protocol/edit/review_assignment
+# See: https://github.com/orgs/celestiaorg/teams/celestia-node/edit/review_assignment
 
 # global owners
-* @celestiaorg/protocol @vgonkivs
+* @celestiaorg/celestia-node
