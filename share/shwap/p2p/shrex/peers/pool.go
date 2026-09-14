@@ -12,13 +12,12 @@ const defaultCleanupThreshold = 2
 
 // pool stores peers and provides methods for simple round-robin access.
 type pool struct {
-	m              sync.RWMutex
-	peersList      []peer.ID
-	statuses       map[peer.ID]status
-	cooldown       *timedQueue
-	cooldownTokens map[peer.ID]uint64
-	activeCount    int
-	nextIdx        int
+	m           sync.RWMutex
+	peersList   []peer.ID
+	statuses    map[peer.ID]status
+	cooldown    *timedQueue
+	activeCount int
+	nextIdx     int
 
 	hasPeer   bool
 	hasPeerCh chan struct{}
@@ -39,11 +38,10 @@ func newPool(peerCooldownTime time.Duration) *pool {
 	p := &pool{
 		peersList:        make([]peer.ID, 0),
 		statuses:         make(map[peer.ID]status),
-		cooldownTokens:   make(map[peer.ID]uint64),
 		hasPeerCh:        make(chan struct{}),
 		cleanupThreshold: defaultCleanupThreshold,
 	}
-	p.cooldown = newTimedQueue(peerCooldownTime, p.afterCooldown)
+	p.cooldown = newTimedQueue(peerCooldownTime, p.releaseCooldown)
 	return p
 }
 
@@ -131,7 +129,7 @@ func (p *pool) remove(peers ...peer.ID) {
 	for _, peerID := range peers {
 		if status, ok := p.statuses[peerID]; ok && status != removed {
 			p.statuses[peerID] = removed
-			delete(p.cooldownTokens, peerID)
+			p.cooldown.remove(peerID)
 			if status == active {
 				p.activeCount--
 			}
@@ -186,7 +184,7 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	defer p.m.Unlock()
 
 	if status, ok := p.statuses[peerID]; ok && status == active {
-		p.cooldownTokens[peerID] = p.cooldown.push(peerID)
+		p.cooldown.push(peerID)
 
 		p.statuses[peerID] = cooldown
 		p.activeCount--
@@ -194,20 +192,22 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	}
 }
 
-func (p *pool) afterCooldown(peerID peer.ID, token uint64) {
+// releaseCooldown holds the pool lock while removing entries and updating peer states.
+func (p *pool) releaseCooldown() {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	// The peer could have been removed or entered a new cooldown cycle.
-	currentToken, ok := p.cooldownTokens[peerID]
-	if p.statuses[peerID] != cooldown || !ok || currentToken != token {
-		return
-	}
-
-	delete(p.cooldownTokens, peerID)
-	p.statuses[peerID] = active
-	p.activeCount++
+	p.cooldown.releaseExpired(func(peerID peer.ID) {
+		p.statuses[peerID] = active
+		p.activeCount++
+	})
 	p.checkHasPeers()
+}
+
+func (p *pool) cooldownLen() int {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	return p.cooldown.len()
 }
 
 // checkHasPeers will check and indicate if there are peers in the pool.

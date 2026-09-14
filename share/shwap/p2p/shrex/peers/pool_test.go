@@ -2,6 +2,7 @@ package peers
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -183,77 +184,62 @@ func TestPool(t *testing.T) {
 		require.False(t, ok)
 	})
 
-	t.Run("stale cooldown callback", func(t *testing.T) {
-		ttl := time.Second
-		mock := clock.NewMock()
-		p := newPool(ttl)
-		p.cooldown.clock = mock
-
+	t.Run("remove pending cooldown", func(t *testing.T) {
 		peerID := peer.ID("peer1")
+		mock := clock.NewMock()
+		p := newPool(time.Second)
+		p.cooldown.clock = mock
 		p.add(peerID)
 		p.putOnCooldown(peerID)
-		firstToken := p.cooldownTokens[peerID]
-
-		callbackStarted := make(chan struct{})
-		releaseCallback := make(chan struct{})
-		callbackDone := make(chan uint64, 1)
-		onPop := p.cooldown.onPop
-		p.cooldown.onPop = func(id peer.ID, token uint64) {
-			if token == firstToken {
-				close(callbackStarted)
-				<-releaseCallback
-			}
-			onPop(id, token)
-			callbackDone <- token
-		}
-
-		advanceDone := make(chan struct{})
-		go func() {
-			mock.Add(ttl)
-			close(advanceDone)
-		}()
-
-		select {
-		case <-callbackStarted:
-		case <-time.After(ttl):
-			t.Fatal("first cooldown callback did not start")
-		}
-
 		p.remove(peerID)
-		require.NotContains(t, p.cooldownTokens, peerID)
+		p.m.RLock()
+		require.Zero(t, p.cooldown.len())
+		p.m.RUnlock()
+	})
+
+	t.Run("stale timer after removal and new cooldown", func(t *testing.T) {
+		peerID := peer.ID("peer1")
+		mock := clock.NewMock()
+		p := newPool(time.Second)
+		p.cooldown.clock = mock
 		p.add(peerID)
 		p.putOnCooldown(peerID)
-		secondToken := p.cooldownTokens[peerID]
-		require.NotEqual(t, firstToken, secondToken)
+		mock.Add(time.Second / 2)
+		p.remove(peerID)
+		p.add(peerID)
+		p.putOnCooldown(peerID)
+		mock.Add(time.Second / 2)
 
-		close(releaseCallback)
-		select {
-		case token := <-callbackDone:
-			require.Equal(t, firstToken, token)
-		case <-time.After(ttl):
-			t.Fatal("first cooldown callback did not finish")
+		// A stopped timer can already be waiting for the pool lock.
+		p.releaseCooldown()
+		require.Zero(t, p.len())
+		require.Equal(t, 1, p.cooldownLen())
+
+		mock.Add(time.Second / 2)
+		require.Equal(t, 1, p.len())
+		require.Zero(t, p.cooldownLen())
+		p.releaseCooldown()
+		require.Equal(t, 1, p.len())
+	})
+
+	t.Run("concurrent cooldown and removal", func(t *testing.T) {
+		peerID := peer.ID("peer1")
+		p := newPool(0)
+		var workers sync.WaitGroup
+		for range 4 {
+			workers.Go(func() {
+				for range 100 {
+					p.add(peerID)
+					p.putOnCooldown(peerID)
+					p.cooldownLen()
+					p.remove(peerID)
+				}
+			})
 		}
-		select {
-		case <-advanceDone:
-		case <-time.After(ttl):
-			t.Fatal("clock advance did not finish")
-		}
-
-		_, ok := p.tryGet()
-		require.False(t, ok)
-		require.Equal(t, 1, p.cooldown.len())
-
-		mock.Add(ttl)
-		select {
-		case token := <-callbackDone:
-			require.Equal(t, secondToken, token)
-		case <-time.After(ttl):
-			t.Fatal("second cooldown callback did not finish")
-		}
-
-		actual, ok := p.tryGet()
-		require.True(t, ok)
-		require.Equal(t, peerID, actual)
-		require.Zero(t, p.cooldown.len())
+		workers.Wait()
+		p.remove(peerID)
+		p.releaseCooldown()
+		require.Zero(t, p.len())
+		require.Zero(t, p.cooldownLen())
 	})
 }

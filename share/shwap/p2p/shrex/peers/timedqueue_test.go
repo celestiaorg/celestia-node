@@ -10,86 +10,67 @@ import (
 )
 
 func TestTimedQueue(t *testing.T) {
-	t.Run("push item", func(t *testing.T) {
-		peers := []peer.ID{"peer1", "peer2"}
-		ttl := time.Second
+	const peer1, peer2 = "peer1", "peer2"
+	for _, remove := range []peer.ID{"", peer1, peer2, "missing"} {
+		t.Run("remove "+string(remove), func(t *testing.T) {
+			mock := clock.NewMock()
+			fired := make(chan struct{}, 2)
+			queue := newTimedQueue(time.Second, func() { fired <- struct{}{} })
+			queue.clock = mock
+			var popped []peer.ID
+			onPop := func(id peer.ID) { popped = append(popped, id) }
+			queue.releaseExpired(onPop)
+			require.Zero(t, queue.len())
 
-		popCh := make(chan peer.ID, 1)
-		queue := newTimedQueue(ttl, func(id peer.ID, _ uint64) {
-			popCh <- id
+			queue.push(peer1)
+			mock.Add(time.Second / 2)
+			queue.push(peer2)
+			timer := queue.after
+			queue.remove(remove)
+			if remove == peer1 {
+				require.NotSame(t, timer, queue.after)
+			} else {
+				require.Same(t, timer, queue.after)
+			}
+			mock.Add(time.Second/2 - 1)
+			queue.releaseExpired(onPop)
+			require.Empty(t, popped)
+			require.Empty(t, fired)
+
+			mock.Add(1)
+			if remove == peer1 {
+				require.Empty(t, fired)
+			} else {
+				require.Len(t, fired, 1)
+				<-fired
+				queue.releaseExpired(onPop)
+				require.Equal(t, []peer.ID{peer1}, popped)
+			}
+
+			mock.Add(time.Second / 2)
+			if remove == peer2 {
+				require.Empty(t, fired)
+			} else {
+				require.Len(t, fired, 1)
+				<-fired
+				queue.releaseExpired(onPop)
+				require.Equal(t, peer.ID(peer2), popped[len(popped)-1])
+			}
+			require.Zero(t, queue.len())
+			require.Nil(t, queue.after)
 		})
+	}
+
+	t.Run("remove last entry stops timer", func(t *testing.T) {
 		mock := clock.NewMock()
+		fired := make(chan struct{}, 1)
+		queue := newTimedQueue(time.Second, func() { fired <- struct{}{} })
 		queue.clock = mock
-		queue.releaseExpired()
+		queue.push(peer1)
+		queue.remove(peer1)
 		require.Zero(t, queue.len())
-
-		// push first item | global time : 0
-		queue.push(peers[0])
-		require.Equal(t, queue.len(), 1)
-
-		// push second item with ttl/2 gap | global time : ttl/2
-		mock.Add(ttl / 2)
-		queue.push(peers[1])
-		require.Equal(t, queue.len(), 2)
-
-		// advance clock 1 nano sec before first item should expire | global time : ttl - 1
-		mock.Add(ttl/2 - 1)
-		// check that releaseExpired doesn't remove items
-		queue.releaseExpired()
-		require.Equal(t, queue.len(), 2)
-		// first item should be released after its own timeout | global time : ttl
-		mock.Add(1)
-
-		select {
-		case id := <-popCh:
-			require.Equal(t, peers[0], id)
-		case <-time.After(ttl):
-			t.Fatal("first item is not released")
-		}
-		require.Equal(t, queue.len(), 1)
-
-		// first item should be released after ttl/2 gap timeout | global time : 3/2*ttl
-		mock.Add(ttl / 2)
-		select {
-		case id := <-popCh:
-			require.Equal(t, peers[1], id)
-		case <-time.After(ttl):
-			t.Fatal("second item is not released")
-		}
-		require.Equal(t, queue.len(), 0)
-	})
-
-	t.Run("callback does not hold queue lock", func(t *testing.T) {
-		ttl := time.Second
-		mock := clock.NewMock()
-		callbackDone := make(chan peer.ID, 1)
-
-		var queue *timedQueue
-		queue = newTimedQueue(ttl, func(id peer.ID, _ uint64) {
-			queue.push("peer2")
-			callbackDone <- id
-		})
-		queue.clock = mock
-		queue.push("peer1")
-
-		advanceDone := make(chan struct{})
-		go func() {
-			mock.Add(ttl)
-			close(advanceDone)
-		}()
-
-		select {
-		case id := <-callbackDone:
-			require.Equal(t, peer.ID("peer1"), id)
-		case <-time.After(ttl):
-			t.Fatal("callback blocked while accessing queue")
-		}
-
-		select {
-		case <-advanceDone:
-		case <-time.After(ttl):
-			t.Fatal("clock advance did not finish")
-		}
-		require.Equal(t, 1, queue.len())
+		require.Nil(t, queue.after)
+		mock.Add(time.Second)
+		require.Empty(t, fired)
 	})
 }
