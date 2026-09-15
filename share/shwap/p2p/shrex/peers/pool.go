@@ -46,7 +46,7 @@ func newPool(peerCooldownTime time.Duration, stats *peerStats) *pool {
 		hasPeerCh:        make(chan struct{}),
 		cleanupThreshold: defaultCleanupThreshold,
 	}
-	p.cooldown = newTimedQueue(peerCooldownTime, p.afterCooldown)
+	p.cooldown = newTimedQueue(peerCooldownTime, p.releaseCooldown)
 	return p
 }
 
@@ -140,6 +140,7 @@ func (p *pool) remove(peers ...peer.ID) {
 	for _, peerID := range peers {
 		if status, ok := p.statuses[peerID]; ok && status != removed {
 			p.statuses[peerID] = removed
+			p.cooldown.remove(peerID)
 			if status == active {
 				p.activeCount--
 			}
@@ -202,18 +203,22 @@ func (p *pool) putOnCooldown(peerID peer.ID) {
 	}
 }
 
-func (p *pool) afterCooldown(peerID peer.ID) {
+// releaseCooldown holds the pool lock while removing entries and updating peer states.
+func (p *pool) releaseCooldown() {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	// item could have been already removed by the time afterCooldown is called
-	if status, ok := p.statuses[peerID]; !ok || status != cooldown {
-		return
-	}
-
-	p.statuses[peerID] = active
-	p.activeCount++
+	p.cooldown.releaseExpired(func(peerID peer.ID) {
+		p.statuses[peerID] = active
+		p.activeCount++
+	})
 	p.checkHasPeers()
+}
+
+func (p *pool) cooldownLen() int {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	return p.cooldown.len()
 }
 
 // checkHasPeers will check and indicate if there are peers in the pool.
