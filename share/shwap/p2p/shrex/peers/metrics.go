@@ -148,7 +148,7 @@ func initMetrics(manager *Manager) (*metrics, error) {
 		observer.ObserveInt64(discoveredPool, int64(manager.nodes.len()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusActive))))
-		observer.ObserveInt64(discoveredPool, int64(manager.nodes.cooldown.len()),
+		observer.ObserveInt64(discoveredPool, int64(manager.nodes.cooldownLen()),
 			metric.WithAttributes(
 				attribute.String(peerStatusKey, string(peerStatusCooldown))))
 
