@@ -1,3 +1,4 @@
+---
 # We do not use the Mergify merge queue, so disable the comments it posts on
 # every pull request. Ref: https://docs.mergify.com/configuration/file-format/
 merge_queue:
