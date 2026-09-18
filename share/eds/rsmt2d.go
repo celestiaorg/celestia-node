@@ -179,12 +179,16 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 
 // Rsmt2DFromShares constructs an Extended Data Square from shares.
 func Rsmt2DFromShares(shares []libshare.Share, odsSize int) (*Rsmt2D, error) {
-	treeFn := wrapper.NewConstructor(uint64(odsSize))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(libshare.ToBytes(shares), share.DefaultRSMT2DCodec(), treeFn)
+	pool, poolErr := wrapper.DefaultPreallocatedTreePool(uint(odsSize))
+	if poolErr != nil {
+		return nil, fmt.Errorf("failed to build a preallocated pool for eds construction: %w", poolErr)
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(
+		libshare.ToBytes(shares), share.DefaultRSMT2DCodec(), pool)
 	if err != nil {
 		return &Rsmt2D{}, fmt.Errorf("computing extended data square: %w", err)
 	}
-
 	return &Rsmt2D{eds}, nil
 }
 
