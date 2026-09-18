@@ -82,6 +82,9 @@ jobs:
 
   go-ci:
     needs: setup
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/go-ci.yml
     with:
       go-version: ${{ needs.setup.outputs.go-version }}
