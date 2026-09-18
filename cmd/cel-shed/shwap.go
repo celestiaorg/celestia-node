@@ -15,12 +15,12 @@ func init() {
 }
 
 var shwapCmd = &cobra.Command{
-	Use:   "shwap [subcommand]",
+	Use:   "shwap [command]",
 	Short: "Collection of shwap related utilities",
 }
 
 var shwapCIDType = &cobra.Command{
-	Use:   "cid-type",
+	Use:   "cid-type cid",
 	Short: "Decodes Bitswap CID composed over Shwap CID",
 	RunE: func(_ *cobra.Command, args []string) error {
 		cid, err := cid.Decode(args[0])

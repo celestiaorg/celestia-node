@@ -20,12 +20,12 @@ func init() {
 }
 
 var datastoreCmd = &cobra.Command{
-	Use:   "datastore [subcommand]",
+	Use:   "datastore [command]",
 	Short: "Collection of datastore related utilities",
 }
 
 var eraseCmd = &cobra.Command{
-	Use:   "erase <ds_key>",
+	Use:   "erase ds_key",
 	Short: "Erase datastore namespace",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path, err := nodebuilder.DiscoverStopped()
@@ -67,7 +67,7 @@ var sampleDataKeys = []ds.Key{
 }
 
 var eraseSamplesCmd = &cobra.Command{
-	Use:   "erase-samples [subcommand]",
+	Use:   "erase-samples",
 	Short: "Erase samples data and state. Useful to resample, avoiding resyncing headers",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		path, err := nodebuilder.DiscoverStopped()
