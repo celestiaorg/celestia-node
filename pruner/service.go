@@ -245,15 +245,9 @@ func (s *Service) retryFailed(ctx context.Context) {
 	}
 }
 
-// pruneOnHeaderDelete is called by the header Syncer whenever it prunes an old header.
-// This guarantees that respective block data is always pruned on the Pruner side.
-//
-// There is a possible race between Syncer and Pruner, however, it is gracefully resolved.
-// * If Syncer prunes a header first - pruneOnHeaderDelete gets called and data is deleted.
-//   - Pruner then ignores the header based on updated checkpoint state
-//
-// * If Pruner prunes a header first - Syncer only removes the header
-//   - pruneOnHeaderDelete ignores the header based on updated checkpoint state
+// pruneOnHeaderDelete prunes block data before the header store deletes its header.
+// Header deletion callbacks may run out of order, so each height must be pruned
+// independently of the checkpoint's last pruned height.
 func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error {
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return fmt.Errorf("pruner service is closed")
@@ -263,16 +257,6 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 	if err := s.loadCheckpoint(ctx); err != nil {
 		s.checkpointMu.Unlock()
 		return err
-	}
-	if _, ok := s.checkpoint.FailedHeaders[height]; ok {
-		log.Warnw("Deleted header for a height previously failed to be pruned", "height", height)
-		log.Warn("Stored data for the height may never be pruned unless full resync!")
-		// TODO(@Wondertan): Do we wanna give here an additional retry before removing?
-		delete(s.checkpoint.FailedHeaders, height)
-	}
-	if height <= s.checkpoint.LastPrunedHeight {
-		s.checkpointMu.Unlock()
-		return nil
 	}
 	s.checkpointMu.Unlock()
 
@@ -289,11 +273,8 @@ func (s *Service) pruneOnHeaderDelete(ctx context.Context, height uint64) error 
 
 	s.checkpointMu.Lock()
 	defer s.checkpointMu.Unlock()
-	if height <= s.checkpoint.LastPrunedHeight {
-		return nil
-	}
-	s.checkpoint.LastPrunedHeight = height
-	// no need to persist here, as it will done in pruning routine or Stop
+	delete(s.checkpoint.FailedHeaders, height)
+	// no need to persist here, as it will be done in pruning routine or Stop
 	log.Debugw("data pruned on header delete", "height", height)
 	return nil
 }
