@@ -190,7 +190,7 @@ func (s *coordinatorState) catchupJob() (next job, found bool) {
 	return j, true
 }
 
-// retryJob creates a job to retry previously failed header
+// retryJob creates a job to retry adjacent previously failed headers.
 func (s *coordinatorState) retryJob() (next job, found bool) {
 	for h, attempt := range s.failed {
 		if !attempt.canRetry() {
@@ -198,11 +198,40 @@ func (s *coordinatorState) retryJob() (next job, found bool) {
 			continue
 		}
 
-		// move header from failed into retry
-		delete(s.failed, h)
-		s.inRetry[h] = attempt
-		j := s.newJob(retryJob, h, h)
-		return j, true
+		from, to, size := h, h, uint64(1)
+		for from > 0 && size < s.samplingRange {
+			previousHeight := from - 1
+			attempt, ok := s.failed[previousHeight]
+			if !ok || !attempt.canRetry() {
+				break
+			}
+			from = previousHeight
+			size++
+		}
+
+		for size < s.samplingRange {
+			nextHeight := to + 1
+			if nextHeight == 0 {
+				break
+			}
+			attempt, ok := s.failed[nextHeight]
+			if !ok || !attempt.canRetry() {
+				break
+			}
+			to = nextHeight
+			size++
+		}
+
+		for height := from; ; height++ {
+			attempt := s.failed[height]
+			delete(s.failed, height)
+			s.inRetry[height] = attempt
+			if height == to {
+				break
+			}
+		}
+
+		return s.newJob(retryJob, from, to), true
 	}
 
 	return job{}, false
