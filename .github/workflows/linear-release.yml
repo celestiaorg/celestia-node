@@ -37,7 +37,7 @@ jobs:
         run: |
           prev=$(git describe --tags --abbrev=0 --exclude='*-*' "${TAG}^")
           echo "tag=${prev}" >> "$GITHUB_OUTPUT"
-      - uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+      - uses: linear/linear-release-action@d4af10092984f9bc6d5efa075b242bdf01333463 # v0.18.0
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           version: ${{ github.event.release.tag_name }}
@@ -45,7 +45,7 @@ jobs:
           links: GitHub release=${{ github.event.release.html_url }}
       # The pipeline is a scheduled pipeline, so sync leaves the release In
       # Progress. Complete it so linked issues move to Released.
-      - uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+      - uses: linear/linear-release-action@d4af10092984f9bc6d5efa075b242bdf01333463 # v0.18.0
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
           command: complete
