@@ -118,6 +118,9 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     env:
       OS: ubuntu-latest
 
@@ -157,10 +160,12 @@ jobs:
       - name: upload coverage
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
+          disable_search: true
           env_vars: OS
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.txt
+          fail_ci_if_error: true
+          files: ./coverage.txt
           name: coverage-ubuntu-latest
+          use_oidc: true
 
   # @ramin - Temporarily removed while we figure out getting
   # these unit tests consistently running on ubuntu-latest
@@ -172,15 +177,15 @@ jobs:
   #   needs: [lint, go_mod_tidy_check]
   #   name: Unit Tests with Race Detector (ubuntu-latest)
   #   runs-on: ubuntu-latest
-
+  #
   #   steps:
   #     - uses: actions/checkout@v7
-
+  #
   #     - name: set up go
   #       uses: actions/setup-go@v7
   #       with:
   #         go-version: ${{ inputs.go-version }}
-
+  #
   #     - name: execute test run
   #       run: make test-unit-race ENABLE_VERBOSE=${{ runner.debug == '1' && 'true' || 'false' }}
 
