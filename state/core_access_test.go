@@ -431,8 +431,9 @@ func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
 	require.NoError(t, err)
 
 	// default tx config (submit from default acct)
-	_, err = ca.SubmitPayForBlob(ctx, randBlob, txclient.NewTxConfig())
+	resp, err := ca.SubmitPayForBlob(ctx, randBlob, txclient.NewTxConfig())
 	require.NoError(t, err)
+	waitForTxState(t, cctx, resp)
 
 	// ensure balance has remained the same for non-default account
 	updatedBalNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
@@ -492,8 +493,9 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	txConf := txclient.NewTxConfig(txclient.WithSignerAddress(addr.String()))
-	_, err = ca.SubmitPayForBlob(ctx, randBlob, txConf)
+	resp, err := ca.SubmitPayForBlob(ctx, randBlob, txConf)
 	require.NoError(t, err)
+	waitForTxState(t, cctx, resp)
 
 	// ensure balance has decreased for non-default account
 	updatedBalNonDefault, err := ca.BalanceForAddress(ctx, Address{sdkAddress})
@@ -506,6 +508,15 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	require.True(t, updatedBalDefault.Equal(balDefault))
 
 	// TODO @renaynay: once tx response contains signer, check signer here
+}
+
+// waitForTxState blocks until the balance query height covers the block that
+// included resp. BalanceForAddress queries state at head-1, so the effects of a
+// tx included in block H are only visible once block H+1 has been committed.
+func waitForTxState(t *testing.T, cctx testnode.Context, resp *TxResponse) {
+	t.Helper()
+	_, err := cctx.WaitForHeight(resp.Height + 1)
+	require.NoError(t, err)
 }
 
 var accounts = []string{
