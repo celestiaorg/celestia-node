@@ -193,6 +193,13 @@ test-e2e-sanity:
 	@echo "--> Running E2ESanityTestSuite"
 	cd nodebuilder/tests/tastora && go test -v -tags integration -run TestE2ESanityTestSuite -timeout 10m
 
+## test-fresh-node-canary: Run the fresh light node canary against a public network. Requires Docker. Set NETWORK=mainnet|mocha and IMAGE=<image>.
+test-fresh-node-canary:
+	@echo "--> Running fresh node canary"
+	cd nodebuilder/tests/tastora && CANARY_NETWORK=$(NETWORK) CANARY_IMAGE=$(IMAGE) \
+		go test -tags fresh_node_canary -run '^TestFreshNodeCanary$$' -count=1 -v -timeout 60m ./canary/
+.PHONY: test-fresh-node-canary
+
 ## test-tastora: Run Tastora framework tests. Use RUN=TestXxxTestSuite for a single suite and TIMEOUT to override the 60m default.
 test-tastora:
 	@echo "--> Running Tastora tests $(if $(RUN),($(RUN)),(all))"

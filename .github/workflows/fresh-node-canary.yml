@@ -1,0 +1,151 @@
+name: Fresh Node Canary
+
+# Starts a brand-new light node against Mainnet and Mocha and checks that it connects to the
+# bootstrappers, obtains head and tail, syncs the first headers, starts sampling and resumes after a
+# restart on the same store (#4842). The nightly run tests the newest release of each network: vX.Y.Z
+# on Mainnet and vX.Y.Z-mocha on Mocha. A published release is tested right away on the network its tag
+# belongs to. Pull requests that change the canary run it against the same release images.
+on:
+  schedule:
+    - cron: "30 6 * * *" # 6:30 AM UTC daily
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - ".github/workflows/fresh-node-canary.yml"
+      - "nodebuilder/tests/tastora/canary/**"
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Image to test on both networks instead of the newest releases"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: fresh-node-canary-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/celestiaorg/celestia-node
+  RELEASES_REPOSITORY: celestiaorg/celestia-node
+
+jobs:
+  plan:
+    name: Select images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_IMAGE: ${{ inputs.image }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          entry() { printf '{"network":"%s","image":"%s","release":"%s"}' "$1" "$2" "$3"; }
+          release_entry() { entry "$1" "$IMAGE_REPOSITORY:$2" "$2"; }
+          if [ "$EVENT" = "release" ]; then
+            case "$RELEASE_TAG" in
+              *-mocha) matrix="[$(release_entry mocha "$RELEASE_TAG")]" ;;
+              *-*) matrix='[]' ;; # release candidates and networks without a canary profile
+              *) matrix="[$(release_entry mainnet "$RELEASE_TAG")]" ;;
+            esac
+          elif [ -n "$INPUT_IMAGE" ]; then
+            matrix="[$(entry mainnet "$INPUT_IMAGE" ""),$(entry mocha "$INPUT_IMAGE" "")]"
+          else
+            releases="repos/$RELEASES_REPOSITORY/releases?per_page=100"
+            tags=$(gh api "$releases" --jq '.[] | select(.draft | not) | .tag_name')
+            mainnet=$(echo "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+            mocha=$(echo "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-mocha$' | sort -V | tail -n 1 || true)
+            if [ -z "$mainnet" ] || [ -z "$mocha" ]; then
+              echo "::error::could not find the newest Mainnet and Mocha releases"
+              exit 1
+            fi
+            matrix="[$(release_entry mainnet "$mainnet"),$(release_entry mocha "$mocha")]"
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  unit-tests:
+    name: Unit tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run canary unit tests
+        working-directory: nodebuilder/tests/tastora
+        run: go test -count=1 ./canary/...
+
+  canary:
+    name: ${{ matrix.network }}
+    needs: plan
+    if: needs.plan.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      CANARY_NETWORK: ${{ matrix.network }}
+      CANARY_IMAGE: ${{ matrix.image }}
+      CANARY_RELEASE: ${{ matrix.release }}
+      CANARY_REPORT_DIR: ${{ github.workspace }}/canary-results
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Wait for the image
+        run: |
+          # A release is published before its image is built; give the image pipeline time.
+          for attempt in $(seq 1 45); do
+            if docker manifest inspect "$CANARY_IMAGE" > /dev/null 2>&1; then
+              exit 0
+            fi
+            echo "waiting for $CANARY_IMAGE ($attempt/45)"
+            sleep 60
+          done
+          echo "::error::$CANARY_IMAGE was not published within 45 minutes"
+          exit 1
+
+      - name: Run fresh node canary
+        working-directory: nodebuilder/tests/tastora
+        run: go test -tags fresh_node_canary -run '^TestFreshNodeCanary$' -count=1 -v -timeout 60m ./canary/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fresh-node-canary-${{ matrix.network }}
+          path: canary-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  notify-slack-on-failure:
+    name: Notify Slack on Failure
+    needs: [canary]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.canary.result == 'failure' && github.event_name != 'pull_request' }}
+    steps:
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Fresh node canary failed! <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            }
