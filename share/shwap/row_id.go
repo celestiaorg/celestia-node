@@ -145,11 +145,6 @@ func (rid RowID) ResponseSize(edsSize int) int {
 	return edsSize / 2 * libshare.ShareSize
 }
 
-// ReserveSize equals ResponseSize, as the response is fully buffered before being written.
-func (rid RowID) ReserveSize(edsSize int) int {
-	return rid.ResponseSize(edsSize)
-}
-
 func (rid RowID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	halfRow, err := acc.AxisHalf(ctx, rsmt2d.Row, rid.RowIndex)
 	if err != nil {

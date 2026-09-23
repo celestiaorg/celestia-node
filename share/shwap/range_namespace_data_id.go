@@ -185,11 +185,6 @@ func (rngid RangeNamespaceDataID) ResponseSize(edsSize int) int {
 	return odsLn * odsLn * libshare.ShareSize
 }
 
-// ReserveSize equals ResponseSize, as the response is fully buffered before being written.
-func (rngid RangeNamespaceDataID) ReserveSize(edsSize int) int {
-	return rngid.ResponseSize(edsSize)
-}
-
 func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	rngdata, err := acc.RangeNamespaceData(ctx, rngid.From, rngid.To)
 	if err != nil {

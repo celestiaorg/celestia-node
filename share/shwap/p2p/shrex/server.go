@@ -235,7 +235,7 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 
 	// reserve memory before reading from the accessor so the resource manager
 	// can reject the request if the budget is exhausted.
-	memReserve := requestID.ReserveSize(edsSize)
+	memReserve := requestID.ResponseSize(edsSize)
 	if err := stream.Scope().ReserveMemory(memReserve, network.ReservationPriorityAlways); err != nil {
 		log.Warnw("server: failed to reserve memory for shrex stream",
 			"name", requestID.Name(),
