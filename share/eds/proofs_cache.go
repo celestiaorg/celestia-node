@@ -333,34 +333,6 @@ func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisW
 	return ax, ok
 }
 
-func (c *proofsCache) getShare(rowIdx, colIdx int) (libshare.Share, error) {
-	ctx := context.TODO()
-	size, err := c.Size(ctx)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("getting size: %w", err)
-	}
-	odsSize := size / 2
-	half, err := c.AxisHalf(ctx, rsmt2d.Row, rowIdx)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("reading axis half: %w", err)
-	}
-
-	// if share is from the same side of axis return share right away
-	if colIdx > odsSize == half.IsParity {
-		if half.IsParity {
-			colIdx -= odsSize
-		}
-		return half.Shares[colIdx], nil
-	}
-
-	// if share index is from opposite part of axis, obtain full axis shares
-	shares, err := c.axisShares(ctx, rsmt2d.Row, rowIdx)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("reading axis shares: %w", err)
-	}
-	return shares[colIdx], nil
-}
-
 // rowProofsGetter implements blockservice.BlockGetter interface
 type rowProofsGetter struct {
 	proofs map[cid.Cid]blocks.Block
