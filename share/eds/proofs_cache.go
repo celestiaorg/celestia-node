@@ -285,13 +285,8 @@ func (c *proofsCache) RangeNamespaceData(
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {
-	size, err := c.Size(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf("getting size: %w", err)
-	}
-	odsSize := size / 2
-	reader := NewShareReader(odsSize, c.getShare)
-	return reader, nil
+	// bypass the cache: reading through it would pin the whole ODS for the accessor's lifetime.
+	return c.inner.Reader()
 }
 
 func (c *proofsCache) Close() error {

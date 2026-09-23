@@ -147,6 +147,11 @@ func (ndid NamespaceDataID) ResponseSize(edsSize int) int {
 	return odsLn * odsLn * libshare.ShareSize
 }
 
+// ReserveSize equals ResponseSize, as the response is fully buffered before being written.
+func (ndid NamespaceDataID) ReserveSize(edsSize int) int {
+	return ndid.ResponseSize(edsSize)
+}
+
 func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	roots, err := acc.AxisRoots(ctx)
 	if err != nil {

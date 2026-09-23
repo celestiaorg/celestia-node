@@ -160,16 +160,23 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		log.Warn("server: resource limits disabled via CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS")
 		return
 	}
-	// worst-case response size across all registered request types sets the
+	// worst-case reservation across all registered request types sets the
 	// per-stream memory budget and drives the stream increase value.
-	// ResponseSize expects the EDS size (full square width after erasure coding),
+	// ReserveSize expects the EDS size (full square width after erasure coding),
 	// which is 2× the ODS size. share.MaxSquareSize is the ODS upper bound.
 	maxEDSSize := share.MaxSquareSize * 2
 	var maxMem int64
 	for _, newReq := range registry {
-		if m := int64(newReq().ResponseSize(maxEDSSize)); m > maxMem {
+		if m := int64(newReq().ReserveSize(maxEDSSize)); m > maxMem {
 			maxMem = m
 		}
+	}
+
+	// Memory is reserved on the stream scope, which rcmgr sizes from StreamBaseLimit for all
+	// protocols (16 MiB by default). Below maxMem the largest requests are always rejected.
+	// Totals stay bounded by the service, peer and system scopes.
+	if cfg.StreamBaseLimit.Memory < maxMem {
+		cfg.StreamBaseLimit.Memory = maxMem
 	}
 
 	// streamIncrease = how many additional streams fit in one autoscaleMemUnit.

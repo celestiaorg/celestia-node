@@ -47,8 +47,11 @@ type request interface {
 	ResponseReader(ctx context.Context, acc shwap.Accessor) (io.Reader, error)
 
 	// ResponseSize returns the expected response size in bytes for the given EDS square size.
-	// The size is used to reserve memory from the resource manager before reading from the Accessor.
 	ResponseSize(edsSize int) int
+
+	// ReserveSize returns the memory the server holds while serving the response. It is reserved
+	// from the resource manager and is smaller than ResponseSize for streamed responses.
+	ReserveSize(edsSize int) int
 }
 
 // response compatible generalised interface type for responses.

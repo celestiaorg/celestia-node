@@ -8,6 +8,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/share"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 // TestSetResourceLimits_AllowsOutboundStreams guards against the regression
@@ -38,5 +41,50 @@ func TestSetResourceLimits_AllowsOutboundStreams(t *testing.T) {
 		require.NoErrorf(t, err, "outbound shrex stream must not be resource-exhausted for %s", proto)
 
 		scope.Done()
+	}
+}
+
+// TestSetResourceLimits_AdmitsWorstCaseReservation checks that the stream scope admits the largest
+// reservation of every request type on an idle node.
+func TestSetResourceLimits_AdmitsWorstCaseReservation(t *testing.T) {
+	const networkID = "test"
+
+	limits := rcmgr.DefaultLimits
+	libp2p.SetDefaultServiceLimits(&limits)
+	SetResourceLimits(&limits, networkID)
+
+	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, rmgr.Close()) })
+
+	maxEDSSize := share.MaxSquareSize * 2
+	const testPeer = peer.ID("test-peer")
+	for _, newReq := range registry {
+		req := newReq()
+		proto := ProtocolID(networkID, req.Name())
+		reserve := req.ReserveSize(maxEDSSize)
+
+		scope, err := rmgr.OpenStream(testPeer, network.DirInbound)
+		require.NoErrorf(t, err, "open inbound stream for %s", proto)
+
+		require.NoErrorf(t, scope.SetProtocol(proto), "set protocol for %s", proto)
+		require.NoErrorf(t, scope.SetService(serviceName), "set service for %s", proto)
+
+		err = scope.ReserveMemory(reserve, network.ReservationPriorityAlways)
+		require.NoErrorf(t, err,
+			"worst-case reservation of %d bytes must be admitted for %s", reserve, proto)
+
+		scope.Done()
+	}
+}
+
+func TestEdsReserveSizeIsStreamBuffer(t *testing.T) {
+	var eds shwap.EdsID
+	base := eds.ReserveSize(64)
+	for _, edsSize := range []int{128, 512, share.MaxSquareSize * 2} {
+		require.Equal(t, base, eds.ReserveSize(edsSize),
+			"EDS reservation must not depend on square size (edsSize=%d)", edsSize)
+		require.Less(t, eds.ReserveSize(edsSize), eds.ResponseSize(edsSize),
+			"EDS reservation must stay far below the wire size (edsSize=%d)", edsSize)
 	}
 }

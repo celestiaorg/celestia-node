@@ -214,6 +214,11 @@ func (sid SampleID) ResponseSize(edsSize int) int {
 	return libshare.ShareSize + share.AxisRootSize*int(math.Log2(float64(edsSize)))
 }
 
+// ReserveSize equals ResponseSize, as the response is fully buffered before being written.
+func (sid SampleID) ReserveSize(edsSize int) int {
+	return sid.ResponseSize(edsSize)
+}
+
 func (sid SampleID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	sample, err := acc.Sample(ctx, SampleCoords{Row: sid.RowIndex, Col: sid.ShareIndex})
 	if err != nil {
