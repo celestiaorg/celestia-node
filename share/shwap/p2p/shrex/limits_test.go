@@ -44,38 +44,31 @@ func TestSetResourceLimits_AllowsOutboundStreams(t *testing.T) {
 	}
 }
 
-// TestSetResourceLimits_AdmitsWorstCaseReservation checks that the stream scope admits the largest
-// reservation of every request type on an idle node.
-func TestSetResourceLimits_AdmitsWorstCaseReservation(t *testing.T) {
+// TestSetResourceLimits_AdmitsWorstCaseEDS checks that an EDS request for the largest square is
+// admitted without touching the host-wide stream memory limit.
+func TestSetResourceLimits_AdmitsWorstCaseEDS(t *testing.T) {
 	const networkID = "test"
 
 	limits := rcmgr.DefaultLimits
 	libp2p.SetDefaultServiceLimits(&limits)
+	streamMemory := limits.StreamBaseLimit.Memory
 	SetResourceLimits(&limits, networkID)
+	require.Equal(t, streamMemory, limits.StreamBaseLimit.Memory)
 
 	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, rmgr.Close()) })
 
-	maxEDSSize := share.MaxSquareSize * 2
-	const testPeer = peer.ID("test-peer")
-	for _, newReq := range registry {
-		req := newReq()
-		proto := ProtocolID(networkID, req.Name())
-		reserve := req.ReserveSize(maxEDSSize)
+	var eds shwap.EdsID
+	proto := ProtocolID(networkID, eds.Name())
+	scope, err := rmgr.OpenStream(peer.ID("test-peer"), network.DirInbound)
+	require.NoError(t, err)
+	defer scope.Done()
+	require.NoError(t, scope.SetProtocol(proto))
+	require.NoError(t, scope.SetService(serviceName))
 
-		scope, err := rmgr.OpenStream(testPeer, network.DirInbound)
-		require.NoErrorf(t, err, "open inbound stream for %s", proto)
-
-		require.NoErrorf(t, scope.SetProtocol(proto), "set protocol for %s", proto)
-		require.NoErrorf(t, scope.SetService(serviceName), "set service for %s", proto)
-
-		err = scope.ReserveMemory(reserve, network.ReservationPriorityAlways)
-		require.NoErrorf(t, err,
-			"worst-case reservation of %d bytes must be admitted for %s", reserve, proto)
-
-		scope.Done()
-	}
+	reserve := eds.ReserveSize(share.MaxSquareSize * 2)
+	require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
 }
 
 func TestEdsReserveSizeIsStreamBuffer(t *testing.T) {

@@ -172,13 +172,6 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		}
 	}
 
-	// Memory is reserved on the stream scope, which rcmgr sizes from StreamBaseLimit for all
-	// protocols (16 MiB by default). Below maxMem the largest requests are always rejected.
-	// Totals stay bounded by the service, peer and system scopes.
-	if cfg.StreamBaseLimit.Memory < maxMem {
-		cfg.StreamBaseLimit.Memory = maxMem
-	}
-
 	// streamIncrease = how many additional streams fit in one autoscaleMemUnit.
 	// e.g. maxMem = 32 MiB → streamIncrease = 1 GiB / 32 MiB = 32.
 	streamIncrease := int(autoscaleMemUnit / maxMem)
