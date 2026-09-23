@@ -516,6 +516,8 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		"--grpc.address", "0.0.0.0:9090",
 		"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
 		"--timeout-commit", commitTimeout,
+		// on v9 this, not timeout-commit, dominates block time (2.1s by default).
+		"--delayed-precommit-timeout", commitTimeout,
 	}
 	if cfg.ConsensusRetainBlks > 0 {
 		consensusArgs = append(consensusArgs, "--min-retain-blocks", strconv.FormatUint(cfg.ConsensusRetainBlks, 10))
