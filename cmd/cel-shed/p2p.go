@@ -25,7 +25,7 @@ func init() {
 }
 
 var p2pCmd = &cobra.Command{
-	Use:   "p2p [subcommand]",
+	Use:   "p2p [command]",
 	Short: "Collection of p2p related utilities",
 }
 
@@ -50,7 +50,7 @@ var p2pNewKeyCmd = &cobra.Command{
 }
 
 var p2pPeerIDCmd = &cobra.Command{
-	Use:   "peer-id",
+	Use:   "peer-id key",
 	Short: "Get peer-id out of public or private Ed25519 key",
 	RunE: func(_ *cobra.Command, args []string) error {
 		decKey, err := hex.DecodeString(args[0])
@@ -93,7 +93,7 @@ var (
 )
 
 var p2pConnectBootstrappersCmd = &cobra.Command{
-	Use:   "connect-bootstrappers [network]",
+	Use:   "connect-bootstrappers network",
 	Short: "Connect to bootstrappers of a certain network",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if errorOnAnyFailure && errorOnAllFailure {

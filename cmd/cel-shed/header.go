@@ -13,7 +13,7 @@ import (
 )
 
 var headerCmd = &cobra.Command{
-	Use:   "header [subcommand]",
+	Use:   "header [command]",
 	Short: "Collection of header module related utilities",
 }
 
@@ -25,7 +25,7 @@ const (
 const startFromFlag = "start-from"
 
 var headerStoreReset = &cobra.Command{
-	Use:          "store-reset <node_store_path> [--head <num>] [--tail <num>]",
+	Use:          "store-reset node_store_path",
 	Short:        "Forcefully resets header store tail or head to be at the given height. Requires the node being stopped",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -95,7 +95,7 @@ var headerStoreReset = &cobra.Command{
 }
 
 var headerStoreRecover = &cobra.Command{
-	Use: "store-recover <node_store_path> [--start-from <num>]",
+	Use: "store-recover node_store_path",
 	Short: `Recovers header store tail by forward iterating over the store until some header is found to be the new tail.
 	Requires the node being stopped`,
 	SilenceUsage: true,
