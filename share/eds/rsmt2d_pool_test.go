@@ -3,8 +3,10 @@ package eds
 import (
 	"bytes"
 	"fmt"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
@@ -25,7 +27,7 @@ func TestRsmt2DFromSharesRootsMatchPlainConstructor(t *testing.T) {
 			require.NoError(t, err)
 
 			// pooled path under test
-			pooled, err := Rsmt2DFromShares(shares, odsSize)
+			pooled, err := Rsmt2DFromShares(shares)
 			require.NoError(t, err)
 			pooledRoots, err := share.NewAxisRoots(pooled.ExtendedDataSquare)
 			require.NoError(t, err)
@@ -42,6 +44,43 @@ func TestRsmt2DFromSharesRootsMatchPlainConstructor(t *testing.T) {
 			require.True(t, bytes.Equal(refRoots.Hash(), pooledRoots.Hash()), "DAH hash differs")
 		})
 	}
+}
+
+// TestRsmt2DFromSharesConcurrent builds squares of mixed sizes concurrently through the shared
+// pool.
+func TestRsmt2DFromSharesConcurrent(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := range 32 {
+		odsSize := []int{2, 8, 32, 64}[i%4]
+		shares, err := libshare.RandShares(odsSize * odsSize)
+		require.NoError(t, err)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			pooled, err := Rsmt2DFromShares(shares)
+			if !assert.NoError(t, err) {
+				return
+			}
+			pooledRoots, err := share.NewAxisRoots(pooled.ExtendedDataSquare)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			ref, err := rsmt2d.ComputeExtendedDataSquare(
+				libshare.ToBytes(shares), share.DefaultRSMT2DCodec(), wrapper.NewConstructor(uint64(odsSize)))
+			if !assert.NoError(t, err) {
+				return
+			}
+			refRoots, err := share.NewAxisRoots(ref)
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, refRoots.RowRoots, pooledRoots.RowRoots, "row roots differ (ods%d)", odsSize)
+			assert.Equal(t, refRoots.ColumnRoots, pooledRoots.ColumnRoots, "column roots differ (ods%d)", odsSize)
+		}()
+	}
+	wg.Wait()
 }
 
 // BenchmarkRsmt2DFromShares measures the full EDS construction including root
@@ -66,7 +105,7 @@ func BenchmarkRsmt2DFromShares(b *testing.B) {
 		b.Run(fmt.Sprintf("ods%d/pooled", odsSize), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				eds, err := Rsmt2DFromShares(shares, odsSize)
+				eds, err := Rsmt2DFromShares(shares)
 				require.NoError(b, err)
 				_, err = share.NewAxisRoots(eds.ExtendedDataSquare)
 				require.NoError(b, err)

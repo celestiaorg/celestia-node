@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -177,9 +178,13 @@ func (eds *Rsmt2D) Reader() (io.Reader, error) {
 	return reader, nil
 }
 
+var treePool = sync.OnceValues(func() (*wrapper.TreePool, error) {
+	return wrapper.DefaultPreallocatedTreePool(1)
+})
+
 // Rsmt2DFromShares constructs an Extended Data Square from shares.
-func Rsmt2DFromShares(shares []libshare.Share, odsSize int) (*Rsmt2D, error) {
-	pool, poolErr := wrapper.DefaultPreallocatedTreePool(uint(odsSize))
+func Rsmt2DFromShares(shares []libshare.Share) (*Rsmt2D, error) {
+	pool, poolErr := treePool()
 	if poolErr != nil {
 		return nil, fmt.Errorf("failed to build a preallocated pool for eds construction: %w", poolErr)
 	}
