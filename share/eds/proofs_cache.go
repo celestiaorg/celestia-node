@@ -285,13 +285,8 @@ func (c *proofsCache) RangeNamespaceData(
 }
 
 func (c *proofsCache) Reader() (io.Reader, error) {
-	size, err := c.Size(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf("getting size: %w", err)
-	}
-	odsSize := size / 2
-	reader := NewShareReader(odsSize, c.getShare)
-	return reader, nil
+	// bypass the cache: reading through it would pin the whole ODS for the accessor's lifetime.
+	return c.inner.Reader()
 }
 
 func (c *proofsCache) Close() error {
@@ -336,34 +331,6 @@ func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisW
 	defer c.axisCacheLock.RUnlock()
 	ax, ok := c.axisCache[axisType][axisIdx]
 	return ax, ok
-}
-
-func (c *proofsCache) getShare(rowIdx, colIdx int) (libshare.Share, error) {
-	ctx := context.TODO()
-	size, err := c.Size(ctx)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("getting size: %w", err)
-	}
-	odsSize := size / 2
-	half, err := c.AxisHalf(ctx, rsmt2d.Row, rowIdx)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("reading axis half: %w", err)
-	}
-
-	// if share is from the same side of axis return share right away
-	if colIdx > odsSize == half.IsParity {
-		if half.IsParity {
-			colIdx -= odsSize
-		}
-		return half.Shares[colIdx], nil
-	}
-
-	// if share index is from opposite part of axis, obtain full axis shares
-	shares, err := c.axisShares(ctx, rsmt2d.Row, rowIdx)
-	if err != nil {
-		return libshare.Share{}, fmt.Errorf("reading axis shares: %w", err)
-	}
-	return shares[colIdx], nil
 }
 
 // rowProofsGetter implements blockservice.BlockGetter interface
