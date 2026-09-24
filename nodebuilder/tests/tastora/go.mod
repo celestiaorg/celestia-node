@@ -356,7 +356,6 @@ require (
 	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.10.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/celestiaorg/celestia-app/v9 v9.0.6 // indirect
 	github.com/celestiaorg/go-square/v3 v3.0.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
