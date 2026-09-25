@@ -22,11 +22,8 @@ func (p *alwaysFailPruner) Prune(context.Context, *header.ExtendedHeader) error 
 	return errors.New("permission denied")
 }
 
-// TestPruneSpinsWhenWholeBatchFails shows that a single prune round never returns
-// (and keeps checkpointMu locked) when every header of a full batch fails to prune:
-// lastPrunedHeader does not advance, len(headers) == maxHeadersPerLoop, so the
-// loop re-fetches and re-fails the same batch forever instead of waiting for the
-// next pruneCycle.
+// TestPruneSpinsWhenWholeBatchFails checks that a prune round ends when a full
+// batch fails instead of retrying the same batch in a loop.
 func TestPruneSpinsWhenWholeBatchFails(t *testing.T) {
 	old := maxHeadersPerLoop
 	maxHeadersPerLoop = 8
@@ -56,7 +53,8 @@ func TestPruneSpinsWhenWholeBatchFails(t *testing.T) {
 
 	select {
 	case <-done:
-		// expected behavior: a failed batch ends the round; failures are retried next cycle
+		// the full batch was tried once, failures are retried on the next cycle
+		require.EqualValues(t, maxHeadersPerLoop, fp.calls.Load())
 	case <-time.After(2 * time.Second):
 		lockFree := serv.checkpointMu.TryLock()
 		if lockFree {
