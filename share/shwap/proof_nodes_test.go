@@ -49,4 +49,9 @@ func TestRangeNamespaceDataFromProtoRejectsOversizedProof(t *testing.T) {
 	}
 	_, err := shwap.RangeNamespaceDataFromProto(rnd)
 	require.Error(t, err)
+
+	rnd.FirstIncompleteRowProof = nil
+	rnd.LastIncompleteRowProof = &nmt_pb.Proof{Start: 0, End: 1, Nodes: oversizedProofNodes()}
+	_, err = shwap.RangeNamespaceDataFromProto(rnd)
+	require.Error(t, err)
 }
