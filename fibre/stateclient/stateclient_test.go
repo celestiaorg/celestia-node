@@ -114,6 +114,16 @@ func TestGetHostABCIErrors(t *testing.T) {
 		_, err := c.GetHost(ctx, val)
 		require.ErrorContains(t, err, "missing proof ops")
 	})
+
+	// empty ops used to reach VerifyFromKeys, which panics on zero operators
+	t.Run("empty proof ops", func(t *testing.T) {
+		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{ProofOps: &tmservice.ProofOps{}}}
+		c := newTestClient(t, stub, p2p.Private)
+		require.NotPanics(t, func() {
+			_, err := c.GetHost(ctx, val)
+			require.ErrorContains(t, err, "missing proof ops")
+		})
+	})
 }
 
 // TestGetHostServesWithinRefreshWindow checks that within the window GetHost serves
