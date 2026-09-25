@@ -253,7 +253,7 @@ func TestCoordinator(t *testing.T) {
 
 	t.Run("persist retry count after on restart", func(t *testing.T) {
 		testParams := defaultTestParams()
-		testParams.dasParams.ConcurrencyLimit = 5
+		testParams.dasParams.ConcurrencyLimit = 1
 		ctx, cancel := context.WithTimeout(context.Background(), testParams.timeoutDelay)
 
 		ch := checkpoint{
