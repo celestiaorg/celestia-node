@@ -155,3 +155,15 @@ func TestValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSanitizesAdditionalIPv6Endpoint(t *testing.T) {
+	cfg := Config{
+		EndpointConfig: EndpointConfig{IP: "127.0.0.1", Port: DefaultPort},
+		AdditionalCoreEndpoints: []EndpointConfig{
+			{IP: "[::1]", Port: DefaultPort},
+		},
+	}
+
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, "::1", cfg.AdditionalCoreEndpoints[0].IP)
+}

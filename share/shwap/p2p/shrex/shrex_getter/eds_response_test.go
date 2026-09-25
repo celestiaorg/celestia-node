@@ -36,6 +36,19 @@ func TestEDSResponse_ReadFrom(t *testing.T) {
 	require.True(t, square.Equals(resp.eds.ExtendedDataSquare))
 }
 
+func TestEDSResponse_ReadFrom_Oversized(t *testing.T) {
+	const odsSize = 4
+	shares, err := libshare.RandShares(1)
+	require.NoError(t, err)
+
+	reader := bytes.NewReader(bytes.Repeat(shares[0].ToBytes(), odsSize*odsSize+1))
+	resp := &edsResponse{odsSize: odsSize}
+	n, err := resp.ReadFrom(reader)
+	require.NoError(t, err)
+	require.Equal(t, int64(odsSize*odsSize*libshare.ShareSize), n)
+	require.Equal(t, libshare.ShareSize, reader.Len())
+}
+
 func TestEDSResponse_ReadFrom_RootMismatch(t *testing.T) {
 	const odsSize = 4
 	ctx := context.Background()
