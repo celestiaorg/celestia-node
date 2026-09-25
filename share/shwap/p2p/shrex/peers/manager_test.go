@@ -583,6 +583,23 @@ func TestManager_withoutShrexSubKeepsNoPools(t *testing.T) {
 		done(ResultNoop)
 	}
 
+	// waits for a node to be discovered
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		manager.UpdateNodePool("peer2", true)
+	}()
+	manager.nodes.putOnCooldown(peerID)
+	pID, _, err := manager.Peer(ctx, rand.Bytes(32), 101)
+	require.NoError(t, err)
+	require.Equal(t, peer.ID("peer2"), pID)
+
+	// returns ctx error when no node is available
+	manager.nodes.putOnCooldown("peer2")
+	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer timeoutCancel()
+	_, _, err = manager.Peer(timeoutCtx, rand.Bytes(32), 102)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
 	manager.lock.Lock()
 	defer manager.lock.Unlock()
 	require.Empty(t, manager.pools)
