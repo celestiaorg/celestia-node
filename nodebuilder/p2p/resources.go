@@ -14,7 +14,7 @@ import (
 )
 
 func resourceManager(params resourceManagerParams) (network.ResourceManager, error) {
-	return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(params.Limits))
+	return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(params.Limits), params.Opts...)
 }
 
 // bridgeResources returns resource manager limits for bridge nodes.
