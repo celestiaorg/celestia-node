@@ -54,5 +54,5 @@ func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
 		RequestsPerSec: cfg.RateLimit.RequestsPerSec,
 		Burst:          cfg.RateLimit.Burst,
 		CacheSize:      cfg.RateLimit.CacheSize,
-	}, signer, verifier)
+	}, cfg.MaxConcurrentConns, signer, verifier)
 }

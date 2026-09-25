@@ -246,6 +246,41 @@ func TestParseFlags(t *testing.T) {
 	}
 }
 
+// TestParseFlagsMaxConcurrentConns tests the --rpc.max-concurrent-conns override
+func TestParseFlagsMaxConcurrentConns(t *testing.T) {
+	tests := []struct {
+		name        string
+		flag        string
+		expected    int
+		expectError bool
+	}{
+		{name: "unset keeps config value", expected: 42},
+		{name: "zero keeps config value", flag: "0", expected: 42},
+		{name: "positive overrides config value", flag: "7", expected: 7},
+		{name: "negative rejected", flag: "-1", expectError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cmd.Flags().AddFlagSet(Flags())
+			cfg := &Config{MaxConcurrentConns: 42}
+
+			if tt.flag != "" {
+				require.NoError(t, cmd.Flags().Set(maxConcurrentConnsFlag, tt.flag))
+			}
+
+			err := ParseFlags(cmd, cfg)
+			if tt.expectError {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, cfg.MaxConcurrentConns)
+		})
+	}
+}
+
 // TestParseFlagsErrors tests error cases in ParseFlags
 func TestParseFlagsErrors(t *testing.T) {
 	cmd := &cobra.Command{}
