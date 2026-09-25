@@ -138,9 +138,6 @@ var submitCmd = &cobra.Command{
 		if !strings.HasPrefix(args[0], "0x") {
 			args[0] = "0x" + args[0]
 		}
-		if !strings.HasPrefix(args[1], "0x") {
-			args[1] = "0x" + args[1]
-		}
 		return nil
 	},
 	Short: "Submit the blob(s) at the given namespace(s) and " +
@@ -186,9 +183,11 @@ var submitCmd = &cobra.Command{
 
 			jsonBlobs = append(jsonBlobs, parsedBlobs...)
 		} else {
-			blobData, err := cmdnode.DecodeToBytes(args[1])
-			if err != nil { // can be simple text
-				blobData = []byte(args[1])
+			blobData := []byte(args[1]) // can be simple text
+			if strings.HasPrefix(args[1], "0x") {
+				if decoded, err := cmdnode.DecodeToBytes(args[1]); err == nil {
+					blobData = decoded
+				}
 			}
 			jsonBlobs = append(jsonBlobs, blobJSON{Namespace: args[0], BlobData: string(blobData)})
 		}
