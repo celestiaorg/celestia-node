@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
@@ -15,7 +16,10 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 )
 
-const newBlockSubscriber = "NewBlock/Events"
+const (
+	newBlockSubscriber        = "NewBlock/Events"
+	subscriptionRetryInterval = 5 * time.Second
+)
 
 type SignedBlock struct {
 	Header       *types.Header       `json:"header"`
@@ -182,10 +186,14 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEv
 				return
 			default:
 			}
+			attemptedAt := time.Now()
 
 			subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
 			if err != nil {
 				log.Warnw("fetcher: failed to subscribe to new block events", "err", err)
+				if !waitForSubscriptionRetry(ctx, attemptedAt) {
+					return
+				}
 				continue
 			}
 
@@ -194,11 +202,30 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEv
 			if err != nil {
 				log.Warnw("fetcher: error receiving new height", "err", err.Error())
 				_ = subscription.CloseSend() // inform client that the subscription won't be used anymore
+				if !waitForSubscriptionRetry(ctx, attemptedAt) {
+					return
+				}
 				continue
 			}
 		}
 	}()
 	return eventCh, nil
+}
+
+func waitForSubscriptionRetry(ctx context.Context, attemptedAt time.Time) bool {
+	delay := time.Until(attemptedAt.Add(subscriptionRetryInterval))
+	if delay <= 0 {
+		return true
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 func (f *BlockFetcher) receive(
