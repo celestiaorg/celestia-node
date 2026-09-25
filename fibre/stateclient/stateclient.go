@@ -188,7 +188,7 @@ func (c *Client) fetchHostAt(
 	if resp.GetCode() != 0 {
 		return "", fmt.Errorf("abci query non-zero code: %s", resp.GetLog())
 	}
-	if resp.GetProofOps() == nil {
+	if len(resp.GetProofOps().GetOps()) == 0 {
 		return "", fmt.Errorf("missing proof ops for validator %s", consAddr)
 	}
 
