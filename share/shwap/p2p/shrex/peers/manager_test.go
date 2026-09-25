@@ -556,6 +556,55 @@ func TestManager_blacklistedHashesBounded(t *testing.T) {
 		"blacklisted hashes cache must stay bounded")
 }
 
+// TestManager_withoutShrexSubKeepsNoPools ensures a manager without shrexsub pools
+// (e.g. the archival one) serves discovered nodes and does not keep a pool per
+// requested datahash, as those pools are never garbage collected.
+func TestManager_withoutShrexSubKeepsNoPools(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	host, err := mocknet.New().GenPeer()
+	require.NoError(t, err)
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+
+	manager, err := NewManager(*DefaultParameters(), host, connGater, "test")
+	require.NoError(t, err)
+	require.NoError(t, manager.Start(ctx))
+	stopManager(t, manager)
+
+	peerID := peer.ID("peer1")
+	manager.UpdateNodePool(peerID, true)
+
+	for i := range 100 {
+		pID, done, err := manager.Peer(ctx, rand.Bytes(32), uint64(i+1))
+		require.NoError(t, err)
+		require.Equal(t, peerID, pID)
+		done(ResultNoop)
+	}
+
+	// waits for a node to be discovered
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		manager.UpdateNodePool("peer2", true)
+	}()
+	manager.nodes.putOnCooldown(peerID)
+	pID, _, err := manager.Peer(ctx, rand.Bytes(32), 101)
+	require.NoError(t, err)
+	require.Equal(t, peer.ID("peer2"), pID)
+
+	// returns ctx error when no node is available
+	manager.nodes.putOnCooldown("peer2")
+	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer timeoutCancel()
+	_, _, err = manager.Peer(timeoutCtx, rand.Bytes(32), 102)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	manager.lock.Lock()
+	defer manager.lock.Unlock()
+	require.Empty(t, manager.pools)
+}
+
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
 	host, err := mocknet.New().GenPeer()
 	if err != nil {

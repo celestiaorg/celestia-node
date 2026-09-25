@@ -227,6 +227,12 @@ func (m *Manager) Stop(ctx context.Context) error {
 // appropriate result value
 func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint64,
 ) (peer.ID, DoneFunc, error) {
+	// without shrexsub, pools are never populated or garbage collected,
+	// so only discovered nodes can be used
+	if m.shrexSub == nil {
+		return m.nodePeer(ctx, datahash)
+	}
+
 	p := m.validatedPool(datahash.String(), height)
 
 	// first, check if a peer is available for the given datahash
@@ -253,6 +259,22 @@ func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint
 			return m.Peer(ctx, datahash, height)
 		}
 		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), time.Since(start))
+	case peerID = <-m.nodes.next(ctx):
+		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), time.Since(start))
+	case <-ctx.Done():
+		return "", nil, ctx.Err()
+	}
+}
+
+// nodePeer returns a peer from the discovered nodes pool, waiting for one if none is available.
+func (m *Manager) nodePeer(ctx context.Context, datahash share.DataHash) (peer.ID, DoneFunc, error) {
+	peerID, ok := m.nodes.tryGet()
+	if ok {
+		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), 0)
+	}
+
+	start := time.Now()
+	select {
 	case peerID = <-m.nodes.next(ctx):
 		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), time.Since(start))
 	case <-ctx.Done():
