@@ -403,6 +403,9 @@ func (o *ODS) readODS() (square, error) {
 		// not cached, read and cache
 		o.lock.Lock()
 		defer o.lock.Unlock()
+		if o.ods != nil {
+			return o.ods, nil
+		}
 	}
 
 	offset := o.hdr.OffsetWithRoots()
