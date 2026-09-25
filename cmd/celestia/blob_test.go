@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/blob"
 	blobmod "github.com/celestiaorg/celestia-node/nodebuilder/blob"
+	blobcmd "github.com/celestiaorg/celestia-node/nodebuilder/blob/cmd"
 )
 
 type submittedBlobs struct {
@@ -40,6 +41,14 @@ func TestBlobSubmitData(t *testing.T) {
 			srv.RegisterService("blob", submitted, &blobmod.API{})
 			require.NoError(t, srv.Start(context.Background()))
 			t.Cleanup(func() { _ = srv.Stop(context.Background()) })
+			t.Cleanup(func() {
+				// don't leave the RPC flags pointing to the stopped server for other tests
+				for _, name := range []string{"url", "token"} {
+					f := blobcmd.Cmd.PersistentFlags().Lookup(name)
+					_ = f.Value.Set(f.DefValue)
+					f.Changed = false
+				}
+			})
 
 			rootCmd.SetArgs([]string{
 				"blob", "submit", "0x42690c204d39600fddd3", tt.arg,

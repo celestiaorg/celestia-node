@@ -160,6 +160,7 @@ var submitCmd = &cobra.Command{
 		}` +
 		"Note:\n" +
 		"* Namespace input parameter is expected to be its their hex representation.\n" +
+		"* blobData is submitted as plain text, unless it starts with 0x, then it is decoded as hex.\n" +
 		"* Commitment(s) output parameter(s) will be in the hex representation.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
