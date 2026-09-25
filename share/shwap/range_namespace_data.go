@@ -516,6 +516,8 @@ func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 		return n, fmt.Errorf("failed to read data: %w", err)
 	}
 
+	// reset proofs left from a previous read, as the receiver can be reused across requests
+	*rngdata = RangeNamespaceData{}
 	rngdata.Shares = make([][]libshare.Share, len(nd))
 	for i, row := range nd {
 		rngdata.Shares[i] = row.Shares
