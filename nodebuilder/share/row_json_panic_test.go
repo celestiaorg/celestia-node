@@ -22,7 +22,7 @@ func TestRowUnmarshalJSONInvalidSide(t *testing.T) {
 		var row shwap.Row
 		require.NotPanics(t, func() {
 			err := json.Unmarshal([]byte(`{"shares":[],"side":"UP"}`), &row)
-			require.Error(t, err)
+			require.ErrorContains(t, err, `invalid row side: "UP"`)
 		})
 	})
 
@@ -45,7 +45,7 @@ func TestRowUnmarshalJSONInvalidSide(t *testing.T) {
 
 		require.NotPanics(t, func() {
 			_, err := api.GetRow(context.Background(), 1, 0)
-			require.Error(t, err)
+			require.ErrorContains(t, err, `invalid row side: "UP"`)
 		})
 	})
 }
