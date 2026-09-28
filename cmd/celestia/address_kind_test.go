@@ -35,17 +35,35 @@ func TestStateCmdWrongAddressKind(t *testing.T) {
 	acc := sdktypes.AccAddress(make([]byte, 20)).String()
 	val := sdktypes.ValAddress(make([]byte, 20)).String()
 
-	cases := map[string][]string{
-		"withdraw-delegator-reward with account address": {"state", "withdraw-delegator-reward", acc},
-		"get-delegation with account address":            {"state", "get-delegation", acc},
-		"transfer to validator address":                  {"state", "transfer", val, "100"},
+	const wantVal, wantAcc = "expected a validator address", "expected an account address"
+	cases := map[string]struct {
+		args []string
+		want string
+	}{
+		"withdraw-delegator-reward with account address": {
+			[]string{"state", "withdraw-delegator-reward", acc}, wantVal,
+		},
+		"get-delegation with account address": {[]string{"state", "get-delegation", acc}, wantVal},
+		"transfer to validator address":       {[]string{"state", "transfer", val, "100"}, wantAcc},
+		"begin-redelegate from account address": {
+			[]string{"state", "begin-redelegate", acc, val, "100"}, wantVal,
+		},
+		"begin-redelegate to account address": {
+			[]string{"state", "begin-redelegate", val, acc, "100"}, wantVal,
+		},
+		"get-redelegations from account address": {
+			[]string{"state", "get-redelegations", acc, val}, wantVal,
+		},
+		"get-redelegations to account address": {
+			[]string{"state", "get-redelegations", val, acc}, wantVal,
+		},
 	}
-	for name, args := range cases {
+	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			rootCmd.SetArgs(append(args, "--url", url, "--token", "x"))
+			rootCmd.SetArgs(append(tc.args, "--url", url, "--token", "x"))
 			require.NotPanics(t, func() {
 				err := rootCmd.ExecuteContext(context.Background())
-				require.Error(t, err)
+				require.ErrorContains(t, err, tc.want)
 			})
 		})
 	}
