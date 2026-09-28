@@ -35,8 +35,9 @@ var rateBurstPerPeer = 256
 // newPeerRateLimiter returns a per-IP rate limiter for the shrex server.
 // Returns nil if rate limiting is disabled via CELESTIA_SHREX_DISABLE_RATE_LIMITING.
 //
-// Limiting is per individual IP (/32 IPv4, /128 IPv6) for Sybil resistance: a peer
-// cycling multiple identities from the same IP shares one bucket. The trade-off is
+// Limiting is per individual IPv4 address (/32) and per IPv6 /64 for Sybil resistance: a
+// peer cycling multiple identities from the same IP or /64 shares one bucket. A single
+// IPv6 host usually controls a whole /64, so a /128 bucket would not limit it. The trade-off is
 // that nodes behind shared NAT compete for the same bucket; this is accepted since
 // Celestia node operators typically run on dedicated IPs.
 //
@@ -58,7 +59,7 @@ func newPeerRateLimiter() *libp2prate.Limiter {
 		},
 		SubnetRateLimiter: libp2prate.SubnetLimiter{
 			IPv4SubnetLimits: []libp2prate.SubnetLimit{{PrefixLength: 32, Limit: limit}},
-			IPv6SubnetLimits: []libp2prate.SubnetLimit{{PrefixLength: 128, Limit: limit}},
+			IPv6SubnetLimits: []libp2prate.SubnetLimit{{PrefixLength: 64, Limit: limit}},
 			GracePeriod:      time.Minute,
 		},
 	}
