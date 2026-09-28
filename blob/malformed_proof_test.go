@@ -40,6 +40,13 @@ func TestIncluded_MalformedProofDoesNotPanic(t *testing.T) {
 	short := nmt.NewInclusionProof(p0.Start(), p0.End(), p0.Nodes()[:len(p0.Nodes())-1], true)
 	truncated[0] = &short
 
+	// same number of row proofs, but the first one has an extra node appended
+	extended := make(Proof, len(*valid))
+	copy(extended, *valid)
+	nodes := append(append([][]byte{}, p0.Nodes()...), p0.Nodes()[0])
+	long := nmt.NewInclusionProof(p0.Start(), p0.End(), nodes, true)
+	extended[0] = &long
+
 	// same number of row proofs, all null (what `[null]` decodes to over JSON)
 	var nullProof Proof
 	nullJSON := "["
@@ -53,7 +60,12 @@ func TestIncluded_MalformedProofDoesNotPanic(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(nullJSON), &nullProof))
 	require.Len(t, nullProof, len(*valid))
 
-	for name, pr := range map[string]*Proof{"truncated nodes": &truncated, "null row proof": &nullProof} {
+	cases := map[string]*Proof{
+		"truncated nodes": &truncated,
+		"extra node":      &extended,
+		"null row proof":  &nullProof,
+	}
+	for name, pr := range cases {
 		t.Run(name, func(t *testing.T) {
 			require.NotPanics(t, func() {
 				_, err := service.Included(ctx, 1, ns, pr, com)
