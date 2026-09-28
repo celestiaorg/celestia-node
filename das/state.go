@@ -154,16 +154,18 @@ func (s *coordinatorState) updateHead(newHead uint64) {
 // recentJob creates a job to process a recent header.
 func (s *coordinatorState) recentJob(header *header.ExtendedHeader) job {
 	// move next, to prevent catchup job from processing same height
-	if s.next == header.Height() {
+	tookCatchup := s.next == header.Height()
+	if tookCatchup {
 		s.next++
 	}
 	s.nextJobID++
 	return job{
-		id:      s.nextJobID,
-		jobType: recentJob,
-		header:  header,
-		from:    header.Height(),
-		to:      header.Height(),
+		id:          s.nextJobID,
+		jobType:     recentJob,
+		header:      header,
+		from:        header.Height(),
+		to:          header.Height(),
+		tookCatchup: tookCatchup,
 	}
 }
 
@@ -241,6 +243,8 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 			From:    wstats.from,
 			To:      wstats.to,
 			ErrMsg:  errMsg,
+
+			tookCatchup: wstats.tookCatchup,
 		})
 
 		for h := range wstats.failed {

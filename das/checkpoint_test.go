@@ -47,8 +47,9 @@ func TestNewCheckpointKeepsInFlightRecentJob(t *testing.T) {
 	stats := SamplingStats{
 		CatchupHead: 11,
 		Workers: []WorkerStats{
-			{JobType: recentJob, Curr: 11, From: 11, To: 11},
+			{JobType: recentJob, Curr: 11, From: 11, To: 11, tookCatchup: true},
 			{JobType: recentJob, Curr: 15, From: 15, To: 15}, // covered by catchup from 12
+			{JobType: recentJob, Curr: 10, From: 10, To: 10}, // covered by an earlier catchup job
 		},
 	}
 	cp := newCheckpoint(stats)

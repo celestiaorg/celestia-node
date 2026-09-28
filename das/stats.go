@@ -28,6 +28,9 @@ type WorkerStats struct {
 	To      uint64  `json:"to"`
 
 	ErrMsg string `json:"error,omitempty"`
+
+	// tookCatchup marks a recent job that took the next catchup height
+	tookCatchup bool
 }
 
 // totalSampled returns the total amount of sampled headers
