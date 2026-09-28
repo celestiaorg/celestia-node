@@ -543,15 +543,16 @@ func (m *Manager) cleanUp() []peer.ID {
 		// find pools that are not validated in time
 		if time.Since(p.createdAt) > m.params.PoolValidationTimeout {
 			delete(m.pools, h)
+			peers := p.peersSnapshot()
 
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"hash", h,
-				"peer_list", p.peersList)
+				"peer_list", peers)
 			// blacklist hash
 			m.blacklistedHashes.Add(h, struct{}{})
 
 			// blacklist peers
-			for _, peer := range p.peersList {
+			for _, peer := range peers {
 				addToBlackList[peer] = struct{}{}
 			}
 		}
