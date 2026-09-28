@@ -19,7 +19,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
@@ -48,6 +51,19 @@ func (*testValaddrServer) AllBondedFibreProviders(
 	return &valaddr.QueryAllBondedFibreProvidersResponse{}, nil
 }
 
+// requireToken rejects calls that don't carry the expected x-token.
+func requireToken(token string) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
+	) (any, error) {
+		md, _ := metadata.FromIncomingContext(ctx)
+		if got := md.Get("x-token"); len(got) != 1 || got[0] != token {
+			return nil, status.Errorf(codes.Unauthenticated, "%s: missing or wrong x-token", info.FullMethod)
+		}
+		return handler(ctx, req)
+	}
+}
+
 func selfSignedTLSCert(t *testing.T) tls.Certificate {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -68,22 +84,29 @@ func selfSignedTLSCert(t *testing.T) tls.Certificate {
 // for hosted gRPC providers. The tx client and CoreAccessor already dial this
 // fine; this checks that the local Fibre state client (built inside
 // initTxClient from the same conn) starts too, instead of failing because its
-// default state client dials insecurely with no auth.
+// default state client dials insecurely with no auth. The server also rejects
+// calls without the x-token, so the chain ID lookup in grpcStateClient.Start
+// only passes if it goes through the configured conn and its auth interceptor.
 func TestInitTxClientOverTLSCoreEndpoint(t *testing.T) {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	srv := grpc.NewServer(grpc.Creds(credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{selfSignedTLSCert(t)},
-	})))
+	const token = "test-token"
+	srv := grpc.NewServer(
+		grpc.Creds(credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{selfSignedTLSCert(t)}})),
+		grpc.UnaryInterceptor(requireToken(token)),
+	)
 	tmservice.RegisterServiceServer(srv, &testNodeInfoServer{})
 	valaddr.RegisterQueryServer(srv, &testValaddrServer{})
 	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(srv.Stop)
 
-	// Same shape as grpcClient(CoreGRPCConfig{TLSEnabled: true}); the test cert
-	// is self-signed so the client skips CA verification.
+	// Same shape as grpcClient(CoreGRPCConfig{TLSEnabled: true, AuthToken: token}); the
+	// test cert is self-signed so the client skips CA verification.
 	tlsCfg := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}
-	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
+	conn, err := grpc.NewClient(lis.Addr().String(),
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
+		grpc.WithChainUnaryInterceptor(authInterceptor(token)),
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = conn.Close() })
 
