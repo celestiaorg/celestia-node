@@ -11,12 +11,12 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
-func parsedConfig(t *testing.T, args ...string) *Config {
+func parsedConfig(t *testing.T, tp node.Type, args ...string) *Config {
 	cmd := &cobra.Command{Use: "start", Run: func(*cobra.Command, []string) {}}
 	cmd.Flags().AddFlagSet(Flags())
 	require.NoError(t, cmd.ParseFlags(args))
 
-	opt := ParseFlags(cmd, node.Bridge)
+	opt := ParseFlags(cmd, tp)
 	if opt == nil {
 		opt = fx.Options()
 	}
@@ -26,11 +26,15 @@ func parsedConfig(t *testing.T, args ...string) *Config {
 	return cfg
 }
 
-// TestParseFlags_ArchivalFalse: `--archival=false` must keep the default pruned mode,
-// but ParseFlags only checks Flag.Changed and ignores the parsed value.
+// TestParseFlags_ArchivalFalse verifies that `--archival=false` keeps the default
+// pruned mode while `--archival` enables archival mode.
 func TestParseFlags_ArchivalFalse(t *testing.T) {
-	require.True(t, parsedConfig(t).EnableService, "default must be pruned mode")
-	require.False(t, parsedConfig(t, "--archival").EnableService, "--archival must enable archival mode")
-	require.True(t, parsedConfig(t, "--archival=false").EnableService,
+	require.True(t, parsedConfig(t, node.Bridge).EnableService, "default must be pruned mode")
+	require.False(t, parsedConfig(t, node.Bridge, "--archival").EnableService,
+		"--archival must enable archival mode")
+	require.True(t, parsedConfig(t, node.Bridge, "--archival=false").EnableService,
 		"--archival=false switched the node into archival mode")
+
+	// archival mode is Bridge-only, but an explicit false is fine on other node types
+	require.True(t, parsedConfig(t, node.Light, "--archival=false").EnableService)
 }
