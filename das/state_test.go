@@ -6,9 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-node/header"
 )
 
 func Test_coordinatorStats(t *testing.T) {
@@ -95,21 +92,4 @@ func Test_coordinatorStats(t *testing.T) {
 			assert.Equal(t, tt.want, stats, "stats are not equal")
 		})
 	}
-}
-
-func TestRecentJobTookCatchup(t *testing.T) {
-	s := newCoordinatorState(DefaultParameters())
-	s.resumeFromCheckpoint(checkpoint{SampleFrom: 1, NetworkHead: 10})
-
-	at := func(height uint64) *header.ExtendedHeader {
-		return &header.ExtendedHeader{RawHeader: header.RawHeader{Height: int64(height)}}
-	}
-
-	// catchup will still reach height 10
-	require.False(t, s.recentJob(at(10)).tookCatchup)
-	require.EqualValues(t, 1, s.next)
-
-	// height 1 is the next catchup height, the recent job takes it
-	require.True(t, s.recentJob(at(1)).tookCatchup)
-	require.EqualValues(t, 2, s.next)
 }

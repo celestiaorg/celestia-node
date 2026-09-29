@@ -56,9 +56,6 @@ type job struct {
 	jobType jobType
 	from    uint64
 	to      uint64
-	// tookCatchup is set on a recent job that took the next catchup height, so no
-	// catchup job will sample that height.
-	tookCatchup bool
 
 	// header is set only for recentJobs, avoiding an unnecessary call to the header store
 	header *header.ExtendedHeader

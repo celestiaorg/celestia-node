@@ -23,22 +23,12 @@ type workerCheckpoint struct {
 func newCheckpoint(stats SamplingStats) checkpoint {
 	workers := make([]workerCheckpoint, 0, len(stats.Workers))
 	for _, w := range stats.Workers {
-		// retry jobs resume from the failed heights map. A recent job that took the next
-		// catchup height won't be covered by catchup after restart, so it is stored as a
-		// catchup job. Other recent jobs are covered by catchup.
-		switch w.JobType {
-		case catchupJob:
+		// retry jobs resume from the failed heights map. Catchup resumes from CatchupHead+1, so
+		// catchup jobs and recent jobs at or below the catchup head are stored as catchup jobs.
+		// Recent jobs above the catchup head will be covered by catchup after restart.
+		if w.JobType == catchupJob || (w.JobType == recentJob && w.Curr <= stats.CatchupHead) {
 			workers = append(workers, workerCheckpoint{
 				From:    w.Curr,
-				To:      w.To,
-				JobType: w.JobType,
-			})
-		case recentJob:
-			if !w.tookCatchup {
-				continue
-			}
-			workers = append(workers, workerCheckpoint{
-				From:    w.From,
 				To:      w.To,
 				JobType: catchupJob,
 			})
