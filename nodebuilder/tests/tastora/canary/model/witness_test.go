@@ -8,7 +8,8 @@ import (
 
 func TestWitnessMetadata(t *testing.T) {
 	cases := map[string]func(*Result){
-		"missing": func(r *Result) { r.Witnesses = nil }, "partial": func(r *Result) { r.Witnesses = r.Witnesses[:1] },
+		"missing":         func(r *Result) { r.Witnesses = nil },
+		"partial":         func(r *Result) { r.Witnesses = r.Witnesses[:1] },
 		"extra":           func(r *Result) { r.Witnesses = append(r.Witnesses, r.Witnesses[2]) },
 		"epoch":           func(r *Result) { r.Witnesses[2].Epoch = 1 },
 		"first_epoch":     func(r *Result) { r.Witnesses[0].Epoch = 2 },
@@ -110,16 +111,22 @@ func TestWitnessRejectsCaseVariantRootReuse(t *testing.T) {
 
 func TestWitnessRejectsReversedEpochTimes(t *testing.T) {
 	r := completeResult()
+	completion := "witness completion must follow prior completion"
 	cases := []struct {
 		name  string
 		start time.Time
-		valid bool
+		want  string
 	}{
-		{"reversed", r.StartedAt.Add(30 * time.Second), false},
-		{"overlapping", r.Witnesses[1].CompletedAt.Add(-3 * time.Second), false},
-		{"same completion boundary", r.Witnesses[1].CompletedAt.Add(-2 * time.Second), false},
-		{"just after completion", r.Witnesses[1].CompletedAt.Add(-2*time.Second + time.Nanosecond), true},
-		{"original chronology", r.Witnesses[2].StartedAt, true},
+		{"reversed", r.StartedAt.Add(30 * time.Second), completion},
+		{"overlapping", r.Witnesses[1].CompletedAt.Add(-3 * time.Second), completion},
+		{"same completion boundary", r.Witnesses[1].CompletedAt.Add(-2 * time.Second), completion},
+		{
+			"starts before first-epoch sampling finished",
+			r.Witnesses[1].CompletedAt.Add(-time.Nanosecond),
+			"second-epoch witness must start after first-epoch sampling",
+		},
+		{"starts when first-epoch sampling finished", r.Witnesses[1].CompletedAt, ""},
+		{"original chronology", r.Witnesses[2].StartedAt, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -129,12 +136,12 @@ func TestWitnessRejectsReversedEpochTimes(t *testing.T) {
 			last.StartedAt = tc.start
 			last.CompletedAt = tc.start.Add(2 * time.Second)
 			err := r.Validate()
-			if tc.valid {
+			if tc.want == "" {
 				if err != nil {
 					t.Fatalf("valid restart chronology rejected: %v", err)
 				}
-			} else if err == nil || err.Error() != "witness completion must follow prior completion" {
-				t.Fatalf("impossible restart chronology: got %v, want chronology rejection", err)
+			} else if err == nil || err.Error() != tc.want {
+				t.Fatalf("impossible restart chronology: got %v, want %q", err, tc.want)
 			}
 		})
 	}

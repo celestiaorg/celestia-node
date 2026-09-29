@@ -39,10 +39,12 @@ func completeResult() Result {
 		r.Witnesses = append(r.Witnesses, Witness{
 			Check: w.check, Epoch: w.epoch, JobType: w.job, SampleCount: 16,
 			Header: HeaderRef{
-				Height: uint64(
-					i + 1,
-				), Hash: strings.Repeat(string(rune('A'+i)), 64), Root: strings.Repeat(string(rune('D'+i)), 64),
-				ChainID: "private-1", Time: at.Add(-time.Second), Width: 4,
+				Height:  uint64(i + 1),
+				Hash:    strings.Repeat(string(rune('A'+i)), 64),
+				Root:    strings.Repeat(string(rune('D'+i)), 64),
+				ChainID: "private-1",
+				Time:    at.Add(-time.Second),
+				Width:   4,
 			},
 			StartedAt: at, CompletedAt: at.Add(2 * time.Second), DurationSeconds: 1.5, EvidenceKind: EvidenceNativeLogs,
 		})
@@ -71,7 +73,9 @@ func TestRequiredChecksAndWitnessChecks(t *testing.T) {
 	if len(WitnessChecks()) != 3 {
 		t.Fatal("three witness checks expected")
 	}
-	if RequiredChecks()[0] = "mutated"; RequiredChecks()[0] != "fresh_store" {
+	checks := RequiredChecks()
+	checks[0] = "mutated"
+	if RequiredChecks()[0] != "fresh_store" {
 		t.Fatal("check contract must be immutable")
 	}
 }
@@ -105,9 +109,30 @@ func TestMetricsValidation(t *testing.T) {
 		t.Fatal("negative metric accepted")
 	}
 	r = completeResult()
+	r.Metrics.RecentSampleSeconds = nil
+	if err := r.Validate(); err != nil {
+		t.Fatalf("PASS without the soft live-head timing rejected: %v", err)
+	}
+	for name, drop := range map[string]func(*Metrics){
+		"startup":        func(m *Metrics) { m.StartupSeconds = nil },
+		"header sync":    func(m *Metrics) { m.HeaderSyncSeconds = nil },
+		"first sample":   func(m *Metrics) { m.FirstSampleSeconds = nil },
+		"restart resume": func(m *Metrics) { m.RestartResumeSeconds = nil },
+	} {
+		r := completeResult()
+		drop(&r.Metrics)
+		if r.Validate() == nil {
+			t.Fatalf("PASS without the %s timing accepted", name)
+		}
+	}
+	r = completeResult()
+	r.Witnesses = r.Witnesses[:1]
+	r.Checks[5].Outcome = Inconclusive
+	r.Checks[6].Outcome = Fail
+	r.Outcome = Fail
 	r.Metrics = Metrics{}
 	if err := r.Validate(); err != nil {
-		t.Fatalf("absent metrics must be valid: %v", err)
+		t.Fatalf("absent metrics must be valid on a run that did not pass: %v", err)
 	}
 }
 
@@ -149,9 +174,12 @@ func TestExactCheckSet(t *testing.T) {
 
 func TestReportIdentity(t *testing.T) {
 	cases := map[string]func(*Result){
-		"schema": func(r *Result) { r.SchemaVersion = "next" }, "run": func(r *Result) { r.RunID = " " },
-		"profile": func(r *Result) { r.Profile.Name = "" }, "network": func(r *Result) { r.Profile.Network = "" },
-		"chain": func(r *Result) { r.Profile.ChainID = "" }, "node": func(r *Result) { r.NodeID = "" },
+		"schema":          func(r *Result) { r.SchemaVersion = "next" },
+		"run":             func(r *Result) { r.RunID = " " },
+		"profile":         func(r *Result) { r.Profile.Name = "" },
+		"network":         func(r *Result) { r.Profile.Network = "" },
+		"chain":           func(r *Result) { r.Profile.ChainID = "" },
+		"node":            func(r *Result) { r.NodeID = "" },
 		"image":           func(r *Result) { r.Profile.Image = "" },
 		"source":          func(r *Result) { r.Profile.SourceCommit = "not-a-commit" },
 		"image_id":        func(r *Result) { r.ImageID = "sha256:short" },

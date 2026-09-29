@@ -267,9 +267,6 @@ func (r Result) validateWitness(w Witness) error {
 	return nil
 }
 
-// Validate checks the metric values, for readers of records derived from a result.
-func (m Metrics) Validate() error { return m.validate() }
-
 func (m Metrics) validate() error {
 	for _, v := range []*float64{
 		m.StartupSeconds, m.HeaderSyncSeconds, m.FirstSampleSeconds,
@@ -316,8 +313,15 @@ func (r Result) Validate() error {
 			}
 		}
 		// Witnesses are recorded in the order they were established.
-		if i > 0 && (w.Epoch < r.Witnesses[i-1].Epoch || !w.CompletedAt.After(r.Witnesses[i-1].CompletedAt)) {
-			return errors.New("witness completion must follow prior completion")
+		if i > 0 {
+			prev := r.Witnesses[i-1]
+			if w.Epoch < prev.Epoch || !w.CompletedAt.After(prev.CompletedAt) {
+				return errors.New("witness completion must follow prior completion")
+			}
+			// The restarted process starts its sessions after the first one stopped.
+			if w.Epoch > prev.Epoch && w.StartedAt.Before(prev.CompletedAt) {
+				return errors.New("second-epoch witness must start after first-epoch sampling")
+			}
 		}
 	}
 	if len(r.Witnesses) > 0 && r.Witnesses[0].Check != CheckDAS {
@@ -359,6 +363,11 @@ func (r Result) Validate() error {
 		}
 		if r.Profile.SampleAmount <= 0 || r.Profile.SamplingWindowSeconds <= 0 || r.Profile.StorageWindowSeconds <= 0 {
 			return errors.New("PASS requires positive effective sampling configuration")
+		}
+		m := r.Metrics
+		if m.StartupSeconds == nil || m.HeaderSyncSeconds == nil || m.FirstSampleSeconds == nil ||
+			m.RestartResumeSeconds == nil {
+			return errors.New("PASS requires the timing of every phase it passed")
 		}
 	}
 
