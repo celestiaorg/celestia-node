@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	libshare "github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/nmt"
 )
 
 // RangeNamespaceDataIDSize defines the size of the RangeNamespaceDataIDSize in bytes,
@@ -174,27 +174,93 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-// ResponseSize returns the exact response size from the request's From/To range.
-// If To is 0 (zero-value instance used for limit configuration), the worst-case
-// full ODS size is returned for the given edsSize.
+// ResponseSize returns the memory held while streaming the response, not its wire size.
+// See rowStreamReserve.
 func (rngid RangeNamespaceDataID) ResponseSize(edsSize int) int {
-	if rngid.To > 0 {
-		return (rngid.To - rngid.From) * libshare.ShareSize
-	}
-	odsLn := edsSize / 2
-	return odsLn * odsLn * libshare.ShareSize
+	return rowStreamReserve(edsSize)
 }
 
+// ResponseReader streams the range row by row, in the same wire format
+// RangeNamespaceData.WriteTo produces: one RowNamespaceData per row, carrying a proof only for an
+// incomplete first or last row. Accessor caching is turned off for the stream, see
+// NamespaceDataID.ResponseReader.
 func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
-	rngdata, err := acc.RangeNamespaceData(ctx, rngid.From, rngid.To)
+	edsSize, err := acc.Size(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting rngdata from accessor: %w", err)
+		return nil, fmt.Errorf("getting EDS size: %w", err)
+	}
+	odsSize := edsSize / 2
+
+	from, err := SampleCoordsFrom1DIndex(rngid.From, odsSize)
+	if err != nil {
+		return nil, fmt.Errorf("getting range start coordinates: %w", err)
+	}
+	// To is exclusive, so the last share of the range sits at To-1.
+	to, err := SampleCoordsFrom1DIndex(rngid.To-1, odsSize)
+	if err != nil {
+		return nil, fmt.Errorf("getting range end coordinates: %w", err)
 	}
 
-	buf := &bytes.Buffer{}
-	_, err = rngdata.WriteTo(buf)
+	rows := to.Row - from.Row + 1
+	multiRow := rows > 1
+	// Same rule as RangeNamespaceDataFromShares: a row is proven only where the range cuts it.
+	startProof := from.Col != 0 || (!multiRow && to.Col != odsSize-1)
+	endProof := multiRow && to.Col != odsSize-1
+
+	ctx = WithCacheDisabled(ctx)
+	// The first row is read up front: it fixes the namespace every share in the range must carry,
+	// which the concurrent fetchers below need before they can check their own rows.
+	firstRow, err := extendedRow(ctx, acc, from.Row)
 	if err != nil {
-		return nil, fmt.Errorf("writing rngData: %w", err)
+		return nil, err
 	}
-	return buf, nil
+	namespace := firstRow[from.Col].Namespace()
+
+	r, err := newRowStreamReader(ctx, rows, func(ctx context.Context, row int) ([]byte, error) {
+		shares := firstRow
+		if row > 0 {
+			var err error
+			shares, err = extendedRow(ctx, acc, from.Row+row)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		start, end := 0, odsSize
+		if row == 0 {
+			start = from.Col
+			if !multiRow {
+				end = to.Col + 1
+			}
+		} else if row == rows-1 {
+			end = to.Col + 1
+		}
+
+		var proof *nmt.Proof
+		if (row == 0 && startProof) || (row == rows-1 && endProof) {
+			generated, err := GenerateSharesProofs(from.Row+row, start, end, odsSize, shares)
+			if err != nil {
+				return nil, fmt.Errorf("generating proof for row %d: %w", from.Row+row, err)
+			}
+			proof = generated
+		}
+
+		selected := shares[start:end]
+		for col, shr := range selected {
+			if !namespace.Equals(shr.Namespace()) {
+				return nil, fmt.Errorf("mismatched namespace for share at: row %d, col: %d", row, col)
+			}
+		}
+
+		var buf bytes.Buffer
+		rowData := RowNamespaceData{Shares: selected, Proof: proof}
+		if _, err := rowData.WriteTo(&buf); err != nil {
+			return nil, fmt.Errorf("writing row %d: %w", from.Row+row, err)
+		}
+		return buf.Bytes(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }

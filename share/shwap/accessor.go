@@ -10,6 +10,21 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 )
 
+type cacheDisabledKey struct{}
+
+// WithCacheDisabled marks a context whose accessor reads must not populate optional caches.
+// Streamed responses use it: caching every row they walk would retain the whole square, which is
+// exactly what streaming avoids.
+func WithCacheDisabled(ctx context.Context) context.Context {
+	return context.WithValue(ctx, cacheDisabledKey{}, true)
+}
+
+// CacheDisabled reports whether accessor caches must not be populated for this context.
+func CacheDisabled(ctx context.Context) bool {
+	disabled, _ := ctx.Value(cacheDisabledKey{}).(bool)
+	return disabled
+}
+
 // Accessor is used to access the data from the shwap containers.
 type Accessor interface {
 	// Size returns the EDS square size of the Accessor.

@@ -71,10 +71,9 @@ func TestSetResourceLimits_AdmitsWorstCaseEDS(t *testing.T) {
 	require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
 }
 
-// TestSetResourceLimits_AdmitsWorstCaseNamespaceData checks that a NamespaceData request for the
-// largest square fits in the default per-stream memory limit, since the response is streamed
-// row by row.
-func TestSetResourceLimits_AdmitsWorstCaseNamespaceData(t *testing.T) {
+// TestSetResourceLimits_AdmitsWorstCaseStreamedResponses checks that the streamed response types
+// fit the default per-stream memory limit at the largest square, which materializing them did not.
+func TestSetResourceLimits_AdmitsWorstCaseStreamedResponses(t *testing.T) {
 	const networkID = "test"
 
 	limits := rcmgr.DefaultLimits
@@ -85,16 +84,18 @@ func TestSetResourceLimits_AdmitsWorstCaseNamespaceData(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, rmgr.Close()) })
 
-	var nd shwap.NamespaceDataID
-	proto := ProtocolID(networkID, nd.Name())
-	scope, err := rmgr.OpenStream(peer.ID("test-peer"), network.DirInbound)
-	require.NoError(t, err)
-	defer scope.Done()
-	require.NoError(t, scope.SetProtocol(proto))
-	require.NoError(t, scope.SetService(serviceName))
+	for _, req := range []request{&shwap.NamespaceDataID{}, &shwap.RangeNamespaceDataID{}} {
+		t.Run(req.Name(), func(t *testing.T) {
+			scope, err := rmgr.OpenStream(peer.ID("test-peer"), network.DirInbound)
+			require.NoError(t, err)
+			defer scope.Done()
+			require.NoError(t, scope.SetProtocol(ProtocolID(networkID, req.Name())))
+			require.NoError(t, scope.SetService(serviceName))
 
-	reserve := nd.ResponseSize(share.MaxSquareSize * 2)
-	require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
+			reserve := req.ResponseSize(share.MaxSquareSize * 2)
+			require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
+		})
+	}
 }
 
 func TestEdsResponseSizeIsStreamBuffer(t *testing.T) {

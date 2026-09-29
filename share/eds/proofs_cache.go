@@ -43,7 +43,8 @@ type proofsCache struct {
 	// The map key is the index of the axis.
 	axisCache []map[int]axisWithProofs
 
-	// disableCache disables caching of rows for testing purposes
+	// disableCache disables caching of rows for testing purposes. Per-request opt-out lives on the
+	// context instead, see shwap.WithCacheDisabled.
 	disableCache bool
 }
 
@@ -197,7 +198,7 @@ func (c *proofsCache) axisWithProofs(ctx context.Context, axisType rsmt2d.Axis, 
 		return axisWithProofs{}, fmt.Errorf("creating proof getter: %w", err)
 	}
 
-	if !c.disableCache {
+	if !c.disableCache && !shwap.CacheDisabled(ctx) {
 		c.storeAxisInCache(axisType, axisIdx, ax)
 	}
 	return ax, nil
@@ -216,7 +217,7 @@ func (c *proofsCache) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisId
 		return shwap.AxisHalf{}, fmt.Errorf("reading axis from inner accessor: %w", err)
 	}
 
-	if !c.disableCache {
+	if !c.disableCache && !shwap.CacheDisabled(ctx) {
 		ax.half = half
 		c.storeAxisInCache(axisType, axisIdx, ax)
 	}

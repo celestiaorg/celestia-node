@@ -82,9 +82,21 @@ func TestNamespaceDataIDResponseReader(t *testing.T) {
 	randEDS, roots := edstest.RandEDSWithNamespace(t, present, odsSize*odsSize/2, odsSize)
 	acc := &eds.Rsmt2D{ExtendedDataSquare: randEDS}
 
+	// a namespace that is absent but still lands inside the square, so the case exercises absence
+	// proofs. A namespace outside it maps to no rows at all and would assert nothing.
+	absent := libshare.RandomNamespace()
+	for {
+		rowIdxs, err := share.RowsWithNamespace(roots, absent)
+		require.NoError(t, err)
+		if len(rowIdxs) > 0 {
+			break
+		}
+		absent = libshare.RandomNamespace()
+	}
+
 	for name, namespace := range map[string]libshare.Namespace{
 		"present": present,
-		"absent":  libshare.RandomNamespace(),
+		"absent":  absent,
 	} {
 		t.Run(name, func(t *testing.T) {
 			nd, err := eds.NamespaceData(ctx, acc, namespace)
@@ -131,6 +143,8 @@ func TestNamespaceDataIDResponseReaderCancel(t *testing.T) {
 	r, err := id.ResponseReader(readCtx, acc)
 	require.NoError(t, err)
 
+	// the square has more rows than the prefetch window, so the tail is never fetched and the
+	// cancelled reader has to report an error rather than serve a short stream.
 	// consume the first row only, then cancel mid-stream.
 	_, err = r.Read(make([]byte, 1))
 	require.NoError(t, err)

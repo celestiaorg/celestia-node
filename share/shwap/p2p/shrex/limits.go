@@ -173,7 +173,7 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 	}
 
 	// streamIncrease = how many additional streams fit in one autoscaleMemUnit.
-	// e.g. maxMem = 32 MiB → streamIncrease = 1 GiB / 32 MiB = 32.
+	// e.g. maxMem = 5 MiB → streamIncrease = 1 GiB / 5 MiB = 204.
 	streamIncrease := int(autoscaleMemUnit / maxMem)
 	baseMemory := int64(serviceBaseStreams) * maxMem
 	increaseMemory := int64(streamIncrease) * maxMem
