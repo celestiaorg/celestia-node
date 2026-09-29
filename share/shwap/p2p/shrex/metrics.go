@@ -28,6 +28,7 @@ const (
 	statusBadRequest        status = "bad_request"
 	statusSendStatusErr     status = "send_status_err"
 	statusSendRespErr       status = "send_resp_err"
+	statusServeRespErr      status = "serve_resp_err"
 	statusResourceExhausted status = "resource_exhausted"
 	statusRateLimited       status = "rate_limited"
 

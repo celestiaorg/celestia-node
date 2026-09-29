@@ -98,6 +98,19 @@ func TestSetResourceLimits_AdmitsWorstCaseStreamedResponses(t *testing.T) {
 	}
 }
 
+// TestSetResourceLimits_StreamCountsIgnoreReservationSize guards against shrinking per-request
+// reservations silently raising how many shrex streams the service admits.
+func TestSetResourceLimits_StreamCountsIgnoreReservationSize(t *testing.T) {
+	limits := rcmgr.DefaultLimits
+	libp2p.SetDefaultServiceLimits(&limits)
+	SetResourceLimits(&limits, "test")
+
+	const memGiB = 4
+	scaled := limits.Scale(memGiB<<30, 1024).ToPartialLimitConfig()
+	want := rcmgr.LimitVal(serviceBaseStreams + serviceStreamIncrease*globalLimitMultiplier*memGiB)
+	require.Equal(t, want, scaled.Service[serviceName].StreamsInbound)
+}
+
 func TestEdsResponseSizeIsStreamBuffer(t *testing.T) {
 	var eds shwap.EdsID
 	base := eds.ResponseSize(64)

@@ -126,7 +126,7 @@ func TestNamespaceDataIDResponseReader(t *testing.T) {
 }
 
 // TestNamespaceDataIDResponseReaderCancel ensures Close stops a partially consumed stream and a
-// cancelled reader returns an error instead of blocking.
+// canceled reader returns an error instead of blocking.
 func TestNamespaceDataIDResponseReaderCancel(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(cancel)
@@ -144,7 +144,7 @@ func TestNamespaceDataIDResponseReaderCancel(t *testing.T) {
 	require.NoError(t, err)
 
 	// the square has more rows than the prefetch window, so the tail is never fetched and the
-	// cancelled reader has to report an error rather than serve a short stream.
+	// canceled reader has to report an error rather than serve a short stream.
 	// consume the first row only, then cancel mid-stream.
 	_, err = r.Read(make([]byte, 1))
 	require.NoError(t, err)

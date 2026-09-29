@@ -156,9 +156,9 @@ func (srv *Server) streamHandler(ctx context.Context, id newRequestID) network.S
 			s.Reset() //nolint:errcheck
 			return
 		}
-		// handleDataRequest already called ResetWithError for resource exhaustion;
+		// handleDataRequest already called ResetWithError for these;
 		// calling Reset() again would overwrite the specific error code with 0.
-		if status == statusResourceExhausted {
+		if status == statusResourceExhausted || status == statusServeRespErr {
 			return
 		}
 
@@ -267,7 +267,15 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		return status, writtenStatus
 	}
 
-	written, err := io.Copy(stream, r)
+	src := &readErrReader{r: r}
+	written, err := io.Copy(stream, src)
+	if src.err != nil {
+		// the response failed on our side after OK was sent. Reset with a dedicated code instead of
+		// closing, so the client doesn't take the truncated response for invalid data.
+		logger.Errorw("reading response", "err", src.err)
+		stream.ResetWithError(streamServeErr) //nolint:errcheck
+		return statusServeRespErr, writtenStatus + int(written)
+	}
 	if err != nil {
 		logger.Errorw("send data", "err", err)
 		return statusSendRespErr, writtenStatus + int(written)
@@ -295,4 +303,19 @@ func respondStatus(log *zap.SugaredLogger, status shrexpb.Status, stream network
 	default:
 		panic("unknown status")
 	}
+}
+
+// readErrReader records the error returned by the response reader, so a failure producing the
+// response can be told apart from a failure writing it to the stream.
+type readErrReader struct {
+	r   io.Reader
+	err error
+}
+
+func (r *readErrReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		r.err = err
+	}
+	return n, err
 }

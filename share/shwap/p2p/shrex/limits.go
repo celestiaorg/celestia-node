@@ -66,12 +66,13 @@ const unlimitedOutbound = math.MaxInt
 // that happen to be memory-constrained.
 const serviceBaseStreams = 128
 
-// autoscaleMemUnit is the RAM quantum that maps to one unit of streamIncrease.
-// It equals the rcmgr "1 GiB of available memory" unit (1/8 of total RAM on
-// typical machines). Expressing streamIncrease as (1 GiB / maxResponseSize)
-// ensures the node can hold exactly one additional response per unit of
-// available RAM, keeping stream and memory limits self-consistent.
-const autoscaleMemUnit = 1024 * 1024 * 1024 // 1 GiB in bytes
+// serviceStreamIncrease is how many service-wide streams are added per 1 GiB of
+// available RAM (the rcmgr autoscale unit). It is fixed rather than derived from
+// the per-request memory reservation: streamed responses reserve little memory
+// but still cost CPU and disk per stream, so shrinking reservations must not
+// silently raise how many heavy streams the service admits. 8 matches the value
+// the previous 128 MiB worst-case reservation produced.
+const serviceStreamIncrease = 8
 
 // Per-peer service-scope limits autoscale with available RAM instead of being
 // fixed. The previous fixed-cap-of-8 starved demanding clients on public bridge
@@ -161,7 +162,7 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		return
 	}
 	// worst-case reservation across all registered request types sets the
-	// per-stream memory budget and drives the stream increase value.
+	// per-stream memory budget.
 	// ResponseSize expects the EDS size (full square width after erasure coding),
 	// which is 2× the ODS size. share.MaxSquareSize is the ODS upper bound.
 	maxEDSSize := share.MaxSquareSize * 2
@@ -172,9 +173,8 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		}
 	}
 
-	// streamIncrease = how many additional streams fit in one autoscaleMemUnit.
-	// e.g. maxMem = 5 MiB → streamIncrease = 1 GiB / 5 MiB = 204.
-	streamIncrease := int(autoscaleMemUnit / maxMem)
+	// memory is sized so every admitted stream can hold the worst-case reservation.
+	streamIncrease := serviceStreamIncrease
 	baseMemory := int64(serviceBaseStreams) * maxMem
 	increaseMemory := int64(streamIncrease) * maxMem
 

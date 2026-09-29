@@ -136,6 +136,10 @@ func (c *Client) doRequest(
 		if isResourceExhausted(err) {
 			return int64(statusLength), 0, statusResourceExhaustedErr, ErrResourceExhausted
 		}
+		// a serve error reset can overtake the status the server already sent.
+		if isServeErr(err) {
+			return int64(statusLength), 0, statusInternalErr, fmt.Errorf("%w: %w", ErrInternalServer, err)
+		}
 		return int64(statusLength),
 			0,
 			statusReadStatusErr,
@@ -160,7 +164,13 @@ func (c *Client) doRequest(
 	bytesRead, err := resp.ReadFrom(stream)
 	payloadDuration := time.Since(payloadStart)
 	st := statusSuccess
-	if err != nil {
+	switch {
+	case err == nil:
+	case isServeErr(err):
+		// the server failed mid-response on its own side; it did not send invalid data.
+		err = fmt.Errorf("%w: %w", ErrInternalServer, err)
+		st = statusInternalErr
+	default:
 		err = fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 		st = statusReadRespErr
 	}

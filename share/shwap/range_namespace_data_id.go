@@ -227,12 +227,13 @@ func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Access
 		}
 
 		start, end := 0, odsSize
-		if row == 0 {
+		switch row {
+		case 0:
 			start = from.Col
 			if !multiRow {
 				end = to.Col + 1
 			}
-		} else if row == rows-1 {
+		case rows - 1:
 			end = to.Col + 1
 		}
 
