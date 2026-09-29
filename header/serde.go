@@ -64,45 +64,16 @@ func UnmarshalExtendedHeader(data []byte) (*ExtendedHeader, error) {
 	return out, nil
 }
 
-// unmarhsalCommit exists to assist the MsgID function in generating a unique
-// message ID without the additional allocations that the full
-// UnmarshalExtendedHeader would cause.
-func unmarshalCommit(data []byte) (*core.Commit, error) {
-	in := &header_pb.ExtendedHeader{}
-	err := in.Unmarshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return core.CommitFromProto(in.Commit)
-}
-
-// MsgID computes an id for a pubsub message
-// TODO(@Wondertan): This cause additional allocations per each recvd message in the topic
-// TODO(@renaynay): We will still allocate now but we're minimizing surface only to Commit
+// MsgID computes an id for a pubsub message.
+//
+// The id is a hash over the raw message bytes, so it can't be declared by the
+// sender and doesn't require decoding untrusted data before validation.
+//
+// NOTE: Validators don't necessarily collect commit signatures from the entire
+// validator set, so Bridge Nodes connected to different validators may gossip
+// the same header with different commit signature sets, and thus different ids.
+// Such duplicates are ignored by the header-sub validator as known headers.
 func MsgID(pmsg *pb.Message) string {
-	mID := func(data []byte) string {
-		hash := blake2b.Sum256(data)
-		return string(hash[:])
-	}
-
-	commit, err := unmarshalCommit(pmsg.GetData())
-	if commit == nil || err != nil {
-		// There is nothing we can do about the error, and it will be anyway caught during validation.
-		// We also *have* to return some ID for the msg, so give the hash of even faulty msg
-		return mID(pmsg.GetData())
-	}
-
-	// IMPORTANT NOTE:
-	// Due to the nature of the Tendermint consensus, validators don't necessarily collect commit
-	// signatures from the entire validator set, but only the minimum required amount of them (>2/3 of
-	// voting power). In addition, signatures are collected asynchronously. Therefore, each validator
-	// may have a different set of signatures that pass the minimum required voting power threshold,
-	// causing nondeterminism in the header message gossiped over the network. Subsequently, this
-	// causes message duplicates as each Bridge Node, connected to a personal validator, sends the
-	// validator's own view of commits of effectively the same header.
-	//
-	// To solve the nondeterminism problem above, we don't compute msg id on message body and take
-	// the actual header hash as an id.
-	return commit.BlockID.String()
+	hash := blake2b.Sum256(pmsg.GetData())
+	return string(hash[:])
 }
