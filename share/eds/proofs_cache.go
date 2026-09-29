@@ -229,6 +229,9 @@ func (c *proofsCache) RowNamespaceData(
 	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
+	if shwap.CacheDisabled(ctx) {
+		return c.inner.RowNamespaceData(ctx, namespace, rowIdx)
+	}
 	ax, err := c.axisWithProofs(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
 		return shwap.RowNamespaceData{}, err
