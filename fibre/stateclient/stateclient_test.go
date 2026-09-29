@@ -190,15 +190,20 @@ func TestGetHostFallsBackOnQueryTimeout(t *testing.T) {
 	c.lastHost[cacheKey] = validator.Host("cached.example:9090")
 	c.lastRefresh[cacheKey] = time.Now().Add(-time.Hour)
 
-	done := make(chan validator.Host, 1)
+	type result struct {
+		host validator.Host
+		err  error
+	}
+	done := make(chan result, 1)
 	go func() {
 		// no deadline on the caller ctx, as for an RPC request
-		got, _ := c.GetHost(context.Background(), val)
-		done <- got
+		got, err := c.GetHost(context.Background(), val)
+		done <- result{got, err}
 	}()
 	select {
-	case got := <-done:
-		require.Equal(t, validator.Host("cached.example:9090"), got)
+	case res := <-done:
+		require.NoError(t, res.err)
+		require.Equal(t, validator.Host("cached.example:9090"), res.host)
 	case <-time.After(2 * time.Second):
 		t.Fatal("GetHost did not return; the host query is not bounded")
 	}
