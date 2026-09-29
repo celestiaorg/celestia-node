@@ -255,6 +255,10 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 		logger.Errorf("getting data from response reader %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
+	// streaming readers may hold goroutines reading from the file; close them before the file.
+	if closer, ok := r.(io.Closer); ok {
+		defer utils.CloseAndLog(log, "response reader", closer)
+	}
 	span.AddEvent("prepared response")
 
 	status, writtenStatus := respondStatus(logger, shrexpb.Status_OK, stream)

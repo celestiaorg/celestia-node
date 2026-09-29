@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-
-	"golang.org/x/sync/errgroup"
+	"math"
+	"sync"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
@@ -141,12 +141,22 @@ func (ndid NamespaceDataID) AppendBinary(data []byte) ([]byte, error) {
 	return append(data, ndid.DataNamespace.Bytes()...), nil
 }
 
-// ResponseSize returns the worst-case response size: all ODS rows contain namespace data.
+// namespaceDataPrefetch is the number of rows fetched concurrently ahead of the stream writer.
+// It bounds the memory held while serving a NamespaceData response.
+const namespaceDataPrefetch = 4
+
+// ResponseSize returns the memory held while streaming the response: up to namespaceDataPrefetch
+// rows of namespace data (shares + proof), each in decoded and encoded form.
 func (ndid NamespaceDataID) ResponseSize(edsSize int) int {
 	odsLn := edsSize / 2
-	return odsLn * odsLn * libshare.ShareSize
+	rowSize := odsLn*libshare.ShareSize + 2*share.AxisRootSize*int(math.Log2(float64(edsSize)))
+	return namespaceDataPrefetch * 2 * rowSize
 }
 
+// ResponseReader returns a reader that streams NamespaceData row by row, fetching up to
+// namespaceDataPrefetch rows concurrently, so memory use is bounded regardless of the square size.
+// The first row is awaited before returning so that accessor errors surface before any data is
+// sent. The returned reader implements io.Closer and must be closed before the accessor is.
 func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
 	roots, err := acc.AxisRoots(ctx)
 	if err != nil {
@@ -158,28 +168,118 @@ func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (i
 		return nil, fmt.Errorf("failed to get row indexes: %w", err)
 	}
 
-	rows := make(NamespaceData, len(rowIdxs))
-
-	errGroup, ctx := errgroup.WithContext(ctx)
-	for i, idx := range rowIdxs {
-		errGroup.Go(func() error {
-			rowData, err := acc.RowNamespaceData(ctx, ndid.DataNamespace, idx)
-			if err != nil {
-				return fmt.Errorf("failed to process row %d: %w", idx, err)
-			}
-			rows[i] = rowData
-			return nil
-		})
-	}
-
-	if err := errGroup.Wait(); err != nil {
-		return nil, fmt.Errorf("failed to process rows: %w", err)
-	}
-
-	buf := &bytes.Buffer{}
-	_, err = rows.WriteTo(buf)
-	if err != nil {
+	r := newNamespaceDataReader(ctx, acc, ndid.DataNamespace, rowIdxs)
+	if err := r.next(); err != nil {
+		r.Close()
 		return nil, err
 	}
-	return buf, nil
+	return r, nil
+}
+
+type encodedRow struct {
+	data []byte
+	err  error
+}
+
+// namespaceDataReader reads and encodes RowNamespaceData for each row index with bounded
+// concurrency, producing the same wire format as NamespaceData.WriteTo.
+type namespaceDataReader struct {
+	ctx     context.Context
+	cancel  context.CancelFunc
+	wg      sync.WaitGroup
+	sem     chan struct{}
+	results []chan encodedRow
+	pos     int
+	buf     []byte
+}
+
+func newNamespaceDataReader(
+	ctx context.Context,
+	acc Accessor,
+	namespace libshare.Namespace,
+	rowIdxs []int,
+) *namespaceDataReader {
+	ctx, cancel := context.WithCancel(ctx)
+	r := &namespaceDataReader{
+		ctx:     ctx,
+		cancel:  cancel,
+		sem:     make(chan struct{}, namespaceDataPrefetch),
+		results: make([]chan encodedRow, len(rowIdxs)),
+	}
+	for i := range r.results {
+		r.results[i] = make(chan encodedRow, 1)
+	}
+
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		for i, idx := range rowIdxs {
+			// a slot is released once the row is consumed by Read.
+			select {
+			case r.sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			r.wg.Add(1)
+			go func() {
+				defer r.wg.Done()
+				r.results[i] <- fetchEncodedRow(ctx, acc, namespace, idx)
+			}()
+		}
+	}()
+	return r
+}
+
+func fetchEncodedRow(ctx context.Context, acc Accessor, namespace libshare.Namespace, idx int) encodedRow {
+	rowData, err := acc.RowNamespaceData(ctx, namespace, idx)
+	if err != nil {
+		return encodedRow{err: fmt.Errorf("failed to process row %d: %w", idx, err)}
+	}
+	var buf bytes.Buffer
+	if _, err := rowData.WriteTo(&buf); err != nil {
+		return encodedRow{err: fmt.Errorf("writing row %d: %w", idx, err)}
+	}
+	return encodedRow{data: buf.Bytes()}
+}
+
+func (r *namespaceDataReader) Read(p []byte) (int, error) {
+	if len(r.buf) == 0 {
+		if r.pos == len(r.results) {
+			return 0, io.EOF
+		}
+		if err := r.next(); err != nil {
+			return 0, err
+		}
+	}
+	n := copy(p, r.buf)
+	r.buf = r.buf[n:]
+	return n, nil
+}
+
+// next waits for the next row in order and releases its prefetch slot.
+func (r *namespaceDataReader) next() error {
+	if r.pos == len(r.results) {
+		return nil
+	}
+	var res encodedRow
+	select {
+	case res = <-r.results[r.pos]:
+	case <-r.ctx.Done():
+		return r.ctx.Err()
+	}
+	r.results[r.pos] = nil
+	r.pos++
+	<-r.sem
+	if res.err != nil {
+		return res.err
+	}
+	r.buf = res.data
+	return nil
+}
+
+// Close stops outstanding fetches and waits for them to finish.
+func (r *namespaceDataReader) Close() error {
+	r.cancel()
+	r.wg.Wait()
+	return nil
 }

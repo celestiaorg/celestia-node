@@ -71,6 +71,32 @@ func TestSetResourceLimits_AdmitsWorstCaseEDS(t *testing.T) {
 	require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
 }
 
+// TestSetResourceLimits_AdmitsWorstCaseNamespaceData checks that a NamespaceData request for the
+// largest square fits in the default per-stream memory limit, since the response is streamed
+// row by row.
+func TestSetResourceLimits_AdmitsWorstCaseNamespaceData(t *testing.T) {
+	const networkID = "test"
+
+	limits := rcmgr.DefaultLimits
+	libp2p.SetDefaultServiceLimits(&limits)
+	SetResourceLimits(&limits, networkID)
+
+	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, rmgr.Close()) })
+
+	var nd shwap.NamespaceDataID
+	proto := ProtocolID(networkID, nd.Name())
+	scope, err := rmgr.OpenStream(peer.ID("test-peer"), network.DirInbound)
+	require.NoError(t, err)
+	defer scope.Done()
+	require.NoError(t, scope.SetProtocol(proto))
+	require.NoError(t, scope.SetService(serviceName))
+
+	reserve := nd.ResponseSize(share.MaxSquareSize * 2)
+	require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
+}
+
 func TestEdsResponseSizeIsStreamBuffer(t *testing.T) {
 	var eds shwap.EdsID
 	base := eds.ResponseSize(64)
