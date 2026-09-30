@@ -65,7 +65,7 @@ For more information on setting up a node and the hardware requirements needed, 
 
 ## API docs
 
-The celestia-node public API is documented [here](https://node-rpc-docs.celestia.org/).
+The celestia-node public API is documented [here](https://docs.celestia.org/build/rpc/node-api/).
 
 ## Node types
 
@@ -86,7 +86,7 @@ celestia <node_type> init
 celestia <node_type> start
 ```
 
-Please refer to [this guide](https://docs.celestia.org/how-to-guides/celestia-node/) for more information on running a node.
+Please refer to [this guide](https://docs.celestia.org/operate/data-availability/install-celestia-node/) for more information on running a node.
 
 ### Quick Start with Light Node on mocha
 
