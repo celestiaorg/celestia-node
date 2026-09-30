@@ -161,10 +161,8 @@ func (d *DASer) Stop(ctx context.Context) error {
 	// try to store checkpoint without waiting for coordinator and workers to stop
 	cp, err := d.sampler.getCheckpoint(ctx)
 	if err != nil {
-		log.Error("DASer coordinator checkpoint is unavailable")
-	}
-
-	if err = d.store.store(ctx, cp); err != nil {
+		log.Errorw("DASer coordinator checkpoint is unavailable", "err", err)
+	} else if err = d.store.store(ctx, cp); err != nil {
 		log.Errorw("storing checkpoint to disk", "err", err)
 	}
 

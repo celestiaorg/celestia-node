@@ -104,6 +104,42 @@ func TestDASer_Restart(t *testing.T) {
 	assert.EqualValues(t, 60, checkpoint.SampleFrom-1)
 }
 
+// TestDASer_StopWithCanceledContextKeepsCheckpoint ensures that Stop called with an already
+// canceled context does not overwrite the stored checkpoint with an empty one.
+func TestDASer_StopWithCanceledContextKeepsCheckpoint(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(cancel)
+
+	ctrl := gomock.NewController(t)
+	avail := mocks.NewMockAvailability(ctrl)
+	avail.EXPECT().SharesAvailable(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+
+	canceled, cancelNow := context.WithCancel(ctx)
+	cancelNow()
+
+	// getCheckpoint picks randomly between the coordinator and the canceled context,
+	// so stop several times to hit the failing branch.
+	for range 20 {
+		ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
+		mockGet, sub := createDASerSubcomponents(t, 15, 15)
+
+		daser, err := NewDASer(avail, sub, mockGet, ds)
+		require.NoError(t, err)
+		require.NoError(t, daser.Start(ctx))
+		require.NoError(t, waitHeight(ctx, daser, 30))
+
+		cp, err := daser.sampler.getCheckpoint(ctx)
+		require.NoError(t, err)
+		require.NoError(t, daser.store.store(ctx, cp))
+
+		_ = daser.Stop(canceled)
+
+		stored, err := daser.store.load(ctx)
+		require.NoError(t, err)
+		require.EqualValues(t, 31, stored.SampleFrom, "checkpoint after Stop: %s", stored.String())
+	}
+}
+
 func TestDASerSampleTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(cancel)
