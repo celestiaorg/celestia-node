@@ -46,8 +46,10 @@ func TestWithClosedOnce(t *testing.T) {
 }
 
 // TestWithClosedOnceConcurrentClose covers the cache force-closing an accessor
-// (after defaultCloseTimeout) while readers still hold it: every call must either
-// succeed or return errAccessorClosed. Run with -race.
+// (after defaultCloseTimeout) while readers still hold it. closeOnce must not
+// panic or race: a call either reaches the accessor or returns errAccessorClosed.
+// The stub accessor never fails, so this does not cover errors a real file can
+// return for a call already in flight when it is closed. Run with -race.
 func TestWithClosedOnceConcurrentClose(t *testing.T) {
 	ctx := context.Background()
 	for range 200 {
