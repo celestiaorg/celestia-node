@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/libs/rand"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	libp2p "github.com/libp2p/go-libp2p"
@@ -27,6 +28,42 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
+
+func TestManagerCleanUpConcurrentPoolAdd(t *testing.T) {
+	blacklistedHashes, err := lru.New[string, struct{}](blacklistedHashesCacheSize)
+	require.NoError(t, err)
+	stats, err := newPeerStats()
+	require.NoError(t, err)
+	m := &Manager{
+		pools:             make(map[string]*syncPool),
+		blacklistedHashes: blacklistedHashes,
+	}
+	m.initialHeight.Store(1)
+
+	for i := range 100 {
+		p := &syncPool{
+			pool:      newPool(time.Hour, stats),
+			height:    1,
+			createdAt: time.Now().Add(-time.Minute),
+		}
+		p.add("existing")
+		m.pools[strconv.Itoa(i)] = p
+
+		start := make(chan struct{})
+		done := make(chan struct{})
+		go func() {
+			<-start
+			for j := range 100 {
+				p.add(peer.ID(strconv.Itoa(j)))
+			}
+			close(done)
+		}()
+		close(start)
+		blacklisted := m.cleanUp()
+		<-done
+		require.Contains(t, blacklisted, peer.ID("existing"))
+	}
+}
 
 func TestManager(t *testing.T) {
 	t.Run("blacklist result does not change stats", func(t *testing.T) {
