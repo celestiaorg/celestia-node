@@ -9,10 +9,12 @@ import (
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
-// rowStreamReserve allows eight extended-row sizes for shares, NMT construction and encoding,
-// plus the copy buffer. The budget grows with row width, not the number of requested rows.
+// rowStreamMemoryMultiplier covers shares, NMT construction and encoding buffers.
+const rowStreamMemoryMultiplier = 8
+
+// rowStreamReserve grows with row width, not the number of requested rows.
 func rowStreamReserve(edsSize int) int {
-	return 8*edsSize*libshare.ShareSize + edsStreamBufferSize
+	return rowStreamMemoryMultiplier*edsSize*libshare.ShareSize + edsStreamBufferSize
 }
 
 // rowStreamReader builds the next row only after the previous row has been consumed.
