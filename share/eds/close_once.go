@@ -18,50 +18,64 @@ var _ AccessorStreamer = (*closeOnce)(nil)
 var errAccessorClosed = errors.New("accessor is closed")
 
 type closeOnce struct {
-	f      AccessorStreamer
-	closed atomic.Bool
+	// f is swapped to nil on Close, so methods racing with Close either see the accessor or
+	// errAccessorClosed, never a half-cleared field.
+	f atomic.Pointer[AccessorStreamer]
 }
 
 func WithClosedOnce(f AccessorStreamer) AccessorStreamer {
-	return &closeOnce{f: f}
+	c := &closeOnce{}
+	c.f.Store(&f)
+	return c
 }
 
 func (c *closeOnce) Close() error {
-	if c.closed.Swap(true) {
+	// release reference to the accessor to allow GC to collect all resources associated with it
+	f := c.f.Swap(nil)
+	if f == nil {
 		return nil
 	}
-	err := c.f.Close()
-	// release reference to the accessor to allow GC to collect all resources associated with it
-	c.f = nil
-	return err
+	return (*f).Close()
+}
+
+func (c *closeOnce) accessor() (AccessorStreamer, error) {
+	f := c.f.Load()
+	if f == nil {
+		return nil, errAccessorClosed
+	}
+	return *f, nil
 }
 
 func (c *closeOnce) Size(ctx context.Context) (int, error) {
-	if c.closed.Load() {
-		return 0, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return 0, err
 	}
-	return c.f.Size(ctx)
+	return f.Size(ctx)
 }
 
 func (c *closeOnce) DataHash(ctx context.Context) (share.DataHash, error) {
-	if c.closed.Load() {
-		return nil, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return nil, err
 	}
-	return c.f.DataHash(ctx)
+	return f.DataHash(ctx)
 }
 
 func (c *closeOnce) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
-	if c.closed.Load() {
-		return nil, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return nil, err
 	}
-	return c.f.AxisRoots(ctx)
+	return f.AxisRoots(ctx)
 }
 
 func (c *closeOnce) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
-	if c.closed.Load() {
-		return shwap.Sample{}, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return shwap.Sample{}, err
 	}
-	return c.f.Sample(ctx, idx)
+	return f.Sample(ctx, idx)
 }
 
 func (c *closeOnce) AxisHalf(
@@ -69,10 +83,11 @@ func (c *closeOnce) AxisHalf(
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) (shwap.AxisHalf, error) {
-	if c.closed.Load() {
-		return shwap.AxisHalf{}, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return shwap.AxisHalf{}, err
 	}
-	return c.f.AxisHalf(ctx, axisType, axisIdx)
+	return f.AxisHalf(ctx, axisType, axisIdx)
 }
 
 func (c *closeOnce) RowNamespaceData(
@@ -80,32 +95,36 @@ func (c *closeOnce) RowNamespaceData(
 	namespace libshare.Namespace,
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
-	if c.closed.Load() {
-		return shwap.RowNamespaceData{}, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return shwap.RowNamespaceData{}, err
 	}
-	return c.f.RowNamespaceData(ctx, namespace, rowIdx)
+	return f.RowNamespaceData(ctx, namespace, rowIdx)
 }
 
 func (c *closeOnce) Shares(ctx context.Context) ([]libshare.Share, error) {
-	if c.closed.Load() {
-		return nil, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return nil, err
 	}
-	return c.f.Shares(ctx)
+	return f.Shares(ctx)
 }
 
 func (c *closeOnce) RangeNamespaceData(
 	ctx context.Context,
 	from, to int,
 ) (shwap.RangeNamespaceData, error) {
-	if c.closed.Load() {
-		return shwap.RangeNamespaceData{}, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return shwap.RangeNamespaceData{}, err
 	}
-	return c.f.RangeNamespaceData(ctx, from, to)
+	return f.RangeNamespaceData(ctx, from, to)
 }
 
 func (c *closeOnce) Reader() (io.Reader, error) {
-	if c.closed.Load() {
-		return nil, errAccessorClosed
+	f, err := c.accessor()
+	if err != nil {
+		return nil, err
 	}
-	return c.f.Reader()
+	return f.Reader()
 }
