@@ -13,6 +13,7 @@ import (
 const rowStreamMemoryMultiplier = 8
 
 // rowStreamReserve grows with row width, not the number of requested rows.
+// It excludes rows and proofs retained by the shared accessor cache.
 func rowStreamReserve(edsSize int) int {
 	return rowStreamMemoryMultiplier*edsSize*libshare.ShareSize + edsStreamBufferSize
 }

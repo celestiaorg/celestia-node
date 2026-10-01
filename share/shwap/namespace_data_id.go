@@ -152,7 +152,6 @@ func (ndid NamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (i
 	if err != nil {
 		return nil, fmt.Errorf("failed to get row indexes: %w", err)
 	}
-	ctx = WithCacheDisabled(ctx)
 	return newRowStreamReader(ctx, len(rowIdxs), func(i int) (RowNamespaceData, error) {
 		return acc.RowNamespaceData(ctx, ndid.DataNamespace, rowIdxs[i])
 	})

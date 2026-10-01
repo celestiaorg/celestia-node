@@ -24,16 +24,3 @@ type Accessor interface {
 		from, to int,
 	) (RangeNamespaceData, error)
 }
-
-type cacheDisabledKey struct{}
-
-// WithCacheDisabled prevents streamed reads from retaining rows in the accessor cache.
-func WithCacheDisabled(ctx context.Context) context.Context {
-	return context.WithValue(ctx, cacheDisabledKey{}, true)
-}
-
-// CacheDisabled reports whether reads must bypass the accessor cache.
-func CacheDisabled(ctx context.Context) bool {
-	disabled, _ := ctx.Value(cacheDisabledKey{}).(bool)
-	return disabled
-}
