@@ -5,6 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
@@ -14,7 +15,7 @@ import (
 )
 
 func resourceManager(params resourceManagerParams) (network.ResourceManager, error) {
-	return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(params.Limits))
+	return rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(params.Limits), params.Opts...)
 }
 
 // bridgeResources returns resource manager limits for bridge nodes.
@@ -50,7 +51,7 @@ func allowList(ctx context.Context, cfg *Config, bootstrappers Bootstrappers) (r
 				log.Warnw("error resolving bootstrapper DNS", "addr", baddr.String(), "err", err)
 				continue
 			}
-			allowlist = append(allowlist, resolved...)
+			allowlist = append(allowlist, withPeerID(resolved, b.ID)...)
 		}
 	}
 	for _, m := range mutual {
@@ -60,11 +61,25 @@ func allowList(ctx context.Context, cfg *Config, bootstrappers Bootstrappers) (r
 				log.Warnw("error resolving mutual peer DNS", "addr", maddr.String(), "err", err)
 				continue
 			}
-			allowlist = append(allowlist, resolved...)
+			allowlist = append(allowlist, withPeerID(resolved, m.ID)...)
 		}
 	}
 
 	return rcmgr.WithAllowlistedMultiaddrs(allowlist), nil
+}
+
+// withPeerID binds addrs to the given peer, so other peers on the same IP are not allowlisted.
+func withPeerID(addrs []ma.Multiaddr, id peer.ID) []ma.Multiaddr {
+	p2pAddr := ma.StringCast("/p2p/" + id.String())
+	out := make([]ma.Multiaddr, 0, len(addrs))
+	for _, addr := range addrs {
+		if _, err := addr.ValueForProtocol(ma.P_P2P); err == nil {
+			out = append(out, addr)
+			continue
+		}
+		out = append(out, addr.Encapsulate(p2pAddr))
+	}
+	return out
 }
 
 func traceReporter() rcmgr.Option {
