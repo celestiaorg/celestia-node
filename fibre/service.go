@@ -142,11 +142,18 @@ func (s *Service) Upload(
 		return nil, nil, fmt.Errorf("resolving signer key: %w", err)
 	}
 
-	promise, err := s.upload(ctx, ns, blob, keyName)
+	// appfibre keeps sending the remaining shards in the background after Upload returns,
+	// so don't let the caller's ctx (cancelled by go-jsonrpc on return) stop them.
+	uploadCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	stop := context.AfterFunc(ctx, cancel)
+	promise, err := s.upload(uploadCtx, ns, blob, keyName)
+	stop()
 	if err != nil {
+		cancel()
 		log.Errorw("uploading blob", "err", err, "namespace", ns.ID())
 		return nil, nil, err
 	}
+	time.AfterFunc(asyncSubmitTimeout, cancel)
 
 	// Per ADR-013, Upload settles payment on-chain in the background so the
 	// caller is not blocked on tx inclusion. Errors are logged only; a
