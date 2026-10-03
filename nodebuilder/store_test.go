@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gofrs/flock"
+	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -54,6 +55,56 @@ func TestRepo(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+type blockingCloseDatastore struct {
+	datastore.Batching
+	started chan struct{}
+	release chan struct{}
+}
+
+func (ds *blockingCloseDatastore) Close() error {
+	close(ds.started)
+	<-ds.release
+	return nil
+}
+
+func TestFSStoreCloseHoldsDirLockUntilDatastoreClosed(t *testing.T) {
+	dir := t.TempDir()
+	dirLock := flock.New(lockPath(dir))
+	locked, err := dirLock.TryLock()
+	require.NoError(t, err)
+	require.True(t, locked)
+
+	data := &blockingCloseDatastore{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	store := &fsStore{path: dir, data: data, dirLock: dirLock}
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- store.Close()
+	}()
+
+	<-data.started
+	contender := flock.New(lockPath(dir))
+	acquiredDuringClose, tryErr := contender.TryLock()
+	var unlockErr error
+	if acquiredDuringClose {
+		unlockErr = contender.Unlock()
+	}
+
+	close(data.release)
+	closeErr := <-closeDone
+	require.NoError(t, tryErr)
+	require.NoError(t, unlockErr)
+	require.NoError(t, closeErr)
+	require.False(t, acquiredDuringClose)
+
+	acquiredAfterClose, err := contender.TryLock()
+	require.NoError(t, err)
+	require.True(t, acquiredAfterClose)
+	require.NoError(t, contender.Unlock())
 }
 
 func TestDiscoverOpened(t *testing.T) {
