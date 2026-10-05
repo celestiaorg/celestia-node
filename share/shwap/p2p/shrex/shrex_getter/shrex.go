@@ -160,7 +160,7 @@ func (sg *Getter) GetSamples(
 func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
 	// short circuit if the data root is empty
 	if header.DAH.Equals(share.EmptyEDSRoots()) {
-		return shwap.Row{}, nil
+		return emptyRow(rowIndex)
 	}
 
 	var err error
@@ -489,12 +489,25 @@ func (sg *Getter) executeRequest(
 	}
 }
 
+const emptyEDSSize = 2 // empty EDS is 2x2 (1x1 ODS extended)
+
+// emptyRow returns a row from the pregenerated empty EDS.
+func emptyRow(rowIndex int) (shwap.Row, error) {
+	if rowIndex < 0 || rowIndex >= emptyEDSSize {
+		return shwap.Row{}, fmt.Errorf("row=%d out of [0, %d): %w", rowIndex, emptyEDSSize, shwap.ErrOutOfBounds)
+	}
+	half, err := eds.EmptyAccessor.AxisHalf(context.Background(), rsmt2d.Row, rowIndex)
+	if err != nil {
+		return shwap.Row{}, fmt.Errorf("getting row from empty EDS: %w", err)
+	}
+	return half.ToRow(), nil
+}
+
 // emptySamples returns samples from the pregenerated empty EDS for the given coordinates.
 func emptySamples(coords []shwap.SampleCoords) ([]shwap.Sample, error) {
-	const emptyEDSSize = 2 // empty EDS is 2x2 (1x1 ODS extended)
 	for _, coord := range coords {
-		if coord.Row >= emptyEDSSize || coord.Col >= emptyEDSSize {
-			return nil, fmt.Errorf("row=%d col=%d >= %d: %w", coord.Row, coord.Col, emptyEDSSize, shwap.ErrOutOfBounds)
+		if coord.Row < 0 || coord.Col < 0 || coord.Row >= emptyEDSSize || coord.Col >= emptyEDSSize {
+			return nil, fmt.Errorf("row=%d col=%d out of [0, %d): %w", coord.Row, coord.Col, emptyEDSSize, shwap.ErrOutOfBounds)
 		}
 	}
 

@@ -389,6 +389,27 @@ func TestShrexGetter(t *testing.T) {
 		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
 	})
 
+	t.Run("Samples_EmptyBlock_NegativeIndex", func(t *testing.T) {
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		_, err := getter.GetSamples(ctx, eh, []shwap.SampleCoords{{Row: -1, Col: 0}})
+		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
+	})
+
+	t.Run("Row_EmptyBlock", func(t *testing.T) {
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		for _, idx := range []int{0, 1} {
+			row, err := getter.GetRow(ctx, eh, idx)
+			require.NoError(t, err)
+			require.NoError(t, row.Verify(eh.DAH, idx))
+		}
+		for _, idx := range []int{-1, 2} {
+			_, err := getter.GetRow(ctx, eh, idx)
+			assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
+		}
+	})
+
 	t.Run("Row_Available", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
