@@ -1,0 +1,8 @@
+---
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        # Allow small run-to-run variation (1 percentage point).
+        threshold: 1%
