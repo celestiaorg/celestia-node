@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
@@ -45,11 +46,8 @@ func TestBlobSubmitData(t *testing.T) {
 			t.Cleanup(func() { _ = srv.Stop(context.Background()) })
 			t.Cleanup(func() {
 				// don't leave the RPC flags pointing to the stopped server for other tests
-				for _, name := range []string{"url", "token"} {
-					f := blobcmd.Cmd.PersistentFlags().Lookup(name)
-					_ = f.Value.Set(f.DefValue)
-					f.Changed = false
-				}
+				resetFlag(t, blobcmd.Cmd.PersistentFlags(), "url")
+				resetFlag(t, blobcmd.Cmd.PersistentFlags(), "token")
 			})
 
 			rootCmd.SetArgs([]string{
@@ -75,12 +73,14 @@ func TestBlobSubmitFromFile(t *testing.T) {
 	require.NoError(t, srv.Start(context.Background()))
 	t.Cleanup(func() { _ = srv.Stop(context.Background()) })
 	t.Cleanup(func() {
-		// don't leave the RPC flags pointing to the stopped server for other tests
-		for _, name := range []string{"url", "token"} {
-			f := blobcmd.Cmd.PersistentFlags().Lookup(name)
-			_ = f.Value.Set(f.DefValue)
-			f.Changed = false
-		}
+		submit, _, err := blobcmd.Cmd.Find([]string{"submit"})
+		require.NoError(t, err)
+
+		// don't leave the RPC flags pointing to the stopped server, or the input-file
+		// flag pointing at the removed file, for tests that reuse the command
+		resetFlag(t, blobcmd.Cmd.PersistentFlags(), "url")
+		resetFlag(t, blobcmd.Cmd.PersistentFlags(), "token")
+		resetFlag(t, submit.PersistentFlags(), "input-file")
 	})
 
 	rootCmd.SetArgs([]string{
@@ -91,4 +91,14 @@ func TestBlobSubmitFromFile(t *testing.T) {
 
 	require.Len(t, submitted.data, 1)
 	require.Equal(t, "hello", string(submitted.data[0]))
+}
+
+// resetFlag returns a flag of a command that tests share to its default value.
+func resetFlag(t *testing.T, flags *pflag.FlagSet, name string) {
+	t.Helper()
+
+	f := flags.Lookup(name)
+	require.NotNil(t, f, "flag %s is registered", name)
+	_ = f.Value.Set(f.DefValue)
+	f.Changed = false
 }
