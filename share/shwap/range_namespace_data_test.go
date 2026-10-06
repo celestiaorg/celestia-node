@@ -1,6 +1,7 @@
 package shwap_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -137,6 +138,39 @@ func TestRangeNamespaceDataMarshalUnmarshal(t *testing.T) {
 	rangeNsData, err := shwap.RangeNamespaceDataFromProto(pbData)
 	require.NoError(t, err)
 	assert.Equal(t, rngdata, rangeNsData)
+}
+
+// TestRangeNamespaceDataReadFromReused ensures a proof from a previous read does not
+// leak into the next one when the same RangeNamespaceData is reused.
+func TestRangeNamespaceDataReadFromReused(t *testing.T) {
+	const odsSize = 8
+	ctx := context.Background()
+	ns := libshare.RandomNamespace()
+	square, root := edstest.RandEDSWithNamespace(t, ns, odsSize*odsSize, odsSize)
+	accessor := &eds.Rsmt2D{ExtendedDataSquare: square}
+
+	multiRow, err := accessor.RangeNamespaceData(ctx, 3, 13)
+	require.NoError(t, err)
+	require.NotNil(t, multiRow.LastIncompleteRowProof)
+	singleRow, err := accessor.RangeNamespaceData(ctx, 10, 14)
+	require.NoError(t, err)
+
+	var multiRowBuf, singleRowBuf bytes.Buffer
+	_, err = multiRow.WriteTo(&multiRowBuf)
+	require.NoError(t, err)
+	_, err = singleRow.WriteTo(&singleRowBuf)
+	require.NoError(t, err)
+
+	var rngdata shwap.RangeNamespaceData
+	_, err = rngdata.ReadFrom(&multiRowBuf)
+	require.NoError(t, err)
+	_, err = rngdata.ReadFrom(&singleRowBuf)
+	require.NoError(t, err)
+
+	from := shwap.SampleCoords{Row: 1, Col: 2}
+	to := shwap.SampleCoords{Row: 1, Col: 5}
+	require.Nil(t, rngdata.LastIncompleteRowProof)
+	require.NoError(t, rngdata.VerifyInclusion(from, to, odsSize, root.RowRoots[from.Row:to.Row+1]))
 }
 
 func FuzzRangeNamespaceDataFromShares(f *testing.F) {
