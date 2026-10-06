@@ -227,28 +227,37 @@ func (m *Manager) Stop(ctx context.Context) error {
 // appropriate result value
 func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint64,
 ) (peer.ID, DoneFunc, error) {
-	p := m.validatedPool(datahash.String(), height)
+	// without shrexsub, pools are never populated or garbage collected,
+	// so only discovered nodes can be used
+	var p *syncPool
+	if m.shrexSub != nil {
+		p = m.validatedPool(datahash.String(), height)
 
-	// first, check if a peer is available for the given datahash
-	peerID, ok := p.tryGet()
-	if ok {
-		if m.removeIfUnreachable(p, peerID) {
-			return m.Peer(ctx, datahash, height)
+		// first, check if a peer is available for the given datahash
+		peerID, ok := p.tryGet()
+		if ok {
+			if m.removeIfUnreachable(p, peerID) {
+				return m.Peer(ctx, datahash, height)
+			}
+			return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 		}
-		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
 	// if no peer for datahash is currently available, try to use node
 	// obtained from discovery
-	peerID, ok = m.nodes.tryGet()
+	peerID, ok := m.nodes.tryGet()
 	if ok {
 		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), 0)
 	}
 
 	// no peers are available right now, wait for the first one
+	var poolCh <-chan peer.ID
+	if p != nil {
+		poolCh = p.next(ctx)
+	}
 	start := time.Now()
 	select {
-	case peerID = <-p.next(ctx):
+	case peerID = <-poolCh:
 		if m.removeIfUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash, height)
 		}
