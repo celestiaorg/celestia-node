@@ -58,6 +58,9 @@ type fakeFSP struct {
 	delay    time.Duration
 	received *atomic.Int64
 	canceled *atomic.Int64
+	// onSigned, if set, runs with the updated received count right before the
+	// signature is handed back to the client.
+	onSigned func(received int64)
 }
 
 func (v *fakeFSP) UploadShard(
@@ -79,7 +82,10 @@ func (v *fakeFSP) UploadShard(
 	if err != nil {
 		return nil, err
 	}
-	v.received.Add(1)
+	n := v.received.Add(1)
+	if v.onSigned != nil {
+		v.onSigned(n)
+	}
 	return &fibretypes.UploadShardResponse{
 		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(v.priv.Bytes()), sb),
 	}, nil
@@ -99,6 +105,12 @@ func (v *fakeFSP) Close() error { return nil }
 func newTestUploadService(
 	t *testing.T, fast, slow int, slowDelay time.Duration,
 ) (svc *Service, received, canceled *atomic.Int64) {
+	return newTestUploadServiceWithHook(t, fast, slow, slowDelay, nil)
+}
+
+func newTestUploadServiceWithHook(
+	t *testing.T, fast, slow int, slowDelay time.Duration, onSigned func(int64),
+) (svc *Service, received, canceled *atomic.Int64) {
 	t.Helper()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr := keyring.NewInMemory(encCfg.Codec)
@@ -113,7 +125,7 @@ func newTestUploadService(
 	for i := range n {
 		priv := cmted25519.GenPrivKey()
 		vals[i] = &core.Validator{Address: priv.PubKey().Address(), PubKey: priv.PubKey(), VotingPower: 100}
-		v := &fakeFSP{priv: priv, received: received, canceled: canceled}
+		v := &fakeFSP{priv: priv, received: received, canceled: canceled, onSigned: onSigned}
 		if i >= fast {
 			v.delay = slowDelay
 		}
@@ -170,4 +182,31 @@ func TestUploadSurvivesCallerCtxCancelAfterQuorum(t *testing.T) {
 		received.Load(), fast+slow, canceled.Load())
 	require.EqualValues(t, fast+slow, received.Load(),
 		"post-quorum shards must not be dropped when the caller cancels ctx right after Upload returns")
+}
+
+// TestUploadCallerCancelAtQuorumDoesNotDropShards cancels the caller ctx while
+// Upload is still running but quorum is already reached. Upload must then
+// either fail, or return a promise with no post-quorum shard dropped.
+func TestUploadCallerCancelAtQuorumDoesNotDropShards(t *testing.T) {
+	const fast, slow = 7, 3
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc, received, canceled := newTestUploadServiceWithHook(t, fast, slow, 300*time.Millisecond,
+		func(n int64) {
+			if n == fast {
+				cancel() // caller gives up exactly as the quorum signature comes in
+			}
+		})
+
+	ns := libshare.MustNewV0Namespace([]byte("svc-test"))
+	promise, _, err := svc.Upload(ctx, ns, make([]byte, 1024), nil)
+
+	svc.fibreClient.Await()
+	t.Logf("err: %v, validators that stored their shard: %d/%d, background uploads canceled: %d",
+		err, received.Load(), fast+slow, canceled.Load())
+	if err == nil {
+		require.NotNil(t, promise)
+		require.EqualValues(t, fast+slow, received.Load(),
+			"Upload returned a promise but post-quorum shards were canceled")
+	}
 }
