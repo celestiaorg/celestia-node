@@ -895,6 +895,18 @@ func TestService_SubscribeFromStartHeight(t *testing.T) {
 		assert.Contains(t, err.Error(), "from the future")
 	})
 
+	t.Run("invalid namespace returns error", func(t *testing.T) {
+		for _, ns := range []libshare.Namespace{
+			libshare.ParitySharesNamespace,
+			libshare.TailPaddingNamespace,
+		} {
+			subCh, err := service.SubscribeFromStartHeight(ctx, ns, 1)
+			require.Error(t, err)
+			assert.Nil(t, subCh)
+			assert.Contains(t, err.Error(), "parity and tail padding namespace are forbidden")
+		}
+	})
+
 	t.Run("user cancellation closes subscription", func(t *testing.T) {
 		subCtx, subCancel := context.WithCancel(ctx)
 		ns := blobs[0].Namespace()
