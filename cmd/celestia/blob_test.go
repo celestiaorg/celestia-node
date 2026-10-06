@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -60,4 +62,33 @@ func TestBlobSubmitData(t *testing.T) {
 			require.Equal(t, tt.want, string(submitted.data[0]))
 		})
 	}
+}
+
+func TestBlobSubmitFromFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "blobs.json")
+	content := `{"Blobs":[{"namespace":"0x42690c204d39600fddd3","blobData":"hello"}]}`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	submitted := &submittedBlobs{}
+	srv := rpc.NewServer("127.0.0.1", "0", true, rpc.CORSConfig{}, rpc.TLSConfig{}, rpc.RateLimitConfig{}, nil, nil)
+	srv.RegisterService("blob", submitted, &blobmod.API{})
+	require.NoError(t, srv.Start(context.Background()))
+	t.Cleanup(func() { _ = srv.Stop(context.Background()) })
+	t.Cleanup(func() {
+		// don't leave the RPC flags pointing to the stopped server for other tests
+		for _, name := range []string{"url", "token"} {
+			f := blobcmd.Cmd.PersistentFlags().Lookup(name)
+			_ = f.Value.Set(f.DefValue)
+			f.Changed = false
+		}
+	})
+
+	rootCmd.SetArgs([]string{
+		"blob", "submit", "--input-file", path,
+		"--url", "http://" + srv.ListenAddr(), "--token", "test",
+	})
+	require.NoError(t, rootCmd.ExecuteContext(context.Background()))
+
+	require.Len(t, submitted.data, 1)
+	require.Equal(t, "hello", string(submitted.data[0]))
 }
