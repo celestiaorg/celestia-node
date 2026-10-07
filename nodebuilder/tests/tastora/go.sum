@@ -175,8 +175,8 @@ github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork-4 h1:A202u8w3Iqjw4ZlqSukfiMbefQEN+740GUj1Z3VI960=
 github.com/celestiaorg/boxo v0.29.0-fork-4/go.mod h1:rXql6ncaLZZfLqDG3Cuw9ZYQKd3rMU5bk1TGXF0+ZL0=
-github.com/celestiaorg/celestia-app/v10 v10.4.0-mocha h1:l9FzxWI3Gfn9RfKMwpaZUE07g0NCvK3Y2RkNJdKp2Ds=
-github.com/celestiaorg/celestia-app/v10 v10.4.0-mocha/go.mod h1:Y+QWlfU4zZgZn4LIKmCA0OzzkNKRfOg1J10FV7vlzFY=
+github.com/celestiaorg/celestia-app/v10 v10.4.0 h1:jfFFC7fpBgqsCPEcJjfnfqG3j4ooi0UCNRNIuhx3okI=
+github.com/celestiaorg/celestia-app/v10 v10.4.0/go.mod h1:Y+QWlfU4zZgZn4LIKmCA0OzzkNKRfOg1J10FV7vlzFY=
 github.com/celestiaorg/celestia-core v0.42.3 h1:kdXKlSiEqEWl87EyxNB9ryx1aQJq/8RyBdgfYy2rdYM=
 github.com/celestiaorg/celestia-core v0.42.3/go.mod h1:znDAw/NFVo/oZKG7Q70cHxRRLUVzi2/K9qJ911+lpYg=
 github.com/celestiaorg/cosmos-sdk v0.52.12 h1:muIDlBLLXeuKiIrGA/t+k9ZLpjjRVs460XRzwh1dgqU=
