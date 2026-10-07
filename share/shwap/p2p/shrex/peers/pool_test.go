@@ -2,9 +2,11 @@ package peers
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 )
@@ -210,5 +212,64 @@ func TestPool(t *testing.T) {
 
 		_, ok := p.tryGet()
 		require.False(t, ok)
+	})
+
+	t.Run("remove pending cooldown", func(t *testing.T) {
+		peerID := peer.ID("peer1")
+		mock := clock.NewMock()
+		p := newTestPool(t, time.Second)
+		p.cooldown.clock = mock
+		p.add(peerID)
+		p.putOnCooldown(peerID)
+		p.remove(peerID)
+		p.m.RLock()
+		require.Zero(t, p.cooldown.len())
+		p.m.RUnlock()
+	})
+
+	t.Run("stale timer after removal and new cooldown", func(t *testing.T) {
+		peerID := peer.ID("peer1")
+		mock := clock.NewMock()
+		p := newTestPool(t, time.Second)
+		p.cooldown.clock = mock
+		p.add(peerID)
+		p.putOnCooldown(peerID)
+		mock.Add(time.Second / 2)
+		p.remove(peerID)
+		p.add(peerID)
+		p.putOnCooldown(peerID)
+		mock.Add(time.Second / 2)
+
+		// A stopped timer can already be waiting for the pool lock.
+		p.releaseCooldown()
+		require.Zero(t, p.len())
+		require.Equal(t, 1, p.cooldownLen())
+
+		mock.Add(time.Second / 2)
+		require.Equal(t, 1, p.len())
+		require.Zero(t, p.cooldownLen())
+		p.releaseCooldown()
+		require.Equal(t, 1, p.len())
+	})
+
+	t.Run("concurrent cooldown and removal", func(t *testing.T) {
+		peerID := peer.ID("peer1")
+		p := newTestPool(t, 0)
+		var workers sync.WaitGroup
+		for range 4 {
+			workers.Go(func() {
+				for range 100 {
+					p.add(peerID)
+					p.putOnCooldown(peerID)
+					p.cooldownLen()
+					p.remove(peerID)
+				}
+			})
+		}
+		workers.Wait()
+		p.remove(peerID)
+		p.releaseCooldown()
+		require.Zero(t, p.len())
+		require.Zero(t, p.cooldownLen())
 	})
 }

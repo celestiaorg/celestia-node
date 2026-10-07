@@ -26,6 +26,7 @@ import (
 	blobstreamMock "github.com/celestiaorg/celestia-node/nodebuilder/blobstream/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
 	dasMock "github.com/celestiaorg/celestia-node/nodebuilder/das/mocks"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	headerMock "github.com/celestiaorg/celestia-node/nodebuilder/header/mocks"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -132,6 +133,7 @@ type api struct {
 	P2P        p2p.Module
 	Blob       blob.Module
 	Blobstream blobstream.Module
+	Fibre      fibre.Module
 }
 
 func TestModulesImplementFullAPI(t *testing.T) {

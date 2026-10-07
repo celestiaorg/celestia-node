@@ -160,7 +160,7 @@ func SetResourceLimits(cfg *rcmgr.ScalingLimitConfig, networkID string) {
 		log.Warn("server: resource limits disabled via CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS")
 		return
 	}
-	// worst-case response size across all registered request types sets the
+	// worst-case reservation across all registered request types sets the
 	// per-stream memory budget and drives the stream increase value.
 	// ResponseSize expects the EDS size (full square width after erasure coding),
 	// which is 2× the ODS size. share.MaxSquareSize is the ODS upper bound.

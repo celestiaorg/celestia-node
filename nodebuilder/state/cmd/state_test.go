@@ -7,20 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDelegationCommandsAcceptDocumentedOperands(t *testing.T) {
-	tests := []struct {
-		name string
-		cmd  *cobra.Command
-	}{
-		{name: "delegate", cmd: delegateCmd},
-		{name: "undelegate", cmd: undelegateCmd},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, tt.cmd.Args(tt.cmd, []string{"validator_address", "1000"}))
-			require.Error(t, tt.cmd.Args(tt.cmd, []string{"validator_address"}))
-			require.Error(t, tt.cmd.Args(tt.cmd, []string{"validator_address", "1000", "extra"}))
+// TestDelegateCommandsArgCount verifies that delegate and undelegate accept the
+// validator address and amount they document, and nothing else.
+func TestDelegateCommandsArgCount(t *testing.T) {
+	cmds := []*cobra.Command{delegateCmd, undelegateCmd}
+	for _, cmd := range cmds {
+		t.Run(cmd.Name(), func(t *testing.T) {
+			require.NoError(t, cmd.ValidateArgs([]string{"valAddress", "100"}))
+			require.Error(t, cmd.ValidateArgs([]string{"valAddress"}))
+			require.Error(t, cmd.ValidateArgs([]string{"valAddress", "100", "extra"}))
 		})
 	}
 }

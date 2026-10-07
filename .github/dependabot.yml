@@ -6,6 +6,8 @@ updates:
       interval: weekly
       day: monday
       time: "11:00"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - kind:deps
@@ -22,6 +24,8 @@ updates:
       interval: weekly
       day: monday
       time: "11:00"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     reviewers:
       - renaynay
@@ -64,6 +68,8 @@ updates:
       interval: weekly
       day: monday
       time: "11:00"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - kind:deps

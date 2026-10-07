@@ -19,6 +19,8 @@ const (
 	Private Network = "private"
 	// Celestia mainnet. See: celestiaorg/networks.
 	Mainnet Network = "celestia"
+	// Corto testnet.
+	Corto Network = "corto-1"
 	// BlockTime is a network block time.
 	// TODO @renaynay @Wondertan (#790)
 	BlockTime = 3 * time.Second
@@ -54,6 +56,7 @@ func (n Network) String() string {
 var networksList = map[Network]struct{}{
 	Mainnet: {},
 	Mocha:   {},
+	Corto:   {},
 	Private: {},
 }
 
@@ -63,6 +66,7 @@ var networksList = map[Network]struct{}{
 var networkAliases = map[string]Network{
 	"mainnet": Mainnet,
 	"mocha":   Mocha,
+	"corto":   Corto,
 	"private": Private,
 }
 
@@ -72,7 +76,7 @@ func GetNetwork(networkStr string) Network {
 }
 
 // orderedNetworks is a list of all known networks in order of priority.
-var orderedNetworks = []Network{Mainnet, Mocha, Private}
+var orderedNetworks = []Network{Mainnet, Mocha, Corto, Private}
 
 // GetNetworks provides a list of all known networks in order of priority.
 func GetNetworks() []Network {

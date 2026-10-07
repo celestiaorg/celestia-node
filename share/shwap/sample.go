@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
@@ -59,6 +59,9 @@ func SampleFromShares(shares []libshare.Share, proofType rsmt2d.Axis, idx Sample
 func SampleFromProto(s *pb.Sample) (Sample, error) {
 	if s == nil {
 		return Sample{}, errors.New("pb sample is nil")
+	}
+	if err := checkProofNodes(s.GetProof().GetNodes()); err != nil {
+		return Sample{}, err
 	}
 	proof := nmt.NewInclusionProof(
 		int(s.GetProof().GetStart()),

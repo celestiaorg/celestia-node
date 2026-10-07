@@ -2,10 +2,11 @@
 
 ## Authors
 
-@cmwaters
+@cmwaters @vgonkivs
 
 ## Changelog
 
+- 2026-04-10: Rework input param from commitment to blob ID; apply review feedback
 - 2026-03-10: Initial version
 
 ## Status
@@ -43,9 +44,9 @@ applications use today:
 - `GetAll`
 - `Subscribe`
 
-This design should preserve that API wherever Fibre semantics match it, while
-also exposing Fibre-native functionality that does not fit cleanly into the
-blob module.
+This design should preserve that API for read-path operations (`GetAll`,
+`Subscribe`) wherever Fibre semantics match, while exposing Fibre-native
+functionality — including submission — through a dedicated Fibre module.
 
 The design goals are:
 
@@ -59,46 +60,25 @@ The design goals are:
 
 Celestia Node will use a hybrid API design:
 
-- The existing blob module will support Fibre share version `2` wherever the
-  semantics are compatible with the existing blob API.
-- A separate Fibre module will expose Fibre-native operations that are not a
-  natural fit for the blob module, including escrow account management and
-  Fibre-specific data-plane retrieval.
+- The existing blob module will support Fibre share version `2` on the read
+  path (`GetAll`, `Subscribe`) wherever the semantics are compatible with the
+  existing blob API.
+- A separate Fibre module will expose all Fibre-native operations, including
+  blob submission (`Submit`, `Upload`), data-plane retrieval (`Get`), and
+  escrow account management (`Deposit`, `Withdraw`, `QueryEscrowAccount`,
+  `PendingWithdrawals`) as a flat interface.
 
-This means the blob module remains the primary API for chain-visible blob
-operations, while the Fibre module provides direct access to Fibre-specific
-workflows.
+This means the blob module remains the primary API for reading chain-visible
+blob data, while the Fibre module owns the full Fibre submission and retrieval
+lifecycle.
 
 ## Detailed Design
 
 ### Blob module
 
-The blob module should absorb Fibre support where callers are still working with
-chain-visible blobs.
-
-#### Submit
-
-`blob.Submit` continues to accept a list of blobs and routes behavior by share
-version:
-
-```go
-Submit(ctx, blobs, opts)
-```
-
-- Share version `0` or `1`
-  - Use the existing `PayForBlob` flow
-- Share version `2`
-  - Use the Fibre submission flow underneath
-  - Encode Fibre rows
-  - Upload rows to FSPs
-  - Collect validator signatures
-  - Submit `MsgPayForFibre`
-
-This keeps Fibre submission aligned with existing blob submission for callers
-who are already constructing blobs and choosing a share version.
-
-Note: this will only return height and not the commitment. User will need to
-derive the commitment themself.
+The blob module remains unchanged for Fibre. Fibre submission is handled
+entirely through the dedicated Fibre module rather than routing by share version
+inside `blob.Submit`.
 
 #### GetAll
 
@@ -128,14 +108,12 @@ activity without requiring them to learn a second streaming API.
 
 #### Get
 
-`blob.Get(ctx, height, namespace, commitment)` should not be extended to Fibre
-by assumption in this ADR.
-
-The existing method is defined in terms of retrieving a specific on-chain blob
-by namespace and commitment from the data square. Fibre's native retrieval model
-is different: the client retrieves and reconstructs blob data from FSPs using
-the Fibre commitment. It is expected that a user should be ale to retreive the
-fibre system level blobs in the namespace.
+`blob.Get(ctx, height, namespace, commitment)` is not extended to Fibre in this
+ADR. The existing method retrieves a specific on-chain blob by namespace and
+commitment from the data square. Fibre's native retrieval model is different:
+the client retrieves and reconstructs blob data from FSPs using a blob ID. It is
+expected that a user should be able to retrieve the Fibre system-level blobs in
+the namespace via `GetAll`.
 
 This ADR therefore leaves `blob.Get` unchanged and treats Fibre support there as
 follow-up work only if the method signature and semantics are confirmed to line
@@ -143,59 +121,63 @@ up.
 
 ### Fibre module
 
-The Fibre module should expose the Fibre-native operations that do not belong in
-the blob module.
+The Fibre module exposes Fibre-native operations that do not belong in the blob
+module, including blob upload and submission, data-plane retrieval, and escrow
+account management — all as a flat interface.
 
 #### Data-plane operations
 
-The Fibre module should define its public types alongside its methods:
+The Fibre module defines its public types alongside its methods:
 
 ```go
-type Namespace = libshare.Namespace
-
-type Commitment [32]byte
-
 type ValidatorSignature []byte
 
 type UploadResult struct {
-    Commitment          Commitment
+    BlobID              appfibre.BlobID
     ValidatorSignatures []ValidatorSignature
     PaymentPromise      *PaymentPromise
-    RetentionUntil      *time.Time
 }
 
 type SubmitResult struct {
-    Commitment          Commitment
+    BlobID              appfibre.BlobID
     ValidatorSignatures []ValidatorSignature
     Height              uint64
     TxHash              string
     PaymentPromise      *PaymentPromise
-    RetentionUntil      *time.Time
+}
+
+type GetBlobResult struct {
+    Data []byte
 }
 
 type PaymentPromise struct {
     ChainID           string
-    Namespace         Namespace
+    Namespace         libshare.Namespace
     BlobSize          uint32
-    Commitment        Commitment
+    Commitment        appfibre.Commitment
     RowVersion        uint32
     ValsetHeight      uint64
-    CreationTimestamp time.Time
+    CreationTimestamp  time.Time
     Signature         []byte
 }
 
 type Module interface {
-    Upload(ctx context.Context, ns Namespace, data []byte) (UploadResult, error)
-    Submit(ctx context.Context, ns Namespace, data []byte) (SubmitResult, error)
-    Get(ctx context.Context, ns Namespace, commitment Commitment) ([]byte, error)
-    Account() AccountModule
+    Submit(ctx context.Context, ns libshare.Namespace, data []byte, cfg *txclient.TxConfig) (*SubmitResult, error)
+    Upload(ctx context.Context, ns libshare.Namespace, data []byte, cfg *txclient.TxConfig) (*UploadResult, error)
+    Get(ctx context.Context, blobID []byte) (*GetBlobResult, error)
+    QueryEscrowAccount(ctx context.Context, signer string) (*EscrowAccount, error)
+    Deposit(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error
+    Withdraw(ctx context.Context, amount sdktypes.Coin, cfg *txclient.TxConfig) error
+    PendingWithdrawals(ctx context.Context, signer string) ([]PendingWithdrawal, error)
 }
 ```
 
-- `Commitment` is the Fibre commitment: `SHA256(rowRoot || rlcOrigRoot)`.
+- `BlobID` is the Fibre blob identifier (containing both the commitment and
+  namespace information) used to upload, submit, and retrieve blobs.
 - `UploadResult` captures the artifacts produced by off-chain Fibre upload.
 - `SubmitResult` extends `UploadResult` with the on-chain confirmation returned
   after `MsgPayForFibre` submission.
+- `GetBlobResult` wraps the raw blob data reconstructed from FSPs.
 - `PaymentPromise` is surfaced as a first-class type because it is central to
   both staged and full-service Fibre flows.
 - `Upload` performs the Fibre upload flow optimized for low latency. It encodes
@@ -231,29 +213,33 @@ The background submission must not block or delay the Upload response.
 
 #### Escrow account management
 
-The Fibre module should also expose escrow management methods derived from the
-`x/fibre` account interface:
+Escrow account operations are exposed directly on the Fibre module interface
+rather than via a nested `AccountModule`. This keeps the API surface flat and
+avoids unnecessary indirection for callers:
 
 ```go
-type PendingWithdrawal struct {
-    Amount         sdk.Coin
-    AvailableAt    time.Time
-    CreationHeight uint64
-}
-
 type EscrowAccount struct {
     Signer           string
-    CurrentBalance   uint64
-    AvailableBalance uint64
+    Balance          sdktypes.Coin
+    AvailableBalance sdktypes.Coin
 }
 
-type AccountModule interface {
-    QueryEscrowAccount(ctx context.Context, signer string) (*EscrowAccount, error)
-    Deposit(ctx context.Context, signer string, amount sdk.Coin) (*EscrowAccount, error)
-    Withdraw(ctx context.Context, signer string, amount sdk.Coin) (*PendingWithdrawal, error)
-    PendingWithdrawals(ctx context.Context, signer string) ([]PendingWithdrawal, error)
+type PendingWithdrawal struct {
+    Signer             string
+    Amount             sdktypes.Coin
+    RequestedTimestamp time.Time
+    AvailableTimestamp time.Time
 }
 ```
+
+- `QueryEscrowAccount` returns the escrow account details for a given signer.
+- `Deposit` and `Withdraw` resolve the signer from `TxConfig` (via
+  `SignerAddress`, `KeyName`, or the node's default account) rather than
+  accepting an explicit signer string. This is consistent with how other
+  transaction-submitting methods work across celestia-node.
+- `Deposit` and `Withdraw` return only an error, keeping the interface minimal.
+- `PendingWithdrawals` returns all pending (not yet claimable) withdrawals for
+  a given signer.
 
 These functions are Fibre-specific operations and do not belong in
 the blob module.
@@ -262,12 +248,18 @@ the blob module.
 
 This design balances integration with clarity.
 
-### Preserve one API for overlapping blob workflows
+### Preserve one API for overlapping blob read workflows
 
-`Submit`, `GetAll`, and `Subscribe` are still fundamentally blob-module
-operations, even when share version `2` is involved. Keeping them in `blob`
-avoids fragmenting the common application path for submitting blobs and
-enumerating namespace contents.
+`GetAll` and `Subscribe` are still fundamentally blob-module operations, even
+when share version `2` is involved. Keeping them in `blob` avoids fragmenting
+the common application path for enumerating namespace contents.
+
+### Keep Fibre submission separate from blob.Submit
+
+Rather than routing `blob.Submit` by share version, Fibre submission lives
+entirely in the Fibre module. This avoids overloading the blob submission path
+with Fibre-specific concerns (escrow, payment promises, FSP interaction) and
+keeps the blob module focused on `PayForBlob` semantics.
 
 ### Avoid forcing Fibre-native behavior into blob APIs
 
@@ -300,18 +292,24 @@ making this automatic removes the burden from callers. This is not the same as
 relying on a timeout agent — the PFF is submitted proactively after every
 upload, the agent is only a backup for edge cases where submission fails.
 
+### Flat module interface over nested sub-modules
+
+Escrow account operations are exposed directly on the Fibre module interface
+rather than through a nested `AccountModule`. This reduces indirection, keeps
+the RPC surface simpler, and matches the pattern used by other celestia-node
+modules.
+
 ### Avoid premature coupling on `blob.Get`
 
 The `blob.Get` signature assumes a specific lookup model based on an on-chain
-blob commitment at a given height. Fibre's native `Get` is defined by Fibre
-commitment and FSP retrieval semantics. Treating them as the same without
-verification would overload the API with ambiguous semantics.
+blob commitment at a given height. Fibre's native `Get` is defined by blob ID
+and FSP retrieval semantics. Treating them as the same without verification
+would overload the API with ambiguous semantics.
 
 ## Consequences
 
 ### Positive
 
-- Existing blob users can adopt Fibre incrementally through share version `2`.
 - Namespace enumeration and subscription continue to work through the blob
   module across mixed share versions.
 - Fibre-specific capabilities are exposed explicitly instead of being hidden in
@@ -319,12 +317,17 @@ verification would overload the API with ambiguous semantics.
 - Callers can choose between a staged `Upload` flow and a full `Submit` flow.
 - The API separates chain-visible blob workflows from Fibre-native escrow and
   retrieval workflows.
+- `Fibre.Get` does not require a height, simplifying the retrieval API. The
+  validator set is not expected to change enough during a blob's retention period
+  to affect retrievability.
+- Flat module interface avoids unnecessary nesting for RPC consumers.
 
 ### Negative
 
-- Fibre functionality is split across two modules.
-- `blob.Get` remains asymmetric with `Submit`, `GetAll`, and `Subscribe` until a
-  follow-up decision confirms whether Fibre belongs there.
+- Fibre submission and blob submission are separate code paths; callers must
+  choose between `blob.Submit` and `fibre.Submit`.
+- `blob.Get` remains asymmetric with `GetAll` and `Subscribe` until a follow-up
+  decision confirms whether Fibre belongs there.
 - Implementations must clearly document the difference between on-chain Fibre
   system blobs and Fibre-native reconstructed blob data.
 
@@ -335,9 +338,19 @@ verification would overload the API with ambiguous semantics.
 One alternative is to force all Fibre functionality into the blob module.
 
 Rejected because escrow account management and Fibre-native `Upload`, `Submit`,
-and `Get` are
-not natural blob-module operations and would make the blob API carry
-Fibre-specific concepts.
+and `Get` are not natural blob-module operations and would make the blob API
+carry Fibre-specific concepts.
+
+### Route blob.Submit by share version
+
+Another alternative is to have `blob.Submit` detect share version `2` and
+automatically route to the Fibre submission flow underneath.
+
+Rejected because Fibre submission has fundamentally different concerns (escrow
+funding, payment promises, FSP interaction, validator signatures) that would
+complicate the blob submission path. Keeping Fibre submission in its own module
+makes these concerns explicit and avoids coupling `blob.Submit` to Fibre
+internals.
 
 ### Fully separate Fibre API
 
@@ -347,6 +360,15 @@ enumeration, and subscription.
 Rejected because it would duplicate the blob module's role for common
 operations, fragment the user experience, and make mixed-version namespaces more
 awkward to work with.
+
+### Nested AccountModule sub-interface
+
+Another alternative is to expose escrow operations via a nested
+`Account() AccountModule` method on the Fibre module.
+
+Rejected in favor of a flat interface because the additional indirection adds
+complexity without meaningful benefit, and the flat pattern is more consistent
+with how other celestia-node modules expose their APIs.
 
 ### Extend `blob.Get` immediately
 
