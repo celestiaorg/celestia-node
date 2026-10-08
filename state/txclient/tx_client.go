@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -158,6 +159,9 @@ func (c *TxClient) SubmitMessage(
 		return nil, err
 	}
 
+	if err := validateFee(gasPrice, gas); err != nil {
+		return nil, err
+	}
 	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
 	return c.client.SubmitTx(ctx, []types.Msg{msg}, txConfig...)
 }
@@ -235,6 +239,9 @@ func (c *TxClient) SubmitPayForBlob(
 		return nil, err
 	}
 
+	if err = validateFee(gasPrice, gas); err != nil {
+		return nil, err
+	}
 	opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
 	if feeGrant != nil {
 		opts = append(opts, feeGrant)
@@ -277,6 +284,18 @@ func (c *TxClient) SubmitPayForBlob(
 			"gas price %f: %w", gasPrice, err)
 	}
 	return response, err
+}
+
+// validateFee rejects values that make user.SetGasLimitAndGasPrice panic when it
+// builds the fee coin (negative, NaN, Inf or int64-overflowing amounts).
+func validateFee(gasPrice float64, gas uint64) error {
+	if math.IsNaN(gasPrice) || math.IsInf(gasPrice, 0) || gasPrice < 0 {
+		return fmt.Errorf("state: invalid gas price %v", gasPrice)
+	}
+	if fee := math.Ceil(gasPrice * float64(gas)); fee >= math.MaxInt64 {
+		return fmt.Errorf("state: fee overflows int64 (gas price %v, gas %d)", gasPrice, gas)
+	}
+	return nil
 }
 
 func ParseAccAddressFromString(addrStr string) (types.AccAddress, error) {
