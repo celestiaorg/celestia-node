@@ -143,11 +143,17 @@ func (c *Collector) WaitWitness(ctx context.Context, req WitnessRequest, lookup 
 	}
 	deadline, _ := ctx.Deadline()
 	// A session-less completion whose header resolves to a non-empty square is
-	// a lost record or a cache hit; once seen it keeps the phase inconclusive.
+	// a lost record or a cache hit. If no witness turns up before the deadline,
+	// it makes the phase inconclusive rather than failed. A witness found later
+	// still counts: it rests on its own session, and lost log data is caught
+	// collector-wide.
 	gapSeen := false
 	// Headers resolve once per call: a busy node logs thousands of completions
 	// and every lookup is an RPC round trip.
 	resolved := map[string]*header.ExtendedHeader{}
+	// A session-less completion whose header does not resolve may be an empty
+	// square or a lost record; it is not retried, and without a witness it makes
+	// the phase inconclusive.
 	unresolved := map[string]bool{}
 	// A qualifying completion whose header does not resolve before the deadline
 	// keeps the phase inconclusive: the node sampled, the canary could not verify it.
@@ -164,7 +170,7 @@ func (c *Collector) WaitWitness(ctx context.Context, req WitnessRequest, lookup 
 		candidates, missing := c.candidatesLocked(req, deadline)
 		c.mu.Unlock()
 		if err := ctx.Err(); err != nil {
-			if missing || gapSeen || len(pending) > 0 {
+			if missing || gapSeen || len(pending) > 0 || len(unresolved) > 0 {
 				return model.Witness{}, errors.Join(ErrEvidenceGap, err)
 			}
 			return model.Witness{}, errors.Join(ErrNoWitness, err)
@@ -195,7 +201,7 @@ func (c *Collector) WaitWitness(ctx context.Context, req WitnessRequest, lookup 
 				h, err = lookup.GetByHash(ctx, libhead.Hash(hash))
 				if err != nil {
 					if a.noSession && !req.AllowEmpty {
-						unresolved[a.completion.hash] = true // diagnostic only; do not retry
+						unresolved[a.completion.hash] = true
 					} else {
 						pending[a.completion.hash] = true
 					}
@@ -245,7 +251,7 @@ func (c *Collector) WaitWitness(ctx context.Context, req WitnessRequest, lookup 
 			}, nil
 		}
 		if sealed {
-			if missing || gapSeen || len(pending) > 0 {
+			if missing || gapSeen || len(pending) > 0 || len(unresolved) > 0 {
 				return model.Witness{}, ErrEvidenceGap
 			}
 			return model.Witness{}, ErrNoWitness

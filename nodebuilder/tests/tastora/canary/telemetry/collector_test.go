@@ -836,3 +836,65 @@ func TestRestartCacheHitIsNeitherWitnessNorGap(t *testing.T) {
 		t.Fatalf("cached completion after restart: got %v, want no witness and no gap", err)
 	}
 }
+
+func TestUnresolvedSessionlessCompletionIsAnEvidenceGap(t *testing.T) {
+	h := headerFixture(t, 42)
+	c := collectorForHeader(t, h)
+	// A completion without a session start whose header cannot be fetched may be
+	// an empty square or a lost record; the canary cannot tell which.
+	logFixture(t, c, 1, h, h.Time().Add(time.Second).Truncate(time.Millisecond), kindSuccess)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err := c.WaitWitness(ctx, WitnessRequest{Epoch: 1}, &flakyLookup{h: h, failures: 1 << 30})
+	if !errors.Is(err, ErrEvidenceGap) || errors.Is(err, ErrNoWitness) {
+		t.Fatalf("unverifiable completion: got %v, want an evidence gap", err)
+	}
+}
+
+// arrivingLookup resolves the headers it holds and, on its first call, runs
+// onLookup to log records that arrive while that lookup is in flight.
+type arrivingLookup struct {
+	headers  map[string]*header.ExtendedHeader
+	onLookup func()
+}
+
+func (l *arrivingLookup) GetByHash(_ context.Context, hash libhead.Hash) (*header.ExtendedHeader, error) {
+	if f := l.onLookup; f != nil {
+		l.onLookup = nil
+		f()
+	}
+	if h, ok := l.headers[hash.String()]; ok {
+		return h, nil
+	}
+	return nil, fmt.Errorf("not stored")
+}
+
+func TestWitnessAfterASessionlessCompletionStillCounts(t *testing.T) {
+	cached := headerFixture(t, 42)
+	sampled := headerFixture(t, 43)
+	c := collectorForHeader(t, cached)
+	at := sampled.Time().Add(time.Second).Truncate(time.Millisecond)
+	// A non-empty completion without a session start: a lost record or a cache hit.
+	logFixture(t, c, 1, cached, at, kindSuccess)
+	lookup := &arrivingLookup{
+		headers: map[string]*header.ExtendedHeader{
+			cached.Hash().String():  cached,
+			sampled.Hash().String(): sampled,
+		},
+		onLookup: func() {
+			logFixture(t, c, 1, sampled, at.Add(100*time.Millisecond), kindStart)
+			logFixture(t, c, 1, sampled, at.Add(300*time.Millisecond), kindSuccess)
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	// The later session proves sampling on its own; the earlier record does not
+	// undo it.
+	w, err := c.WaitWitness(ctx, WitnessRequest{Epoch: 1}, lookup)
+	if err != nil {
+		t.Fatalf("witness after a session-less completion: %v", err)
+	}
+	if w.Header.Height != sampled.Height() || w.Empty {
+		t.Fatalf("witness %+v, want the sampled header", w.Header)
+	}
+}
