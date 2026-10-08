@@ -312,6 +312,13 @@ func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData,
 		shares[i] = shrs
 	}
 
+	if err := checkProofNodes(nd.GetFirstIncompleteRowProof().GetNodes()); err != nil {
+		return RangeNamespaceData{}, err
+	}
+	if err := checkProofNodes(nd.GetLastIncompleteRowProof().GetNodes()); err != nil {
+		return RangeNamespaceData{}, err
+	}
+
 	return RangeNamespaceData{
 		Shares:                  shares,
 		FirstIncompleteRowProof: pbNmtToNmtProof(nd.GetFirstIncompleteRowProof()),
