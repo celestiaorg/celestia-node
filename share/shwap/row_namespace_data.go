@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
@@ -100,6 +101,19 @@ func RowNamespaceDataFromShares(
 	}, nil
 }
 
+// maxProofNodes bounds nmt.Proof.Nodes() to what a row tree of 2*MaxSquareSize leaves can
+// produce. A peer can otherwise pad a proof with cheap empty nodes (2 bytes on the wire, a
+// 24-byte slice header once decoded) to inflate the receiver's memory.
+var maxProofNodes = 2 * bits.Len(uint(2*share.MaxSquareSize))
+
+// checkProofNodes rejects a proof carrying more nodes than maxProofNodes.
+func checkProofNodes(nodes [][]byte) error {
+	if n := len(nodes); n > maxProofNodes {
+		return fmt.Errorf("proof has too many nodes: %d", n)
+	}
+	return nil
+}
+
 // RowNamespaceDataFromProto constructs RowNamespaceData out of its protobuf representation.
 func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, error) {
 	if row == nil {
@@ -111,6 +125,9 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, erro
 	}
 	if row.GetProof() == nil {
 		return RowNamespaceData{Shares: shares}, nil
+	}
+	if err := checkProofNodes(row.GetProof().GetNodes()); err != nil {
+		return RowNamespaceData{}, err
 	}
 
 	var proof nmt.Proof
