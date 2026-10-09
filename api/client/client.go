@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 
 	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
+	appstate "github.com/celestiaorg/celestia-app/v10/fibre/state"
 
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/fibre"
@@ -179,6 +180,12 @@ func (c *Client) initTxClient(
 	}
 	appFibreCfg.DefaultKeyName = submitCfg.DefaultKeyName
 	appFibreCfg.StateAddress = conn.Target()
+	if appFibreCfg.StateClientFn == nil {
+		// the default state client dials StateAddress without TLS or the auth token,
+		// so reuse conn, which already has both
+		sc := newGRPCStateClient(conn)
+		appFibreCfg.StateClientFn = func() (appstate.Client, error) { return sc, nil }
+	}
 	appFibreClient, err := appfibre.NewClient(kr, appFibreCfg)
 	if err != nil {
 		_ = blobSvc.Stop(ctx)
