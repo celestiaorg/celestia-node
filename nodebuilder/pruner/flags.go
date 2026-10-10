@@ -22,8 +22,11 @@ func Flags() *flag.FlagSet {
 }
 
 func ParseFlags(cmd *cobra.Command, tp node.Type) fx.Option {
-	archivalChanged := cmd.Flag(archivalFlag).Changed
-	if archivalChanged {
+	archival, err := cmd.Flags().GetBool(archivalFlag)
+	if err != nil {
+		log.Fatalf("parsing --%s flag: %s", archivalFlag, err)
+	}
+	if archival {
 		if tp != node.Bridge {
 			log.Fatal("Archival mode is only supported for Bridge nodes")
 		}
