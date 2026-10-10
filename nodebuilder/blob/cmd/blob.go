@@ -135,6 +135,10 @@ var submitCmd = &cobra.Command{
 		return nil
 	},
 	PreRunE: func(_ *cobra.Command, args []string) error {
+		// with --input-file there are no positional arguments, the namespaces come from the file
+		if len(args) == 0 {
+			return nil
+		}
 		if !strings.HasPrefix(args[0], "0x") {
 			args[0] = "0x" + args[0]
 		}
