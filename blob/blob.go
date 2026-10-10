@@ -34,8 +34,14 @@ func (p Proof) equal(input Proof) error {
 	}
 
 	for i, proof := range p {
+		if proof == nil || input[i] == nil {
+			return ErrInvalidProof
+		}
 		pNodes := proof.Nodes()
 		inputNodes := input[i].Nodes()
+		if len(pNodes) != len(inputNodes) {
+			return ErrInvalidProof
+		}
 		for i, node := range pNodes {
 			if !bytes.Equal(node, inputNodes[i]) {
 				return ErrInvalidProof

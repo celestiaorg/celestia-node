@@ -81,6 +81,16 @@ func (commitmentProof *CommitmentProof) Validate() error {
 			len(commitmentProof.RowProof.RowRoots),
 		)
 	}
+	for i, prf := range commitmentProof.SubtreeRootProofs {
+		if prf == nil {
+			return fmt.Errorf("subtree root proof %d is nil", i)
+		}
+	}
+	for i, prf := range commitmentProof.RowProof.Proofs {
+		if prf == nil {
+			return fmt.Errorf("row proof %d is nil", i)
+		}
+	}
 	return nil
 }
 
