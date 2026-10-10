@@ -307,7 +307,19 @@ func (s *coordinatorState) waitCatchUp(ctx context.Context) error {
 	return nil
 }
 
-// canRetry returns true if the time stored in the "after" has passed.
+func (s *coordinatorState) nextRetryTime() (time.Time, bool) {
+	var next time.Time
+	found := false
+	for _, attempt := range s.failed {
+		if !found || attempt.after.Before(next) {
+			next = attempt.after
+			found = true
+		}
+	}
+	return next, found
+}
+
+// canRetry returns true once the retry deadline has been reached.
 func (r retryAttempt) canRetry() bool {
-	return r.after.Before(time.Now())
+	return !r.after.After(time.Now())
 }

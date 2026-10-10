@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/cometbft/cometbft/types"
@@ -293,6 +294,39 @@ func TestCoordinator(t *testing.T) {
 
 		st := coordinator.state.unsafeStats()
 		require.Equal(t, ch, newCheckpoint(st))
+	})
+}
+
+func TestCoordinatorWakesForRetryDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		params := DefaultParameters()
+		params.ConcurrencyLimit = 1
+		params.SamplingRange = 1
+
+		attempts := 0
+		retried := make(chan struct{})
+		sample := func(context.Context, *header.ExtendedHeader) error {
+			attempts++
+			if attempts == 1 {
+				return errors.New("sampling failed")
+			}
+			close(retried)
+			return nil
+		}
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		coordinator := newSamplingCoordinator(params, getterStub{}, sample)
+		go coordinator.run(ctx, checkpoint{SampleFrom: 1, NetworkHead: 1})
+
+		select {
+		case <-retried:
+		case <-time.After(2 * defaultBackoffInitialInterval):
+			t.Fatal("retry did not run after its deadline")
+		}
+
+		cancel()
+		require.NoError(t, coordinator.wait(t.Context()))
 	})
 }
 
