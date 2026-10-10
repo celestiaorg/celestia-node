@@ -10,8 +10,12 @@ import (
 	cmdnode "github.com/celestiaorg/celestia-node/cmd"
 )
 
+const ttlFlagName = "ttl"
+
 func init() {
 	Cmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
+
+	authCmd.Flags().Duration(ttlFlagName, 0, "Set a Time-to-live (TTL) for the token")
 }
 
 var Cmd = &cobra.Command{
@@ -99,7 +103,7 @@ var authCmd = &cobra.Command{
 			perms[i] = (auth.Permission)(p)
 		}
 
-		ttl, _ := cmd.Flags().GetDuration("ttl")
+		ttl, _ := cmd.Flags().GetDuration(ttlFlagName)
 		if ttl != 0 {
 			result, err := client.Node.AuthNewWithExpiry(cmd.Context(), perms, ttl)
 			return cmdnode.PrintOutput(result, err, nil)
