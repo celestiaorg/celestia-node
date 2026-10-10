@@ -140,12 +140,12 @@ func (f *fsStore) Datastore() (datastore.Batching, error) {
 }
 
 func (f *fsStore) Close() (err error) {
-	err = errors.Join(err, f.dirLock.Close())
 	f.dataMu.Lock()
 	if f.data != nil {
 		err = errors.Join(err, f.data.Close())
 	}
 	f.dataMu.Unlock()
+	err = errors.Join(err, f.dirLock.Close())
 	return err
 }
 
