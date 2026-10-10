@@ -158,21 +158,24 @@ func (sg *Getter) GetSamples(
 }
 
 func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
-	// short circuit if the data root is empty
-	if header.DAH.Equals(share.EmptyEDSRoots()) {
-		return shwap.Row{}, nil
-	}
-
-	var err error
-	ctx, span := tracer.Start(ctx, "shrex/get-row")
-	defer func() {
-		utils.SetStatusAndEnd(span, err)
-	}()
-
 	request, err := shwap.NewRowID(header.Height(), rowIndex, len(header.DAH.RowRoots))
 	if err != nil {
 		return shwap.Row{}, err
 	}
+
+	// short circuit if the data root is empty
+	if header.DAH.Equals(share.EmptyEDSRoots()) {
+		row, err := shwap.RowFromEDS(share.EmptyEDS(), rowIndex, shwap.Left)
+		if err != nil {
+			return shwap.Row{}, fmt.Errorf("getting row from empty EDS: %w", err)
+		}
+		return row, nil
+	}
+
+	ctx, span := tracer.Start(ctx, "shrex/get-row")
+	defer func() {
+		utils.SetStatusAndEnd(span, err)
+	}()
 
 	response := shwap.Row{}
 
