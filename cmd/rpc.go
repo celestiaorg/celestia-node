@@ -53,7 +53,7 @@ func RPCFlags() *flag.FlagSet {
 }
 
 func InitClient(cmd *cobra.Command, _ []string) error {
-	if authTokenFlag == "" {
+	if authTokenFlag == "" || requestURL == "" {
 		rootErrMsg := "cant access the auth token"
 
 		storePath, err := getStorePath(cmd)
@@ -70,16 +70,18 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 			requestURL = cfg.RPC.RequestURL()
 		}
 
-		// only get token if auth is not skipped
-		if cfg.RPC.SkipAuth {
-			authTokenFlag = "skip" // arbitrary value required
-		} else {
-			token, err := getToken(storePath)
-			if err != nil {
-				return fmt.Errorf("%s: %w", rootErrMsg, err)
-			}
+		if authTokenFlag == "" {
+			// only get token if auth is not skipped
+			if cfg.RPC.SkipAuth {
+				authTokenFlag = "skip" // arbitrary value required
+			} else {
+				token, err := getToken(storePath)
+				if err != nil {
+					return fmt.Errorf("%s: %w", rootErrMsg, err)
+				}
 
-			authTokenFlag = token
+				authTokenFlag = token
+			}
 		}
 	}
 
