@@ -61,7 +61,7 @@ var networkHeadCmd = &cobra.Command{
 }
 
 var getByHashCmd = &cobra.Command{
-	Use:   "get-by-hash",
+	Use:   "get-by-hash hash",
 	Short: "Returns the header of the given hash from the node's header store.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,7 +81,7 @@ var getByHashCmd = &cobra.Command{
 }
 
 var getByHeightCmd = &cobra.Command{
-	Use:   "get-by-height",
+	Use:   "get-by-height height",
 	Short: "Returns the ExtendedHeader at the given height if it is currently available.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

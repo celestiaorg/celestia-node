@@ -14,7 +14,7 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "cel-shed [subcommand]",
+	Use: "cel-shed [command]",
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
