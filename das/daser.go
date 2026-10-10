@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/ipfs/go-datastore"
@@ -29,8 +30,9 @@ type DASer struct {
 	store      checkpointStore
 	subscriber subscriber
 
-	cancel  context.CancelFunc
-	running atomic.Bool
+	cancel      context.CancelFunc
+	lifecycleMu sync.Mutex
+	running     atomic.Bool
 }
 
 type (
@@ -70,7 +72,10 @@ func NewDASer(
 
 // Start initiates subscription for new ExtendedHeaders and spawns a sampling routine.
 func (d *DASer) Start(ctx context.Context) error {
-	if !d.running.CompareAndSwap(false, true) {
+	d.lifecycleMu.Lock()
+	defer d.lifecycleMu.Unlock()
+
+	if d.running.Load() {
 		return errors.New("da: DASer already started")
 	}
 
@@ -86,6 +91,7 @@ func (d *DASer) Start(ctx context.Context) error {
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
+	d.running.Store(true)
 
 	go d.sampler.run(runCtx, cp)
 	go d.subscriber.run(runCtx, sub, d.sampler.listen)
@@ -154,7 +160,10 @@ func (d *DASer) checkpoint(ctx context.Context) (checkpoint, error) {
 
 // Stop stops sampling.
 func (d *DASer) Stop(ctx context.Context) error {
-	if !d.running.CompareAndSwap(true, false) {
+	d.lifecycleMu.Lock()
+	defer d.lifecycleMu.Unlock()
+
+	if !d.running.Swap(false) {
 		return nil
 	}
 
@@ -169,6 +178,7 @@ func (d *DASer) Stop(ctx context.Context) error {
 	}
 
 	d.cancel()
+	d.cancel = nil
 
 	if err := d.sampler.metrics.close(); err != nil {
 		log.Warnw("closing metrics", "err", err)
