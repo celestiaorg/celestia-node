@@ -160,7 +160,7 @@ func (sg *Getter) GetSamples(
 func (sg *Getter) GetRow(ctx context.Context, header *header.ExtendedHeader, rowIndex int) (shwap.Row, error) {
 	// short circuit if the data root is empty
 	if header.DAH.Equals(share.EmptyEDSRoots()) {
-		return shwap.Row{}, nil
+		return emptyRow(rowIndex)
 	}
 
 	var err error
@@ -507,4 +507,19 @@ func emptySamples(coords []shwap.SampleCoords) ([]shwap.Sample, error) {
 		samples[i] = smpl
 	}
 	return samples, nil
+}
+
+// emptyRow returns the given row from the pregenerated canonical empty EDS, so that it verifies
+// against the empty data root.
+func emptyRow(rowIndex int) (shwap.Row, error) {
+	const emptyEDSSize = 2 // empty EDS is 2x2 (1x1 ODS extended)
+	if rowIndex < 0 || rowIndex >= emptyEDSSize {
+		return shwap.Row{}, fmt.Errorf("row=%d outside [0, %d): %w", rowIndex, emptyEDSSize, shwap.ErrOutOfBounds)
+	}
+
+	row, err := shwap.RowFromEDS(share.EmptyEDS(), rowIndex, shwap.Left)
+	if err != nil {
+		return shwap.Row{}, fmt.Errorf("getting row from empty EDS: %w", err)
+	}
+	return row, nil
 }

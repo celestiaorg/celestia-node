@@ -441,6 +441,34 @@ func TestShrexGetter(t *testing.T) {
 		assert.ErrorIs(t, err, shwap.ErrOutOfBounds)
 	})
 
+	t.Run("Row_EmptyBlock", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		// the empty EDS is 2x2, so both rows must be served and verify against the header
+		for rowIdx := 0; rowIdx < len(eh.DAH.RowRoots); rowIdx++ {
+			row, err := getter.GetRow(ctx, eh, rowIdx)
+			require.NoError(t, err)
+			require.False(t, row.IsEmpty(), "row %d should not be empty for empty block", rowIdx)
+			require.NoError(t, row.Verify(eh.DAH, rowIdx), "row %d must verify against the header", rowIdx)
+		}
+	})
+
+	t.Run("Row_EmptyBlock_OutOfBounds", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		t.Cleanup(cancel)
+
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		for _, rowIdx := range []int{-1, 2, 20} {
+			_, err := getter.GetRow(ctx, eh, rowIdx)
+			require.Error(t, err, "row %d", rowIdx)
+			assert.ErrorIs(t, err, shwap.ErrOutOfBounds, "row %d", rowIdx)
+		}
+	})
+
 	// tests getPeer's ability to route requests based on whether
 	// they are historical or not
 	t.Run("routing_historical_requests", func(t *testing.T) {
