@@ -82,7 +82,10 @@ type headErrorStore struct {
 	err error
 }
 
-func (s *headErrorStore) Head(context.Context, ...libhead.HeadOption[*header.ExtendedHeader]) (*header.ExtendedHeader, error) {
+func (s *headErrorStore) Head(
+	context.Context,
+	...libhead.HeadOption[*header.ExtendedHeader],
+) (*header.ExtendedHeader, error) {
 	return nil, s.err
 }
 
