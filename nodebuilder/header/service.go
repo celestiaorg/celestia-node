@@ -121,8 +121,15 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 	case head.Height() == height:
 		return head, nil
 	case head.Height()+1 < height:
-		return nil, fmt.Errorf("header: given height is from the future: "+
-			"networkHeight: %d, requestedHeight: %d", head.Height(), height)
+		// The store may have advanced since the syncer's head was read.
+		storeHead, err := s.store.Head(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("store head: %w", err)
+		}
+		if storeHead.Height()+1 < height {
+			return nil, fmt.Errorf("header: given height is from the future: "+
+				"networkHeight: %d, requestedHeight: %d", head.Height(), height)
+		}
 	}
 
 	tail, err := s.store.Tail(ctx)
