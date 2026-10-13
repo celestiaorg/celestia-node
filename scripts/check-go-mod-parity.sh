@@ -44,9 +44,13 @@ trap cleanup EXIT
 
 echo "📋 Extracting dependencies using 'go list -m all'..."
 
-# Extract all dependencies using Go toolchain
-go list -m all > "$ROOT_DEPS"
-(cd "$TASTORA_DIR" && go list -m all) > "$TASTORA_DEPS"
+# Extract all dependencies using Go toolchain.
+# -e tolerates modules that can no longer be resolved (e.g. upstream repos that
+# were deleted from GitHub and are absent from proxy.golang.org); they are still
+# listed, so parity comparison is unaffected, but the check no longer hard-fails
+# on a cold module cache.
+go list -m -e all > "$ROOT_DEPS"
+(cd "$TASTORA_DIR" && go list -m -e all) > "$TASTORA_DEPS"
 
 echo "📊 Generating dependency graphs using 'go mod graph'..."
 go mod graph > "$ROOT_GRAPH"
