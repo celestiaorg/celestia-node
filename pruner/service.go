@@ -191,6 +191,7 @@ func (s *Service) prune(ctx context.Context) {
 		if err != nil || len(headers) == 0 {
 			return
 		}
+		prevPruned := lastPrunedHeader.Height()
 
 		failedSet := make(map[uint64]struct{})
 
@@ -216,8 +217,9 @@ func (s *Service) prune(ctx context.Context) {
 			return
 		}
 
-		if len(headers) < maxHeadersPerLoop {
-			// we've pruned all the blocks we can
+		if len(headers) < maxHeadersPerLoop || lastPrunedHeader.Height() == prevPruned {
+			// we've pruned all the blocks we can, or no progress was made in this batch;
+			// failed heights are retried on the next cycle
 			return
 		}
 	}
