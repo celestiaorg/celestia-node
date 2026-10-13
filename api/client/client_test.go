@@ -437,6 +437,10 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...string) testn
 
 	cctx, _, _ := testnode.NewNetwork(t, config)
 
+	// BlockByHeight only serves stored blocks; it does not wait for future heights.
+	_, err := cctx.WaitForHeight(2)
+	require.NoError(t, err)
+
 	bAPI := coregrpc.NewBlockAPIClient(cctx.GRPCClient)
 	cl, err := bAPI.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: 2})
 	require.NoError(t, err)

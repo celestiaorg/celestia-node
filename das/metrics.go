@@ -84,6 +84,12 @@ func (d *DASer) InitMetrics() error {
 		return err
 	}
 
+	headLag, err := meter.Int64ObservableGauge("das_sampling_head_lag",
+		metric.WithDescription("number of headers between the network head and the sampled chain head"))
+	if err != nil {
+		return err
+	}
+
 	totalSampled, err := meter.Int64ObservableGauge("das_total_sampled_headers",
 		metric.WithDescription("total sampled headers gauge"),
 	)
@@ -114,6 +120,7 @@ func (d *DASer) InitMetrics() error {
 
 		observer.ObserveInt64(networkHead, int64(stats.NetworkHead))
 		observer.ObserveInt64(sampledChainHead, int64(stats.SampledChainHead))
+		observer.ObserveInt64(headLag, headLagOf(stats))
 
 		if ts := d.sampler.metrics.lastSampledTS.Load(); ts != 0 {
 			observer.ObserveInt64(lastSampledTS, int64(ts))
@@ -128,6 +135,7 @@ func (d *DASer) InitMetrics() error {
 		busyWorkers,
 		networkHead,
 		sampledChainHead,
+		headLag,
 		totalSampled,
 	)
 	if err != nil {
@@ -135,6 +143,15 @@ func (d *DASer) InitMetrics() error {
 	}
 
 	return nil
+}
+
+// headLagOf returns how many headers the sampled chain is behind the network head.
+// It never returns a negative value.
+func headLagOf(stats SamplingStats) int64 {
+	if stats.SampledChainHead >= stats.NetworkHead {
+		return 0
+	}
+	return int64(stats.NetworkHead - stats.SampledChainHead)
 }
 
 func (m *metrics) close() error {

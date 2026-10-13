@@ -65,7 +65,13 @@ type Client struct {
 	lastHost        map[string]validator.Host
 	lastRefresh     map[string]time.Time
 	refreshInterval time.Duration
+	// queryTimeout bounds a host query, so a stalled core endpoint falls back to
+	// the last known host instead of blocking the dial.
+	queryTimeout time.Duration
 }
+
+// defaultQueryTimeout matches the host query timeout of the app's default state client.
+const defaultQueryTimeout = 15 * time.Second
 
 // NewClient builds a fibre [state.Client] backed by the local header store and
 // a gRPC connection used only for ABCI queries (with merkle proof verification).
@@ -87,6 +93,7 @@ func NewClient(
 		// registry state cannot change faster than one block, so re-querying
 		// more often than the expected block time is pointless.
 		refreshInterval: appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit,
+		queryTimeout:    defaultQueryTimeout,
 	}
 }
 
@@ -136,7 +143,9 @@ func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Ho
 	c.lastRefresh[cacheKey] = time.Now()
 	c.hostMu.Unlock()
 
-	host, err := c.resolveHost(ctx, val)
+	queryCtx, cancel := context.WithTimeout(ctx, c.queryTimeout)
+	defer cancel()
+	host, err := c.resolveHost(queryCtx, val)
 	if err != nil {
 		// Fall back to the last known host on a transient failure
 		if hasFallback && !errors.Is(err, ErrNoFibreProviderInfo) {

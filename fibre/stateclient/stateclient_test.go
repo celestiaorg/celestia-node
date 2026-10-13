@@ -48,6 +48,7 @@ func newTestClient(t *testing.T, abci abciQuerier, network p2p.Network) *Client 
 		lastHost:        make(map[string]validator.Host),
 		lastRefresh:     make(map[string]time.Time),
 		refreshInterval: time.Minute,
+		queryTimeout:    time.Second,
 	}
 	return c
 }
@@ -162,6 +163,50 @@ func TestGetHostFallsBackOnQueryFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, validator.Host("cached.example:9090"), got, "must serve last known host on failure")
 	require.Equal(t, int64(1), stub.calls.Load(), "must attempt exactly one re-query")
+}
+
+// blockingABCI never answers until the query context is done.
+type blockingABCI struct{}
+
+func (blockingABCI) ABCIQuery(
+	ctx context.Context, _ *tmservice.ABCIQueryRequest, _ ...grpc.CallOption,
+) (*tmservice.ABCIQueryResponse, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// TestGetHostFallsBackOnQueryTimeout checks that a query to an endpoint that never
+// answers is bounded and the last known host is served.
+func TestGetHostFallsBackOnQueryTimeout(t *testing.T) {
+	c := newTestClient(t, blockingABCI{}, p2p.Private)
+	c.queryTimeout = 50 * time.Millisecond
+
+	addr := make([]byte, 20)
+	for i := range addr {
+		addr[i] = 0xCC
+	}
+	val := &core.Validator{Address: addr}
+	cacheKey := sdk.ConsAddress(addr).String()
+	c.lastHost[cacheKey] = validator.Host("cached.example:9090")
+	c.lastRefresh[cacheKey] = time.Now().Add(-time.Hour)
+
+	type result struct {
+		host validator.Host
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		// no deadline on the caller ctx, as for an RPC request
+		got, err := c.GetHost(context.Background(), val)
+		done <- result{got, err}
+	}()
+	select {
+	case res := <-done:
+		require.NoError(t, res.err)
+		require.Equal(t, validator.Host("cached.example:9090"), res.host)
+	case <-time.After(2 * time.Second):
+		t.Fatal("GetHost did not return; the host query is not bounded")
+	}
 }
 
 // TestGetHostRateLimitsQueries checks that a failed query still opens the
