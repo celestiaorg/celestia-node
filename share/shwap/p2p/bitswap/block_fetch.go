@@ -81,15 +81,40 @@ func fetch(
 		// store the UnmarshalFn s.t. hasher can access it
 		// and fill in the Block
 		unmarshalFn := blk.UnmarshalFn(root)
-		_, exists := unmarshalFns.LoadOrStore(cid, &unmarshalEntry{UnmarshalFn: unmarshalFn})
-		if exists {
-			// the unmarshalFn has already been stored for the cid
-			// means there is ongoing fetch happening for the same cid
-			duplicates[cid] = blk // so mark the Block as duplicate
-		} else {
-			// cleanup are by the original requester and
-			// only after we are sure we got the block
-			defer unmarshalFns.Delete(cid)
+
+		for {
+			val, loaded := unmarshalFns.LoadOrStore(cid, &unmarshalEntry{
+				UnmarshalFn: unmarshalFn,
+				refCount:    1,
+			})
+			entry := val.(*unmarshalEntry)
+
+			if loaded {
+				entry.Lock()
+				if entry.refCount == 0 {
+					//entry is the process of being deleted by another gorutine.
+					//unlock and retry LoadOrstore
+					entry.Unlock()
+					continue
+				}
+				entry.refCount++
+				entry.Unlock()
+
+				//the unmarshalFn has already stored for cid
+				duplicates[cid] = blk //mark the block as duplicate
+			}
+
+			// cleanup is triggered by both original and duplicate requesters
+			defer func(c any, e *unmarshalEntry) {
+				e.Lock()
+				defer e.Unlock()
+				e.refCount--
+				if e.refCount == 0 {
+					unmarshalFns.CompareAndDelete(c, e)
+				}
+			}(cid, entry)
+
+			break
 		}
 	}
 
@@ -172,6 +197,7 @@ var unmarshalFns sync.Map
 type unmarshalEntry struct {
 	sync.Mutex
 	UnmarshalFn
+	refCount int
 }
 
 // hasher implements hash.Hash to be registered as custom multihash

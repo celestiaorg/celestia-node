@@ -178,3 +178,81 @@ func (t *testFetcher) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blo
 	t.Fetched += len(cids)
 	return t.Embedded.GetBlocks(ctx, cids)
 }
+
+
+// TestFetch_DuplicateSurvivesOriginalCancel checks that when two Fetches request the same
+// Block concurrently and the first one is canceled before the Block arrives, the second
+// Fetch still receives and populates the Block served by the peer.
+func TestFetch_DuplicateSurvivesOriginalCancel(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	bstore, cids := testBlockstore(ctx, t, 1)
+	cid := cids.Keys()[0]
+
+	// servers hold the block back until released, so both requests stay in flight
+	gated := &gatedBlockstore{Blockstore: bstore, release: make(chan struct{})}
+	net, err := mocknet.FullMeshLinked(2)
+	require.NoError(t, err)
+	newServer(ctx, net.Hosts()[0], gated)
+	exchange := newClient(ctx, net.Hosts()[1], blockstore.NewBlockstore(ds.NewMapDatastore()))
+	require.NoError(t, net.ConnectAllButSelf())
+	time.Sleep(time.Millisecond * 10)
+
+	blkA, err := newEmptyTestBlock(cid)
+	require.NoError(t, err)
+	ctxA, cancelA := context.WithCancel(ctx)
+	doneA := make(chan error, 1)
+	go func() { doneA <- Fetch(ctxA, exchange, nil, []Block{blkA}) }()
+	require.Eventually(t, func() bool {
+		_, ok := unmarshalFns.Load(cid)
+		return ok
+	}, time.Second, time.Millisecond)
+
+	blkB, err := newEmptyTestBlock(cid)
+	require.NoError(t, err)
+	ctxB, cancelB := context.WithTimeout(ctx, time.Second*3)
+	defer cancelB()
+	requestedB := make(chan struct{})
+	fetcherB := &signalFetcher{Embedded: exchange, requested: requestedB}
+	doneB := make(chan error, 1)
+	go func() { doneB <- Fetch(ctxB, exchange, nil, []Block{blkB}, WithFetcher(fetcherB)) }()
+	<-requestedB
+
+	// the original requester gives up before the block arrives
+	cancelA()
+	require.ErrorIs(t, <-doneA, context.Canceled)
+
+	close(gated.release)
+	require.NoError(t, <-doneB, "duplicate Fetch must receive the block after the original requester canceled")
+	require.NotEmpty(t, blkB.data)
+}
+
+type gatedBlockstore struct {
+	blockstore.Blockstore
+	release chan struct{}
+}
+
+func (g *gatedBlockstore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	select {
+	case <-g.release:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	return g.Blockstore.Get(ctx, c)
+}
+
+type signalFetcher struct {
+	Embedded  exchange.Fetcher
+	requested chan struct{}
+}
+
+func (s *signalFetcher) GetBlock(context.Context, cid.Cid) (blocks.Block, error) {
+	panic("not implemented")
+}
+
+func (s *signalFetcher) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blocks.Block, error) {
+	ch, err := s.Embedded.GetBlocks(ctx, cids)
+	close(s.requested)
+	return ch, err
+}
