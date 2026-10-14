@@ -179,10 +179,7 @@ func (t *testFetcher) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blo
 	return t.Embedded.GetBlocks(ctx, cids)
 }
 
-
 // TestFetch_DuplicateSurvivesOriginalCancel checks that when two Fetches request the same
-// Block concurrently and the first one is canceled before the Block arrives, the second
-// Fetch still receives and populates the Block served by the peer.
 func TestFetch_DuplicateSurvivesOriginalCancel(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -217,15 +214,32 @@ func TestFetch_DuplicateSurvivesOriginalCancel(t *testing.T) {
 	fetcherB := &signalFetcher{Embedded: exchange, requested: requestedB}
 	doneB := make(chan error, 1)
 	go func() { doneB <- Fetch(ctxB, exchange, nil, []Block{blkB}, WithFetcher(fetcherB)) }()
-	<-requestedB
+
+	select {
+	case <-requestedB:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for duplicate fetch to request block")
+	}
 
 	// the original requester gives up before the block arrives
 	cancelA()
-	require.ErrorIs(t, <-doneA, context.Canceled)
+	select {
+	case err := <-doneA:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for original fetch to return")
+	}
 
 	close(gated.release)
-	require.NoError(t, <-doneB, "duplicate Fetch must receive the block after the original requester canceled")
+	select {
+	case err := <-doneB:
+		require.NoError(t, err, "duplicate Fetch must receive the block after the original requester canceled")
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for duplicate fetch to return")
+	}
 	require.NotEmpty(t, blkB.data)
+	_, ok := unmarshalFns.Load(cid)
+	require.False(t, ok, "unmarshalFns should be cleaned up after all fetches complete")
 }
 
 type gatedBlockstore struct {
