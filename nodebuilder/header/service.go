@@ -114,22 +114,12 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 	}()
 	log.Infow("getting header by height", "height", height)
 
-	head, err := s.syncer.Head(ctx)
+	syncerHead, err := s.syncer.Head(ctx)
 	switch {
 	case err != nil:
 		return nil, fmt.Errorf("syncer head: %w", err)
-	case head.Height() == height:
-		return head, nil
-	case head.Height()+1 < height:
-		// The store may have advanced since the syncer's head was read.
-		storeHead, err := s.store.Head(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("store head: %w", err)
-		}
-		if storeHead.Height()+1 < height {
-			return nil, fmt.Errorf("header: given height is from the future: "+
-				"networkHeight: %d, requestedHeight: %d", head.Height(), height)
-		}
+	case syncerHead.Height() == height:
+		return syncerHead, nil
 	}
 
 	tail, err := s.store.Tail(ctx)
@@ -145,7 +135,7 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 		return tail, nil
 	}
 
-	head, err = s.store.Head(ctx)
+	head, err := s.store.Head(ctx)
 	switch {
 	case err != nil:
 		return nil, fmt.Errorf("store head: %w", err)
@@ -153,6 +143,11 @@ func (s *Service) GetByHeight(ctx context.Context, height uint64) (_ *header.Ext
 		return head, nil
 	// `+1` allows for one header network lag, e.g. user request header that is milliseconds away
 	case head.Height()+1 < height:
+		// The syncer head may lag the store, so only call the height future if both are behind it.
+		if syncerHead.Height()+1 < height {
+			return nil, fmt.Errorf("header: given height is from the future: "+
+				"networkHeight: %d, requestedHeight: %d", syncerHead.Height(), height)
+		}
 		return nil, fmt.Errorf("header: syncing in progress: "+
 			"localHeadHeight: %d, requestedHeight: %d", head.Height(), height)
 	default:
