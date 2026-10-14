@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -16,11 +17,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v9/app/errors"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v10/app/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
@@ -132,6 +133,9 @@ func (c *TxClient) SubmitMessage(
 	msg types.Msg,
 	cfg *TxConfig,
 ) (*user.TxResponse, error) {
+	if cfg == nil {
+		cfg = NewTxConfig()
+	}
 	err := c.setupClient()
 	if err != nil {
 		return nil, err
@@ -155,6 +159,9 @@ func (c *TxClient) SubmitMessage(
 		return nil, err
 	}
 
+	if err := validateFee(gasPrice, gas); err != nil {
+		return nil, err
+	}
 	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
 	return c.client.SubmitTx(ctx, []types.Msg{msg}, txConfig...)
 }
@@ -232,6 +239,9 @@ func (c *TxClient) SubmitPayForBlob(
 		return nil, err
 	}
 
+	if err = validateFee(gasPrice, gas); err != nil {
+		return nil, err
+	}
 	opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
 	if feeGrant != nil {
 		opts = append(opts, feeGrant)
@@ -276,8 +286,54 @@ func (c *TxClient) SubmitPayForBlob(
 	return response, err
 }
 
+// validateFee rejects values that make user.SetGasLimitAndGasPrice panic when it
+// builds the fee coin (negative, NaN, Inf or int64-overflowing amounts).
+func validateFee(gasPrice float64, gas uint64) error {
+	if math.IsNaN(gasPrice) || math.IsInf(gasPrice, 0) || gasPrice < 0 {
+		return fmt.Errorf("state: invalid gas price %v", gasPrice)
+	}
+	if fee := math.Ceil(gasPrice * float64(gas)); fee >= math.MaxInt64 {
+		return fmt.Errorf("state: fee overflows int64 (gas price %v, gas %d)", gasPrice, gas)
+	}
+	return nil
+}
+
 func ParseAccAddressFromString(addrStr string) (types.AccAddress, error) {
 	return types.AccAddressFromBech32(addrStr)
+}
+
+// GetTxAuthorAccAddress resolves the signer address from cfg, falling back
+// to the default signer.
+func (c *TxClient) GetTxAuthorAccAddress(cfg *TxConfig) (types.AccAddress, error) {
+	switch {
+	case cfg != nil && cfg.SignerAddress() != "":
+		return ParseAccAddressFromString(cfg.SignerAddress())
+	case cfg != nil && cfg.KeyName() != "" && cfg.KeyName() != c.defaultSignerAccount:
+		return ParseAccountKey(c.keyring, cfg.KeyName())
+	default:
+		return c.defaultSignerAddress, nil
+	}
+}
+
+// GetTxAuthorKeyName resolves the keyring key name of the account that authors a
+// tx for cfg, mapping an address selection back to its key name.
+func (c *TxClient) GetTxAuthorKeyName(cfg *TxConfig) (string, error) {
+	switch {
+	case cfg != nil && cfg.SignerAddress() != "":
+		addr, err := ParseAccAddressFromString(cfg.SignerAddress())
+		if err != nil {
+			return "", err
+		}
+		rec, err := c.keyring.KeyByAddress(addr)
+		if err != nil {
+			return "", err
+		}
+		return rec.Name, nil
+	case cfg != nil && cfg.KeyName() != "":
+		return cfg.KeyName(), nil
+	default:
+		return c.defaultSignerAccount, nil
+	}
 }
 
 // estimateGasPriceAndUsage estimate the gas price and limit.

@@ -5,6 +5,9 @@ package tastora
 import (
 	"bytes"
 	"context"
+	"errors"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -107,4 +110,72 @@ func (s *DASTestSuite) TestBasicDASFlow() {
 	s.Require().NoError(err, "light node should reconstruct the EDS from the bridge over shrex")
 	s.Assert().Equal(edsBridge.Flattened(), edsLight.Flattened(),
 		"light node's shrex-fetched square should match the bridge's")
+}
+
+// TestParallelEDSOffload fetches a 256x256 ODS (32 MiB, above libp2p's default 16 MiB stream
+// memory limit) from the bridge over several concurrent shrex streams.
+func (s *DASTestSuite) TestParallelEDSOffload() {
+	const (
+		parallel = 4
+		// fits in one tx, but needs more shares than a 128x128 ODS holds.
+		blobSize = 8_100_000
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	bridge := s.framework.GetBridgeNodes()[0]
+	light := s.framework.GetLightNodes()[0]
+	bridgeClient := s.framework.GetNodeRPCClient(ctx, bridge)
+	lightClient := s.framework.GetNodeRPCClient(ctx, light)
+
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x0A}, 10))
+	s.Require().NoError(err, "should create namespace")
+
+	nodeAddr, err := bridgeClient.State.AccountAddress(ctx)
+	s.Require().NoError(err, "should get bridge account address")
+
+	libBlob, err := share.NewV1Blob(namespace, bytes.Repeat([]byte{0xEE}, blobSize), nodeAddr.Bytes())
+	s.Require().NoError(err, "should build blob")
+
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
+	s.Require().NoError(err, "should convert blob")
+
+	txConfig := state.NewTxConfig(state.WithGas(80_000_000), state.WithGasPrice(0.1))
+	height, err := bridgeClient.Blob.Submit(ctx, nodeBlobs, txConfig)
+	s.Require().NoError(err, "bridge should submit blob")
+	s.Require().NotZero(height, "blob submission should return a valid height")
+
+	_, err = lightClient.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err, "light node should sync the header at the blob height")
+
+	edsBridge, err := bridgeClient.Share.GetEDS(ctx, height)
+	s.Require().NoError(err, "bridge should serve the blob EDS")
+	s.Require().Equal(uint(512), edsBridge.Width(), "blob should produce a 256x256 ODS")
+	want := edsBridge.Flattened()
+
+	fetchCtx, fetchCancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer fetchCancel()
+
+	var wg sync.WaitGroup
+	errs := make([]error, parallel)
+	for i := range parallel {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			eds, err := lightClient.Share.GetEDS(fetchCtx, height)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			if !slices.EqualFunc(want, eds.Flattened(), bytes.Equal) {
+				errs[i] = errors.New("square differs from the bridge's")
+			}
+		}()
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		s.Assert().NoError(err, "parallel GetEDS #%d at height %d", i, height)
+	}
 }

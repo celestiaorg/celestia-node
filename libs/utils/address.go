@@ -32,7 +32,11 @@ func NormalizeGRPCAddress(addr string) string {
 func SanitizeAddr(addr string) (string, error) {
 	original := addr
 	addr = NormalizeAddress(addr)
-	addr = strings.Split(addr, ":")[0]
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		addr = host
+	} else if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
+		addr = strings.TrimSuffix(strings.TrimPrefix(addr, "["), "]")
+	}
 	if addr == "" {
 		return "", fmt.Errorf("%w: %s", ErrInvalidIP, original)
 	}

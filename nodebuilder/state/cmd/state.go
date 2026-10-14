@@ -232,7 +232,7 @@ var beginRedelegateCmd = &cobra.Command{
 var undelegateCmd = &cobra.Command{
 	Use:   "undelegate [valAddress] [amount]",
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -263,7 +263,7 @@ var undelegateCmd = &cobra.Command{
 var delegateCmd = &cobra.Command{
 	Use:   "delegate [valAddress] [amount]",
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {

@@ -3,6 +3,14 @@
 # Helper script to run Tastora tests with proper Docker environment
 # This script sets the correct DOCKER_HOST for Docker Desktop on macOS
 
+# The fibre e2e suite runs in-process (testnode + in-process FSP) and needs no
+# Docker, so short-circuit before the Docker checks below.
+if [ "$1" == "fibre" ]; then
+    echo "Running fibre e2e tests (in-process, no Docker)..."
+    cd "$(dirname "$0")"
+    exec go test -tags fibre_e2e -timeout 300s ./fibre/...
+fi
+
 echo "Setting up Docker environment for Tastora tests..."
 
 # Check if Docker is running

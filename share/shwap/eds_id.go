@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
 // EdsIDSize defines the byte size of the EdsID.
@@ -103,10 +101,12 @@ func (eid EdsID) Height() uint64 {
 	return eid.height
 }
 
-// ResponseSize returns the full ODS size in bytes for the given EDS square size.
-func (eid EdsID) ResponseSize(edsSize int) int {
-	odsLn := edsSize / 2
-	return odsLn * odsLn * libshare.ShareSize
+// edsStreamBufferSize matches io.Copy's buffer: the ODS is streamed from disk, never held whole.
+const edsStreamBufferSize = 32 * 1024
+
+// ResponseSize returns the copy buffer size, independent of the square size.
+func (eid EdsID) ResponseSize(int) int {
+	return edsStreamBufferSize
 }
 
 func (eid EdsID) ResponseReader(_ context.Context, acc Accessor) (io.Reader, error) {

@@ -24,6 +24,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/fibre"
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	modcore "github.com/celestiaorg/celestia-node/nodebuilder/core"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -111,6 +112,16 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 				return nil
 			}
 			return params.Client.WithMetrics()
+		}),
+		fx.Invoke(func(params struct {
+			fx.In
+			FibreService *fibre.Service `optional:"true"`
+		},
+		) error {
+			if params.FibreService == nil {
+				return nil
+			}
+			return params.FibreService.WithMetrics()
 		}),
 		fx.Invoke(func(serv *blob.Service) error {
 			err := serv.WithMetrics()
