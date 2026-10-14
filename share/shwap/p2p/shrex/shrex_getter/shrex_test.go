@@ -419,6 +419,28 @@ func TestShrexGetter(t *testing.T) {
 		}
 	})
 
+	t.Run("Row_EmptyBlock", func(t *testing.T) {
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		for i := range eh.DAH.RowRoots {
+			row, err := getter.GetRow(ctx, eh, i)
+			require.NoError(t, err)
+			require.False(t, row.IsEmpty())
+			require.NoError(t, row.Verify(eh.DAH, i))
+
+			shares, err := row.Shares()
+			require.NoError(t, err)
+			require.Equal(t, share.EmptyEDS().Row(uint(i)), libshare.ToBytes(shares))
+		}
+	})
+
+	t.Run("Row_EmptyBlock_OutOfBounds", func(t *testing.T) {
+		eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
+
+		_, err := getter.GetRow(ctx, eh, len(eh.DAH.RowRoots))
+		require.ErrorIs(t, err, shwap.ErrOutOfBounds)
+	})
+
 	t.Run("Row_Failed_row_index_out_of_bound", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		t.Cleanup(cancel)
