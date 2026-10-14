@@ -193,8 +193,7 @@ github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0 h1:GyDYfK8dLETlUI7F+w+3QYQgAs
 github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0/go.mod h1:T4K9O18zQNKNpt4YvTL3lcUt4aKOEU05ZIFWVdQi3Ak=
 github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4 h1:udw77BU45zmvTV7798FhR1wHFmsFpu4GnA5mubtMcR0=
 github.com/celestiaorg/go-datastore v0.0.0-20250801131506-48a63ae531e4/go.mod h1:W+pI1NsUsz3tcsAACMtfC+IZdnQTnC/7VfPoJBQuts0=
-github.com/celestiaorg/go-header v0.8.7 h1:lieuY4Q8vv20O2g6K7NaNrz5SZeolV6EpLAFjPBeYLw=
-github.com/celestiaorg/go-header v0.8.7/go.mod h1:5huTo7BWPRnSSDdYajfsROLNTyum6ZwK+2C+FE6kCbA=
+github.com/celestiaorg/go-header v0.8.9 h1:8OtawGs60tutKbBfdSpqnAb6IkQX9Q1rUoKadvCL1nw=
 github.com/celestiaorg/go-header v0.8.9/go.mod h1:CaWvu0Kx3hGTUjTvrgchXXz0QOs+yOTaHQfAPzNivxM=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
