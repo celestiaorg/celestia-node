@@ -32,7 +32,7 @@ func WithCacheDisabled(ctx context.Context) context.Context {
 	return context.WithValue(ctx, cacheDisabledKey{}, true)
 }
 
-// CacheDisabled reports whether reads must bypass the accessor cache.
+// CacheDisabled reports whether reads must avoid populating the accessor cache.
 func CacheDisabled(ctx context.Context) bool {
 	disabled, _ := ctx.Value(cacheDisabledKey{}).(bool)
 	return disabled

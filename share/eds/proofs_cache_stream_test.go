@@ -8,10 +8,39 @@ import (
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
+
+func TestNamespaceResponseReusesCachedProofs(t *testing.T) {
+	ctx := context.Background()
+	ns := libshare.RandomNamespace()
+	square, _ := edstest.RandEDSWithNamespace(t, ns, 4*4, 4)
+	inner := WithClosedOnce(&Rsmt2D{ExtendedDataSquare: square})
+	acc := WithProofsCache(inner).(*proofsCache)
+	_, err := acc.Sample(ctx, shwap.SampleCoords{Row: 0, Col: 0})
+	require.NoError(t, err)
+	want, err := acc.RowNamespaceData(ctx, ns, 0)
+	require.NoError(t, err)
+	_, err = acc.AxisHalf(ctx, rsmt2d.Row, 1)
+	require.NoError(t, err)
+
+	// Cache hits must work without reading the underlying accessor.
+	require.NoError(t, inner.Close())
+	ctx = shwap.WithCacheDisabled(ctx)
+	got, err := acc.RowNamespaceData(ctx, ns, 0)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+	// Rows without proofs must use the underlying accessor without filling the cache.
+	for _, row := range []int{1, 2} {
+		_, err = acc.RowNamespaceData(ctx, ns, row)
+		require.ErrorIs(t, err, errAccessorClosed)
+	}
+	require.Len(t, acc.axisCache[rsmt2d.Row], 2)
+	require.Nil(t, acc.axisCache[rsmt2d.Row][1].proofs)
+}
 
 func TestNamespaceResponseDoesNotCacheRows(t *testing.T) {
 	ctx := context.Background()

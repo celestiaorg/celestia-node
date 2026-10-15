@@ -230,7 +230,10 @@ func (c *proofsCache) RowNamespaceData(
 	rowIdx int,
 ) (shwap.RowNamespaceData, error) {
 	if shwap.CacheDisabled(ctx) {
-		return c.inner.RowNamespaceData(ctx, namespace, rowIdx)
+		ax, _ := c.getAxisFromCache(rsmt2d.Row, rowIdx)
+		if ax.proofs == nil {
+			return c.inner.RowNamespaceData(ctx, namespace, rowIdx)
+		}
 	}
 	ax, err := c.axisWithProofs(ctx, rsmt2d.Row, rowIdx)
 	if err != nil {
