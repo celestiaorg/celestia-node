@@ -56,6 +56,7 @@ type mobyFixture struct {
 	adminMints    int
 	execFail      bool
 	cancelCreate  context.CancelFunc
+	cancelAt      string
 	tokenHang     bool
 	tokenPrefix   string
 	pullError     bool
@@ -242,6 +243,7 @@ func (f *mobyFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"Labels": body["Labels"],
 			"IPAM":   map[string]any{"Config": []any{map[string]string{"Gateway": "127.0.0.1"}}},
 		}
+		f.cancelAfter("network")
 		reply(w, map[string]string{"Id": "net-owned"})
 		return
 	case r.Method == http.MethodGet && strings.HasPrefix(p, "/networks/") && f.network != nil:
@@ -249,6 +251,7 @@ func (f *mobyFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case p == "/volumes/create":
 		_ = json.NewDecoder(r.Body).Decode(&f.volume)
+		f.cancelAfter("volume")
 		reply(w, f.volume)
 		return
 	case r.Method == http.MethodGet && strings.HasPrefix(p, "/volumes/") && f.volume != nil:
@@ -279,10 +282,7 @@ func (f *mobyFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				map[string]string{"Type": "volume", "Name": "cfn-test-data", "Destination": "/home/celestia"},
 			},
 		}
-		if f.cancelCreate != nil {
-			// dockerd finishes a create after the caller gave up on it.
-			f.cancelCreate()
-		}
+		f.cancelAfter("")
 		reply(w, map[string]string{"Id": "container-owned"})
 		return
 	case r.Method == http.MethodGet && strings.HasPrefix(
@@ -316,6 +316,15 @@ func (f *mobyFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNotFound)
 	_, _ = w.Write([]byte(`{"message":"not found"}`))
+}
+
+// cancelAfter calls cancelCreate once the create of stage is done, as when
+// dockerd finishes a create after the caller gave up on it. cancelAt names the
+// stage, the container ("") by default.
+func (f *mobyFixture) cancelAfter(stage string) {
+	if f.cancelCreate != nil && stage == f.cancelAt {
+		f.cancelCreate()
+	}
 }
 
 func fixture(t *testing.T, f *mobyFixture) {

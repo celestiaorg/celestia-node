@@ -21,7 +21,9 @@ import (
 // the container. The token and the exec output are kept out of logs and errors.
 // The caller owns the client.
 func (s *Session) RPC(ctx context.Context) (*rpcclient.Client, error) {
-	s.mu.Lock()
+	if err := s.lock(ctx); err != nil {
+		return nil, err
+	}
 	defer s.mu.Unlock()
 	return s.nativeRPC(ctx, false)
 }
@@ -152,12 +154,15 @@ func rejectsUnverifiedToken(ctx context.Context, addr string) error {
 }
 
 // P2PInfo reads the node's peer identity. The node requires admin permission
-// for it, so the admin client exists only for this call.
+// for it, so the admin client exists only for this call. The 15s limit also
+// covers waiting for the session.
 func (s *Session) P2PInfo(ctx context.Context) (peer.AddrInfo, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	if err := s.lock(ctx); err != nil {
+		return peer.AddrInfo{}, errors.New("native P2P info unavailable")
+	}
+	defer s.mu.Unlock()
 	c, err := s.nativeRPC(ctx, true)
 	if err != nil {
 		return peer.AddrInfo{}, errors.New("native P2P info unavailable")
@@ -173,10 +178,12 @@ func (s *Session) P2PInfo(ctx context.Context) (peer.AddrInfo, error) {
 // P2PPeers reads the IDs of connected peers with its own short-lived admin
 // client, like P2PInfo.
 func (s *Session) P2PPeers(ctx context.Context) ([]peer.ID, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	if err := s.lock(ctx); err != nil {
+		return nil, errors.New("native P2P peers unavailable")
+	}
+	defer s.mu.Unlock()
 	c, err := s.nativeRPC(ctx, true)
 	if err != nil {
 		return nil, errors.New("native P2P peers unavailable")

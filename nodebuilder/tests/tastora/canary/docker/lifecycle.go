@@ -63,17 +63,22 @@ func (s *Session) inspect(ctx context.Context) (model.ProcessInfo, error) {
 }
 
 func (s *Session) Inspect(ctx context.Context) (model.ProcessInfo, error) {
-	s.mu.Lock()
+	if err := s.lock(ctx); err != nil {
+		return model.ProcessInfo{}, err
+	}
 	defer s.mu.Unlock()
 	return s.inspect(ctx)
 }
 
 // Start boots the node on the session's store, empty on the first boot. It
 // requires a log attachment from Logs made since the previous boot ended, and
-// a restart requires a graceful Stop of the previous boot. Any error tears the
-// session down with Cleanup, which force-removes a running container.
+// a restart requires a graceful Stop of the previous boot. Once Start holds the
+// session, any error tears it down with Cleanup, which force-removes a running
+// container.
 func (s *Session) Start(ctx context.Context) (info model.ProcessInfo, err error) {
-	s.mu.Lock()
+	if err = s.lock(ctx); err != nil {
+		return info, err
+	}
 	defer func() {
 		s.mu.Unlock()
 		if err != nil {
@@ -120,7 +125,9 @@ func (s *Session) Start(ctx context.Context) (info model.ProcessInfo, err error)
 // Stop sends SIGTERM and waits for the node to exit without escalating to
 // SIGKILL; the caller's context bounds the wait.
 func (s *Session) Stop(ctx context.Context) (model.ProcessInfo, error) {
-	s.mu.Lock()
+	if err := s.lock(ctx); err != nil {
+		return model.ProcessInfo{}, err
+	}
 	defer s.mu.Unlock()
 	if s.closed {
 		return model.ProcessInfo{}, errors.New("session closed")
@@ -158,7 +165,9 @@ func (s *Session) Stop(ctx context.Context) (model.ProcessInfo, error) {
 // caller binds the StartedAt returned by Start before reading the stream and
 // treats an unexpected EOF as a gap.
 func (s *Session) Logs(ctx context.Context) (io.ReadCloser, error) {
-	s.mu.Lock()
+	if err := s.lock(ctx); err != nil {
+		return nil, err
+	}
 	defer s.mu.Unlock()
 	info, err := s.inspect(ctx)
 	if err != nil {

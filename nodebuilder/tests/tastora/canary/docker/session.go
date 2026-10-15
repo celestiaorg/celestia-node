@@ -39,8 +39,9 @@ type Config struct {
 // Session runs one node in a container and volume it creates, labeled with the
 // run ID and a random ownership nonce, on a network it creates the same way or
 // one the caller passes in Config.ExistingNetworkID. It removes only resources
-// that carry its labels and never removes a borrowed network. Its methods run
-// one at a time; callers own the RPC clients and log streams they return.
+// that carry its labels and never removes a borrowed network. Calls that touch
+// Docker run one at a time, and each gives up waiting for the others when its
+// context ends. Callers own the RPC clients and log streams they return.
 type Session struct {
 	mu                                                sync.Mutex
 	cli                                               *client.Client
@@ -266,10 +267,24 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
 }
 
+// Store reads only what New fixed, so it does not wait for other calls.
 func (s *Session) Store() model.StoreIdentity {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return model.StoreIdentity{VolumeID: s.volumeID, Owner: s.cfg.RunID, Fresh: s.fresh}
+}
+
+// lock takes the operation lock, or gives up when ctx ends. It polls instead of
+// blocking in a goroutine that could wait forever behind a graceful Stop.
+func (s *Session) lock(ctx context.Context) error {
+	wait := time.NewTicker(5 * time.Millisecond)
+	defer wait.Stop()
+	for !s.mu.TryLock() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-wait.C:
+		}
+	}
+	return nil
 }
 
 // Cleanup keeps the caller's deadline (30s if there is none) but ignores its
@@ -284,22 +299,8 @@ func (s *Session) Cleanup(ctx context.Context) error {
 	}
 	cleanup, cancel := context.WithDeadline(context.WithoutCancel(ctx), deadline)
 	defer cancel()
-	// Poll the operation mutex rather than block on it in a goroutine that could
-	// wait forever behind a graceful Stop.
-	wait := time.NewTicker(5 * time.Millisecond)
-	defer wait.Stop()
-	for {
-		if err := cleanup.Err(); err != nil {
-			return err
-		}
-		if s.mu.TryLock() {
-			break
-		}
-		select {
-		case <-cleanup.Done():
-			return cleanup.Err()
-		case <-wait.C:
-		}
+	if err := s.lock(cleanup); err != nil {
+		return err
 	}
 	defer s.mu.Unlock()
 	if err := cleanup.Err(); err != nil {

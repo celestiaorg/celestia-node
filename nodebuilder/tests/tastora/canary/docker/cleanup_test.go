@@ -357,6 +357,44 @@ func TestCanceledCreateReconcilesByInspectedExactContainerID(t *testing.T) {
 	}
 }
 
+func TestCanceledNetworkAndVolumeCreatesCleanUp(t *testing.T) {
+	for _, tc := range []struct {
+		stage, next string
+		deletes     []string
+	}{
+		{"network", "POST /volumes/create", []string{"DELETE /networks/net-owned"}},
+		{"volume", "POST /containers/create", []string{"DELETE /volumes/cfn-test-data", "DELETE /networks/net-owned"}},
+	} {
+		t.Run(tc.stage, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			f := &mobyFixture{cancelCreate: cancel, cancelAt: tc.stage}
+			fixture(t, f)
+			s, err := New(ctx, config())
+			if s != nil || !errors.Is(err, context.Canceled) {
+				t.Fatalf("canceled create accepted: %v", err)
+			}
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			var deletes []string
+			for _, r := range f.requests {
+				if r == tc.next {
+					t.Errorf("New went on to %s after the canceled create", r)
+				}
+				if strings.HasPrefix(r, "DELETE ") {
+					deletes = append(deletes, r)
+				}
+			}
+			if !reflect.DeepEqual(deletes, tc.deletes) {
+				t.Errorf("deletes %v, want %v", deletes, tc.deletes)
+			}
+			if f.container != nil || f.volume != nil || f.network != nil {
+				t.Error("owned resources remain")
+			}
+		})
+	}
+}
+
 type cleanupDeadlineTransport struct {
 	base  http.RoundTripper
 	check func(context.Context)
@@ -586,6 +624,76 @@ func TestCleanupIsBoundedWhileGracefulStopIsBlocked(t *testing.T) {
 	for _, r := range f.requests {
 		if strings.HasPrefix(r, "DELETE ") {
 			t.Errorf("concurrent cleanup mutated resources before owning operation gate: %s", r)
+		}
+	}
+}
+
+func TestCallsGiveUpWaitingBehindABlockedStop(t *testing.T) {
+	f := &mobyFixture{}
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	reviewFixture(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/stop") {
+			_, _ = io.Copy(io.Discard, r.Body)
+			close(entered)
+			<-release
+		}
+		f.ServeHTTP(w, r)
+	}))
+	s, err := New(context.Background(), config())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = fixtureStart(t, s); err != nil {
+		t.Fatal(err)
+	}
+	stopped := make(chan error, 1)
+	go func() { _, err := s.Stop(context.Background()); stopped <- err }()
+	defer func() {
+		close(release)
+		if err := <-stopped; err != nil {
+			t.Error(err)
+		}
+		if err := s.Cleanup(context.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("stop request not observed")
+	}
+	calls := []struct {
+		name string
+		call func(context.Context) error
+	}{
+		{"Inspect", func(ctx context.Context) error { _, err := s.Inspect(ctx); return err }},
+		{"Start", func(ctx context.Context) error { _, err := s.Start(ctx); return err }},
+		{"Stop", func(ctx context.Context) error { _, err := s.Stop(ctx); return err }},
+		{"Logs", func(ctx context.Context) error { _, err := s.Logs(ctx); return err }},
+		{"RPC", func(ctx context.Context) error { _, err := s.RPC(ctx); return err }},
+		{"P2PInfo", func(ctx context.Context) error { _, err := s.P2PInfo(ctx); return err }},
+		{"P2PPeers", func(ctx context.Context) error { _, err := s.P2PPeers(ctx); return err }},
+	}
+	for _, c := range calls {
+		ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
+		returned := make(chan error, 1)
+		go func() { returned <- c.call(ctx) }()
+		select {
+		case err := <-returned:
+			if err == nil {
+				t.Errorf("%s ran while Stop held the session", c.name)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("%s kept waiting behind the blocked Stop after its deadline", c.name)
+		}
+		cancel()
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, r := range f.requests {
+		if strings.HasPrefix(r, "DELETE ") {
+			t.Errorf("a call that never held the session tore it down: %s", r)
 		}
 	}
 }
