@@ -175,6 +175,13 @@ func (p *pool) peers() []peer.ID {
 	return peers
 }
 
+// peersSnapshot returns the full peer list, including entries awaiting cleanup.
+func (p *pool) peersSnapshot() []peer.ID {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	return append([]peer.ID(nil), p.peersList...)
+}
+
 // cleanup will reduce memory footprint of pool.
 func (p *pool) cleanup() {
 	newList := make([]peer.ID, 0, p.activeCount)

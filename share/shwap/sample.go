@@ -60,6 +60,9 @@ func SampleFromProto(s *pb.Sample) (Sample, error) {
 	if s == nil {
 		return Sample{}, errors.New("pb sample is nil")
 	}
+	if err := checkProofNodes(s.GetProof().GetNodes()); err != nil {
+		return Sample{}, err
+	}
 	proof := nmt.NewInclusionProof(
 		int(s.GetProof().GetStart()),
 		int(s.GetProof().GetEnd()),
