@@ -503,6 +503,10 @@ func (ca *CoreAccessor) GrantFee(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.IsNegative() {
+		return nil, ErrInvalidAmount
+	}
+
 	granter, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err
