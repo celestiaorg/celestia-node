@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -199,8 +199,12 @@ func (r *Row) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	side, err := toRowSide(jsonRow.Side)
+	if err != nil {
+		return err
+	}
 	r.shares = jsonRow.Shares
-	r.side = toRowSide(jsonRow.Side)
+	r.side = side
 	return nil
 }
 
@@ -233,16 +237,16 @@ func (s RowSide) String() string {
 	}
 }
 
-func toRowSide(s string) RowSide {
+func toRowSide(s string) (RowSide, error) {
 	switch s {
 	case "LEFT":
-		return Left
+		return Left, nil
 	case "RIGHT":
-		return Right
+		return Right, nil
 	case "BOTH":
-		return Both
+		return Both, nil
 	default:
-		panic("invalid row side")
+		return 0, fmt.Errorf("invalid row side: %q", s)
 	}
 }
 

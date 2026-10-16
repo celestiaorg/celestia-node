@@ -1,7 +1,6 @@
 package shwap
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -174,27 +173,35 @@ func (rngid RangeNamespaceDataID) appendTo(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-// ResponseSize returns the exact response size from the request's From/To range.
-// If To is 0 (zero-value instance used for limit configuration), the worst-case
-// full ODS size is returned for the given edsSize.
+// ResponseSize returns the memory budget for one row and its proof.
 func (rngid RangeNamespaceDataID) ResponseSize(edsSize int) int {
-	if rngid.To > 0 {
-		return (rngid.To - rngid.From) * libshare.ShareSize
-	}
-	odsLn := edsSize / 2
-	return odsLn * odsLn * libshare.ShareSize
+	return rowStreamReserve(edsSize)
 }
 
 func (rngid RangeNamespaceDataID) ResponseReader(ctx context.Context, acc Accessor) (io.Reader, error) {
-	rngdata, err := acc.RangeNamespaceData(ctx, rngid.From, rngid.To)
+	size, err := acc.Size(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting rngdata from accessor: %w", err)
+		return nil, err
 	}
-
-	buf := &bytes.Buffer{}
-	_, err = rngdata.WriteTo(buf)
-	if err != nil {
-		return nil, fmt.Errorf("writing rngData: %w", err)
+	odsSize := size / 2
+	if err := rngid.Verify(odsSize); err != nil {
+		return nil, err
 	}
-	return buf, nil
+	first, last := rngid.From/odsSize, (rngid.To-1)/odsSize
+	var namespace libshare.Namespace
+	return newRowStreamReader(ctx, last-first+1, func(i int) (RowNamespaceData, error) {
+		row := first + i
+		from, to := max(rngid.From, row*odsSize), min(rngid.To, (row+1)*odsSize)
+		data, err := acc.RangeNamespaceData(ctx, from, to)
+		if err != nil {
+			return RowNamespaceData{}, err
+		}
+		shares := data.Shares[0]
+		if i == 0 {
+			namespace = shares[0].Namespace()
+		} else if !namespace.Equals(shares[0].Namespace()) {
+			return RowNamespaceData{}, fmt.Errorf("mismatched namespace in row %d", row)
+		}
+		return RowNamespaceData{Shares: shares, Proof: data.FirstIncompleteRowProof}, nil
+	})
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const ipv6Loopback = "::1"
+
 func TestSanitizeAddr(t *testing.T) {
 	tests := []struct {
 		addr string
@@ -21,6 +23,14 @@ func TestSanitizeAddr(t *testing.T) {
 		{addr: "tcp://192.168.42.42:5050/", want: "192.168.42.42"},
 		// Testcase: invariant ip
 		{addr: "192.168.42.42", want: "192.168.42.42"},
+		// Testcase: invariant IPv6
+		{addr: ipv6Loopback, want: ipv6Loopback},
+		// Testcase: trims IPv6 brackets
+		{addr: "[::1]", want: ipv6Loopback},
+		// Testcase: trims IPv6 brackets and port
+		{addr: "[::1]:5050", want: ipv6Loopback},
+		// Testcase: trims protocol prefix, IPv6 brackets, port, and trailing slash suffix
+		{addr: "https://[2001:db8::1]:5050/", want: "2001:db8::1"},
 		// Testcase: empty addr
 		{addr: "", want: "", err: ErrInvalidIP},
 	}
@@ -47,6 +57,10 @@ func TestValidateAddr(t *testing.T) {
 		{addr: "192.168.42.42:5050", want: want{addr: "192.168.42.42"}},
 		// Testcase: ip is valid, no port
 		{addr: "192.168.42.42", want: want{addr: "192.168.42.42"}},
+		// Testcase: IPv6 is valid, no port
+		{addr: ipv6Loopback, want: want{addr: ipv6Loopback}},
+		// Testcase: IPv6 is valid with brackets and port
+		{addr: "[2001:db8::1]:5050", want: want{addr: "2001:db8::1"}},
 		// Testcase: resolves localhost
 		{addr: "http://localhost:8080/", want: want{unresolved: true}},
 		// Testcase: hostname is valid

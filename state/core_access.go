@@ -27,8 +27,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
@@ -503,6 +503,10 @@ func (ca *CoreAccessor) GrantFee(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	if amount.IsNil() || amount.IsNegative() {
+		return nil, ErrInvalidAmount
+	}
+
 	granter, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err

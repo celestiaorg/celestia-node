@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
+	"github.com/celestiaorg/celestia-node/nodebuilder/fibre"
 	"github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -34,6 +35,7 @@ type Client struct {
 	Node       node.API
 	Blob       blob.API
 	Blobstream blobstream.API
+	Fibre      fibre.API
 
 	closer multiClientCloser
 }
@@ -98,5 +100,6 @@ func moduleMap(client *Client) map[string]any {
 		"node":       &client.Node.Internal,
 		"blob":       &client.Blob.Internal,
 		"blobstream": &client.Blobstream.Internal,
+		"fibre":      &client.Fibre.Internal,
 	}
 }

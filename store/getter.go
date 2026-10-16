@@ -64,7 +64,7 @@ func (g *Getter) GetEDS(ctx context.Context, h *header.ExtendedHeader) (*rsmt2d.
 	if err != nil {
 		return nil, fmt.Errorf("get shares from accessor:%w", err)
 	}
-	rsmt2d, err := eds.Rsmt2DFromShares(shares, len(h.DAH.RowRoots)/2)
+	rsmt2d, err := eds.Rsmt2DFromShares(shares)
 	if err != nil {
 		return nil, fmt.Errorf("build eds from shares:%w", err)
 	}

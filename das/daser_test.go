@@ -184,7 +184,7 @@ type benchGetterStub struct {
 
 func newBenchGetter() benchGetterStub {
 	return benchGetterStub{header: &header.ExtendedHeader{
-		DAH: &share.AxisRoots{RowRoots: make([][]byte, 0)},
+		DAH: &share.AxisRoots{RowRoots: make([][]byte, 2)},
 	}}
 }
 
@@ -205,7 +205,7 @@ func (m getterStub) GetByHeight(_ context.Context, height uint64) (*header.Exten
 	return &header.ExtendedHeader{
 		Commit:    &types.Commit{},
 		RawHeader: header.RawHeader{Height: int64(height)},
-		DAH:       &share.AxisRoots{RowRoots: make([][]byte, 0)},
+		DAH:       &share.AxisRoots{RowRoots: make([][]byte, 2)},
 	}, nil
 }
 

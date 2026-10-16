@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -41,7 +41,7 @@ import (
 
 const (
 	celestiaAppImage   = "ghcr.io/celestiaorg/celestia-app"
-	defaultCelestiaTag = "v5.0.1"
+	defaultCelestiaTag = "v9.0.8"
 	nodeImage          = "ghcr.io/celestiaorg/celestia-node"
 	testChainID        = "test"
 
@@ -172,6 +172,20 @@ func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	bridgeNode := f.newBridgeNode(ctx)
 	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
 	return bridgeNode
+}
+
+// WaitForPeers waits for P2P connectivity before a test makes network requests.
+// RPC can become reachable after a restart before the node reconnects to its peers.
+func (f *Framework) WaitForPeers(ctx context.Context, client *rpcclient.Client, minPeers int) {
+	f.t.Helper()
+	err := wait.ForCondition(ctx, 90*time.Second, time.Second, func() (bool, error) {
+		requestCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		peers, err := client.P2P.Peers(requestCtx)
+		return err == nil && len(peers) >= minPeers, nil
+	})
+	require.NoError(f.t, err, "node should reconnect to at least %d P2P peers", minPeers)
 }
 
 // RestartNode restarts any DA node's container keeping all the data
@@ -516,6 +530,8 @@ func (f *Framework) createBuilders(cfg *Config) (*cosmos.ChainBuilder, *dataavai
 		"--grpc.address", "0.0.0.0:9090",
 		"--rpc.grpc_laddr", "tcp://0.0.0.0:9098",
 		"--timeout-commit", commitTimeout,
+		// on v9 this, not timeout-commit, dominates block time (2.1s by default).
+		"--delayed-precommit-timeout", commitTimeout,
 	}
 	if cfg.ConsensusRetainBlks > 0 {
 		consensusArgs = append(consensusArgs, "--min-retain-blocks", strconv.FormatUint(cfg.ConsensusRetainBlks, 10))

@@ -38,7 +38,7 @@ type Config struct {
 // DefaultConfig provides a default Config for a given Node Type 'tp'.
 // NOTE: Currently, configs are identical, but this will change.
 func DefaultConfig(tp node.Type) *Config {
-	return &Config{
+	cfg := &Config{
 		Node:   node.DefaultConfig(tp),
 		Core:   core.DefaultConfig(),
 		State:  state.DefaultConfig(),
@@ -48,6 +48,9 @@ func DefaultConfig(tp node.Type) *Config {
 		Header: header.DefaultConfig(tp),
 		DASer:  das.DefaultConfig(tp),
 	}
+	// set discovered peers limit according to concurrency limit
+	cfg.Share.Discovery.PeersLimit = min(30, max(10, uint(cfg.DASer.ConcurrencyLimit)))
+	return cfg
 }
 
 // SaveConfig saves Config 'cfg' under the given 'path'.

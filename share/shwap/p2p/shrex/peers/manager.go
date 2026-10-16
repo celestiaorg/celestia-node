@@ -31,8 +31,10 @@ const (
 	// ResultCooldownPeer will put returned peer on cooldown, meaning it won't be available by Peer
 	// method for some time
 	ResultCooldownPeer = "result_cooldown_peer"
-	// ResultBlacklistPeer will blacklist peer. Blacklisted peers will be disconnected and blocked from
-	// any p2p communication in future by libp2p Gater
+	// ResultCooldownPeerNoPenalty puts the returned peer on cooldown without decreasing its score.
+	ResultCooldownPeerNoPenalty = "result_cooldown_peer_no_penalty"
+	// ResultBlacklistPeer puts the peer on cooldown. When blacklisting is enabled, the peer is also
+	// disconnected and blocked from future p2p communication by the libp2p connection gater.
 	ResultBlacklistPeer = "result_blacklist_peer"
 
 	// eventbusBufSize is the size of the buffered channel to handle
@@ -80,6 +82,9 @@ type Manager struct {
 	// nodes collects nodes' peer.IDs found via discovery
 	nodes *pool
 
+	// stats ranks peers by observed throughput and is shared by all pools
+	stats *peerStats
+
 	// hashes that are not in the chain, bounded by an LRU to avoid unbounded growth
 	blacklistedHashes *lru.Cache[string, struct{}]
 
@@ -91,8 +96,9 @@ type Manager struct {
 }
 
 // DoneFunc updates internal state depending on call results. Should be called once per returned
-// peer from Peer method
-type DoneFunc func(result)
+// peer from Peer method. Stats from a successful transfer are optional and update the peer's
+// throughput score.
+type DoneFunc func(result, ...TransferStats)
 
 type syncPool struct {
 	*pool
@@ -122,12 +128,18 @@ func NewManager(
 		return nil, fmt.Errorf("shrex/peer-manager: creating blacklisted hashes cache: %w", err)
 	}
 
+	peerStats, err := newPeerStats()
+	if err != nil {
+		return nil, fmt.Errorf("shrex/peer-manager: creating peer stats: %w", err)
+	}
+
 	s := &Manager{
 		params:                params,
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
 		blacklistedHashes:     blacklistedHashes,
+		stats:                 peerStats,
 		headerSubDone:         make(chan struct{}),
 		disconnectedPeersDone: make(chan struct{}),
 		tag:                   tag,
@@ -140,7 +152,7 @@ func NewManager(
 		}
 	}
 
-	s.nodes = newPool(s.params.PeerCooldown)
+	s.nodes = newPool(s.params.PeerCooldown, s.stats)
 	return s, nil
 }
 
@@ -215,28 +227,37 @@ func (m *Manager) Stop(ctx context.Context) error {
 // appropriate result value
 func (m *Manager) Peer(ctx context.Context, datahash share.DataHash, height uint64,
 ) (peer.ID, DoneFunc, error) {
-	p := m.validatedPool(datahash.String(), height)
+	// without shrexsub, pools are never populated or garbage collected,
+	// so only discovered nodes can be used
+	var p *syncPool
+	if m.shrexSub != nil {
+		p = m.validatedPool(datahash.String(), height)
 
-	// first, check if a peer is available for the given datahash
-	peerID, ok := p.tryGet()
-	if ok {
-		if m.removeIfUnreachable(p, peerID) {
-			return m.Peer(ctx, datahash, height)
+		// first, check if a peer is available for the given datahash
+		peerID, ok := p.tryGet()
+		if ok {
+			if m.removeIfUnreachable(p, peerID) {
+				return m.Peer(ctx, datahash, height)
+			}
+			return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 		}
-		return m.newPeer(ctx, datahash, peerID, sourceShrexSub, p.len(), 0)
 	}
 
 	// if no peer for datahash is currently available, try to use node
 	// obtained from discovery
-	peerID, ok = m.nodes.tryGet()
+	peerID, ok := m.nodes.tryGet()
 	if ok {
 		return m.newPeer(ctx, datahash, peerID, sourceDiscoveredNodes, m.nodes.len(), 0)
 	}
 
 	// no peers are available right now, wait for the first one
+	var poolCh <-chan peer.ID
+	if p != nil {
+		poolCh = p.next(ctx)
+	}
 	start := time.Now()
 	select {
-	case peerID = <-p.next(ctx):
+	case peerID = <-poolCh:
 		if m.removeIfUnreachable(p, peerID) {
 			return m.Peer(ctx, datahash, height)
 		}
@@ -283,7 +304,7 @@ func (m *Manager) newPeer(
 }
 
 func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerSource) DoneFunc {
-	return func(result result) {
+	return func(result result, stats ...TransferStats) {
 		log.Debugw("set peer result",
 			"hash", datahash.String(),
 			"peer", peerID.String(),
@@ -292,20 +313,26 @@ func (m *Manager) doneFunc(datahash share.DataHash, peerID peer.ID, source peerS
 		m.metrics.observeDoneResult(source, result)
 		switch result {
 		case ResultNoop:
+			for _, transfer := range stats {
+				m.stats.updateStats(peerID, transfer)
+			}
 		case ResultCooldownPeer:
-			if source == sourceDiscoveredNodes {
-				m.nodes.putOnCooldown(peerID)
-				return
-			}
-			p := m.getPool(datahash.String())
-			if p == nil {
-				// pool was removed
-				return
-			}
-			p.putOnCooldown(peerID)
+			m.stats.decreaseScore(peerID)
+			m.putOnCooldown(datahash, peerID)
+		case ResultCooldownPeerNoPenalty:
+			m.putOnCooldown(datahash, peerID)
 		case ResultBlacklistPeer:
+			m.putOnCooldown(datahash, peerID)
 			m.blacklistPeers(reasonMisbehave, peerID)
 		}
+	}
+}
+
+// putOnCooldown makes a peer unavailable in both places it can be selected from.
+func (m *Manager) putOnCooldown(datahash share.DataHash, peerID peer.ID) {
+	m.nodes.putOnCooldown(peerID)
+	if p := m.getPool(datahash.String()); p != nil {
+		p.putOnCooldown(peerID)
 	}
 }
 
@@ -415,7 +442,7 @@ func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	if !ok {
 		p = &syncPool{
 			height:    height,
-			pool:      newPool(m.params.PeerCooldown),
+			pool:      newPool(m.params.PeerCooldown, m.stats),
 			createdAt: time.Now(),
 		}
 		m.pools[datahash] = p
@@ -525,15 +552,16 @@ func (m *Manager) cleanUp() []peer.ID {
 		// find pools that are not validated in time
 		if time.Since(p.createdAt) > m.params.PoolValidationTimeout {
 			delete(m.pools, h)
+			peers := p.peersSnapshot()
 
 			log.Debug("blacklisting datahash with all corresponding peers",
 				"hash", h,
-				"peer_list", p.peersList)
+				"peer_list", peers)
 			// blacklist hash
 			m.blacklistedHashes.Add(h, struct{}{})
 
 			// blacklist peers
-			for _, peer := range p.peersList {
+			for _, peer := range peers {
 				addToBlackList[peer] = struct{}{}
 			}
 		}

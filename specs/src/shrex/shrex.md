@@ -570,9 +570,11 @@ The discovery service operates with the following configurable parameters:
 #### PeersLimit
 
 - **Type**: Integer
-- **Default**: 5
-- **Purpose**: Maximum number of peers to maintain in the active peer set
-- **Rationale**: Limits resource consumption while ensuring sufficient peer diversity for data availability
+- **Discovery parameter default**: 10
+- **Full-node peer limit**: Node defaults use the DASer `ConcurrencyLimit`, with a minimum of 10 and a maximum of 30
+- **Archival-node peer limit**: Uses the configured `PeersLimit`, with a maximum of 5
+- **Purpose**: Sets the soft limit for each active peer set
+- **Rationale**: Full node discovery supports concurrent sampling. Current networks have few openly discoverable archival nodes. A limit of 5 is sufficient until networks have more archival nodes.
 
 #### AdvertiseInterval
 

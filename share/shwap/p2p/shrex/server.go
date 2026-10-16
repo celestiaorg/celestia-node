@@ -237,7 +237,14 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	// can reject the request if the budget is exhausted.
 	memReserve := requestID.ResponseSize(edsSize)
 	if err := stream.Scope().ReserveMemory(memReserve, network.ReservationPriorityAlways); err != nil {
-		log.Warnw("server: failed to reserve memory for shrex stream", "err", err)
+		log.Warnw("server: failed to reserve memory for shrex stream",
+			"name", requestID.Name(),
+			"height", requestID.Height(),
+			"peer", stream.Conn().RemotePeer(),
+			"eds_size", edsSize,
+			"reserve", memReserve,
+			"err", err,
+		)
 		stream.ResetWithError(network.StreamResourceLimitExceeded) //nolint:errcheck
 		return statusResourceExhausted, 0
 	}
@@ -259,6 +266,8 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	written, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
+		// A failed response must not end with EOF, which marks a complete namespace response.
+		stream.ResetWithError(streamInternalError) //nolint:errcheck
 		return statusSendRespErr, writtenStatus + int(written)
 	}
 	span.AddEvent("wrote response to stream", trace.WithAttributes(attribute.Int64("bytes.written", written)))

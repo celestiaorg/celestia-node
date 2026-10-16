@@ -8,8 +8,8 @@ import (
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v4/inclusion"
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -80,6 +80,16 @@ func (commitmentProof *CommitmentProof) Validate() error {
 			len(commitmentProof.RowProof.Proofs),
 			len(commitmentProof.RowProof.RowRoots),
 		)
+	}
+	for i, prf := range commitmentProof.SubtreeRootProofs {
+		if prf == nil {
+			return fmt.Errorf("subtree root proof %d is nil", i)
+		}
+	}
+	for i, prf := range commitmentProof.RowProof.Proofs {
+		if prf == nil {
+			return fmt.Errorf("row proof %d is nil", i)
+		}
 	}
 	return nil
 }
