@@ -197,7 +197,9 @@ func (c *Client) fetchHostAt(
 	if resp.GetCode() != 0 {
 		return "", fmt.Errorf("abci query non-zero code: %s", resp.GetLog())
 	}
-	if resp.GetProofOps() == nil {
+	// An empty op list proves nothing, and merkle verification indexes the
+	// result of the last op, so it has to be rejected here.
+	if len(resp.GetProofOps().GetOps()) == 0 {
 		return "", fmt.Errorf("missing proof ops for validator %s", consAddr)
 	}
 
