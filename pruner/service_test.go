@@ -324,6 +324,40 @@ func TestService_ClearCheckpoint(t *testing.T) {
 	assert.Equal(t, newCheckpoint(tail.Height()), serv.checkpoint)
 }
 
+func TestPruneOnHeaderDelete(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	suite := headertest.NewTestSuite(t)
+	store := headertest.NewCustomStore(t, suite, 5)
+	mp := &mockPruner{}
+	serv, err := NewService(
+		mp,
+		time.Second,
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		time.Second,
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+	require.NoError(t, serv.loadCheckpoint(ctx))
+
+	lastPruned := serv.checkpoint.LastPrunedHeight
+	require.NoError(t, serv.pruneOnHeaderDelete(ctx, 3))
+	require.NoError(t, serv.pruneOnHeaderDelete(ctx, 2))
+	require.Len(t, mp.deletedHeaderHashes, 2)
+	require.Equal(t, uint64(3), mp.deletedHeaderHashes[0].height)
+	require.Equal(t, uint64(2), mp.deletedHeaderHashes[1].height)
+	require.Equal(t, lastPruned, serv.checkpoint.LastPrunedHeight)
+
+	mp.failHeight = map[uint64]int{4: 0}
+	serv.checkpoint.FailedHeaders[4] = struct{}{}
+	require.Error(t, serv.pruneOnHeaderDelete(ctx, 4))
+	require.Contains(t, serv.checkpoint.FailedHeaders, uint64(4))
+	require.NoError(t, serv.pruneOnHeaderDelete(ctx, 4))
+	require.NotContains(t, serv.checkpoint.FailedHeaders, uint64(4))
+}
+
 type mockPruner struct {
 	deletedHeaderHashes []pruned
 
