@@ -266,6 +266,8 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 	written, err := io.Copy(stream, r)
 	if err != nil {
 		logger.Errorw("send data", "err", err)
+		// A failed response must not end with EOF, which marks a complete namespace response.
+		stream.ResetWithError(streamInternalError) //nolint:errcheck
 		return statusSendRespErr, writtenStatus + int(written)
 	}
 	span.AddEvent("wrote response to stream", trace.WithAttributes(attribute.Int64("bytes.written", written)))
