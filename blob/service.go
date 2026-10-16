@@ -172,6 +172,9 @@ func (s *Service) SubscribeFromStartHeight(
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
 	}
+	if err := ns.ValidateForData(); err != nil {
+		return nil, err
+	}
 
 	// startHeight must be > 0 and <= current head; fail fast so callers see the bad
 	// argument synchronously instead of via a silently-closed channel.

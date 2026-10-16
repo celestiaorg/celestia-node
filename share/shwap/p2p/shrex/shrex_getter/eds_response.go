@@ -32,7 +32,7 @@ func (r *edsResponse) ReadFrom(src io.Reader) (int64, error) {
 }
 
 func (r *edsResponse) verify(ctx context.Context, root *share.AxisRoots) error {
-	square, err := eds.Rsmt2DFromShares(r.shares, r.odsSize)
+	square, err := eds.Rsmt2DFromShares(r.shares)
 	if err != nil {
 		return err
 	}

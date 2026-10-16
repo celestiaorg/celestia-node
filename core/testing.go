@@ -168,10 +168,13 @@ func NewNetwork(t testing.TB, config *testnode.Config) *Network {
 }
 
 func (n *Network) Start() error {
+	// Record each stop function as soon as its component starts, so Stop
+	// can release a partially started network when a later step fails.
 	cctx, stopNode, err := testnode.StartNode(n.tmNode, n.Context)
 	if err != nil {
 		return err
 	}
+	n.stopNode = stopNode
 
 	coreEnv, err := n.tmNode.ConfigureRPC()
 	if err != nil {
@@ -183,16 +186,15 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
+	n.stopGRPC = cleanupGRPC
 
 	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx, grpcSrv)
 	if err != nil {
 		return err
 	}
+	n.stopAPI = apiServer.Close
 
 	n.Context = cctx
-	n.stopNode = stopNode
-	n.stopGRPC = cleanupGRPC
-	n.stopAPI = apiServer.Close
 	return nil
 }
 

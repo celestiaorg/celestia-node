@@ -174,6 +174,20 @@ func (f *Framework) NewBridgeNode(ctx context.Context) *dataavailability.Node {
 	return bridgeNode
 }
 
+// WaitForPeers waits for P2P connectivity before a test makes network requests.
+// RPC can become reachable after a restart before the node reconnects to its peers.
+func (f *Framework) WaitForPeers(ctx context.Context, client *rpcclient.Client, minPeers int) {
+	f.t.Helper()
+	err := wait.ForCondition(ctx, 90*time.Second, time.Second, func() (bool, error) {
+		requestCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		peers, err := client.P2P.Peers(requestCtx)
+		return err == nil && len(peers) >= minPeers, nil
+	})
+	require.NoError(f.t, err, "node should reconnect to at least %d P2P peers", minPeers)
+}
+
 // RestartNode restarts any DA node's container keeping all the data
 func (f *Framework) RestartNode(ctx context.Context, node *dataavailability.Node) {
 	require.NoError(f.t, node.Stop(ctx), "failed to stop node")

@@ -133,6 +133,9 @@ func (c *Client) doRequest(
 	var statusResp shrexpb.Response
 	statusLength, err := serde.Read(stream, &statusResp)
 	if err != nil {
+		if isInternalServerError(err) {
+			return int64(statusLength), 0, statusInternalErr, ErrInternalServer
+		}
 		if isResourceExhausted(err) {
 			return int64(statusLength), 0, statusResourceExhaustedErr, ErrResourceExhausted
 		}
@@ -160,6 +163,9 @@ func (c *Client) doRequest(
 	bytesRead, err := resp.ReadFrom(stream)
 	payloadDuration := time.Since(payloadStart)
 	st := statusSuccess
+	if isInternalServerError(err) {
+		return int64(statusLength) + bytesRead, payloadDuration, statusInternalErr, ErrInternalServer
+	}
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrInvalidResponse, err)
 		st = statusReadRespErr
