@@ -169,6 +169,9 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 		err = errors.New("state: no blobs provided")
 		return nil, err
 	}
+	if cfg == nil {
+		cfg = txclient.NewTxConfig()
+	}
 
 	span.SetAttributes(
 		attribute.Int("amount", len(libBlobs)),
@@ -578,6 +581,8 @@ func (ca *CoreAccessor) markSuccessfulPFB() {
 //	key names / account address / account name etc.
 func (ca *CoreAccessor) getTxAuthorAccAddress(cfg *TxConfig) (AccAddress, error) {
 	switch {
+	case cfg == nil:
+		return ca.defaultSignerAddress, nil
 	case cfg.SignerAddress() != "":
 		return txclient.ParseAccAddressFromString(cfg.SignerAddress())
 	case cfg.KeyName() != "" && cfg.KeyName() != ca.defaultSignerAccount:
