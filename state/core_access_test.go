@@ -553,10 +553,11 @@ func buildAccessor(t *testing.T, opts ...txclient.Option) (*CoreAccessor, *txcli
 }
 
 // TestSubmitWithNilTxConfig checks that a nil TxConfig falls back to the defaults instead of
-// panicking, as the api/client example does with Blob.Submit(ctx, blobs, nil).
+// panicking, as the api/client example does with Blob.Submit(ctx, blobs, nil), both through
+// CoreAccessor and when calling TxClient directly.
 func TestSubmitWithNilTxConfig(t *testing.T) {
 	ctx := context.Background()
-	ca, _ := buildAccessor(t)
+	ca, client := buildAccessor(t)
 	err := ca.Start(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -575,4 +576,10 @@ func TestSubmitWithNilTxConfig(t *testing.T) {
 	addr, err := ca.getTxAuthorAccAddress(nil)
 	require.NoError(t, err)
 	require.Equal(t, ca.defaultSignerAddress, addr)
+
+	blob, err = libshare.NewV0Blob(ns, []byte("direct"))
+	require.NoError(t, err)
+	clientResp, err := client.SubmitPayForBlob(ctx, []*libshare.Blob{blob}, addr, nil)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, clientResp.Code)
 }
