@@ -41,7 +41,7 @@ func DefaultConfig(tp node.Type) Config {
 		ShrexClient:         shrex.DefaultClientParameters(),
 		ShrexServer:         shrex.DefaultServerParameters(),
 		UseShareExchange:    true,
-		UseBitswap:          true,
+		UseBitswap:          false,
 		PeerManagerParams:   peers.DefaultParameters(),
 	}
 
