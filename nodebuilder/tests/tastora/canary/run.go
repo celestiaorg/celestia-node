@@ -36,6 +36,8 @@ type RunOptions struct {
 	// RestartTimeout bounds graceful stop, restart readiness and resumed sampling.
 	// The final stop after the resumed sample gets a budget of the same length.
 	RestartTimeout time.Duration
+	// CleanupTimeout bounds the removal of the run's resources, and separately
+	// the final evidence check after it.
 	CleanupTimeout time.Duration
 	PollInterval   time.Duration
 	// ExitSettle bounds how long to wait for Docker to report a node exit
@@ -238,8 +240,12 @@ func RunSession(
 		if s != nil {
 			cleanup, cancel := context.WithTimeout(context.Background(), o.CleanupTimeout)
 			e := s.Cleanup(cleanup)
-			terminal.verify(cleanup, c, &r)
 			cancel()
+			// The final evidence check has a budget of its own: a cleanup that runs
+			// out of time must not erase results the run already proved.
+			verify, vcancel := context.WithTimeout(context.Background(), o.CleanupTimeout)
+			terminal.verify(verify, c, &r)
+			vcancel()
 			if e != nil {
 				setCheck(&r, model.CheckCleanup, model.Fail, "cleanup_failed", start, nil)
 			} else {
