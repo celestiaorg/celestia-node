@@ -13,6 +13,7 @@ on:
       - opened
       - edited
       - synchronize
+      - reopened
   merge_group:
 
 permissions:
