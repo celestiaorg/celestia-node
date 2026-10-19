@@ -564,6 +564,22 @@ func (emptyBalanceCore) ABCIQuery(
 	return &tmservice.ABCIQueryResponse{}, nil
 }
 
+// stripValueCore returns the genuine ABCI reply with its value removed, so the proof is real but
+// no longer matches an empty value.
+type stripValueCore struct{ tmservice.ServiceClient }
+
+func (c stripValueCore) ABCIQuery(
+	ctx context.Context,
+	req *tmservice.ABCIQueryRequest,
+	opts ...grpc.CallOption,
+) (*tmservice.ABCIQueryResponse, error) {
+	resp, err := c.ServiceClient.ABCIQuery(ctx, req, opts...)
+	if resp != nil {
+		resp.Value = nil
+	}
+	return resp, err
+}
+
 // TestBalanceForAddressAbsent checks that a zero balance for an account that has none is backed by
 // an absence proof, and that an empty answer without one is rejected.
 func TestBalanceForAddressAbsent(t *testing.T) {
@@ -595,7 +611,13 @@ func TestBalanceForAddressAbsent(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, bal.Amount.IsZero())
 
+	real := ca.abciQueryCli
 	ca.abciQueryCli = emptyBalanceCore{}
 	_, err = ca.BalanceForAddress(ctx, unknown)
+	require.Error(t, err)
+
+	// A genuine existence proof for a funded account must not be accepted as an empty balance.
+	ca.abciQueryCli = stripValueCore{real}
+	_, err = ca.BalanceForAddress(ctx, Address{ca.defaultSignerAddress})
 	require.Error(t, err)
 }
