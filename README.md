@@ -29,6 +29,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
     - [Quick Start with Light Node on mocha](#quick-start-with-light-node-on-mocha)
   - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
+  - [Contributing](#contributing)
   - [Code of Conduct](#code-of-conduct)
 
 ## Minimum requirements
@@ -133,6 +134,10 @@ make light-mocha-up CORE_IP=<ip>     # Use custom core IP
 - [Header](./header/doc.go)
 - [Share](./share/doc.go)
 - [DAS](./das/doc.go)
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). PR titles must follow conventional commits and start the subject with a review level tag, `[high]`, `[medium]`, or `[low]` (e.g. `fix(das): [high] ...`); see [PR Naming](./CONTRIBUTING.md#pr-naming) for definitions. Choose the higher level when unsure.
 
 ## Code of Conduct
 

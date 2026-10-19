@@ -119,8 +119,10 @@ Built on **libp2p** with:
 
 ### PR & Commit Style
 
-- PR titles: `pkg: Concise title` (e.g., `service/header: Remove race in core_listener`)
-- Commit messages: conventional commits recommended (e.g., `feat(service/header): Title`)
+- PR titles: `type(pkg): [level] subject` (e.g., `fix(service/header): [medium] remove race in core_listener`). CI enforces the format.
+- Levels: `[high]` deep review (DAS/availability verification, shrex/p2p protocol, header verification, fraud proofs, state/tx submission, breaking API/config changes, security); `[medium]` standard review for limited-impact code changes; `[low]` docs, tests, or tooling. Pick the higher level when unsure. See [CONTRIBUTING.md#pr-naming](CONTRIBUTING.md#pr-naming).
+- Repeat the tag in the PR description with a brief reason, e.g., `Review level: [low] — documentation only.`
+- Commit messages: conventional commits (e.g., `feat(service/header): Title`)
 
 ### Import Ordering
 

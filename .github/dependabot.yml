@@ -1,6 +1,8 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
+    commit-message:
+      prefix: "chore(deps): [medium] "
     directory: "/"
     schedule:
       interval: weekly
@@ -17,6 +19,8 @@ updates:
         update-types:
           - "patch"
   - package-ecosystem: "gomod"
+    commit-message:
+      prefix: "chore(deps): [medium] "
     directories:
       - "/"
       - "/nodebuilder/tests/tastora"
@@ -63,6 +67,8 @@ updates:
           - "minor"
           - "patch"
   - package-ecosystem: docker
+    commit-message:
+      prefix: "chore(deps): [medium] "
     directory: "/"
     schedule:
       interval: weekly
