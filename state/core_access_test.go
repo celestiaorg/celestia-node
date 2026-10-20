@@ -695,4 +695,19 @@ func TestTxMethodsWithNilTxConfig(t *testing.T) {
 		})
 	}
 
+	// TxClient.SubmitPayForBlob must also normalize nil to defaults directly.
+	realCA, client := buildAccessor(t)
+	require.NoError(t, realCA.Start(ctx))
+	t.Cleanup(func() {
+		_ = realCA.Stop(ctx)
+	})
+
+	directBlob, blobErr := libshare.NewV0Blob(ns, []byte("direct"))
+	require.NoError(t, blobErr)
+	require.NotPanics(t, func() {
+		// A nil config reaching TxClient.SubmitPayForBlob must normalize to the
+		// default signer (same behavior the api/client example relies on).
+		_, submitErr := client.SubmitPayForBlob(ctx, []*libshare.Blob{directBlob}, realCA.defaultSignerAddress, nil)
+		require.NoError(t, submitErr)
+	})
 }
