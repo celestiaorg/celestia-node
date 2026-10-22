@@ -33,6 +33,17 @@ func NewTxConfig(opts ...ConfigOption) *TxConfig {
 	return options
 }
 
+// WithDefaults returns cfg, or a default TxConfig when cfg is nil, so a nil
+// config never panics on method calls. Callers that accept a *TxConfig from
+// users (directly or over JSON-RPC, where a `null` options argument reaches
+// them as nil) normalize at the entry point with this helper.
+func WithDefaults(cfg *TxConfig) *TxConfig {
+	if cfg == nil {
+		return NewTxConfig()
+	}
+	return cfg
+}
+
 type TxPriority int
 
 const (
