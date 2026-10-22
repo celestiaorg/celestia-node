@@ -38,8 +38,10 @@ func TestNamespaceResponseReusesCachedProofs(t *testing.T) {
 		_, err = acc.RowNamespaceData(ctx, ns, row)
 		require.ErrorIs(t, err, errAccessorClosed)
 	}
-	require.Len(t, acc.axisCache[rsmt2d.Row], 2)
-	require.Nil(t, acc.axisCache[rsmt2d.Row][1].proofs)
+	require.Equal(t, 2, acc.axisCache[rsmt2d.Row].Len())
+	ax, ok := acc.axisCache[rsmt2d.Row].Peek(1)
+	require.True(t, ok)
+	require.Nil(t, ax.proofs)
 }
 
 func TestNamespaceResponseDoesNotCacheRows(t *testing.T) {
@@ -53,7 +55,7 @@ func TestNamespaceResponseDoesNotCacheRows(t *testing.T) {
 	require.NoError(t, err)
 	_, err = io.Copy(io.Discard, r)
 	require.NoError(t, err)
-	require.Zero(t, len(acc.axisCache[0]))
+	require.Zero(t, acc.axisCache[0].Len())
 	eid, err := shwap.NewEdsID(1)
 	require.NoError(t, err)
 	rid, err := shwap.NewRangeNamespaceDataID(eid, 1, 16*16-1, 16)
@@ -62,9 +64,9 @@ func TestNamespaceResponseDoesNotCacheRows(t *testing.T) {
 	require.NoError(t, err)
 	_, err = io.Copy(io.Discard, r)
 	require.NoError(t, err)
-	require.Zero(t, len(acc.axisCache[0]))
+	require.Zero(t, acc.axisCache[0].Len())
 	// Ordinary reads must still use the shared cache.
 	_, err = acc.RowNamespaceData(ctx, ns, 0)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(acc.axisCache[0]))
+	require.Equal(t, 1, acc.axisCache[0].Len())
 }

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 	"sync/atomic"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/ipfs/boxo/blockservice"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -24,6 +24,10 @@ import (
 
 var _ AccessorStreamer = (*proofsCache)(nil)
 
+// maxCachedAxes bounds the number of cached axes per axis type. Axes are cached on behalf of
+// remote requests, so the cache must not grow with the number of distinct axes requested.
+const maxCachedAxes = 64
+
 // proofsCache is eds accessor that caches proofs for rows and columns. It also caches extended
 // axis Shares. It is used to speed up the process of building proofs for rows and columns,
 // reducing the number of reads from the underlying accessor. Cache does not synchronize access
@@ -37,11 +41,9 @@ type proofsCache struct {
 	dataHash atomic.Pointer[share.DataHash]
 	// rootsCache caches the axis roots
 	rootsCache atomic.Pointer[share.AxisRoots]
-	// axisCacheLock protects proofCache
-	axisCacheLock sync.RWMutex
 	// axisCache caches the axis Shares and proofs. Index in the slice corresponds to the axis type.
-	// The map key is the index of the axis.
-	axisCache []map[int]axisWithProofs
+	// The cache key is the index of the axis.
+	axisCache []*lru.Cache[int, axisWithProofs]
 
 	// disableCache disables caching of rows for testing purposes
 	disableCache bool
@@ -66,13 +68,18 @@ type axisWithProofs struct {
 // used to speed up the process of building proofs for rows and columns, reducing the number of
 // reads from the underlying accessor.
 func WithProofsCache(ac AccessorStreamer) AccessorStreamer {
-	rows := make(map[int]axisWithProofs)
-	cols := make(map[int]axisWithProofs)
-	axisCache := []map[int]axisWithProofs{rows, cols}
 	return &proofsCache{
 		inner:     ac,
-		axisCache: axisCache,
+		axisCache: []*lru.Cache[int, axisWithProofs]{newAxisCache(), newAxisCache()},
 	}
+}
+
+func newAxisCache() *lru.Cache[int, axisWithProofs] {
+	cache, err := lru.New[int, axisWithProofs](maxCachedAxes)
+	if err != nil {
+		panic(fmt.Sprintf("creating axis cache: %v", err)) // unreachable: size is a positive constant
+	}
+	return cache
 }
 
 func (c *proofsCache) Size(ctx context.Context) (int, error) {
@@ -327,16 +334,11 @@ func (c *proofsCache) axisShares(ctx context.Context, axisType rsmt2d.Axis, axis
 }
 
 func (c *proofsCache) storeAxisInCache(axisType rsmt2d.Axis, axisIdx int, axis axisWithProofs) {
-	c.axisCacheLock.Lock()
-	defer c.axisCacheLock.Unlock()
-	c.axisCache[axisType][axisIdx] = axis
+	c.axisCache[axisType].Add(axisIdx, axis)
 }
 
 func (c *proofsCache) getAxisFromCache(axisType rsmt2d.Axis, axisIdx int) (axisWithProofs, bool) {
-	c.axisCacheLock.RLock()
-	defer c.axisCacheLock.RUnlock()
-	ax, ok := c.axisCache[axisType][axisIdx]
-	return ax, ok
+	return c.axisCache[axisType].Get(axisIdx)
 }
 
 // rowProofsGetter implements blockservice.BlockGetter interface
