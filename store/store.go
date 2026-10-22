@@ -11,7 +11,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"

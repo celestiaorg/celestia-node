@@ -10,10 +10,10 @@ import (
 	"github.com/cometbft/cometbft/light"
 	core "github.com/cometbft/cometbft/types"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	libhead "github.com/celestiaorg/go-header"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 // ConstructFn aliases a function that creates an ExtendedHeader.

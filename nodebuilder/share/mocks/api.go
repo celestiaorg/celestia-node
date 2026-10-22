@@ -8,11 +8,11 @@ import (
 	context "context"
 	reflect "reflect"
 
+	rsmt2d "github.com/celestiaorg/celestia-app/rsmt2d"
 	header "github.com/celestiaorg/celestia-node/header"
 	share "github.com/celestiaorg/celestia-node/nodebuilder/share"
 	shwap "github.com/celestiaorg/celestia-node/share/shwap"
 	share0 "github.com/celestiaorg/go-square/v4/share"
-	rsmt2d "github.com/celestiaorg/rsmt2d"
 	gomock "github.com/golang/mock/gomock"
 )
 

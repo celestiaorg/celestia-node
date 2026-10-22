@@ -7,9 +7,9 @@ import (
 	"github.com/ipfs/boxo/blockservice"
 	logging "github.com/ipfs/go-log/v2"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/ipld"

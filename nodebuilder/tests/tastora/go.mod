@@ -4,7 +4,7 @@ go 1.26.8
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v10 v10.4.0
+	github.com/celestiaorg/celestia-app/v10 v10.4.1-0.20261022182806-70726ae983e7
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v4 v4.0.1
 	github.com/celestiaorg/tastora v0.21.1
@@ -43,13 +43,13 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.6 // indirect
+	github.com/celestiaorg/celestia-app/rsmt2d v0.0.0-20261022181216-098fd7ed9ebc // indirect
 	github.com/celestiaorg/go-header v0.8.9 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.24.5 // indirect
-	github.com/celestiaorg/rsmt2d v0.15.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
