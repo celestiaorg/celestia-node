@@ -21,10 +21,13 @@ import (
 	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
+	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
 // TestServer_HandlerStackSelection tests that the correct middleware stack is selected
@@ -507,7 +510,7 @@ func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {
 	return certPath, keyPath
 }
 
-func createTestJWT(t *testing.T) (jwt.Signer, jwt.Verifier) {
+func createTestJWT(t *testing.T) (jwt.Signer, *authtoken.Verifier) {
 	key := []byte("test-secret-key-for-jwt-signing-32")
 	signer, err := jwt.NewSignerHS(jwt.HS256, key)
 	require.NoError(t, err)
@@ -515,7 +518,7 @@ func createTestJWT(t *testing.T) (jwt.Signer, jwt.Verifier) {
 	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
 	require.NoError(t, err)
 
-	return signer, verifier
+	return signer, authtoken.NewVerifier(verifier, ds_sync.MutexWrap(datastore.NewMapDatastore()))
 }
 
 func createValidToken(t *testing.T, signer jwt.Signer, permissions []auth.Permission) string {
