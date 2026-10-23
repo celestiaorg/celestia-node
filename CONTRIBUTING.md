@@ -46,7 +46,7 @@ type(pkg): [level] concise title
 fix(service/header): [medium] remove race in core_listener
 ```
 
-Use `!` for breaking changes (e.g. `feat(nodebuilder)!: [high] rename config field`). Include the same tag in the PR description with a brief reason, e.g. `Review level: [low] — documentation only.`
+Use `!` for breaking changes (e.g. `feat(nodebuilder)!: [high] rename config field`).
 
 - `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk. Examples: DAS/availability verification, shrex/p2p protocol changes, header verification, fraud proofs, state/tx submission, breaking API/config changes.
 - `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
