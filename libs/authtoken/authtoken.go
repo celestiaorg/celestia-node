@@ -13,7 +13,7 @@ import (
 )
 
 // ExtractSignedPermissions returns the permissions granted to the token by the passed signer.
-// If the token isn't signed by the signer, it will not pass verification.
+// It checks signature and expiry only; use Verifier.Verify to also check revocation.
 func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permission, error) {
 	tk, err := jwt.Parse([]byte(token), verifier)
 	if err != nil {
