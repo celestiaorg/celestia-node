@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -550,4 +551,163 @@ func buildAccessor(t *testing.T, opts ...txclient.Option) (*CoreAccessor, *txcli
 	ca, err := NewCoreAccessor(tc, cctx.Keyring, accounts[0], nil, conn, chainID)
 	require.NoError(t, err)
 	return ca, tc
+}
+
+// emptyBalanceCore answers every ABCI query with an empty value and no proof.
+type emptyBalanceCore struct {
+	tmservice.ServiceClient
+}
+
+func (emptyBalanceCore) ABCIQuery(
+	context.Context, *tmservice.ABCIQueryRequest, ...grpc.CallOption,
+) (*tmservice.ABCIQueryResponse, error) {
+	return &tmservice.ABCIQueryResponse{}, nil
+}
+
+// stripValueCore returns the genuine ABCI reply with its value removed, so the proof is real but
+// no longer matches an empty value.
+type stripValueCore struct{ tmservice.ServiceClient }
+
+func (c stripValueCore) ABCIQuery(
+	ctx context.Context,
+	req *tmservice.ABCIQueryRequest,
+	opts ...grpc.CallOption,
+) (*tmservice.ABCIQueryResponse, error) {
+	resp, err := c.ServiceClient.ABCIQuery(ctx, req, opts...)
+	if resp != nil {
+		resp.Value = nil
+	}
+	return resp, err
+}
+
+// TestBalanceForAddressAbsent checks that a zero balance for an account that has none is backed by
+// an absence proof, and that an empty answer without one is rejected.
+func TestBalanceForAddressAbsent(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+
+	config := testnode.DefaultConfig().
+		WithChainID(chainID).
+		WithFundedAccounts(accounts...).
+		WithDelayedPrecommitTimeout(time.Millisecond * 50)
+	cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+	_, err := cctx.WaitForHeight(int64(2))
+	require.NoError(t, err)
+
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	tc, err := txclient.NewTxClient(cctx.Keyring, accounts[0], conn)
+	require.NoError(t, err)
+	ca, err := NewCoreAccessor(tc, cctx.Keyring, accounts[0], localHeader{cctx.Client}, conn, chainID)
+	require.NoError(t, err)
+	err = ca.Start(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = ca.Stop(ctx)
+	})
+
+	unknown := Address{sdktypes.AccAddress(make([]byte, 20))}
+	bal, err := ca.BalanceForAddress(ctx, unknown)
+	require.NoError(t, err)
+	require.True(t, bal.Amount.IsZero())
+
+	real := ca.abciQueryCli
+	ca.abciQueryCli = emptyBalanceCore{}
+	_, err = ca.BalanceForAddress(ctx, unknown)
+	require.Error(t, err)
+
+	// A genuine existence proof for a funded account must not be accepted as an empty balance.
+	ca.abciQueryCli = stripValueCore{real}
+	_, err = ca.BalanceForAddress(ctx, Address{ca.defaultSignerAddress})
+	require.Error(t, err)
+}
+
+// TestTxMethodsWithNilTxConfig is mutation coverage for the nil-TxConfig fix: every
+// CoreAccessor write path must normalize a nil *TxConfig to defaults instead of
+// panicking in getTxAuthorAccAddress. If any method drops its
+// `cfg = txclient.WithDefaults(cfg)` line, the nil dereference inside
+// getTxAuthorAccAddress makes these calls panic and the test fails.
+// See #5340 and PR #5341 for the bounty-report scenario (Blob.Submit(ctx, blobs, nil)).
+func TestTxMethodsWithNilTxConfig(t *testing.T) {
+	ca := &CoreAccessor{
+		txClient:             grantFeeStubTxClient{},
+		defaultSignerAddress: sdktypes.AccAddress(make([]byte, 20)),
+	}
+	ctx := context.Background()
+
+	grantee := sdktypes.AccAddress(make([]byte, 20))
+	valAddr := sdktypes.ValAddress(make([]byte, 20))
+	amount := math.NewInt(1)
+
+	ns, err := libshare.NewV0Namespace([]byte("nilconfig"))
+	require.NoError(t, err)
+	require.False(t, ns.IsReserved())
+	blob, err := libshare.NewV0Blob(ns, []byte("data"))
+	require.NoError(t, err)
+
+	writeMethods := []struct {
+		name string
+		call func() error
+	}{
+		{"SubmitPayForBlob", func() error {
+			_, err := ca.SubmitPayForBlob(ctx, []*libshare.Blob{blob}, nil)
+			return err
+		}},
+		{"Transfer", func() error {
+			_, err := ca.Transfer(ctx, grantee, amount, nil)
+			return err
+		}},
+		{"Delegate", func() error {
+			_, err := ca.Delegate(ctx, valAddr, amount, nil)
+			return err
+		}},
+		{"Undelegate", func() error {
+			_, err := ca.Undelegate(ctx, valAddr, amount, nil)
+			return err
+		}},
+		{"CancelUnbondingDelegation", func() error {
+			_, err := ca.CancelUnbondingDelegation(ctx, valAddr, amount, math.NewInt(1), nil)
+			return err
+		}},
+		{"BeginRedelegate", func() error {
+			_, err := ca.BeginRedelegate(ctx, valAddr, valAddr, amount, nil)
+			return err
+		}},
+		{"WithdrawDelegatorReward", func() error {
+			_, err := ca.WithdrawDelegatorReward(ctx, valAddr, nil)
+			return err
+		}},
+		{"GrantFee", func() error {
+			_, err := ca.GrantFee(ctx, grantee, math.ZeroInt(), nil)
+			return err
+		}},
+		{"RevokeGrantFee", func() error {
+			_, err := ca.RevokeGrantFee(ctx, grantee, nil)
+			return err
+		}},
+	}
+
+	for _, tc := range writeMethods {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				require.NoError(t, tc.call())
+			})
+		})
+	}
+
+	// TxClient.SubmitPayForBlob must also normalize nil to defaults directly.
+	realCA, client := buildAccessor(t)
+	require.NoError(t, realCA.Start(ctx))
+	t.Cleanup(func() {
+		_ = realCA.Stop(ctx)
+	})
+
+	directBlob, blobErr := libshare.NewV0Blob(ns, []byte("direct"))
+	require.NoError(t, blobErr)
+	require.NotPanics(t, func() {
+		// A nil config reaching TxClient.SubmitPayForBlob must normalize to the
+		// default signer (same behavior the api/client example relies on).
+		_, submitErr := client.SubmitPayForBlob(ctx, []*libshare.Blob{directBlob}, realCA.defaultSignerAddress, nil)
+		require.NoError(t, submitErr)
+	})
 }

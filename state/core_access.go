@@ -156,6 +156,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (_ *TxResponse, err error) {
+	cfg = txclient.WithDefaults(cfg)
 	span := trace.SpanFromContext(ctx)
 	// span will be set to noopSpan if SubmitPayForBlob is called directly
 	if !span.SpanContext().IsValid() {
@@ -257,26 +258,9 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 		return nil, err
 	}
 
-	// unmarshal balance information
-	value := result.GetValue()
-	// if the value returned is empty, the account balance does not yet exist
-	if len(value) == 0 {
-		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
-		return &Balance{
-			Denom:  appconsts.BondDenom,
-			Amount: sdkmath.NewInt(0),
-		}, nil
-	}
-	coin, ok := sdkmath.NewIntFromString(string(value))
-	if !ok {
-		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
-	}
-
-	if result.GetProofOps() == nil {
+	if len(result.GetProofOps().GetOps()) == 0 {
 		return nil, fmt.Errorf("failed to get proofs for balance of address %s", addr.String())
 	}
-
-	// verify balance
 	proofOps := &crypto.ProofOps{
 		Ops: make([]crypto.ProofOp, len(result.ProofOps.Ops)),
 	}
@@ -287,14 +271,32 @@ func (ca *CoreAccessor) BalanceForAddress(ctx context.Context, addr Address) (*B
 			Data: proofOp.Data,
 		}
 	}
+	keys := [][]byte{
+		[]byte(banktypes.StoreKey),
+		prefixedAccountKey,
+	}
 
-	err = ca.prt.VerifyValueFromKeys(
-		proofOps,
-		head.AppHash,
-		[][]byte{
-			[]byte(banktypes.StoreKey),
-			prefixedAccountKey,
-		}, value)
+	// unmarshal balance information
+	value := result.GetValue()
+	// if the value returned is empty, the account balance does not yet exist,
+	// which has to be backed by an absence proof
+	if len(value) == 0 {
+		log.Errorf("balance for account %s does not exist at block height %d", addr.String(), head.Height()-1)
+		if err := ca.prt.VerifyFromKeys(proofOps, head.AppHash, keys, nil); err != nil {
+			return nil, fmt.Errorf("verifying absence of balance for address %s: %w", addr.String(), err)
+		}
+		return &Balance{
+			Denom:  appconsts.BondDenom,
+			Amount: sdkmath.NewInt(0),
+		}, nil
+	}
+	coin, ok := sdkmath.NewIntFromString(string(value))
+	if !ok {
+		return nil, fmt.Errorf("cannot convert %s into sdktypes.Int", string(value))
+	}
+
+	// verify balance
+	err = ca.prt.VerifyValueFromKeys(proofOps, head.AppHash, keys, value)
 	if err != nil {
 		return nil, err
 	}
@@ -311,6 +313,7 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -336,6 +339,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -364,6 +368,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -389,6 +394,7 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -414,6 +420,7 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -438,6 +445,7 @@ func (ca *CoreAccessor) WithdrawDelegatorReward(
 	valAddr ValAddress,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	signer, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err
@@ -503,6 +511,7 @@ func (ca *CoreAccessor) GrantFee(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || amount.IsNegative() {
 		return nil, ErrInvalidAmount
 	}
@@ -535,6 +544,7 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	grantee AccAddress,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	granter, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err

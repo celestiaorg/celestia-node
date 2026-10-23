@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -112,6 +113,14 @@ func TestGetHostABCIErrors(t *testing.T) {
 	t.Run("missing proof ops", func(t *testing.T) {
 		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{}}
 		c := newTestClient(t, stub, p2p.Private)
+		_, err := c.GetHost(ctx, val)
+		require.ErrorContains(t, err, "missing proof ops")
+	})
+
+	t.Run("empty proof ops", func(t *testing.T) {
+		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{ProofOps: &tmservice.ProofOps{}}}
+		c := newTestClient(t, stub, p2p.Private)
+		c.prt = merkle.DefaultProofRuntime()
 		_, err := c.GetHost(ctx, val)
 		require.ErrorContains(t, err, "missing proof ops")
 	})

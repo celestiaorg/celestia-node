@@ -34,17 +34,25 @@ Each stage of the process is aimed at creating feedback cycles which align contr
 
 ## PR Naming
 
-PRs should be titled as following:
+PR titles follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) and the subject must start with exactly one review level tag:
 
 ```txt
-pkg: Concise title of PR
+type(pkg): [level] concise title
 ```
 
 **Example:**
 
 ```txt
-service/header: Remove race in core_listener
+fix(service/header): [medium] remove race in core_listener
 ```
+
+Use `!` for breaking changes (e.g. `feat(nodebuilder)!: [high] rename config field`). Include the same tag in the PR description with a brief reason, e.g. `Review level: [low] — documentation only.`
+
+- `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk. Examples: DAS/availability verification, shrex/p2p protocol changes, header verification, fraud proofs, state/tx submission, breaking API/config changes.
+- `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
+- `[low]`: Focused review for straightforward docs, tests, or tooling changes with low risk.
+
+Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level. Dependabot titles default to `[medium]`; maintainers should confirm the level.
 
 ## Branching Model and Release
 
@@ -81,21 +89,17 @@ Before merging a pull request:
 
 ### Git Commit Style
 
-We follow the [Go style guide on commit messages](https://tip.golang.org/doc/contribute.html#commit_messages). Write concise commits that start with the package name and have a description that finishes the sentence "This change modifies Celestia-Node to...". For example,
+Commits follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) with the package as the scope, and a description that finishes the sentence "This change modifies Celestia-Node to...". For example,
 
 ```sh
-cmd/debug: execute p.Signal only when p is not nil
+fix(cmd/debug): execute p.Signal only when p is not nil
 
 [potentially longer description in the body]
 
 Fixes #nnnn
 ```
 
-It is recommended to prepend the type of change the commit is making to the commit message as documented [here](https://www.conventionalcommits.org/en/v1.0.0/).
-
-```txt
-feat(service/header): Title of PR.
-```
+The squashed commit on `main` uses the PR title, so it carries the review level tag (see [PR Naming](#pr-naming)).
 
 Each PR should have one commit once it lands on `main`; this can be accomplished by using the "squash and merge" button on Github. Be sure to edit your commit message, though!
 

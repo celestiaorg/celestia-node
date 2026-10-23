@@ -5,6 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-node/state"
 )
 
 // TestDelegateCommandsArgCount verifies that delegate and undelegate accept the
@@ -18,4 +20,23 @@ func TestDelegateCommandsArgCount(t *testing.T) {
 			require.Error(t, cmd.ValidateArgs([]string{"valAddress", "100", "extra"}))
 		})
 	}
+}
+
+// TestParseAddressKind verifies that commands get an error, not a panic, when given the wrong
+// kind of address.
+func TestParseAddressKind(t *testing.T) {
+	accStr := state.AccAddress(make([]byte, 20)).String()
+	valStr := state.ValAddress(make([]byte, 20)).String()
+
+	acc, err := parseAccAddress(accStr)
+	require.NoError(t, err)
+	require.Equal(t, accStr, acc.String())
+	_, err = parseAccAddress(valStr)
+	require.ErrorContains(t, err, "expected an account address")
+
+	val, err := parseValAddress(valStr)
+	require.NoError(t, err)
+	require.Equal(t, valStr, val.String())
+	_, err = parseValAddress(accStr)
+	require.ErrorContains(t, err, "expected a validator address")
 }
