@@ -106,6 +106,7 @@ require (
 	filippo.io/keygen v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20261006220739-8c912ac31dd4 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.34.0 // indirect
@@ -424,7 +425,7 @@ replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0
 
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
-replace github.com/docker/go-connections => github.com/docker/go-connections v0.7.0
+replace github.com/docker/go-connections => github.com/docker/go-connections v0.8.2
 
 replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
 
