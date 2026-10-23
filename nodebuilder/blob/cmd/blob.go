@@ -28,7 +28,7 @@ func init() {
 
 	state.ApplyFlags(submitCmd)
 
-	submitCmd.PersistentFlags().String(flagFileInput, "", "JSON file containing blobs; replaces namespace and blobData arguments")
+	submitCmd.PersistentFlags().String(flagFileInput, "", "JSON blob file; replaces namespace and blobData arguments")
 }
 
 var Cmd = &cobra.Command{
