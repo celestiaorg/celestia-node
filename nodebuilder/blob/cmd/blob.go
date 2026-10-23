@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -27,7 +28,7 @@ func init() {
 
 	state.ApplyFlags(submitCmd)
 
-	submitCmd.PersistentFlags().String(flagFileInput, "", "Specifies the file input")
+	submitCmd.PersistentFlags().String(flagFileInput, "", "JSON blob file; replaces namespace and blobData arguments")
 }
 
 var Cmd = &cobra.Command{
@@ -112,7 +113,7 @@ var getAllCmd = &cobra.Command{
 }
 
 var submitCmd = &cobra.Command{
-	Use: "submit [namespace] [blobData]",
+	Use: "submit [namespace] [blobData|-]",
 	Args: func(cmd *cobra.Command, args []string) error {
 		path, err := cmd.Flags().GetString(flagFileInput)
 		if err != nil {
@@ -121,6 +122,9 @@ var submitCmd = &cobra.Command{
 
 		// If there is a file path input we'll check for the file extension
 		if path != "" {
+			if len(args) != 0 {
+				return errors.New("--input-file cannot be used with namespace or blobData arguments")
+			}
 			if filepath.Ext(path) != ".json" {
 				return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
 			}
@@ -128,14 +132,14 @@ var submitCmd = &cobra.Command{
 			return nil
 		}
 
-		if len(args) < 2 {
+		if len(args) != 2 {
 			return errors.New("submit requires two arguments: namespace and blobData")
 		}
 
 		return nil
 	},
 	PreRunE: func(_ *cobra.Command, args []string) error {
-		if !strings.HasPrefix(args[0], "0x") {
+		if len(args) > 0 && !strings.HasPrefix(args[0], "0x") {
 			args[0] = "0x" + args[0]
 		}
 		return nil
@@ -143,7 +147,7 @@ var submitCmd = &cobra.Command{
 	Short: "Submit the blob(s) at the given namespace(s) and " +
 		"returns the header height in which the blob(s) was/were include + the respective commitment(s).\n" +
 		"User can use namespace and blobData as argument for single blob submission \n" +
-		"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
+		"or use --input-file with a json file and no positional arguments for multiple blobs submission, \n" +
 		`where the json file contains:
 
 		{
@@ -161,6 +165,8 @@ var submitCmd = &cobra.Command{
 		"Note:\n" +
 		"* Namespace input parameter is expected to be its their hex representation.\n" +
 		"* blobData is submitted as plain text, unless it starts with 0x, then it is decoded as hex.\n" +
+		"* Use - as blobData to read raw bytes from stdin, preserving newlines and without hex decoding.\n" +
+		"  Example: cat blob.bin | celestia blob submit 0x0100 -\n" +
 		"* Commitment(s) output parameter(s) will be in the hex representation.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
@@ -175,7 +181,6 @@ var submitCmd = &cobra.Command{
 		}
 
 		jsonBlobs := make([]blobJSON, 0)
-		// In case of there is a file input, get the namespace and blob from the arguments
 		if path != "" {
 			parsedBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
@@ -185,7 +190,12 @@ var submitCmd = &cobra.Command{
 			jsonBlobs = append(jsonBlobs, parsedBlobs...)
 		} else {
 			blobData := []byte(args[1]) // can be simple text
-			if strings.HasPrefix(args[1], "0x") {
+			if args[1] == "-" {
+				blobData, err = io.ReadAll(cmd.InOrStdin())
+				if err != nil {
+					return fmt.Errorf("reading blob data from stdin: %w", err)
+				}
+			} else if strings.HasPrefix(args[1], "0x") {
 				if decoded, err := cmdnode.DecodeToBytes(args[1]); err == nil {
 					blobData = decoded
 				}
