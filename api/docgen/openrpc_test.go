@@ -40,6 +40,16 @@ func TestOpenRPCAuthenticationExamples(t *testing.T) {
 			require.Contains(t, description, "celestia <node-type> auth "+permission)
 			require.Contains(t, description, "--p2p.network")
 			require.Contains(t, description, "--node.store")
+			require.Contains(t, description, "Authorization: Bearer <token>")
+			switch string(*method.Name) {
+			case "header.Subscribe", "blob.Subscribe", "blob.SubscribeFromStartHeight":
+				require.Contains(t, description, "requires WebSockets")
+				require.Contains(t, description, "ws://localhost:26658")
+				require.Contains(t, description, "HTTP upgrade request")
+				require.NotContains(t, description, "curl")
+				require.NotContains(t, description, "--data-binary")
+				return
+			}
 			require.Contains(t, description, "request.json")
 			require.Contains(t, description, `-H "Authorization: Bearer $CELESTIA_NODE_AUTH_TOKEN"`)
 			require.Contains(t, description, `-H "Content-Type: application/json"`)
