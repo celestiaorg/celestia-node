@@ -193,6 +193,7 @@ func (s *Service) prune(ctx context.Context) {
 		}
 
 		failedSet := make(map[uint64]struct{})
+		prevPruned := lastPrunedHeader
 
 		log.Debugw("pruning block data", "from", headers[0].Height(), "to",
 			headers[len(headers)-1].Height())
@@ -218,6 +219,11 @@ func (s *Service) prune(ctx context.Context) {
 
 		if len(headers) < maxHeadersPerLoop {
 			// we've pruned all the blocks we can
+			return
+		}
+		if lastPrunedHeader == prevPruned {
+			// nothing in this batch was pruned, so the next query would return the same
+			// headers. They are recorded as failed and get retried on the next cycle.
 			return
 		}
 	}
