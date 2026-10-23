@@ -10,13 +10,13 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v10 v10.4.0
+	github.com/celestiaorg/celestia-app/rsmt2d v0.0.0-20261022181216-098fd7ed9ebc
+	github.com/celestiaorg/celestia-app/v10 v10.4.1-0.20261022182806-70726ae983e7
 	github.com/celestiaorg/go-header v0.8.9
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/go-square/v4 v4.0.1
 	github.com/celestiaorg/nmt v0.24.5
-	github.com/celestiaorg/rsmt2d v0.15.3
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cristalhq/jwt/v5 v5.4.0

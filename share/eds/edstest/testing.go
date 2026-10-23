@@ -7,6 +7,7 @@ import (
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -18,7 +19,6 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 )

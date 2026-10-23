@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 // EmptyEDSDataHash returns DataHash of the empty block EDS.

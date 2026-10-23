@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	libshare "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"

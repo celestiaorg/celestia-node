@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	libshare "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsmt2d"
 )
 
 // RowIDSize defines the size in bytes of RowID, consisting of the size of EdsID and 2 bytes for

@@ -17,12 +17,12 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v10/pkg/proof"
 	"github.com/celestiaorg/go-square/v4/inclusion"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/utils"

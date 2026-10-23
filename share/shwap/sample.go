@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	nmt_pb "github.com/celestiaorg/nmt/pb"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/shwap/pb"

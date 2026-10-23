@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	libshare "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/shwap"

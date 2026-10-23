@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	libshare "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsmt2d"
 
 	headerServ "github.com/celestiaorg/celestia-node/nodebuilder/header"
 	"github.com/celestiaorg/celestia-node/share"
