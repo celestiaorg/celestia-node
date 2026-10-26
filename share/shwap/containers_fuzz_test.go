@@ -3,24 +3,27 @@ package shwap_test
 import (
 	"bytes"
 	"io"
+	"math/rand/v2"
 	"slices"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
-	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
-// containerFixture is a random square with a namespace that spans a few rows,
-// its roots, and honest encodings of one container of each kind. It is built
-// once per process; the fuzz targets only read from it.
+// containerFixture is a pseudo-random square with a namespace that spans a few
+// rows, its roots, and honest encodings of one container of each kind. It is
+// built once per process from a fixed seed, so every fuzz worker and every
+// replay of a saved corpus entry sees the same square as the seeds were
+// encoded against. The fuzz targets only read from it.
 type containerFixture struct {
 	odsSize   int
 	eds       *rsmt2d.ExtendedDataSquare
@@ -42,7 +45,7 @@ func newContainerFixture(tb testing.TB) *containerFixture {
 	tb.Helper()
 	const odsSize = 8
 	namespace := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0x42}, libshare.NamespaceVersionZeroIDSize))
-	square, roots := edstest.RandEDSWithNamespace(tb, namespace, odsSize*3, odsSize)
+	square, roots := deterministicEDSWithNamespace(tb, namespace, odsSize*3, odsSize)
 	accessor := eds.Rsmt2D{ExtendedDataSquare: square}
 
 	encode := func(w io.WriterTo) []byte {
@@ -82,6 +85,49 @@ func newContainerFixture(tb testing.TB) *containerFixture {
 		row:       encode(&row),
 		rnd:       encode(&rnd),
 	}
+}
+
+// deterministicEDSWithNamespace mirrors edstest.RandEDSWithNamespace but draws
+// from a fixed-seed generator instead of crypto/rand.
+func deterministicEDSWithNamespace(
+	tb testing.TB,
+	namespace libshare.Namespace,
+	namespacedAmount, odsSize int,
+) (*rsmt2d.ExtendedDataSquare, *share.AxisRoots) {
+	tb.Helper()
+	rng := rand.New(rand.NewChaCha8([32]byte{'s', 'h', 'w', 'a', 'p'}))
+	shares := make([]libshare.Share, odsSize*odsSize)
+	for i := range shares {
+		raw := make([]byte, libshare.ShareSize)
+		ns := namespace
+		if i >= namespacedAmount {
+			id := make([]byte, libshare.NamespaceVersionZeroIDSize)
+			for j := range id {
+				id[j] = byte(rng.Uint32())
+			}
+			var err error
+			ns, err = libshare.NewV0Namespace(id)
+			require.NoError(tb, err)
+		}
+		copy(raw[:libshare.NamespaceSize], ns.Bytes())
+		for j := libshare.NamespaceSize; j < len(raw); j++ {
+			raw[j] = byte(rng.Uint32())
+		}
+		sh, err := libshare.NewShare(raw)
+		require.NoError(tb, err)
+		shares[i] = sh
+	}
+	slices.SortFunc(shares, func(a, b libshare.Share) int { return bytes.Compare(a.ToBytes(), b.ToBytes()) })
+
+	square, err := rsmt2d.ComputeExtendedDataSquare(
+		libshare.ToBytes(shares),
+		share.DefaultRSMT2DCodec(),
+		wrapper.NewConstructor(uint64(odsSize)),
+	)
+	require.NoError(tb, err)
+	roots, err := share.NewAxisRoots(square)
+	require.NoError(tb, err)
+	return square, roots
 }
 
 func getFixture(tb testing.TB) *containerFixture {
@@ -185,4 +231,11 @@ func TestContainerFuzzSeeds(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, rnd.Verify(fx.roots, fx.namespace, fx.nsRow))
 	require.Error(t, rnd.Verify(fx.roots, fx.namespace, (fx.nsRow+1)%(fx.odsSize*2)))
+
+	// Fuzz workers and corpus replays rebuild the fixture in their own process.
+	rebuilt := newContainerFixture(t)
+	require.Equal(t, fx.roots.Hash(), rebuilt.roots.Hash(), "the fixture square must be deterministic")
+	require.Equal(t, fx.sample, rebuilt.sample)
+	require.Equal(t, fx.row, rebuilt.row)
+	require.Equal(t, fx.rnd, rebuilt.rnd)
 }
