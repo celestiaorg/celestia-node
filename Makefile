@@ -20,8 +20,6 @@ LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
                     -X $(versioningPath).semanticVersion=$(VERSION) \
                     -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(VERSION))"
-TAGS=integration
-SHORT=
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -31,11 +29,6 @@ ifeq ($(ENABLE_VERBOSE),true)
 else
 	VERBOSE =
 	LOG_AND_FILTER =
-endif
-ifeq ($(SHORT),true)
-	INTEGRATION_RUN_LENGTH = -short
-else
-	INTEGRATION_RUN_LENGTH =
 endif
 
 include celestia-node.mk
@@ -170,18 +163,6 @@ test-unit-race:
 	@echo "--> Running unit tests with data race detector"
 	@go test $(VERBOSE) -tags=fibre -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-race
-
-## test-integration: Run integration tests located in nodebuilder/tests.
-test-integration:
-	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
-	@go test $(VERBOSE) -timeout=20m -tags=$(TAGS),fibre $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
-.PHONY: test-integration
-
-## test-integration-race: Run integration tests with data race detector located in nodebuilder/tests.
-test-integration-race:
-	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
-	@go test -race -tags=$(TAGS),fibre ./nodebuilder/tests
-.PHONY: test-integration-race
 
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:

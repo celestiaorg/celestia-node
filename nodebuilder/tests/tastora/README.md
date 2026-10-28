@@ -1,8 +1,7 @@
 # Tastora Testing Framework
 
 This directory contains the Tastora-based testing framework for Celestia Node,
-providing Docker-based end-to-end testing infrastructure similar to how the
-`swamp` framework provides mock-based testing.
+providing Docker-based end-to-end testing infrastructure.
 
 ## Architecture
 
@@ -12,14 +11,14 @@ production environments.
 
 ### Framework Components
 
-- **`framework.go`** - Core testing infrastructure (equivalent to `swamp.go`)
+- **`framework.go`** - Core testing infrastructure
 - **`config.go`** - Configuration options and builders
 - **`blob_test.go`** - Blob module test suite (first consumer)
 
 ### Key Design Principles
 
-1. **Reusable Framework**: Similar to how `swamp.NewSwamp()` creates a testing
-   environment, `NewFramework()` sets up the Tastora infrastructure
+1. **Reusable Framework**: `NewFramework()` sets up the chain and DA network
+   shared by a test suite
 2. **Module-Specific Test Suites**: Each module has its own test suite that
    embeds the framework
 3. **Docker-Based**: Uses real Docker containers instead of mocks for more
@@ -108,51 +107,6 @@ framework := NewFramework(t,
 )
 ```
 
-## Migration from Swamp
-
-For modules currently using the swamp framework, follow this migration pattern:
-
-### Before (Swamp)
-
-```go
-func TestYourModule(t *testing.T) {
-    sw := swamp.NewSwamp(t)
-    bridge := sw.NewBridgeNode()
-    light := sw.NewLightNode()
-    // ... test implementation
-}
-```
-
-### After (Tastora)
-
-```go
-type YourModuleTestSuite struct {
-    suite.Suite
-    framework *Framework
-    // ... other fields
-}
-
-func (s *YourModuleTestSuite) TestYourModule() {
-    // Nodes are automatically funded, ready for immediate use
-    bridge := s.framework.GetOrCreateBridgeNode(ctx)
-    lightNodes := s.framework.GetLightNodes()
-    
-    // Get RPC client and start testing
-    client := s.framework.GetNodeRPCClient(ctx, bridge)
-    // ... test implementation
-}
-
-func TestYourModuleTestSuite(t *testing.T) {
-    suite.Run(t, new(YourModuleTestSuite))
-}
-```
-
-### Key Migration Benefits
-
-- **Automatic Funding**: No need to manually fund nodes - they come pre-funded
-- **Simplified API**: Reduced boilerplate compared to swamp
-- **Consistent Pattern**: All node types follow the same usage pattern
-
 ## Test Organization
 
 ### Current Structure
@@ -218,34 +172,6 @@ make test-tastora
 go test -v -run TestBlobTestSuite/TestBlobModule ./nodebuilder/tests/tastora/
 ```
 
-## Migration Status from Swamp
-
-### Key Migration Achievements
-
-**✅ Successfully Migrated:**
-
-- Complete testing framework infrastructure  
-- Docker-based node management (vs swamp's mocks)
-- Test suite organization and patterns
-- Blob module test coverage
-- Wallet funding and account management
-
-**🎯 Framework Completeness:** **90%** - Core infrastructure and most test
-patterns successfully migrated
-
-## Key Differences from Swamp
-
-| Aspect | Swamp | Tastora |
-|--------|-------|---------|
-| **Environment** | Mock networks (mocknet) | Real Docker containers |
-| **Speed** | Faster (in-memory) | Slower but more realistic |
-| **Isolation** | Process-level | Container-level |
-| **Networking** | Mock P2P | Real networking |
-| **Use Case** | Unit/Integration tests | E2E tests |
-| **Resource Usage** | Lower | Higher (Docker overhead) |
-| **Node Funding** | Manual keyring setup | **Automatic funding** |
-| **WebSocket Support** | Full support | Basic client limitations |
-
 ## Running Tests
 
 ### Individual Test Suite
@@ -289,7 +215,7 @@ When adding new module tests to this framework:
 
 ### Resource Constraints
 
-- Tastora tests use more resources than swamp tests
+- Tastora tests run real Docker containers and need significant resources
 - Consider running fewer parallel tests if resource-constrained
 
 ## Framework Services

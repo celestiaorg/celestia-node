@@ -205,10 +205,3 @@ jobs:
           set -eo pipefail
           make openrpc-gen > openrpc.json
           jq -e . openrpc.json > /dev/null
-
-  integration_test:
-    name: Integration Tests
-    needs: [go_mod_tidy_check, go_mod_parity_check, lint, lint-imports, unit_tests]
-    uses: ./.github/workflows/integration-tests.yml
-    with:
-      go-version: ${{ inputs.go-version }}
