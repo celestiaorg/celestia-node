@@ -305,7 +305,7 @@ func (s *BlobTestSuite) TestBlobSubmit_DuplicateBlobs() {
 	s.Require().NoError(err)
 	b := nodeBlobs[0]
 
-	txConfig := state.NewTxConfig(state.WithGas(400_000), state.WithGasPrice(5000))
+	txConfig := state.NewTxConfig(state.WithGasPrice(0.1))
 	for _, blobs := range [][]*nodeblob.Blob{{b, b}, {b}} {
 		height, err := client.Blob.Submit(ctx, blobs, txConfig)
 		s.Require().NoError(err)
@@ -339,7 +339,7 @@ func (s *BlobTestSuite) TestStateSubmitPayForBlob() {
 	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
 	s.Require().NoError(err)
 
-	txConfig := state.NewTxConfig(state.WithGas(200_000), state.WithGasPrice(5000))
+	txConfig := state.NewTxConfig(state.WithGasPrice(0.1))
 	resp, err := client.State.SubmitPayForBlob(ctx, []*share.Blob{libBlob}, txConfig)
 	s.Require().NoError(err)
 	s.Require().Zero(resp.Code, "PFB should succeed: %s", resp.RawLog)
