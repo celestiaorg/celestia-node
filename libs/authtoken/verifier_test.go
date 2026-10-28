@@ -75,11 +75,18 @@ func TestRevocationRejectsInvalidTokens(t *testing.T) {
 		require.Error(t, v.Revoke(ctx, token))
 		_, err := v.Verify(ctx, token)
 		require.Error(t, err)
+		_, release, err := v.VerifyAndRegister(ctx, token, func() {})
+		require.Error(t, err)
+		require.Nil(t, release)
 	}
 	expired, err := NewSignedJWT(signer, perms.AllPerms, -time.Hour)
 	require.NoError(t, err)
 	_, err = v.Verify(ctx, expired)
 	require.ErrorContains(t, err, "token expired")
+	_, release, err := v.VerifyAndRegister(ctx, expired, func() {})
+	require.ErrorContains(t, err, "token expired")
+	require.Nil(t, release)
+	require.Empty(t, v.sessions)
 	require.NoError(t, v.Revoke(ctx, expired))
 }
 
@@ -137,7 +144,7 @@ func TestRevocationStoreErrors(t *testing.T) {
 			v := NewVerifier(verifier, store)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			release, err := v.Register(ctx, token, cancel)
+			_, release, err := v.VerifyAndRegister(ctx, token, cancel)
 			require.NoError(t, err)
 			defer release()
 			switch operation {
@@ -145,7 +152,7 @@ func TestRevocationStoreErrors(t *testing.T) {
 				store.hasErr = failure
 				_, err = v.Verify(ctx, token)
 				require.ErrorIs(t, err, failure)
-				_, err = v.Register(ctx, token, cancel)
+				_, _, err = v.VerifyAndRegister(ctx, token, cancel)
 				require.ErrorIs(t, err, failure)
 			case "write":
 				store.putErr = failure
@@ -181,7 +188,7 @@ func TestRevokeDuringRegistration(t *testing.T) {
 			revokeErr = v.Revoke(context.Background(), token)
 		}()
 		close(start)
-		release, err := v.Register(ctx, token, cancel)
+		_, release, err := v.VerifyAndRegister(ctx, token, cancel)
 		wg.Wait()
 		require.NoError(t, revokeErr)
 		if err == nil {
@@ -204,9 +211,9 @@ func TestRegistrationRelease(t *testing.T) {
 	defer cancelFirst()
 	second, cancelSecond := context.WithCancel(context.Background())
 	defer cancelSecond()
-	releaseFirst, err := v.Register(first, token, cancelFirst)
+	_, releaseFirst, err := v.VerifyAndRegister(first, token, cancelFirst)
 	require.NoError(t, err)
-	releaseSecond, err := v.Register(second, token, cancelSecond)
+	_, releaseSecond, err := v.VerifyAndRegister(second, token, cancelSecond)
 	require.NoError(t, err)
 	defer releaseSecond()
 	releaseFirst()
@@ -214,4 +221,42 @@ func TestRegistrationRelease(t *testing.T) {
 	require.NoError(t, first.Err(), "finished requests must be unregistered")
 	require.ErrorIs(t, second.Err(), context.Canceled)
 	require.Empty(t, v.sessions)
+}
+
+// countingVerifier tracks signature checks, which jwt.Parse performs once per parse.
+type countingVerifier struct {
+	jwt.Verifier
+	calls int
+}
+
+func (v *countingVerifier) Verify(token *jwt.Token) error {
+	v.calls++
+	return v.Verifier.Verify(token)
+}
+
+func TestVerifierParsesOnce(t *testing.T) {
+	signer, verifier := testSigner(t)
+	counter := &countingVerifier{Verifier: verifier}
+	v := NewVerifier(counter, ds_sync.MutexWrap(datastore.NewMapDatastore()))
+	token, err := NewSignedJWT(signer, perms.ReadPerms, 0)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	allowed, err := v.Verify(ctx, token)
+	require.NoError(t, err)
+	require.Equal(t, perms.ReadPerms, allowed)
+	require.Equal(t, 1, counter.calls)
+
+	counter.calls = 0
+	allowed, release, err := v.VerifyAndRegister(ctx, token, cancel)
+	require.NoError(t, err)
+	defer release()
+	require.Equal(t, perms.ReadPerms, allowed)
+	require.Equal(t, 1, counter.calls)
+
+	counter.calls = 0
+	require.NoError(t, v.Revoke(context.Background(), token))
+	require.Equal(t, 1, counter.calls)
+	require.ErrorIs(t, ctx.Err(), context.Canceled)
 }

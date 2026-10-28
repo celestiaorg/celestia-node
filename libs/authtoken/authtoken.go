@@ -19,6 +19,10 @@ func ExtractSignedPermissions(verifier jwt.Verifier, token string) ([]auth.Permi
 	if err != nil {
 		return nil, err
 	}
+	return extractPermissions(tk)
+}
+
+func extractPermissions(tk *jwt.Token) ([]auth.Permission, error) {
 	p := new(perms.JWTPayload)
 
 	if err := json.Unmarshal(tk.Claims(), p); err != nil {

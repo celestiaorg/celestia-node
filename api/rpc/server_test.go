@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -268,8 +269,8 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	}
 }
 
-// TestServer_VerifyAuth tests the auth verification logic
-func TestServer_VerifyAuth(t *testing.T) {
+// TestServer_AuthPermissions tests permissions passed through the auth middleware.
+func TestServer_AuthPermissions(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
 	tests := []struct {
@@ -314,13 +315,27 @@ func TestServer_VerifyAuth(t *testing.T) {
 				verifier,
 			)
 
-			permissions, err := server.verifyAuth(context.Background(), tt.token)
-
+			called := false
+			handler := server.newHandlerStack(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				for _, permission := range perms.AllPerms {
+					assert.Equal(t, slices.Contains(tt.expectedPerms, permission),
+						auth.HasPerm(r.Context(), perms.AllPerms, permission))
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.token != "" {
+				req.Header.Set("Authorization", "Bearer "+tt.token)
+			}
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
 			if tt.expectError {
-				assert.Error(t, err)
+				assert.Equal(t, http.StatusUnauthorized, w.Code)
+				assert.False(t, called)
 			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedPerms, permissions)
+				assert.Equal(t, http.StatusOK, w.Code)
+				assert.True(t, called)
 			}
 		})
 	}

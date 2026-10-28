@@ -36,38 +36,35 @@ func NewVerifier(verifier jwt.Verifier, store datastore.Datastore) *Verifier {
 
 // Verify returns the permissions of a valid, unrevoked token.
 func (v *Verifier) Verify(ctx context.Context, token string) ([]auth.Permission, error) {
-	permissions, err := ExtractSignedPermissions(v.verifier, token)
+	tk, err := jwt.Parse([]byte(token), v.verifier)
 	if err != nil {
 		return nil, err
 	}
-	key, err := v.tokenKey(token)
-	if err != nil {
-		return nil, err
-	}
-	if err := v.check(ctx, key); err != nil {
-		return nil, err
-	}
-	return permissions, nil
+	return v.verify(ctx, tk)
 }
 
-// Register cancels the request when its token is revoked. Call the returned
-// function when the request finishes. The context must be unique per request.
-func (v *Verifier) Register(ctx context.Context, token string, cancel context.CancelFunc) (func(), error) {
-	key, err := v.tokenKey(token)
+// VerifyAndRegister verifies a token and cancels the request when it is revoked.
+// Call the returned function when the request finishes. The context must be unique per request.
+func (v *Verifier) VerifyAndRegister(
+	ctx context.Context, token string, cancel context.CancelFunc,
+) ([]auth.Permission, func(), error) {
+	tk, err := jwt.Parse([]byte(token), v.verifier)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	// Checking under the same lock as Revoke closes the authentication/registration race.
-	if err := v.check(ctx, key); err != nil {
-		return nil, err
+	permissions, err := v.verify(ctx, tk)
+	if err != nil {
+		return nil, nil, err
 	}
+	key := tokenKey(tk)
 	if v.sessions[key] == nil {
 		v.sessions[key] = make(map[context.Context]context.CancelFunc)
 	}
 	v.sessions[key][ctx] = cancel
-	return func() {
+	return permissions, func() {
 		v.mu.Lock()
 		defer v.mu.Unlock()
 		delete(v.sessions[key], ctx)
@@ -80,10 +77,11 @@ func (v *Verifier) Register(ctx context.Context, token string, cancel context.Ca
 // Revoke permanently invalidates a token signed by this node, including tokens
 // issued before nonces were introduced. Repeated revocations are safe.
 func (v *Verifier) Revoke(ctx context.Context, token string) error {
-	key, err := v.tokenKey(token)
+	tk, err := jwt.Parse([]byte(token), v.verifier)
 	if err != nil {
 		return err
 	}
+	key := tokenKey(tk)
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if err := v.store.Put(ctx, key, nil); err != nil {
@@ -101,23 +99,23 @@ func (v *Verifier) Revoke(ctx context.Context, token string) error {
 	return nil
 }
 
-func (v *Verifier) check(ctx context.Context, key datastore.Key) error {
-	revoked, err := v.store.Has(ctx, key)
+func (v *Verifier) verify(ctx context.Context, tk *jwt.Token) ([]auth.Permission, error) {
+	permissions, err := extractPermissions(tk)
 	if err != nil {
-		return fmt.Errorf("check token revocation: %w", err)
+		return nil, err
+	}
+	revoked, err := v.store.Has(ctx, tokenKey(tk))
+	if err != nil {
+		return nil, fmt.Errorf("check token revocation: %w", err)
 	}
 	if revoked {
-		return ErrRevoked
+		return nil, ErrRevoked
 	}
-	return nil
+	return permissions, nil
 }
 
-func (v *Verifier) tokenKey(token string) (datastore.Key, error) {
-	tk, err := jwt.Parse([]byte(token), v.verifier)
-	if err != nil {
-		return datastore.Key{}, err
-	}
+func tokenKey(tk *jwt.Token) datastore.Key {
 	// Hash decoded signatures so alternate base64 encodings cannot bypass revocation.
 	digest := sha256.Sum256(tk.Signature())
-	return datastore.NewKey("/auth/revoked/" + hex.EncodeToString(digest[:])), nil
+	return datastore.NewKey("/auth/revoked/" + hex.EncodeToString(digest[:]))
 }
