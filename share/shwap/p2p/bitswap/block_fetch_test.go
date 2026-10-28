@@ -2,6 +2,7 @@ package bitswap
 
 import (
 	"context"
+	"errors"
 	"math/rand/v2"
 	"sync"
 	"testing"
@@ -13,15 +14,68 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/host"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/celestiaorg/rsmt2d"
 
 	"github.com/celestiaorg/celestia-node/share/eds"
 )
+
+func TestHasher_LateDuplicatesLogAtDebug(t *testing.T) {
+	config := logging.GetConfig()
+	level := log.Desugar().Level().String()
+	core, logs := observer.New(zap.DebugLevel)
+	logging.SetPrimaryCore(core)
+	require.NoError(t, logging.SetLogLevel("shwap/bitswap", "debug"))
+	t.Cleanup(func() {
+		logging.SetupLogging(config)
+		require.NoError(t, logging.SetLogLevel("shwap/bitswap", level))
+	})
+
+	blk := newTestBlock(0xCAFE)
+	data, err := marshalProto(blk)
+	require.NoError(t, err)
+	unmarshalFns.Store(blk.CID(), &unmarshalEntry{UnmarshalFn: blk.UnmarshalFn(nil)})
+	t.Cleanup(func() { unmarshalFns.Delete(blk.CID()) })
+
+	h := &hasher{IDSize: testIDSize}
+	n, err := h.Write(data)
+	require.NoError(t, err)
+	require.Equal(t, len(data), n)
+
+	// Fetch removes registration on completion; multiple responses may still be in flight.
+	unmarshalFns.Delete(blk.CID())
+	const duplicates = 3
+	for range duplicates {
+		h.Reset()
+		n, err = h.Write(data)
+		require.EqualError(t, err, "shwap/bitswap: hasher: no unmarshallers registered for "+blk.CID().String())
+		require.Zero(t, n)
+		require.Empty(t, h.Sum(nil))
+	}
+	duplicateLogs := logs.FilterMessage("hasher: no unmarshallers registered for " + blk.CID().String()).All()
+	require.Len(t, duplicateLogs, duplicates)
+	for _, entry := range duplicateLogs {
+		require.Equal(t, zap.DebugLevel, entry.Level)
+	}
+
+	// Invalid data for an active request must still produce a warning and be rejected.
+	unmarshalFns.Store(blk.CID(), &unmarshalEntry{UnmarshalFn: func(_, _ []byte) error {
+		return errors.New("invalid proof")
+	}})
+	n, err = h.Write(data)
+	require.ErrorContains(t, err, "invalid proof")
+	require.Zero(t, n)
+	invalidLogs := logs.FilterMessageSnippet("invalid proof").All()
+	require.Len(t, invalidLogs, 1)
+	require.Equal(t, zap.WarnLevel, invalidLogs[0].Level)
+}
 
 func TestFetch_Options(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
