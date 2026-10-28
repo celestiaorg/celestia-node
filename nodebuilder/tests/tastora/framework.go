@@ -267,6 +267,39 @@ func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window t
 	return bridgeNode
 }
 
+// StartArchivalBridgeNode starts an archival bridge peered only to bridge[0], so other nodes can
+// learn about it solely through discovery.
+func (f *Framework) StartArchivalBridgeNode(ctx context.Context) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	idx := len(f.bridgeNodes)
+	if idx >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", idx, len(bridgeNodes))
+	}
+	require.Positive(f.t, idx, "archival bridge must be peered to an existing bridge[0]")
+	bridgeNode := bridgeNodes[idx]
+
+	trustedPeer := f.nodeP2PAddr(ctx, f.bridgeNodes[0])
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--archival"}
+	err = bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(map[string]string{
+			"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
+			"P2P_NETWORK":     testChainID,
+		}),
+	)
+	require.NoError(f.t, err, "failed to start archival bridge node")
+
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
+}
+
 func bitswapOffMod() map[string]tomlutil.Toml {
 	return map[string]tomlutil.Toml{
 		"config.toml": {
@@ -762,17 +795,20 @@ func (f *Framework) startLightNode(
 
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
 
+	env := map[string]string{
+		"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+		"P2P_NETWORK":     testChainID,
+	}
+	if f.availabilityWindow > 0 {
+		env["CELESTIA_OVERRIDE_AVAILABILITY_WINDOW"] = f.availabilityWindow.String()
+	}
+
 	startOpts := append([]dataavailability.StartOption{
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(
 			"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0",
 		),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-				"P2P_NETWORK":     testChainID,
-			},
-		),
+		dataavailability.WithEnvironmentVariables(env),
 	}, extraOpts...)
 
 	// Try starting the light node with a retry to avoid docker flakiness

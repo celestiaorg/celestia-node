@@ -58,6 +58,7 @@ jobs:
       fail-fast: false
       matrix:
         suite:
+          - TestArchivalDiscoveryTestSuite
           - TestArchivalTestSuite
           - TestBlobInclusionTestSuite
           - TestBlobTestSuite
@@ -71,6 +72,7 @@ jobs:
           - TestLightRestartTestSuite
           - TestP2PTestSuite
           - TestRestartTestSuite
+          - TestShareTestSuite
     steps:
       - uses: actions/checkout@v7
 
