@@ -64,6 +64,8 @@ func (sc *samplingCoordinator) run(ctx context.Context, cp checkpoint) {
 	for _, wk := range cp.Workers {
 		sc.runWorker(ctx, sc.state.newJob(wk.JobType, wk.From, wk.To))
 	}
+	// the checkpoint may leave nothing to sample; report catch-up without waiting for a new head
+	sc.state.checkDone()
 
 	for {
 		for !sc.concurrencyLimitReached() {
