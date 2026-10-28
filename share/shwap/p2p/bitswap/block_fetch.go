@@ -3,6 +3,7 @@ package bitswap
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -168,6 +169,8 @@ func unmarshal(unmarshalFn UnmarshalFn, data []byte) error {
 // sync.Map is used to minimize contention for disjoint keys
 var unmarshalFns sync.Map
 
+var errNoUnmarshallers = errors.New("no unmarshallers registered")
+
 // unmarshalEntry wraps UnmarshalFn with a mutex to protect it from concurrent access.
 type unmarshalEntry struct {
 	sync.Mutex
@@ -187,7 +190,12 @@ func (h *hasher) Write(data []byte) (int, error) {
 	err := h.write(data)
 	if err != nil {
 		err = fmt.Errorf("hasher: %w", err)
-		log.Warn(err)
+		if errors.Is(err, errNoUnmarshallers) {
+			// Late duplicate responses can arrive after Fetch removes the registration.
+			log.Debug(err)
+		} else {
+			log.Warn(err)
+		}
 		return 0, fmt.Errorf("shwap/bitswap: %w", err)
 	}
 
@@ -210,7 +218,7 @@ func (h *hasher) write(data []byte) error {
 	// pass it to Fetch caller
 	val, ok := unmarshalFns.Load(cid)
 	if !ok {
-		return fmt.Errorf("no unmarshallers registered for %s", cid.String())
+		return fmt.Errorf("%w for %s", errNoUnmarshallers, cid.String())
 	}
 	entry := val.(*unmarshalEntry)
 
