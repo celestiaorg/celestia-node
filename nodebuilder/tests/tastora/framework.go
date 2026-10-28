@@ -254,7 +254,6 @@ func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window t
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(startArgs...),
 		dataavailability.WithEnvironmentVariables(env),
-		dataavailability.WithConfigModifications(bitswapOffMod()),
 	)
 	require.NoError(f.t, err, "failed to start small-window bridge node")
 
@@ -298,15 +297,6 @@ func (f *Framework) StartArchivalBridgeNode(ctx context.Context) *dataavailabili
 	return bridgeNode
 }
 
-func bitswapOffMod() map[string]tomlutil.Toml {
-	return map[string]tomlutil.Toml{
-		"config.toml": {
-			"RPC":   tomlutil.Toml{"SkipAuth": true},
-			"Share": tomlutil.Toml{"UseBitswap": false},
-		},
-	}
-}
-
 func (f *Framework) bridgeContainerRunning(ctx context.Context, node *dataavailability.Node) bool {
 	return node.ContainerLifecycle.Running(ctx) == nil
 }
@@ -345,18 +335,6 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Verify funds are available by checking balance
-	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
-
-	f.lightNodes = append(f.lightNodes, lightNode)
-	return lightNode
-}
-
-// NewLightNodeBitswapOff starts a light node connected  to bridge with bitswap disabled
-func (f *Framework) NewLightNodeBitswapOff(ctx context.Context) *dataavailability.Node {
-	bridgeNode := f.bridgeNodes[0]
-	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia,
-		dataavailability.WithConfigModifications(bitswapOffMod()))
-	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
 	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
 
 	f.lightNodes = append(f.lightNodes, lightNode)

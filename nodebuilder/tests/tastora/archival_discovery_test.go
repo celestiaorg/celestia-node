@@ -43,8 +43,7 @@ func (s *ArchivalDiscoveryTestSuite) SetupSuite() {
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 	s.framework.StartArchivalBridgeNode(ctx)
-	// bitswap off: an out-of-window request can then only be served by a discovered archival peer.
-	s.framework.NewLightNodeBitswapOff(ctx)
+	s.framework.NewLightNode(ctx)
 }
 
 func (s *ArchivalDiscoveryTestSuite) TearDownSuite() {

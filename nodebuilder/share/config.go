@@ -11,17 +11,11 @@ import (
 	"github.com/celestiaorg/celestia-node/store"
 )
 
-const (
-	defaultBlockstoreCacheSize = 128
-)
-
 type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
-	EDSStoreParams      *store.Parameters
-	BlockStoreCacheSize uint
+	EDSStoreParams *store.Parameters
 
 	UseShareExchange bool
-	UseBitswap       bool
 
 	// Shrex sets client and server configuration parameters of the shrex protocol
 	ShrexClient *shrex.ClientParams
@@ -35,14 +29,12 @@ type Config struct {
 
 func DefaultConfig(tp node.Type) Config {
 	cfg := Config{
-		EDSStoreParams:      store.DefaultParameters(),
-		BlockStoreCacheSize: defaultBlockstoreCacheSize,
-		Discovery:           discovery.DefaultParameters(),
-		ShrexClient:         shrex.DefaultClientParameters(),
-		ShrexServer:         shrex.DefaultServerParameters(),
-		UseShareExchange:    true,
-		UseBitswap:          true,
-		PeerManagerParams:   peers.DefaultParameters(),
+		EDSStoreParams:    store.DefaultParameters(),
+		Discovery:         discovery.DefaultParameters(),
+		ShrexClient:       shrex.DefaultClientParameters(),
+		ShrexServer:       shrex.DefaultServerParameters(),
+		UseShareExchange:  true,
+		PeerManagerParams: peers.DefaultParameters(),
 	}
 
 	if tp == node.Light {

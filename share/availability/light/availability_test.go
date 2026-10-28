@@ -6,21 +6,15 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/ipfs/boxo/bitswap/client"
-	"github.com/ipfs/boxo/blockstore"
-	"github.com/ipfs/boxo/exchange"
-	blocks "github.com/ipfs/go-block-format"
-	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	ds_sync "github.com/ipfs/go-datastore/sync"
-	"github.com/libp2p/go-libp2p/core/host"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -34,7 +28,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
 	"github.com/celestiaorg/celestia-node/share/shwap"
 	"github.com/celestiaorg/celestia-node/share/shwap/getters/mock"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 )
 
@@ -67,7 +60,7 @@ func TestSharesAvailableSuccess(t *testing.T) {
 		AnyTimes()
 
 	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds, nil)
+	avail := NewShareAvailability(getter, ds)
 
 	// Ensure the datastore doesn't have the sampling result yet
 	has, err := avail.ds.Has(ctx, datastoreKeyForRoot(roots))
@@ -130,7 +123,7 @@ func TestSharesAvailablePartialResponse(t *testing.T) {
 		AnyTimes()
 
 	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds, nil)
+	avail := NewShareAvailability(getter, ds)
 
 	// the missing sample makes availability incomplete.
 	err = avail.SharesAvailable(ctx, eh)
@@ -159,7 +152,7 @@ func TestSharesAvailableSkipSampled(t *testing.T) {
 		AnyTimes()
 
 	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds, nil)
+	avail := NewShareAvailability(getter, ds)
 
 	// generate random header
 	roots := edstest.RandomAxisRoots(t, 16)
@@ -190,7 +183,7 @@ func TestSharesAvailableEmptyEDS(t *testing.T) {
 
 	getter := mock.NewMockGetter(gomock.NewController(t))
 	ds := datastore.NewMapDatastore()
-	avail := NewShareAvailability(getter, ds, nil)
+	avail := NewShareAvailability(getter, ds)
 
 	// request for empty eds
 	eh := headertest.RandExtendedHeaderWithRoot(t, share.EmptyEDSRoots())
@@ -223,7 +216,7 @@ func TestSharesAvailableFailed(t *testing.T) {
 	for _, tt := range tests {
 		failGetter := mock.NewMockGetter(gomock.NewController(t))
 		ds := datastore.NewMapDatastore()
-		avail := NewShareAvailability(failGetter, ds, nil)
+		avail := NewShareAvailability(failGetter, ds)
 
 		// Getter doesn't have the eds, so it should fail for all samples
 		mockSamples := min(int(avail.params.SampleAmount), 2*len(tt.eh.DAH.RowRoots))
@@ -286,7 +279,7 @@ func TestParallelAvailability(t *testing.T) {
 	ds := datastore.NewMapDatastore()
 	// Simulate a getter that returns shares successfully
 	successfulGetter := newSuccessGetter()
-	avail := NewShareAvailability(successfulGetter, ds, nil)
+	avail := NewShareAvailability(successfulGetter, ds)
 
 	// create new eds, that is not available by getter
 	eds := edstest.RandEDS(t, 16)
@@ -387,272 +380,53 @@ func (g successGetter) GetRangeNamespaceData(
 	panic("not implemented")
 }
 
-func TestPruneAll(t *testing.T) {
-	const size = 8
+func TestPrune(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 
-	eds, h := randEdsAndHeader(t, size)
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	clientBs := blockstore.NewBlockstore(ds)
-
-	ex := newExchangeOverEDS(ctx, t, eds)
-	getter := bitswap.NewGetter(ex, clientBs, 0)
-	getter.Start()
-	defer getter.Stop()
-
-	// Create a new ShareAvailability instance and sample the shares
-	sampleAmount := uint(20)
-	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
-	err := avail.SharesAvailable(ctx, h)
+	roots, err := share.NewAxisRoots(edstest.RandEDS(t, 8))
 	require.NoError(t, err)
-	// close ShareAvailability to force flush of batched writes
-	avail.Close(ctx)
+	eh := headertest.RandExtendedHeaderWithRoot(t, roots)
 
-	preDeleteCount := countKeys(ctx, t, clientBs)
-	require.EqualValues(t, sampleAmount, preDeleteCount)
+	avail := NewShareAvailability(newSuccessGetter(), datastore.NewMapDatastore())
+	require.NoError(t, avail.SharesAvailable(ctx, eh))
+	require.NoError(t, avail.Close(ctx))
 
-	// prune the samples
-	err = avail.Prune(ctx, h)
+	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
+	require.True(t, exist)
 
-	// Check if samples are deleted
-	postDeleteCount := countKeys(ctx, t, clientBs)
-	require.Zero(t, postDeleteCount)
+	require.NoError(t, avail.Prune(ctx, eh))
 
-	// Check if sampling result is deleted
-	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
+	exist, err = avail.ds.Has(ctx, datastoreKeyForRoot(roots))
 	require.NoError(t, err)
 	require.False(t, exist)
 }
 
-func TestPrunePartialFailed(t *testing.T) {
-	const size = 8
+func TestRemoveLegacySamples(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	t.Cleanup(cancel)
 
-	eds, h := randEdsAndHeader(t, size)
 	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	clientBs := blockstore.NewBlockstore(ds)
-
-	ex := newHalfSessionExchange(newExchangeOverEDS(ctx, t, eds))
-	getter := bitswap.NewGetter(ex, clientBs, 0)
-	getter.Start()
-	defer getter.Stop()
-
-	// Create a new ShareAvailability instance and sample the shares
-	sampleAmount := uint(20)
-	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
-	err := avail.SharesAvailable(ctx, h)
-	require.Error(t, err)
-	// close ShareAvailability to force flush of batched writes
-	avail.Close(ctx)
-
-	preDeleteCount := countKeys(ctx, t, clientBs)
-	// Only half of the samples should be stored
-	require.EqualValues(t, sampleAmount/2, preDeleteCount)
-
-	// prune the samples
-	err = avail.Prune(ctx, h)
-	require.NoError(t, err)
-
-	// Check if samples are deleted
-	postDeleteCount := countKeys(ctx, t, clientBs)
-	require.Zero(t, postDeleteCount)
-
-	// Check if sampling result is deleted
-	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
-	require.NoError(t, err)
-	require.False(t, exist)
-}
-
-func TestPruneWithCancelledContext(t *testing.T) {
-	const size = 8
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-	t.Cleanup(cancel)
-
-	eds, h := randEdsAndHeader(t, size)
-	ds := ds_sync.MutexWrap(datastore.NewMapDatastore())
-	clientBs := blockstore.NewBlockstore(ds)
-
-	ex := newTimeoutExchange(newExchangeOverEDS(ctx, t, eds))
-	getter := bitswap.NewGetter(ex, clientBs, 0)
-	getter.Start()
-	defer getter.Stop()
-
-	// Create a new ShareAvailability instance and sample the shares
-	sampleAmount := uint(20)
-	avail := NewShareAvailability(getter, ds, clientBs, WithSampleAmount(sampleAmount))
-
-	ctx2, cancel2 := context.WithCancel(ctx)
-	defer cancel2()
-	go func() {
-		// cancel context a bit later.
-		time.Sleep(200 * time.Millisecond)
-		cancel2()
-	}()
-
-	err := avail.SharesAvailable(ctx2, h)
-	require.Error(t, err, context.Canceled)
-	// close ShareAvailability to force flush of batched writes
-	avail.Close(ctx)
-
-	preDeleteCount := countKeys(ctx, t, clientBs)
-	require.Greater(t, preDeleteCount, 0)
-
-	// prune the samples
-	err = avail.Prune(ctx, h)
-	require.NoError(t, err)
-
-	// Check if samples are deleted
-	postDeleteCount := countKeys(ctx, t, clientBs)
-	require.Zero(t, postDeleteCount)
-
-	// Check if sampling result is deleted
-	exist, err := avail.ds.Has(ctx, datastoreKeyForRoot(h.DAH))
-	require.NoError(t, err)
-	require.False(t, exist)
-}
-
-type halfSessionExchange struct {
-	exchange.SessionExchange
-	attempt atomic.Int32
-}
-
-func newHalfSessionExchange(ex exchange.SessionExchange) *halfSessionExchange {
-	return &halfSessionExchange{SessionExchange: ex}
-}
-
-func (hse *halfSessionExchange) NewSession(context.Context) exchange.Fetcher {
-	return hse
-}
-
-func (hse *halfSessionExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blocks.Block, error) {
-	out := make(chan blocks.Block, len(cids))
-	defer close(out)
-
-	for _, cid := range cids {
-		if hse.attempt.Add(1)%2 == 0 {
-			continue
-		}
-
-		blk, err := hse.GetBlock(ctx, cid)
-		if err != nil {
-			return nil, err
-		}
-
-		out <- blk
+	legacy := 3*writeBatchSize + 1
+	for i := range legacy {
+		key := legacySamplesPrefix.ChildString(strconv.Itoa(i))
+		require.NoError(t, ds.Put(ctx, key, []byte("sample")))
 	}
+	unrelated := datastore.NewKey("blocksync/head")
+	require.NoError(t, ds.Put(ctx, unrelated, []byte("keep")))
 
-	return out, nil
-}
+	require.NoError(t, RemoveLegacySamples(ctx, ds))
 
-type timeoutExchange struct {
-	exchange.SessionExchange
-}
-
-func newTimeoutExchange(ex exchange.SessionExchange) *timeoutExchange {
-	return &timeoutExchange{SessionExchange: ex}
-}
-
-func (hse *timeoutExchange) NewSession(context.Context) exchange.Fetcher {
-	return hse
-}
-
-func (hse *timeoutExchange) GetBlocks(ctx context.Context, cids []cid.Cid) (<-chan blocks.Block, error) {
-	out := make(chan blocks.Block, len(cids))
-	defer close(out)
-
-	for _, cid := range cids {
-		blk, err := hse.GetBlock(ctx, cid)
-		if err != nil {
-			break
-		}
-
-		out <- blk
-	}
-
-	// sleep guarantees that we context will be canceled in a test.
-	time.Sleep(200 * time.Millisecond)
-
-	return out, nil
-}
-
-func randEdsAndHeader(t *testing.T, size int) (*rsmt2d.ExtendedDataSquare, *header.ExtendedHeader) {
-	height := uint64(42)
-	eds := edstest.RandEDS(t, size)
-	roots, err := share.NewAxisRoots(eds)
+	res, err := ds.Query(ctx, query.Query{Prefix: legacySamplesPrefix.String(), KeysOnly: true})
 	require.NoError(t, err)
-
-	h := &header.ExtendedHeader{
-		RawHeader: header.RawHeader{
-			Height: int64(height),
-			Time:   time.Now(),
-		},
-		DAH: roots,
-	}
-	return eds, h
-}
-
-func countKeys(ctx context.Context, t *testing.T, bs blockstore.Blockstore) int {
-	keys, err := bs.AllKeysChan(ctx)
+	left, err := res.Rest()
 	require.NoError(t, err)
-	var count int
-	for range keys {
-		count++
-	}
-	return count
-}
+	require.Empty(t, left)
 
-func newExchangeOverEDS(ctx context.Context, t *testing.T, rsmt2d *rsmt2d.ExtendedDataSquare) exchange.SessionExchange {
-	bstore := &bitswap.Blockstore{
-		Getter: testAccessorGetter{
-			AccessorStreamer: &eds.Rsmt2D{ExtendedDataSquare: rsmt2d},
-		},
-	}
-	return newExchange(ctx, t, bstore)
-}
-
-func newExchange(ctx context.Context, t *testing.T, bstore blockstore.Blockstore) exchange.SessionExchange {
-	net, err := mocknet.FullMeshLinked(3)
+	has, err := ds.Has(ctx, unrelated)
 	require.NoError(t, err)
+	require.True(t, has)
 
-	newServer(ctx, net.Hosts()[0], bstore)
-	newServer(ctx, net.Hosts()[1], bstore)
-
-	client := newClient(ctx, net.Hosts()[2], bstore)
-
-	err = net.ConnectAllButSelf()
-	require.NoError(t, err)
-	time.Sleep(time.Millisecond * 10) // give time for connection routines to finish
-	return client
-}
-
-func newServer(ctx context.Context, host host.Host, store blockstore.Blockstore) {
-	net := bitswap.NewNetwork(host, "test")
-	server := bitswap.NewServer(
-		ctx,
-		net,
-		store,
-	)
-	net.Start(server)
-}
-
-func newClient(ctx context.Context, host host.Host, store blockstore.Blockstore) *client.Client {
-	net := bitswap.NewNetwork(host, "test")
-	client := bitswap.NewClient(ctx, net, store)
-	net.Start(client)
-	return client
-}
-
-type testAccessorGetter struct {
-	eds.AccessorStreamer
-}
-
-func (t testAccessorGetter) GetByHeight(context.Context, uint64) (eds.AccessorStreamer, error) {
-	return t.AccessorStreamer, nil
-}
-
-func (t testAccessorGetter) HasByHeight(context.Context, uint64) (bool, error) {
-	return true, nil
+	require.NoError(t, RemoveLegacySamples(ctx, ds))
 }
