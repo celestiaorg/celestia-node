@@ -13,29 +13,13 @@ func newShareModule(getter shwap.Getter, avail share.Availability, header header
 	return &module{getter, avail, header}
 }
 
-func lightGetter(
-	shrexGetter *shrex_getter.Getter,
-	cfg Config,
-) shwap.Getter {
-	var cascade []shwap.Getter
-	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
-	}
-	return getters.NewCascadeGetter(cascade)
+func lightGetter(shrexGetter *shrex_getter.Getter) shwap.Getter {
+	return getters.NewCascadeGetter([]shwap.Getter{shrexGetter})
 }
 
 // Getter is added to bridge nodes for the case where Bridge nodes are
 // running in a pruned mode. This ensures the block can be retrieved from
 // the network if it was pruned from the local store.
-func bridgeGetter(
-	storeGetter *store.Getter,
-	shrexGetter *shrex_getter.Getter,
-	cfg Config,
-) shwap.Getter {
-	var cascade []shwap.Getter
-	cascade = append(cascade, storeGetter)
-	if cfg.UseShareExchange {
-		cascade = append(cascade, shrexGetter)
-	}
-	return getters.NewCascadeGetter(cascade)
+func bridgeGetter(storeGetter *store.Getter, shrexGetter *shrex_getter.Getter) shwap.Getter {
+	return getters.NewCascadeGetter([]shwap.Getter{storeGetter, shrexGetter})
 }

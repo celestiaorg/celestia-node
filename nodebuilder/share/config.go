@@ -15,8 +15,6 @@ type Config struct {
 	// EDSStoreParams sets eds store configuration parameters
 	EDSStoreParams *store.Parameters
 
-	UseShareExchange bool
-
 	// Shrex sets client and server configuration parameters of the shrex protocol
 	ShrexClient *shrex.ClientParams
 	ShrexServer *shrex.ServerParams
@@ -33,7 +31,6 @@ func DefaultConfig(tp node.Type) Config {
 		Discovery:         discovery.DefaultParameters(),
 		ShrexClient:       shrex.DefaultClientParameters(),
 		ShrexServer:       shrex.DefaultServerParameters(),
-		UseShareExchange:  true,
 		PeerManagerParams: peers.DefaultParameters(),
 	}
 
