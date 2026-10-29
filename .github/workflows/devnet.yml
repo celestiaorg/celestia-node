@@ -2,8 +2,14 @@ name: devnet
 
 on:
   pull_request:
-  merge_group:
+    paths:
+      - docker/devnet/**
+      - .github/workflows/devnet.yml
+      - go.mod
+      - go.sum
+  # Catches Go changes that break the image without running on every PR.
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -24,12 +30,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+        arch: [amd64, arm64]
+        # arm64 only for releases; amd64 covers the scripts otherwise.
+        exclude:
+          - arch: >-
+              ${{ (github.ref_type == 'tag' ||
+              github.event_name == 'workflow_dispatch') && 'none' || 'arm64' }}
+    runs-on: >-
+      ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 45
     outputs:
       tag: ${{ steps.version.outputs.tag }}

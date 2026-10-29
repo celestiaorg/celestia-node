@@ -16,7 +16,7 @@ RUN mkdir -p build && \
       -o build/celestia ./cmd/celestia && \
     go build -o cel-key ./cmd/cel-key
 
-FROM docker.io/alpine:3.24.1 AS runtime
+FROM docker.io/alpine:3.24.2 AS runtime
 
 ARG VERSION=dev
 ARG COMMIT=unknown
