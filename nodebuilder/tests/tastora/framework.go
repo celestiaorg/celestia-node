@@ -58,8 +58,7 @@ const (
 var defaultNodeTag = "32627d9" // fallback if not set via ldflags
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
-// It provides Docker-based chain and node setup, similar to how Swamp provides
-// mock-based testing infrastructure.
+// It provides Docker-based chain and node setup.
 type Framework struct {
 	t       *testing.T
 	logger  *zap.Logger
@@ -92,7 +91,6 @@ type Framework struct {
 }
 
 // NewFramework creates a new Tastora testing framework instance.
-// Similar to swamp.NewSwamp(), this sets up the complete testing environment.
 func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,

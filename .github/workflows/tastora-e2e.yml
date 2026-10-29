@@ -1,6 +1,7 @@
 name: Tastora E2E
 
-# Bridge-node E2E regression suite, gated on PRs marked ready for review. Builds the celestia-node
+# Bridge-node E2E regression suite, gated on PRs marked ready for review and on the merge queue, so
+# the combined revision is tested before it lands. Builds the celestia-node
 # image once from the PR's source, then fans every Tastora suite out across a matrix so each runs in
 # parallel against that image and reports its own pass/fail. Keeping the node image matched to the
 # test code means tests coupled to node behaviour are validated reliably (unlike testing a separately
@@ -12,6 +13,7 @@ on:
       - reopened
       - ready_for_review
       - synchronize
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -30,7 +32,7 @@ jobs:
   build-image:
     name: Build node image
     # Skip draft PRs; only run once ready for review.
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -50,7 +52,7 @@ jobs:
 
   test:
     name: ${{ matrix.suite }}
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     needs: build-image
     runs-on: ubuntu-latest
     timeout-minutes: 30
