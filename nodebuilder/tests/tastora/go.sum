@@ -177,8 +177,8 @@ github.com/celestiaorg/boxo v0.29.0-fork-4 h1:A202u8w3Iqjw4ZlqSukfiMbefQEN+740GU
 github.com/celestiaorg/boxo v0.29.0-fork-4/go.mod h1:rXql6ncaLZZfLqDG3Cuw9ZYQKd3rMU5bk1TGXF0+ZL0=
 github.com/celestiaorg/celestia-app/v10 v10.4.0 h1:jfFFC7fpBgqsCPEcJjfnfqG3j4ooi0UCNRNIuhx3okI=
 github.com/celestiaorg/celestia-app/v10 v10.4.0/go.mod h1:Y+QWlfU4zZgZn4LIKmCA0OzzkNKRfOg1J10FV7vlzFY=
-github.com/celestiaorg/celestia-core v0.42.3 h1:kdXKlSiEqEWl87EyxNB9ryx1aQJq/8RyBdgfYy2rdYM=
-github.com/celestiaorg/celestia-core v0.42.3/go.mod h1:znDAw/NFVo/oZKG7Q70cHxRRLUVzi2/K9qJ911+lpYg=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20261029212807-99fe075fda61 h1:ltLgbLTDQucOnU+MogCySVPMU+wYuAwW7C3vWGxoN78=
+github.com/celestiaorg/celestia-core v1.54.0-tm-v0.38.17.0.20261029212807-99fe075fda61/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
 github.com/celestiaorg/cosmos-sdk v0.52.12 h1:muIDlBLLXeuKiIrGA/t+k9ZLpjjRVs460XRzwh1dgqU=
 github.com/celestiaorg/cosmos-sdk v0.52.12/go.mod h1:skeian5w7HTw2jmUxjGudtu6wzKLcgBh8t+LYvVvzfI=
 github.com/celestiaorg/cosmos-sdk/api v0.7.7 h1:Ns40Iu1jUWEzROcRcgjE1VoZPJsyUEdXuaCXEVOId6Q=
