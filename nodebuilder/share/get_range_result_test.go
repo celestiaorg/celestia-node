@@ -58,6 +58,14 @@ func TestGetRangeResultVerify(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "empty share with matching empty proof data",
+			mutate: func(r *GetRangeResult) {
+				r.Shares[0] = libshare.Share{}
+				r.Proof.Data[0] = nil
+			},
+			wantErr: true,
+		},
+		{
 			name: "share namespace differs from proof namespace",
 			mutate: func(r *GetRangeResult) {
 				r.Proof.NamespaceID = libshare.RandomNamespace().ID()

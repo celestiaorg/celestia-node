@@ -122,6 +122,9 @@ func (r *GetRangeResult) Verify(dataRoot []byte) error {
 		return fmt.Errorf("got %d shares but the proof covers %d", len(r.Shares), len(r.Proof.Data))
 	}
 	for i, sh := range r.Shares {
+		if len(sh.ToBytes()) != libshare.ShareSize {
+			return fmt.Errorf("share %d is %d bytes, want %d", i, len(sh.ToBytes()), libshare.ShareSize)
+		}
 		if !bytes.Equal(sh.ToBytes(), r.Proof.Data[i]) {
 			return errors.New("share data mismatch")
 		}
