@@ -8,12 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/go-square/v4/share"
 
 	rpcclient "github.com/celestiaorg/celestia-node/api/rpc/client"
+	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	nodeblob "github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/state"
 )
 
@@ -168,6 +171,31 @@ func (s *E2ESanityTestSuite) TestErrorPaths() {
 				return bridgeClient.Share.SharesAvailable(c, tc.height)
 			})
 		})
+	}
+}
+
+// TestNodeAPI covers the Node module: info, readiness and the auth token round-trip.
+func (s *E2ESanityTestSuite) TestNodeAPI() {
+	ctx, cancel := s.withTimeout()
+	defer cancel()
+
+	client := s.framework.GetNodeRPCClient(ctx, s.framework.GetBridgeNodes()[0])
+
+	info, err := client.Node.Info(ctx)
+	s.Require().NoError(err)
+	s.Assert().Equal(node.Bridge, info.Type)
+	s.Assert().NotEmpty(info.APIVersion)
+
+	ready, err := client.Node.Ready(ctx)
+	s.Require().NoError(err)
+	s.Assert().True(ready)
+
+	for _, p := range [][]auth.Permission{perms.ReadWritePerms, perms.AllPerms} {
+		token, err := client.Node.AuthNew(ctx, p)
+		s.Require().NoError(err)
+		got, err := client.Node.AuthVerify(ctx, token)
+		s.Require().NoError(err)
+		s.Assert().Equal(p, got)
 	}
 }
 
