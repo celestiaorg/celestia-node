@@ -3,6 +3,7 @@ package share
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -114,13 +115,39 @@ func newGetRangeResult(
 
 // Verify verifies inclusion the data in the data root
 func (r *GetRangeResult) Verify(dataRoot []byte) error {
-	rawShares := libshare.ToBytes(r.Shares)
-	for i, shares := range rawShares {
-		if !bytes.Equal(shares, r.Proof.Data[i]) {
+	if r.Proof == nil {
+		return errors.New("nil proof")
+	}
+	if len(r.Shares) != len(r.Proof.Data) {
+		return fmt.Errorf("got %d shares but the proof covers %d", len(r.Shares), len(r.Proof.Data))
+	}
+	for i, sh := range r.Shares {
+		if !bytes.Equal(sh.ToBytes(), r.Proof.Data[i]) {
 			return errors.New("share data mismatch")
+		}
+		ns := sh.Namespace()
+		if uint32(ns.Version()) != r.Proof.NamespaceVersion || !bytes.Equal(ns.ID(), r.Proof.NamespaceID) {
+			return fmt.Errorf("share %d namespace does not match the proof namespace", i)
 		}
 	}
 	return r.Proof.Validate(dataRoot)
+}
+
+// VerifyRange verifies the data like Verify and checks that it is exactly the
+// [start, end) range of the original data square.
+func (r *GetRangeResult) VerifyRange(dataRoot []byte, start, end int) error {
+	if err := r.Verify(dataRoot); err != nil {
+		return err
+	}
+	// Verify checked that the proofs are non-nil and bound to the square.
+	width := int(r.Proof.RowProof.Proofs[0].Total / 4)
+	first, last := r.Proof.ShareProofs[0], r.Proof.ShareProofs[len(r.Proof.ShareProofs)-1]
+	provenStart := int(r.Proof.RowProof.StartRow)*width + int(first.Start)
+	provenEnd := int(r.Proof.RowProof.EndRow)*width + int(last.End)
+	if provenStart != start || provenEnd != end {
+		return fmt.Errorf("proof covers [%d, %d), want [%d, %d)", provenStart, provenEnd, start, end)
+	}
+	return nil
 }
 
 func toCoreNMTProof(proofs []*nmt.Proof) []*tmproto.NMTProof {
