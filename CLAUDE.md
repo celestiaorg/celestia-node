@@ -56,6 +56,7 @@ go generate ./...       # Regenerate mocks (mockgen)
 - PR titles: `type(pkg): [level] subject` (e.g., `fix(service/header): [medium] remove race in core_listener`). CI enforces the format.
 - Levels: `[high]` deep review (DAS/availability verification, shrex/p2p protocol, header verification, fraud proofs, state/tx submission, breaking API/config changes, security); `[medium]` standard review for limited-impact code changes; `[low]` docs, tests, or tooling. Pick the higher level when unsure. See [CONTRIBUTING.md#pr-naming](CONTRIBUTING.md#pr-naming).
 - Don't repeat the tag in the PR description; the title already carries it.
+- When you open a PR, assign it to the engineer you are working for (their GitHub login, e.g. from the GitHub `get_me` tool).
 - Commit messages: conventional commits (e.g., `feat(service/header): Title`)
 
 ### Import Ordering
