@@ -81,7 +81,7 @@ func (s *P2PTestSuite) TestBridgeServesSharesOverShrex() {
 	s.Require().NoError(err, "bridge[0] should serve a share range")
 	s.Require().NotEmpty(rng.Shares, "range should contain shares")
 	s.Require().NotNil(rng.Proof, "range should carry an inclusion proof")
-	s.Require().NoError(rng.Verify(hdr.DataHash), "range proof should validate against the data root")
+	s.Require().NoError(rng.VerifyRange(hdr.DataHash, 0, 1), "range proof should validate against the data root")
 
 	nsDataA, err := clientA.Share.GetNamespaceData(ctx, height, namespace)
 	s.Require().NoError(err, "bridge[0] should serve namespace data")
