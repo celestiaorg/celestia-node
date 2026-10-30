@@ -20,7 +20,7 @@ import (
 )
 
 // DASTestSuite verifies a light node samples a blob square and reconstructs its EDS
-// from the bridge over shrex (bitswap disabled).
+// from the bridge over shrex.
 type DASTestSuite struct {
 	suite.Suite
 	framework *Framework
@@ -38,7 +38,7 @@ func (s *DASTestSuite) SetupSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
-	s.framework.NewLightNodeBitswapOff(ctx)
+	s.framework.NewLightNode(ctx)
 }
 
 func (s *DASTestSuite) TearDownSuite() {
