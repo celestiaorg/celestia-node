@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/math v1.5.3
 	github.com/celestiaorg/celestia-app/v10 v10.4.0
 	github.com/celestiaorg/celestia-node v0.23.3
-	github.com/celestiaorg/go-square/v4 v4.1.0
+	github.com/celestiaorg/go-square/v4 v4.3.0
 	github.com/celestiaorg/tastora v0.21.2
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
