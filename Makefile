@@ -149,7 +149,8 @@ lint: lint-imports
 ## test-unit: Run unit tests.
 test-unit:
 	@echo "--> Running unit tests"
-	@go test $(VERBOSE) -tags=fibre -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+# Test-node port allocation is process-local, so coverage packages must run serially.
+	@go test $(VERBOSE) -p 1 -tags=fibre -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
 ## test-unit-fast: Run unit tests without coverage instrumentation.
