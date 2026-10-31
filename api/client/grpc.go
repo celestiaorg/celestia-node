@@ -72,9 +72,11 @@ func grpcClient(cfg CoreGRPCConfig) (*grpc.ClientConn, error) {
 		if !cfg.TLSEnabled {
 			log.Warn("auth token is set but TLS is disabled, this is insecure")
 		}
+		// The base retry interceptors already compose with this chain.
+		// Adding them again would nest retries.
 		opts = append(opts,
-			grpc.WithChainUnaryInterceptor(authInterceptor(cfg.AuthToken), retryInterceptor),
-			grpc.WithChainStreamInterceptor(authStreamInterceptor(cfg.AuthToken), retryStreamInterceptor),
+			grpc.WithChainUnaryInterceptor(authInterceptor(cfg.AuthToken)),
+			grpc.WithChainStreamInterceptor(authStreamInterceptor(cfg.AuthToken)),
 		)
 	}
 	normalizedAddr := utils.NormalizeGRPCAddress(cfg.Addr)
