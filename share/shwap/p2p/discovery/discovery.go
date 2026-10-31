@@ -268,11 +268,13 @@ func (d *Discovery) disconnectsLoop(ctx context.Context, sub event.Subscription)
 // discover finds new peers and reports whether it succeeded.
 func (d *Discovery) discover(ctx context.Context) bool {
 	size := d.set.Size()
-	want := d.set.Limit() - size
-	if want == 0 {
+	// The set can end up above the limit, as workers below add peers concurrently, so compare
+	// before subtracting to avoid wrapping around.
+	if size >= d.set.Limit() {
 		log.Debugw("reached soft peer limit, skipping discovery", "topic", d.topic, "size", size)
 		return true
 	}
+	want := d.set.Limit() - size
 	// TODO @renaynay: eventually, have a mechanism to catch if wanted amount of peers
 	//  has not been discovered in X amount of time so that users are warned of degraded
 	//  FN connectivity.
