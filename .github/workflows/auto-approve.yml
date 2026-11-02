@@ -1,0 +1,101 @@
+name: auto-approve
+
+# The main ruleset requires one approval. A GitHub App supplies it for [low]
+# and [medium] PRs from trusted human authors and withdraws it when a PR stops
+# qualifying; everything else waits for a human. See .github/review-policy.md.
+#
+# This workflow never checks out or runs PR code: it reads only the event
+# payload and the GitHub API. pull_request_target always runs the default
+# branch's copy of this file, whatever the PR's base, so stacked PRs are
+# covered and the auto-approve environment (deployment branch: main only)
+# holds the App credentials.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: auto-approve-${{ github.event.pull_request.number || 'sweep' }}
+  cancel-in-progress: false
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: auto-approve
+    steps:
+      - name: Mint GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.AUTO_APPROVE_CLIENT_ID }}
+          private-key: ${{ secrets.AUTO_APPROVE_PRIVATE_KEY }}
+          permission-pull-requests: write
+      - name: Approve or dismiss
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          APP_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const { owner, repo } = context.repo;
+            const titleTag = /^[a-z]+(\([^\r\n)]+\))?!?: \[(low|medium|high)\] \S/;
+            const human = (u) => u.type === 'User' && !u.login.endsWith('[bot]');
+
+            // Read current state from the API; event payloads can be stale.
+            const get = async (n) => (await github.rest.pulls.get({ owner, repo, pull_number: n })).data;
+            const tierOK = (pr) => !pr.draft && ['low', 'medium'].includes(titleTag.exec(pr.title)?.[2]);
+            async function trusted(login) {
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner, repo, username: login,
+                });
+                return ['admin', 'maintain', 'write'].includes(data.permission);
+              } catch (e) {
+                if (e.status === 404) return false;
+                throw e;
+              }
+            }
+            const dismiss = (pr, id) => github.rest.pulls.dismissReview({
+              owner, repo, pull_number: pr.number, review_id: id,
+              message: 'No longer a ready [low]/[medium] PR from a trusted author; a human approval is required.',
+            });
+
+            // A PR event checks that PR; schedule and workflow_dispatch sweep every open PR.
+            const numbers = context.payload.pull_request
+              ? [context.payload.pull_request.number]
+              : (await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }))
+                  .map((p) => p.number);
+
+            // Check each PR on its own so one failed API call does not skip the rest.
+            const failed = [];
+            for (const n of numbers) {
+              try {
+                const pr = await get(n);
+                if (pr.state !== 'open') continue;
+                const ok = tierOK(pr) && human(pr.user) && (await trusted(pr.user.login));
+                const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                  owner, repo, pull_number: n, per_page: 100,
+                });
+                const mine = reviews.filter((r) => r.user?.login === process.env.APP_LOGIN && r.state === 'APPROVED');
+                core.info(`#${n} "${pr.title}": qualifies=${ok}, app approvals=${mine.length}`);
+                if (ok && mine.length === 0) {
+                  const { data: review } = await github.rest.pulls.createReview({
+                    owner, repo, pull_number: n, commit_id: pr.head.sha, event: 'APPROVE',
+                    body: 'Auto-approved: [low]/[medium] PR from a trusted author (.github/review-policy.md).',
+                  });
+                  // Close the race with a retitle or draft that landed mid-run.
+                  if (!tierOK(await get(n))) await dismiss(pr, review.id);
+                } else if (!ok) {
+                  for (const r of mine) await dismiss(pr, r.id);
+                }
+              } catch (e) {
+                core.error(`#${n}: ${e.message}`);
+                failed.push(n);
+              }
+            }
+            if (failed.length) core.setFailed(`Failed to check PRs: ${failed.map((n) => `#${n}`).join(', ')}`);
