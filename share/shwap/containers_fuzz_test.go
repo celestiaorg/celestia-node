@@ -135,7 +135,7 @@ func getFixture(tb testing.TB) *containerFixture {
 	return fixture
 }
 
-// FuzzSampleReadFrom decodes a Sample the way the shrex and bitswap clients do,
+// FuzzSampleReadFrom decodes a Sample the way the shrex client does,
 // verifies it at fuzz-chosen coordinates, and checks that a Sample which
 // verifies is the share that really sits at those coordinates.
 func FuzzSampleReadFrom(f *testing.F) {

@@ -153,7 +153,7 @@ func (sg *Getter) GetSamples(
 	// samples[i] corresponds to coords[i], and a sample that was not retrieved is
 	// left empty (IsEmpty) rather than removed. Compacting the slice here would
 	// break callers that index results by request position (e.g. light
-	// availability and GetShare), and it matches the bitswap getter's contract.
+	// availability and GetShare).
 	return samples, err
 }
 

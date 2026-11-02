@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/autobatch"
 	"github.com/ipfs/go-datastore/namespace"
@@ -18,9 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/availability"
-	"github.com/celestiaorg/celestia-node/share/ipld"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 )
 
 var (
@@ -35,7 +32,6 @@ var (
 // on the network doing sampling over the same Root to collectively verify its availability.
 type ShareAvailability struct {
 	getter shwap.Getter
-	bs     blockstore.Blockstore
 	params Parameters
 
 	samplingWindow time.Duration
@@ -52,7 +48,6 @@ type ShareAvailability struct {
 func NewShareAvailability(
 	getter shwap.Getter,
 	ds datastore.Batching,
-	bs blockstore.Blockstore,
 	opts ...Option,
 ) *ShareAvailability {
 	params := *DefaultParameters()
@@ -65,7 +60,6 @@ func NewShareAvailability(
 
 	return &ShareAvailability{
 		getter:         getter,
-		bs:             bs,
 		params:         params,
 		samplingWindow: availability.SamplingWindow,
 		activeHeights:  utils.NewSessions(),
@@ -183,8 +177,7 @@ func (la *ShareAvailability) SharesAvailable(ctx context.Context, header *header
 	return nil
 }
 
-// Prune deletes samples and all sampling data corresponding to provided header from store.
-// The operation will remove all data that ShareAvailable might have created
+// Prune deletes the sampling result corresponding to provided header from store.
 func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader) error {
 	dah := h.DAH
 	if share.DataHash(dah.Hash()).IsEmptyEDS() {
@@ -198,44 +191,8 @@ func (la *ShareAvailability) Prune(ctx context.Context, h *header.ExtendedHeader
 	}
 	defer release()
 
-	key := datastoreKeyForRoot(dah)
-	la.dsLk.RLock()
-	data, err := la.ds.Get(ctx, key)
-	la.dsLk.RUnlock()
-	if errors.Is(err, datastore.ErrNotFound) {
-		// nothing to prune
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("get sampling result: %w", err)
-	}
-
-	var result SamplingResult
-	err = json.Unmarshal(data, &result)
-	if err != nil {
-		return fmt.Errorf("unmarshal sampling result: %w", err)
-	}
-
-	// delete stored samples
-	for _, sample := range result.Available {
-		idx := shwap.SampleCoords{Row: sample.Row, Col: sample.Col}
-
-		blk, err := bitswap.NewEmptySampleBlock(h.Height(), idx, len(h.DAH.RowRoots))
-		if err != nil {
-			return fmt.Errorf("marshal sample ID: %w", err)
-		}
-		err = la.bs.DeleteBlock(ctx, blk.CID())
-		if err != nil {
-			if !errors.Is(err, ipld.ErrNodeNotFound) {
-				return fmt.Errorf("delete sample: %w", err)
-			}
-			log.Warnf("can't delete sample: %v, height: %v,  missing in blockstore", sample, h.Height())
-		}
-	}
-
-	// delete the sampling result
 	la.dsLk.Lock()
-	err = la.ds.Delete(ctx, key)
+	err = la.ds.Delete(ctx, datastoreKeyForRoot(dah))
 	la.dsLk.Unlock()
 	if err != nil {
 		return fmt.Errorf("delete sampling result: %w", err)

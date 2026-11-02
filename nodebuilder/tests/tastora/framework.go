@@ -58,8 +58,7 @@ const (
 var defaultNodeTag = "32627d9" // fallback if not set via ldflags
 
 // Framework represents the main testing infrastructure for Tastora-based tests.
-// It provides Docker-based chain and node setup, similar to how Swamp provides
-// mock-based testing infrastructure.
+// It provides Docker-based chain and node setup.
 type Framework struct {
 	t       *testing.T
 	logger  *zap.Logger
@@ -92,7 +91,6 @@ type Framework struct {
 }
 
 // NewFramework creates a new Tastora testing framework instance.
-// Similar to swamp.NewSwamp(), this sets up the complete testing environment.
 func NewFramework(t *testing.T, options ...Option) *Framework {
 	f := &Framework{
 		t:                    t,
@@ -256,7 +254,6 @@ func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window t
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(startArgs...),
 		dataavailability.WithEnvironmentVariables(env),
-		dataavailability.WithConfigModifications(bitswapOffMod()),
 	)
 	require.NoError(f.t, err, "failed to start small-window bridge node")
 
@@ -267,13 +264,37 @@ func (f *Framework) StartBridgeNodeWithSmallWindow(ctx context.Context, window t
 	return bridgeNode
 }
 
-func bitswapOffMod() map[string]tomlutil.Toml {
-	return map[string]tomlutil.Toml{
-		"config.toml": {
-			"RPC":   tomlutil.Toml{"SkipAuth": true},
-			"Share": tomlutil.Toml{"UseBitswap": false},
-		},
+// StartArchivalBridgeNode starts an archival bridge peered only to bridge[0], so other nodes can
+// learn about it solely through discovery.
+func (f *Framework) StartArchivalBridgeNode(ctx context.Context) *dataavailability.Node {
+	genesisHash := f.getGenesisHash(ctx, f.celestia)
+
+	bridgeNodes := f.daNetwork.GetBridgeNodes()
+	idx := len(f.bridgeNodes)
+	if idx >= len(bridgeNodes) {
+		f.t.Fatalf("Cannot create more bridge nodes: already have %d, max is %d", idx, len(bridgeNodes))
 	}
+	require.Positive(f.t, idx, "archival bridge must be peered to an existing bridge[0]")
+	bridgeNode := bridgeNodes[idx]
+
+	trustedPeer := f.nodeP2PAddr(ctx, f.bridgeNodes[0])
+	networkInfo, err := f.celestia.GetNodes()[0].GetNetworkInfo(ctx)
+	require.NoError(f.t, err, "failed to get network info")
+	hostname := networkInfo.Internal.Hostname
+
+	startArgs := []string{"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0", "--archival"}
+	err = bridgeNode.Start(ctx,
+		dataavailability.WithChainID(testChainID),
+		dataavailability.WithAdditionalStartArguments(startArgs...),
+		dataavailability.WithEnvironmentVariables(map[string]string{
+			"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, trustedPeer),
+			"P2P_NETWORK":     testChainID,
+		}),
+	)
+	require.NoError(f.t, err, "failed to start archival bridge node")
+
+	f.bridgeNodes = append(f.bridgeNodes, bridgeNode)
+	return bridgeNode
 }
 
 func (f *Framework) bridgeContainerRunning(ctx context.Context, node *dataavailability.Node) bool {
@@ -314,18 +335,6 @@ func (f *Framework) NewLightNode(ctx context.Context) *dataavailability.Node {
 	f.t.Logf("Light node created and funded with %d utia", f.defaultFundingAmount)
 
 	// Verify funds are available by checking balance
-	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
-
-	f.lightNodes = append(f.lightNodes, lightNode)
-	return lightNode
-}
-
-// NewLightNodeBitswapOff starts a light node connected  to bridge with bitswap disabled
-func (f *Framework) NewLightNodeBitswapOff(ctx context.Context) *dataavailability.Node {
-	bridgeNode := f.bridgeNodes[0]
-	lightNode := f.startLightNode(ctx, bridgeNode, f.celestia,
-		dataavailability.WithConfigModifications(bitswapOffMod()))
-	f.fundNodeAccount(ctx, lightNode, f.defaultFundingAmount)
 	f.verifyNodeBalance(ctx, lightNode, f.defaultFundingAmount)
 
 	f.lightNodes = append(f.lightNodes, lightNode)
@@ -762,17 +771,20 @@ func (f *Framework) startLightNode(
 
 	lightNode := f.daNetwork.GetLightNodes()[lightNodeIndex]
 
+	env := map[string]string{
+		"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
+		"P2P_NETWORK":     testChainID,
+	}
+	if f.availabilityWindow > 0 {
+		env["CELESTIA_OVERRIDE_AVAILABILITY_WINDOW"] = f.availabilityWindow.String()
+	}
+
 	startOpts := append([]dataavailability.StartOption{
 		dataavailability.WithChainID(testChainID),
 		dataavailability.WithAdditionalStartArguments(
 			"--p2p.network", testChainID, "--core.ip", hostname, "--rpc.addr", "0.0.0.0",
 		),
-		dataavailability.WithEnvironmentVariables(
-			map[string]string{
-				"CELESTIA_CUSTOM": types.BuildCelestiaCustomEnvVar(testChainID, genesisHash, p2pAddr),
-				"P2P_NETWORK":     testChainID,
-			},
-		),
+		dataavailability.WithEnvironmentVariables(env),
 	}, extraOpts...)
 
 	// Try starting the light node with a retry to avoid docker flakiness

@@ -21,17 +21,11 @@ make test-unit-race                      # Run unit tests with race detector
 go test ./path/to/package/...            # Run tests for a specific package
 go test -run TestName ./path/to/pkg/...  # Run a single test
 
-# Integration tests (in nodebuilder/tests/, require build tags)
-make test-integration TAGS=blob          # Run blob integration tests
-make test-integration TAGS=p2p           # Run p2p integration tests
-make test-integration SHORT=true TAGS=da # Run with -short flag
-
-# Available integration TAGS: api, blob, da, fraud, nd, p2p, reconstruction, sync, share, pruning
-
 # Tastora E2E tests (Docker-based)
 make test-blob                           # Blob module E2E tests
 make test-e2e-sanity                     # E2E sanity suite
 make test-tastora                        # All Tastora tests
+make test-tastora RUN=TestBlobTestSuite  # A single Tastora suite
 ```
 
 ### Code Quality
@@ -53,9 +47,7 @@ go generate ./...       # Regenerate mocks (mockgen)
 
 ## Testing Infrastructure
 
-- **Swamp** (`nodebuilder/tests/swamp/`): In-process mock networks for integration tests.
-- **Tastora** (`nodebuilder/tests/tastora/`): Docker-based E2E tests.
-- Integration tests live in `nodebuilder/tests/` and require build tags (see TAGS above).
+- **Tastora** (`nodebuilder/tests/tastora/`): Docker-based E2E tests; a separate Go module run with the `integration` build tag against a celestia-node image (`CELESTIA_NODE_TAG`).
 
 ## Code Conventions
 
