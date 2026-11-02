@@ -16,10 +16,10 @@ var APIVersion = GetBuildInfo().SemanticVersion
 type module struct {
 	tp       Type
 	signer   jwt.Signer
-	verifier jwt.Verifier
+	verifier *authtoken.Verifier
 }
 
-func newModule(tp Type, signer jwt.Signer, verifier jwt.Verifier) Module {
+func newModule(tp Type, signer jwt.Signer, verifier *authtoken.Verifier) Module {
 	return &module{
 		tp:       tp,
 		signer:   signer,
@@ -53,8 +53,8 @@ func (m *module) LogLevelSet(_ context.Context, name, level string) error {
 	return logging.SetLogLevel(name, level)
 }
 
-func (m *module) AuthVerify(_ context.Context, token string) ([]auth.Permission, error) {
-	return authtoken.ExtractSignedPermissions(m.verifier, token)
+func (m *module) AuthVerify(ctx context.Context, token string) ([]auth.Permission, error) {
+	return m.verifier.Verify(ctx, token)
 }
 
 func (m *module) AuthNew(_ context.Context, permissions []auth.Permission) (string, error) {
@@ -65,4 +65,8 @@ func (m *module) AuthNewWithExpiry(_ context.Context,
 	permissions []auth.Permission, ttl time.Duration,
 ) (string, error) {
 	return authtoken.NewSignedJWT(m.signer, permissions, ttl)
+}
+
+func (m *module) AuthRevoke(ctx context.Context, token string) error {
+	return m.verifier.Revoke(ctx, token)
 }

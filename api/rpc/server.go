@@ -75,7 +75,7 @@ type Server struct {
 	tlsKeyPath  string
 
 	signer   jwt.Signer
-	verifier jwt.Verifier
+	verifier *authtoken.Verifier
 
 	metrics *rpcMetrics
 }
@@ -93,7 +93,7 @@ func NewServer(
 	tlsConfig TLSConfig,
 	rateLimitCfg RateLimitConfig,
 	signer jwt.Signer,
-	verifier jwt.Verifier,
+	verifier *authtoken.Verifier,
 ) *Server {
 	srv := &Server{
 		signer:       signer,
@@ -181,22 +181,28 @@ func (s *Server) WithMetrics() error {
 	return nil
 }
 
-// verifyAuth is the RPC server's auth middleware. This middleware is only
-// reached if a token is provided in the header of the request, otherwise only
-// methods with `read` permissions are accessible.
-func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission, error) {
-	if s.authDisabled {
-		return perms.AllPerms, nil
-	}
-	return authtoken.ExtractSignedPermissions(s.verifier, token)
-}
-
 // authHandler wraps the handler with authentication.
 func (s *Server) authHandler(next http.Handler) http.Handler {
-	return &auth.Handler{
-		Verify: s.verifyAuth,
-		Next:   next.ServeHTTP,
-	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+		var release func()
+		defer func() {
+			if release != nil {
+				release()
+			}
+		}()
+		handler := auth.Handler{
+			Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+				permissions, unregister, err := s.verifier.VerifyAndRegister(ctx, token, cancel)
+				release = unregister
+				return permissions, err
+			},
+			Next: next.ServeHTTP,
+		}
+		// go-jsonrpc closes WebSockets and subscriptions when this context is canceled.
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // corsAny applies permissive CORS (allows all origins, methods, headers)

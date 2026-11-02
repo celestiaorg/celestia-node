@@ -68,6 +68,14 @@ For more information on setting up a node and the hardware requirements needed, 
 
 The celestia-node public API is documented [here](https://node-rpc-docs.celestia.org/).
 
+### Revoke an RPC token
+
+Use an admin token to revoke a previously issued token on a running node:
+
+```sh
+celestia node revoke-token "$TOKEN_TO_REVOKE" --url http://localhost:26658 --token "$ADMIN_TOKEN"
+```
+
 ## Node types
 
 - **Bridge** nodes - relay blocks from the celestia consensus network to the celestia data availability (DA) network
