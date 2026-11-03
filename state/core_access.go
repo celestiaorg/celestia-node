@@ -156,6 +156,7 @@ func (ca *CoreAccessor) SubmitPayForBlob(
 	libBlobs []*libshare.Blob,
 	cfg *TxConfig,
 ) (_ *TxResponse, err error) {
+	cfg = txclient.WithDefaults(cfg)
 	span := trace.SpanFromContext(ctx)
 	// span will be set to noopSpan if SubmitPayForBlob is called directly
 	if !span.SpanContext().IsValid() {
@@ -312,6 +313,7 @@ func (ca *CoreAccessor) Transfer(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -337,6 +339,7 @@ func (ca *CoreAccessor) CancelUnbondingDelegation(
 	height Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -365,6 +368,7 @@ func (ca *CoreAccessor) BeginRedelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -390,6 +394,7 @@ func (ca *CoreAccessor) Undelegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -415,6 +420,7 @@ func (ca *CoreAccessor) Delegate(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || !amount.IsPositive() {
 		return nil, ErrInvalidAmount
 	}
@@ -439,6 +445,7 @@ func (ca *CoreAccessor) WithdrawDelegatorReward(
 	valAddr ValAddress,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	signer, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err
@@ -504,6 +511,7 @@ func (ca *CoreAccessor) GrantFee(
 	amount Int,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	if amount.IsNil() || amount.IsNegative() {
 		return nil, ErrInvalidAmount
 	}
@@ -536,6 +544,7 @@ func (ca *CoreAccessor) RevokeGrantFee(
 	grantee AccAddress,
 	cfg *TxConfig,
 ) (*TxResponse, error) {
+	cfg = txclient.WithDefaults(cfg)
 	granter, err := ca.getTxAuthorAccAddress(cfg)
 	if err != nil {
 		return nil, err

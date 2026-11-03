@@ -3,12 +3,12 @@ name: Dependabot Go Mod Tidy
 # Dependabot edits go.mod/go.sum in place and never runs `go mod tidy`, so
 # indirect requires drift and the go_mod_tidy_check / go_mod_parity_check jobs
 # fail on every bot PR. This workflow runs `go mod tidy` across every module on
-# Dependabot PRs and pushes the fixup back onto the PR branch with the built-in
+# Dependabot PRs and commits the fixup onto the PR branch with the built-in
 # GITHUB_TOKEN (elevated to contents: write below).
 #
 # checkout uses persist-credentials: false so the token is never left in
 # .git/config while `go mod tidy` runs; it is supplied explicitly only for the
-# final push.
+# API commit, which GitHub signs with a verified signature.
 
 on:
   pull_request:
@@ -53,13 +53,9 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
         run: |
-          if git diff --quiet; then
-            echo "all modules already tidy — nothing to do"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore(deps): go mod tidy after dependabot bump"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:$HEAD_REF"
+          set -euo pipefail
+          # Include new go.sum files, and limit the commit to module files.
+          git add --all -- ':(glob)**/go.mod' ':(glob)**/go.sum'
+          python3 .github/scripts/commit-signed-changes.py \
+            "$HEAD_REF" "chore(deps): go mod tidy after dependabot bump"

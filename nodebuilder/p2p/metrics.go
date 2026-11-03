@@ -14,9 +14,9 @@ func WithMetrics() fx.Option {
 	)
 }
 
-// prometheusRegisterer provides a labeled prometheus.Registerer for libp2p and bitswap metrics.
-// The registerer is also set as the global default so that bitswap metrics (which register
-// with prometheus.DefaultRegisterer) are captured with the correct labels.
+// prometheusRegisterer provides a labeled prometheus.Registerer for libp2p metrics.
+// The registerer is also set as the global default so that metrics registering with
+// prometheus.DefaultRegisterer are captured with the correct labels.
 // All collected prometheus metrics are bridged to OTel via the prometheus bridge in
 // nodebuilder/settings.go, eliminating the need for a standalone Prometheus HTTP server.
 func prometheusRegisterer() prometheus.Registerer {

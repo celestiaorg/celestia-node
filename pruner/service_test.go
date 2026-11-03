@@ -193,6 +193,53 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
 
+// TestPrune_FullBatchFails checks that prune returns when every header in a full batch fails
+// instead of fetching the same batch again.
+func TestPrune_FullBatchFails(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	var maxHeadersPerLoopOld int
+	maxHeadersPerLoopOld, maxHeadersPerLoop = maxHeadersPerLoop, 10
+	t.Cleanup(func() { maxHeadersPerLoop = maxHeadersPerLoopOld })
+
+	blockTime := time.Nanosecond
+	availabilityWindow := blockTime * 10
+
+	suite := headertest.NewTestSuite(t, headertest.WithValidators(1), headertest.WithBlockTime(blockTime))
+	store := headertest.NewCustomStore(t, suite, maxHeadersPerLoop*3)
+
+	serv, err := NewService(
+		failingPruner{},
+		availabilityWindow,
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		blockTime,
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	time.Sleep(availabilityWindow + time.Millisecond*100)
+
+	done := make(chan struct{})
+	go func() {
+		serv.prune(ctx)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("prune kept fetching the same failing batch")
+	}
+
+	assert.Len(t, serv.checkpoint.FailedHeaders, maxHeadersPerLoop)
+}
+
 func TestFindPruneableHeaders(t *testing.T) {
 	now := time.Now()
 
@@ -349,4 +396,10 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
+}
+
+type failingPruner struct{}
+
+func (failingPruner) Prune(context.Context, *header.ExtendedHeader) error {
+	return fmt.Errorf("failed to prune")
 }

@@ -163,7 +163,31 @@ func NewOpenRPCDocument(comments, permissions Comments) *go_openrpc_reflect.Docu
 	// remove the default implementation from the method descriptions
 	appReflector.FnGetMethodDescription = func(_ reflect.Value, m reflect.Method, _ *ast.FuncDecl) (string, error) {
 		if v, ok := permissions[m.Name]; ok {
-			return "Auth level: " + v + ". Requests must include the HTTP header: Authorization: Bearer <token>.", nil
+			description := fmt.Sprintf("Auth level: %s. Requests must include the HTTP header: "+
+				"`Authorization: Bearer <token>`. This header is sent separately from the JSON-RPC body.\n\n"+
+				"Generate a token with `celestia <node-type> auth %s`, replacing `<node-type>` with "+
+				"your node type (`light` or `bridge`). Use the running node's `--p2p.network` and "+
+				"`--node.store` flags if they differ from the defaults.\n\n", v, v)
+			for i := range m.Type.NumOut() {
+				if m.Type.Out(i).Kind() == reflect.Chan {
+					return description + "This method requires WebSockets; HTTP POST is not supported. " +
+						"Connect to `ws://localhost:26658` with `Authorization: Bearer <token>` in the " +
+						"HTTP upgrade request, replacing `<token>` with the generated token. Then send the " +
+						"JSON-RPC request example over the WebSocket connection to receive subscription updates. " +
+						"Adjust the URL if your RPC server uses a different address.", nil
+				}
+			}
+			return description + "For HTTP calls, save the JSON-RPC request example as `request.json`, replace " +
+				"`<your-auth-token>` with the generated token, and run the following command. " +
+				"Adjust the URL if your RPC server uses a different address.\n\n" +
+				"```sh\n" +
+				"export CELESTIA_NODE_AUTH_TOKEN='<your-auth-token>'\n" +
+				"curl -X POST \\\n" +
+				"  -H \"Content-Type: application/json\" \\\n" +
+				"  -H \"Authorization: Bearer $CELESTIA_NODE_AUTH_TOKEN\" \\\n" +
+				"  --data-binary @request.json \\\n" +
+				"  http://localhost:26658\n" +
+				"```", nil
 		}
 		return "", nil
 	}

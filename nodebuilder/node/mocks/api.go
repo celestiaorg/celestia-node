@@ -67,6 +67,20 @@ func (mr *MockModuleMockRecorder) AuthNewWithExpiry(arg0, arg1, arg2 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthNewWithExpiry", reflect.TypeOf((*MockModule)(nil).AuthNewWithExpiry), arg0, arg1, arg2)
 }
 
+// AuthRevoke mocks base method.
+func (m *MockModule) AuthRevoke(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthRevoke", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AuthRevoke indicates an expected call of AuthRevoke.
+func (mr *MockModuleMockRecorder) AuthRevoke(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthRevoke", reflect.TypeOf((*MockModule)(nil).AuthRevoke), arg0, arg1)
+}
+
 // AuthVerify mocks base method.
 func (m *MockModule) AuthVerify(arg0 context.Context, arg1 string) ([]auth.Permission, error) {
 	m.ctrl.T.Helper()

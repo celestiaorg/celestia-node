@@ -36,7 +36,7 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
 
 | Requirement | Notes          |
 | ----------- |----------------|
-| Go version  | 1.26.8 or higher |
+| Go version  | 1.26.10 or higher |
 
 ## System requirements
 
@@ -67,6 +67,14 @@ For more information on setting up a node and the hardware requirements needed, 
 ## API docs
 
 The celestia-node public API is documented [here](https://node-rpc-docs.celestia.org/).
+
+### Revoke an RPC token
+
+Use an admin token to revoke a previously issued token on a running node:
+
+```sh
+celestia node revoke-token "$TOKEN_TO_REVOKE" --url http://localhost:26658 --token "$ADMIN_TOKEN"
+```
 
 ## Node types
 

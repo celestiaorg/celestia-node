@@ -8,8 +8,8 @@ Please ensure you've addressed or included references to any related issues.
 
 Title format: `type(pkg): [level] subject`, e.g. `fix(das): [high] ...`.
 Levels are [high], [medium], or [low]; see CONTRIBUTING.md#pr-naming.
-Choose the higher level when unsure, and repeat the tag in the description
-with a brief reason, e.g. "Review level: [low] — documentation only."
+Choose the higher level when unsure. The title carries the tag, so don't
+repeat it in the description.
 
 Tips:
 - Use keywords like "closes" or "fixes" followed by an issue number to automatically close related issues when the PR is merged (e.g., "closes #123" or "fixes #123").

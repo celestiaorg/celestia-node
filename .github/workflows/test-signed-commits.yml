@@ -1,0 +1,27 @@
+name: Signed commit helper tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/commit-signed-changes.py"
+      - ".github/scripts/test_commit_signed_changes.py"
+      - ".github/workflows/test-signed-commits.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/scripts/commit-signed-changes.py"
+      - ".github/scripts/test_commit_signed_changes.py"
+      - ".github/workflows/test-signed-commits.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  signed-commit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Test staged changes and commit failure handling
+        run: python3 .github/scripts/test_commit_signed_changes.py

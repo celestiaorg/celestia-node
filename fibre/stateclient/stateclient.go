@@ -29,6 +29,8 @@ import (
 
 var log = logging.Logger("fibre/stateclient")
 
+var _ state.Client = (*Client)(nil)
+
 // ErrNoFibreProviderInfo is returned by fetchHostAt when a validator has not
 // registered fibre provider info via x/valaddr. The absence is proven against
 // the trusted AppHash, so this is an authoritative answer, not a transient
@@ -296,3 +298,15 @@ func (c *Client) Stop(context.Context) error { return nil }
 // FullStakeStorageBudget is a no-op on light nodes: they store no shards, so there
 // is no local store to size a budget for.
 func (c *Client) FullStakeStorageBudget(context.Context) (int64, error) { return 0, nil }
+
+// NodeStatus is only used by Fibre server health checks. DA clients cannot
+// report an app node's sync status from their locally verified headers.
+func (c *Client) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, fmt.Errorf("app node status on DA clients: %w", errors.ErrUnsupported)
+}
+
+// ProviderRegistration is only used by Fibre server health checks. DA clients
+// are not providers; validator host lookups use proof-verified GetHost instead.
+func (c *Client) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, fmt.Errorf("provider registration on DA clients: %w", errors.ErrUnsupported)
+}

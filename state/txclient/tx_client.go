@@ -172,6 +172,7 @@ func (c *TxClient) SubmitPayForBlob(
 	author types.AccAddress,
 	cfg *TxConfig,
 ) (_ *user.TxResponse, err error) {
+	cfg = WithDefaults(cfg)
 	if err = c.setupClient(); err != nil {
 		return nil, err
 	}

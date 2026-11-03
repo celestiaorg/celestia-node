@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-node
 
-go 1.26.8
+go 1.26.10
 
 require (
 	cosmossdk.io/log v1.6.1
@@ -10,11 +10,11 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/benbjohnson/clock v1.3.5
-	github.com/celestiaorg/celestia-app/v10 v10.4.0
+	github.com/celestiaorg/celestia-app/v10 v10.5.0
 	github.com/celestiaorg/go-header v0.8.9
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/go-square/v4 v4.0.1
+	github.com/celestiaorg/go-square/v4 v4.3.0
 	github.com/celestiaorg/nmt v0.24.5
 	github.com/celestiaorg/rsmt2d v0.15.3
 	github.com/cometbft/cometbft v1.0.1
@@ -22,13 +22,13 @@ require (
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/etclabscore/go-openrpc-reflect v0.0.37
-	github.com/filecoin-project/go-jsonrpc v0.10.2
-	github.com/gammazero/workerpool v1.2.1
+	github.com/filecoin-project/go-jsonrpc v0.10.3
+	github.com/gammazero/workerpool v1.3.0
 	github.com/gofrs/flock v0.13.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
-	github.com/grafana/otel-profiling-go v0.6.0
-	github.com/grafana/pyroscope-go v1.4.2
+	github.com/grafana/otel-profiling-go v0.7.0
+	github.com/grafana/pyroscope-go v1.4.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/imdario/mergo v0.3.16
@@ -37,46 +37,41 @@ require (
 	github.com/ipfs/go-cid v0.6.2
 	github.com/ipfs/go-datastore v0.9.2
 	github.com/ipfs/go-ds-badger4 v0.1.8
-	github.com/ipfs/go-ipfs-delay v0.0.1
 	github.com/ipfs/go-ipld-format v0.6.4
 	github.com/ipfs/go-log/v2 v2.9.2
-	github.com/ipfs/go-metrics-interface v0.3.0
-	github.com/ipfs/go-metrics-prometheus v0.1.0
 	github.com/klauspost/reedsolomon v1.14.2
 	github.com/libp2p/go-libp2p v0.50.0
 	github.com/libp2p/go-libp2p-kad-dht v0.42.2
 	github.com/libp2p/go-libp2p-pubsub v0.18.0
-	github.com/libp2p/go-libp2p-record v0.3.1
-	github.com/libp2p/go-libp2p-routing-helpers v0.7.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.1.0
 	github.com/multiformats/go-multiaddr v0.16.1
 	github.com/multiformats/go-multiaddr-dns v0.6.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/open-rpc/meta-schema v0.0.0-20201029221707-1b72ef2ea333
-	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/client_golang v1.25.0
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
-	go.opentelemetry.io/contrib/bridges/prometheus v0.71.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.71.0
-	go.opentelemetry.io/otel v1.46.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.46.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.46.0
-	go.opentelemetry.io/otel/metric v1.46.0
-	go.opentelemetry.io/otel/sdk v1.46.0
-	go.opentelemetry.io/otel/sdk/metric v1.46.0
-	go.opentelemetry.io/otel/trace v1.46.0
-	go.opentelemetry.io/proto/otlp v1.11.0
+	go.opentelemetry.io/contrib/bridges/prometheus v0.72.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.72.0
+	go.opentelemetry.io/otel v1.47.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.47.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0
+	go.opentelemetry.io/otel/metric v1.47.0
+	go.opentelemetry.io/otel/sdk v1.47.0
+	go.opentelemetry.io/otel/sdk/metric v1.47.0
+	go.opentelemetry.io/otel/trace v1.47.0
+	go.opentelemetry.io/proto/otlp v1.11.1
 	go.uber.org/fx v1.24.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/crypto v0.57.0
-	golang.org/x/sync v0.23.0
-	golang.org/x/text v0.42.0
+	golang.org/x/crypto v0.58.0
+	golang.org/x/sync v0.24.0
+	golang.org/x/text v0.43.0
 	golang.org/x/time v0.16.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
@@ -106,6 +101,7 @@ require (
 	filippo.io/keygen v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20261006220739-8c912ac31dd4 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.34.0 // indirect
@@ -175,7 +171,6 @@ require (
 	github.com/cosmos/ibc-go/v8 v8.7.0 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.15.0 // indirect
-	github.com/cskr/pubsub v1.0.2 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
@@ -196,25 +191,24 @@ require (
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
-	github.com/gammazero/chanqueue v1.1.1 // indirect
-	github.com/gammazero/deque v1.2.1 // indirect
+	github.com/gammazero/deque v1.2.2 // indirect
 	github.com/getsentry/sentry-go v0.42.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-kit/kit v0.13.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-openapi/jsonpointer v1.0.0 // indirect
+	github.com/go-openapi/jsonpointer v1.0.1 // indirect
 	github.com/go-openapi/jsonreference v1.0.1 // indirect
-	github.com/go-openapi/spec v0.22.11 // indirect
-	github.com/go-openapi/swag/conv v0.29.1 // indirect
-	github.com/go-openapi/swag/jsonutils v0.29.1 // indirect
-	github.com/go-openapi/swag/loading v0.29.1 // indirect
-	github.com/go-openapi/swag/pools v0.29.1 // indirect
-	github.com/go-openapi/swag/stringutils v0.29.1 // indirect
-	github.com/go-openapi/swag/typeutils v0.29.1 // indirect
-	github.com/go-openapi/swag/yamlutils v0.29.1 // indirect
+	github.com/go-openapi/spec v1.0.0 // indirect
+	github.com/go-openapi/swag/conv v0.29.2 // indirect
+	github.com/go-openapi/swag/jsonutils v0.29.2 // indirect
+	github.com/go-openapi/swag/loading v0.29.2 // indirect
+	github.com/go-openapi/swag/pools v0.29.2 // indirect
+	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
+	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
+	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
@@ -236,7 +230,7 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.11 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.72 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -258,15 +252,14 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
-	github.com/ipfs/go-ipfs-pq v0.0.3 // indirect
 	github.com/ipfs/go-ipld-legacy v0.2.2 // indirect
-	github.com/ipfs/go-peertaskqueue v0.8.2 // indirect
+	github.com/ipfs/go-metrics-interface v0.3.0 // indirect
 	github.com/ipld/go-codec-dagpb v1.7.0 // indirect
 	github.com/ipld/go-ipld-prime v0.24.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/koron/go-ssdp v0.9.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -277,6 +270,8 @@ require (
 	github.com/libp2p/go-flow-metrics v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.9.0 // indirect
+	github.com/libp2p/go-libp2p-record v0.3.1 // indirect
+	github.com/libp2p/go-libp2p-routing-helpers v0.7.5 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
 	github.com/libp2p/go-netroute v0.4.0 // indirect
 	github.com/libp2p/go-reuseport v0.4.0 // indirect
@@ -328,8 +323,8 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/polydawn/refmt v0.90.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.71.0 // indirect
-	github.com/prometheus/procfs v0.21.1 // indirect
+	github.com/prometheus/common v0.72.0 // indirect
+	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.62.0 // indirect
 	github.com/quic-go/webtransport-go v0.13.0 // indirect
@@ -362,24 +357,25 @@ require (
 	go.opentelemetry.io/contrib/detectors/gcp v1.44.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.71.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.46.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/exp v0.0.0-20260718201538-764159d718ef // indirect
+	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 // indirect
-	golang.org/x/term v0.46.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.298.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
@@ -399,7 +395,7 @@ replace (
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.3
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.7
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.12
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
@@ -423,7 +419,7 @@ replace github.com/ipfs/go-datastore => github.com/celestiaorg/go-datastore v0.0
 
 replace github.com/moby/term => github.com/moby/term v0.5.2
 
-replace github.com/docker/go-connections => github.com/docker/go-connections v0.7.0
+replace github.com/docker/go-connections => github.com/docker/go-connections v0.8.2
 
 replace github.com/bytedance/sonic => github.com/bytedance/sonic v1.15.0
 
