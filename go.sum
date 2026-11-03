@@ -178,8 +178,8 @@ github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork-4 h1:A202u8w3Iqjw4ZlqSukfiMbefQEN+740GUj1Z3VI960=
 github.com/celestiaorg/boxo v0.29.0-fork-4/go.mod h1:rXql6ncaLZZfLqDG3Cuw9ZYQKd3rMU5bk1TGXF0+ZL0=
-github.com/celestiaorg/celestia-app/v10 v10.4.0 h1:jfFFC7fpBgqsCPEcJjfnfqG3j4ooi0UCNRNIuhx3okI=
-github.com/celestiaorg/celestia-app/v10 v10.4.0/go.mod h1:Y+QWlfU4zZgZn4LIKmCA0OzzkNKRfOg1J10FV7vlzFY=
+github.com/celestiaorg/celestia-app/v10 v10.5.0 h1:CEKeiFSFRclu85ozJo5Gdk71H9am3wyEJJ8pMWqBNkc=
+github.com/celestiaorg/celestia-app/v10 v10.5.0/go.mod h1:+lsm9pK+vzPKWnqUyCXwDvCvfIL/CZsqMMg8vM6o4KY=
 github.com/celestiaorg/celestia-core v0.42.7 h1:s1R25IrJDFrXLaXIBeXjseERuYM0RcrkztT5bak5RZ4=
 github.com/celestiaorg/celestia-core v0.42.7/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
 github.com/celestiaorg/cosmos-sdk v0.52.12 h1:muIDlBLLXeuKiIrGA/t+k9ZLpjjRVs460XRzwh1dgqU=
@@ -405,8 +405,8 @@ github.com/gammazero/chanqueue v1.1.1 h1:n9Y+zbBxw2f7uUE9wpgs0rOSkP/I/yhDLiNuhyV
 github.com/gammazero/chanqueue v1.1.1/go.mod h1:fMwpwEiuUgpab0sH4VHiVcEoji1pSi+EIzeG4TPeKPc=
 github.com/gammazero/deque v1.2.2 h1:zD+4g/JzU5MdHWiPzMeG7OeFW5plbhYKqHfSNDnQ3E8=
 github.com/gammazero/deque v1.2.2/go.mod h1:b0Hd32YGkBkCvq+lAX5i2bKhsBc9AJNZvv4vqNqsvJc=
-github.com/gammazero/workerpool v1.2.2 h1:ThLMsRsi5tFu5A+yWQcDVUjAijYQUmv9sjmE/AtksVY=
-github.com/gammazero/workerpool v1.2.2/go.mod h1:nbtgxeEYc+vZWZdZjYpHOyVwqXlStlplhfOf1bQu27s=
+github.com/gammazero/workerpool v1.3.0 h1:TD/xAtP7MXbBoFyBGV4lj3LlWBi6P0wOcyRFvWqIx0g=
+github.com/gammazero/workerpool v1.3.0/go.mod h1:nbtgxeEYc+vZWZdZjYpHOyVwqXlStlplhfOf1bQu27s=
 github.com/getsentry/sentry-go v0.42.0 h1:eeFMACuZTbUQf90RE8dE4tXeSe4CZyfvR1MBL7RLEt8=
 github.com/getsentry/sentry-go v0.42.0/go.mod h1:eRXCoh3uvmjQLY6qu63BjUZnaBu5L5WhMV1RwYO8W5s=
 github.com/ghemawat/stream v0.0.0-20171120220530-696b145b53b9 h1:r5GgOLGbza2wVHRzK7aAj6lWZjfbAwiu/RDCVOKjRyM=

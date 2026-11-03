@@ -86,6 +86,28 @@ func TestVerifyPromiseNoop(t *testing.T) {
 	require.Equal(t, appstate.VerifiedPromise{}, got)
 }
 
+// Provider health checks must fail explicitly on DA clients rather than report
+// a healthy app node or trust an unverified remote endpoint.
+func TestProviderHealthChecksUnsupported(t *testing.T) {
+	stub := &stubABCI{err: errors.New("health checks must not query ABCI")}
+	var c appstate.Client = newTestClient(t, stub, p2p.Private)
+	ctx := context.Background()
+
+	t.Run("node status", func(t *testing.T) {
+		status, err := c.NodeStatus(ctx)
+		require.ErrorIs(t, err, errors.ErrUnsupported)
+		require.Equal(t, appstate.NodeStatus{}, status)
+	})
+
+	t.Run("provider registration", func(t *testing.T) {
+		registration, err := c.ProviderRegistration(ctx, make(core.Address, 20))
+		require.ErrorIs(t, err, errors.ErrUnsupported)
+		require.Equal(t, appstate.ProviderRegistration{}, registration)
+	})
+
+	require.Zero(t, stub.calls.Load(), "unsupported health checks must not query ABCI")
+}
+
 func TestStopNoop(t *testing.T) {
 	c := newTestClient(t, &stubABCI{}, p2p.Private)
 	require.NoError(t, c.Stop(context.Background()))

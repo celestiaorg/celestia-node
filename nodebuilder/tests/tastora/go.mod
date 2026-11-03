@@ -4,10 +4,10 @@ go 1.26.10
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v10 v10.4.0
+	github.com/celestiaorg/celestia-app/v10 v10.5.0
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v4 v4.3.0
-	github.com/celestiaorg/tastora v0.21.2
+	github.com/celestiaorg/tastora v0.21.3
 	github.com/cometbft/cometbft v1.0.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/cosmos/cosmos-sdk v0.50.13
@@ -98,7 +98,7 @@ require (
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gammazero/deque v1.2.2 // indirect
-	github.com/gammazero/workerpool v1.2.2 // indirect
+	github.com/gammazero/workerpool v1.3.0 // indirect
 	github.com/getsentry/sentry-go v0.42.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-kit/kit v0.13.0 // indirect
