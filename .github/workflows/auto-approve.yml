@@ -1,8 +1,9 @@
 name: auto-approve
 
 # The main ruleset requires one approval. A GitHub App supplies it for [low]
-# and [medium] PRs from trusted human authors and withdraws it when a PR stops
-# qualifying; everything else waits for a human. See .github/review-policy.md.
+# and [medium] PRs from trusted human authors or Dependabot and withdraws it
+# when a PR stops qualifying; everything else waits for a human. See
+# .github/review-policy.md.
 #
 # This workflow never checks out or runs PR code: it reads only the event
 # payload and the GitHub API. pull_request_target always runs the default
@@ -45,6 +46,8 @@ jobs:
             const { owner, repo } = context.repo;
             const titleTag = /^[a-z]+(\([^\r\n)]+\))?!?: \[(low|medium|high)\] \S/;
             const human = (u) => u.type === 'User' && !u.login.endsWith('[bot]');
+            // Dependabot's tier is fixed by .github/dependabot.yml, which CODEOWNERS protects.
+            const dependabot = (u) => u.type === 'Bot' && u.login === 'dependabot[bot]';
 
             // Read current state from the API; event payloads can be stale.
             const get = async (n) => (await github.rest.pulls.get({ owner, repo, pull_number: n })).data;
@@ -62,7 +65,7 @@ jobs:
             }
             const dismiss = (pr, id) => github.rest.pulls.dismissReview({
               owner, repo, pull_number: pr.number, review_id: id,
-              message: 'No longer a ready [low]/[medium] PR from a trusted author; a human approval is required.',
+              message: 'No longer a ready [low]/[medium] PR from a trusted author or Dependabot; a human approval is required.',
             });
 
             // A PR event checks that PR; schedule and workflow_dispatch sweep every open PR.
@@ -77,7 +80,7 @@ jobs:
               try {
                 const pr = await get(n);
                 if (pr.state !== 'open') continue;
-                const ok = tierOK(pr) && human(pr.user) && (await trusted(pr.user.login));
+                const ok = tierOK(pr) && (dependabot(pr.user) || (human(pr.user) && (await trusted(pr.user.login))));
                 const reviews = await github.paginate(github.rest.pulls.listReviews, {
                   owner, repo, pull_number: n, per_page: 100,
                 });
@@ -86,7 +89,7 @@ jobs:
                 if (ok && mine.length === 0) {
                   const { data: review } = await github.rest.pulls.createReview({
                     owner, repo, pull_number: n, commit_id: pr.head.sha, event: 'APPROVE',
-                    body: 'Auto-approved: [low]/[medium] PR from a trusted author (.github/review-policy.md).',
+                    body: 'Auto-approved: [low]/[medium] PR from a trusted author or Dependabot (.github/review-policy.md).',
                   });
                   // Close the race with a retitle or draft that landed mid-run.
                   if (!tierOK(await get(n))) await dismiss(pr, review.id);
