@@ -1,8 +1,25 @@
 # CODEOWNERS: <https://help.github.com/articles/about-codeowners/>
 
-# Everything goes through the protocol team by default. The team's review
-# assignment settings control how many reviewers are auto-assigned per PR.
-# See: https://github.com/orgs/celestiaorg/teams/protocol/edit/review_assignment
+# The review policy (.github/review-policy.md) auto-approves [low] and [medium]
+# PRs from trusted authors. Because the tag is chosen by the author, the files
+# that define the policy, CI, and agent behavior always need a protocol team
+# approval. "Require review from Code Owners" must stay enabled on main for
+# this to be enforced.
 
-# global owners
-* @celestiaorg/protocol
+# CI, its build and lint config, repo automation, and the review policy
+# itself, including this file.
+/.github/ @celestiaorg/protocol
+/.golangci.yml @celestiaorg/protocol
+/Makefile @celestiaorg/protocol
+/celestia-node.mk @celestiaorg/protocol
+
+# Agent and reviewer instructions.
+/.agents/ @celestiaorg/protocol
+/.claude/ @celestiaorg/protocol
+/.cursor/ @celestiaorg/protocol
+AGENTS.md @celestiaorg/protocol
+CLAUDE.md @celestiaorg/protocol
+GEMINI.md @celestiaorg/protocol
+
+# The Contributing section defines the [low], [medium], and [high] tiers.
+/CONTRIBUTING.md @celestiaorg/protocol
