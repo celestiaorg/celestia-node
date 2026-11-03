@@ -6,8 +6,12 @@
 # approval. "Require review from Code Owners" must stay enabled on main for
 # this to be enforced.
 
-# CI, repo automation, and the review policy itself, including this file.
+# CI, its build and lint config, repo automation, and the review policy
+# itself, including this file.
 /.github/ @celestiaorg/protocol
+/.golangci.yml @celestiaorg/protocol
+/Makefile @celestiaorg/protocol
+/celestia-node.mk @celestiaorg/protocol
 
 # Agent and reviewer instructions.
 /.agents/ @celestiaorg/protocol
