@@ -165,6 +165,26 @@ test-unit-race:
 	@go test $(VERBOSE) -tags=fibre -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-race
 
+## fuzz: Run every fuzz target in .github/workflows/fuzz.yml for FUZZTIME (default 30s) each.
+fuzz:
+	@echo "--> Running fuzz targets for $(or $(FUZZTIME),30s) each"
+	@scripts/fuzz-targets.sh run $(or $(FUZZTIME),30s)
+.PHONY: fuzz
+
+## fuzz-check: Check that every fuzz target is in the fuzz workflow or explicitly excluded.
+fuzz-check:
+	@scripts/fuzz-targets.sh check
+.PHONY: fuzz-check
+
+# Keep in sync with GREMLINS_VERSION in .github/workflows/mutation-nightly.yml.
+GREMLINS_VERSION ?= v0.6.0
+
+## mutation-test: Run gremlins mutation testing on one package, e.g. make mutation-test PKG=header.
+mutation-test:
+	@test -n "$(PKG)" || { echo "usage: make mutation-test PKG=<package dir>"; exit 2; }
+	@GREMLINS="go run github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION)" scripts/mutation-test.sh $(PKG)
+.PHONY: mutation-test
+
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:
 	@echo "--> Running blob module tests"
@@ -208,6 +228,12 @@ pb-gen:
 openrpc-gen:
 	@go run ${LDFLAGS} ./cmd/celestia docgen
 .PHONY: openrpc-gen
+
+## lint-complexity: Report cognitive complexity above 30 in code changed since BASE (default origin/main).
+lint-complexity:
+	@echo "--> Running cognitive complexity linter on new code"
+	@golangci-lint run --config .golangci-complexity.yml --new-from-merge-base=$(or $(BASE),origin/main)
+.PHONY: lint-complexity
 
 ## lint-imports: Lint only Go imports.
 lint-imports:
