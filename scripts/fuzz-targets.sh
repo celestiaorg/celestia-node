@@ -79,6 +79,8 @@ check)
 	;;
 run)
 	fuzztime=${2:-30s}
+	# Fail early on a stale matrix rather than fuzzing a target that is gone.
+	"$0" check
 	log=$(mktemp)
 	trap 'rm -f "$log"' EXIT
 	matrix | while read -r pkg target _; do
@@ -87,6 +89,11 @@ run)
 			# go test can report its own -fuzztime deadline as a failure.
 			scripts/fuzz-only-deadline.sh "$log" "$target" || exit 1
 			echo "--> $target: only the -fuzztime deadline was reported; no failing input"
+		fi
+		# go test exits 0 with "no fuzz tests to fuzz" when the target is missing.
+		if grep -q 'no fuzz tests to fuzz' "$log"; then
+			echo "error: $target not found in ./$pkg" >&2
+			exit 1
 		fi
 	done
 	;;

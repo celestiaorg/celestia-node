@@ -3,7 +3,6 @@ package shrex
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"math/rand/v2"
 	"slices"
@@ -29,10 +28,12 @@ const (
 	fuzzHeightODS = 2
 )
 
-// serverFixture is a store holding one deterministic square at two heights,
-// served through the same store accessors a shrex server uses.
+// serverFixture holds one deterministic square in two stores, one per file
+// layout, served through the same store accessors a shrex server uses. Files
+// are keyed by data hash, so each layout needs its own store, and the recent
+// blocks cache is off so requests reach the files on disk.
 type serverFixture struct {
-	store     *store.Store
+	stores    map[uint64]*store.Store
 	square    *rsmt2d.ExtendedDataSquare
 	roots     *share.AxisRoots
 	ods       []libshare.Share
@@ -45,15 +46,22 @@ func newServerFixture(f *testing.F) *serverFixture {
 	namespace := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0x42}, libshare.NamespaceVersionZeroIDSize))
 	square, roots := deterministicSquare(f, namespace, fuzzODSSize*3, fuzzODSSize)
 
-	s, err := store.NewStore(store.DefaultParameters(), f.TempDir())
-	require.NoError(f, err)
-	f.Cleanup(func() { _ = s.Stop(ctx) })
-	require.NoError(f, s.PutODSQ4(ctx, roots, fuzzHeightQ4, square))
-	require.NoError(f, s.PutODS(ctx, roots, fuzzHeightODS, square))
+	newStore := func() *store.Store {
+		params := store.DefaultParameters()
+		params.RecentBlocksCacheSize = 0
+		s, err := store.NewStore(params, f.TempDir())
+		require.NoError(f, err)
+		f.Cleanup(func() { _ = s.Stop(ctx) })
+		return s
+	}
+	q4Store, odsStore := newStore(), newStore()
+	require.NoError(f, q4Store.PutODSQ4(ctx, roots, fuzzHeightQ4, square))
+	require.NoError(f, odsStore.PutODS(ctx, roots, fuzzHeightODS, square))
+	stores := map[uint64]*store.Store{fuzzHeightQ4: q4Store, fuzzHeightODS: odsStore}
 
 	ods, err := libshare.FromBytes(square.FlattenedODS())
 	require.NoError(f, err)
-	return &serverFixture{store: s, square: square, roots: roots, ods: ods, namespace: namespace}
+	return &serverFixture{stores: stores, square: square, roots: roots, ods: ods, namespace: namespace}
 }
 
 // deterministicSquare builds a square from a fixed-seed generator, so every
@@ -160,10 +168,12 @@ func FuzzServerRequest(f *testing.F) {
 		if err := req.Validate(); err != nil {
 			return
 		}
-		file, err := fx.store.GetByHeight(ctx, req.Height())
-		if errors.Is(err, store.ErrNotFound) {
+		s, ok := fx.stores[req.Height()]
+		if !ok {
+			// Any other height is not found, as in Server.handleDataRequest.
 			return
 		}
+		file, err := s.GetByHeight(ctx, req.Height())
 		require.NoError(t, err)
 		defer file.Close()
 		size, err := file.Size(ctx)
