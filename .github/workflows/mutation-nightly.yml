@@ -1,0 +1,108 @@
+# Nightly mutation testing with gremlins on a few critical packages. Each
+# mutant is a small change to production code (a flipped condition, a changed
+# operator); a mutant that the package's tests do not catch ("lived") points
+# at behavior no test asserts.
+#
+# Informational only: no score threshold is set, so a job fails only when the
+# tool or its setup fails. It never runs on pull requests and is deliberately
+# not watched by notify-protocol-ci.yml. Scores go to the run summary and the
+# full JSON report is uploaded as an artifact per package.
+#
+# gremlins gathers coverage with `go test ./<package>/...`, so the packages
+# below are ones whose subpackages have no slow or network-bound tests.
+#
+# Run one package locally with `make mutation-test PKG=share/availability/light`.
+name: Mutation Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with GREMLINS_VERSION in the Makefile.
+  GREMLINS_VERSION: v0.6.0
+
+jobs:
+  mutation:
+    name: Mutation ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    # gremlins re-runs the package's tests once per mutant, so packages and
+    # files are chosen for risk and for test suites that finish in seconds.
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # files limits mutation to those files; empty mutates the package.
+          - {package: share/availability/light, files: "", timeout: 60}
+          - {package: share/eds, files: "validation.go read.go rsmt2d.go", timeout: 120}
+          - {package: blob, files: "parser.go commitment_proof.go blob.go", timeout: 90}
+          - {package: share/shwap/p2p/shrex/shrexsub, files: "", timeout: 45}
+          - {package: das, files: "coordinator.go worker.go state.go checkpoint.go", timeout: 90}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install gremlins
+        run: go install "github.com/go-gremlins/gremlins/cmd/gremlins@${GREMLINS_VERSION}"
+
+      - name: Run gremlins
+        id: run
+        env:
+          PKG: ${{ matrix.package }}
+          FILES: ${{ matrix.files }}
+        run: |
+          report="build/mutation/${PKG//\//_}.json"
+          {
+            echo "report=$report"
+            echo "artifact=mutation-${PKG//\//-}"
+          } >> "$GITHUB_OUTPUT"
+          # FILES is a space-separated list; split it into arguments.
+          read -ra files <<<"$FILES"
+          MUTATION_OUT="$report" scripts/mutation-test.sh "$PKG" "${files[@]}"
+
+      - name: Write summary
+        if: ${{ !cancelled() && hashFiles(steps.run.outputs.report) != '' }}
+        env:
+          PKG: ${{ matrix.package }}
+          FILES: ${{ matrix.files }}
+          REPORT: ${{ steps.run.outputs.report }}
+        run: |
+          {
+            echo "### Mutation testing: \`$PKG\`"
+            if [[ -n $FILES ]]; then
+              echo "Files: \`$FILES\`"
+            fi
+            echo
+            jq -r '
+              def count(s): [.files[]?.mutations[]? | select(.status == s)] | length;
+              "| Metric | Value |",
+              "| --- | --- |",
+              "| Test efficacy (killed / (killed + lived)) | \(.test_efficacy * 100 | round / 100)% |",
+              "| Mutant coverage | \(.mutations_coverage * 100 | round / 100)% |",
+              "| Killed | \(.mutants_killed) |",
+              "| Lived | \(.mutants_lived) |",
+              "| Timed out | \(count("TIMED OUT")) |",
+              "| Not covered | \(.mutants_not_covered) |",
+              "| Not viable | \(.mutants_not_viable) |",
+              "| Elapsed | \(.elapsed_time | floor)s |"
+            ' "$REPORT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: ${{ !cancelled() && hashFiles(steps.run.outputs.report) != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.run.outputs.artifact }}
+          path: ${{ steps.run.outputs.report }}
+          retention-days: 30
