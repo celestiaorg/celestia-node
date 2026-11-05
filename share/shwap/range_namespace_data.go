@@ -198,6 +198,9 @@ func (rngdata *RangeNamespaceData) verifyShares(
 			"last share index mismatch: expected %d vs got %d", to.Col, rngdata.LastIncompleteRowProof.End()-1,
 		)
 	}
+	if err := rngdata.verifyProofBounds(from, to, odsSize); err != nil {
+		return err
+	}
 
 	startIndex, err := SampleCoordsAs1DIndex(from, odsSize)
 	if err != nil {
@@ -254,6 +257,34 @@ func (rngdata *RangeNamespaceData) verifyShares(
 		if !bytes.Equal(root, computedRoots[i]) {
 			return fmt.Errorf("mismatched root for row %d: expected %x, got %x", from.Row+i, root, computedRoots[i])
 		}
+	}
+	return nil
+}
+
+// verifyProofBounds checks that the incomplete row proofs cover exactly the requested
+// range. A row without a proof is verified as a full row, so a missing proof or a
+// proof that stops short of the row edge would let a peer shift shares in or out of
+// the range while keeping the total share count intact.
+func (rngdata *RangeNamespaceData) verifyProofBounds(from, to SampleCoords, odsSize int) error {
+	first, last := rngdata.FirstIncompleteRowProof, rngdata.LastIncompleteRowProof
+	if from.Row == to.Row {
+		if first == nil && (from.Col != 0 || to.Col != odsSize-1) {
+			return fmt.Errorf("missing proof for partial row range [%d, %d]", from.Col, to.Col)
+		}
+		return nil
+	}
+
+	if from.Col != 0 && first == nil {
+		return fmt.Errorf("missing first row proof for range starting at col %d", from.Col)
+	}
+	if first != nil && first.End() != odsSize {
+		return fmt.Errorf("first row proof must end at %d, got %d", odsSize, first.End())
+	}
+	if to.Col != odsSize-1 && last == nil {
+		return fmt.Errorf("missing last row proof for range ending at col %d", to.Col)
+	}
+	if last != nil && last.Start() != 0 {
+		return fmt.Errorf("last row proof must start at 0, got %d", last.Start())
 	}
 	return nil
 }
