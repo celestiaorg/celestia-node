@@ -36,8 +36,8 @@ func RPCFlags() *flag.FlagSet {
 		&authTokenFlag,
 		"token",
 		"",
-		"Authorization token that is used to access the RPC endpoint. If not specified, it will be loaded and built "+
-			"from the root folder of the node",
+		"Authorization token for the RPC endpoint. If omitted, loaded from the node store when --url is omitted or "+
+			"--node.store is specified. With --url alone, requests are sent without authentication.",
 	)
 
 	fset.DurationVar(
@@ -53,7 +53,7 @@ func RPCFlags() *flag.FlagSet {
 }
 
 func InitClient(cmd *cobra.Command, _ []string) error {
-	if authTokenFlag == "" {
+	if authTokenFlag == "" && (requestURL == "" || cmd.Flag(nodeStoreFlag).Changed) {
 		rootErrMsg := "cant access the auth token"
 
 		storePath, err := getStorePath(cmd)
@@ -71,9 +71,7 @@ func InitClient(cmd *cobra.Command, _ []string) error {
 		}
 
 		// only get token if auth is not skipped
-		if cfg.RPC.SkipAuth {
-			authTokenFlag = "skip" // arbitrary value required
-		} else {
+		if !cfg.RPC.SkipAuth {
 			token, err := getToken(storePath)
 			if err != nil {
 				return fmt.Errorf("%s: %w", rootErrMsg, err)
