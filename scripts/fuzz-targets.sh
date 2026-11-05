@@ -80,7 +80,7 @@ check)
 run)
 	fuzztime=${2:-30s}
 	# Fail early on a stale matrix rather than fuzzing a target that is gone.
-	"$0" check
+	scripts/fuzz-targets.sh check
 	log=$(mktemp)
 	trap 'rm -f "$log"' EXIT
 	matrix | while read -r pkg target _; do
