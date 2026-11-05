@@ -1,0 +1,12 @@
+.git
+.agents
+.claude
+.codex
+**/node_modules
+build
+vendor
+data
+experiments
+celestia-core
+go.work*
+internal/embedding/*.tar.gz
