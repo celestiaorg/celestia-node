@@ -16,11 +16,13 @@ Approvals are not bound to a commit: they persist across later pushes.
 | Medium | 0 for a trusted author; otherwise 1 |
 | High | 1 |
 
-A trusted author is a human with write, maintain, or admin permission, or
-Dependabot, whose tier is fixed by the title prefix in `.github/dependabot.yml`.
-Other bot-authored PRs (including coding agents and Mergify backports)
-and PRs from people without write permission always need one human approval.
-The maintainer who prompted an agent may give it.
+A trusted author is an organization member with write, maintain, or admin
+permission, or Dependabot, whose tier is fixed by the title prefix in
+`.github/dependabot.yml`. Other bot-authored PRs (including coding agents and
+Mergify backports) and PRs from people without write permission always need one
+human approval. So do PRs from outside collaborators, whatever their permission,
+because they are not organization members. The maintainer who prompted an agent
+may give it.
 
 The tier comes only from the PR title's conventional-commit `[low]`,
 `[medium]`, or `[high]` tag, which `lint-pull-request.yml` requires. Reviewers
@@ -34,10 +36,11 @@ cannot merge, a change request from a reviewer with write access blocks the
 merge, and approvals survive pushes because stale approvals are not dismissed.
 
 `auto-approve.yml` approves as a GitHub App when a PR is not a draft, its title
-tag is `[low]` or `[medium]`, and its author is trusted. When a PR
-stops qualifying (retitled to `[high]`, converted to a draft, or its author
-loses write access), the workflow dismisses the App's approval. `[high]` PRs
-are never auto-approved, so they always wait for a human.
+tag is `[low]` or `[medium]`, and its author is trusted. When a PR stops
+qualifying (retitled to `[high]`, converted to a draft, or its author loses
+write access or becomes an outside collaborator), the workflow dismisses the
+App's approval. `[high]` PRs are never auto-approved, so they always wait for a
+human.
 
 The workflow runs on `pull_request_target`, which always uses the default
 branch's copy of the workflow, so it covers stacked PRs whatever their base. A

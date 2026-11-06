@@ -52,7 +52,14 @@ jobs:
             // Read current state from the API; event payloads can be stale.
             const get = async (n) => (await github.rest.pulls.get({ owner, repo, pull_number: n })).data;
             const tierOK = (pr) => !pr.draft && ['low', 'medium'].includes(titleTag.exec(pr.title)?.[2]);
+            // Outside collaborators are not organization members, so they are never
+            // trusted, whatever their permission. Listed once per run.
+            let outside;
             async function trusted(login) {
+              outside ??= new Set((await github.paginate(github.rest.repos.listCollaborators, {
+                owner, repo, affiliation: 'outside', per_page: 100,
+              })).map((u) => u.login));
+              if (outside.has(login)) return false;
               try {
                 const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
                   owner, repo, username: login,
