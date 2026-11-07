@@ -2,6 +2,7 @@ package peers
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"sync"
 	"testing"
@@ -809,4 +810,25 @@ func TestManager_ValidateBoundsUnvalidatedPools(t *testing.T) {
 	manager.lock.Lock()
 	require.Empty(t, manager.unvalidatedPools)
 	manager.lock.Unlock()
+}
+
+// TestManager_validatedPoolUsesHeaderHeight ensures a validated pool keeps the trusted header
+// height, not the height a peer announced, so cleanUp removes it once it is outdated.
+func TestManager_validatedPoolUsesHeaderHeight(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	h := testHeader()
+	manager, err := testManager(ctx, newSubLock(h, nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { stopManager(t, manager) })
+
+	hash := share.DataHash(rand.Bytes(32))
+	manager.Validate(ctx, "peer", shrexsub.Notification{DataHash: hash, Height: math.MaxUint64})
+	manager.validatedPool(hash.String(), h.Height())
+
+	manager.initialHeight.Store(h.Height())
+	manager.storeFrom.Store(h.Height() + 1)
+	manager.cleanUp()
+	require.Nil(t, manager.getPool(hash.String()))
 }

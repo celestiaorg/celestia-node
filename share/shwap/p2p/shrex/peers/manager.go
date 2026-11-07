@@ -547,6 +547,11 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
 	p := m.getOrCreatePool(hashStr, height)
+	// the pool may have been created with a height announced by a peer, so replace it with the
+	// trusted header height to make sure cleanUp removes the pool once it is outdated
+	m.lock.Lock()
+	p.height = height
+	m.lock.Unlock()
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
 		m.lock.Lock()
