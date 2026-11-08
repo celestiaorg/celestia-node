@@ -477,7 +477,9 @@ func TestIntegration(t *testing.T) {
 		version := "v1"
 		nw, err := mocknet.FullMeshConnected(3)
 		require.NoError(t, err)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		// DHT bootstrap and discovery usually take a few seconds, but can take
+		// much longer on slow CI runners.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		t.Cleanup(cancel)
 
 		// set up bootstrapper
@@ -531,11 +533,14 @@ func TestIntegration(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		waitCh := make(chan struct{})
+		// The callback can run more than once and runs outside the test goroutine,
+		// so it only records the first discovered peer and the test checks it.
+		discovered := make(chan peer.ID, 1)
 		checkDiscoveredPeer := func(peerID peer.ID, isAdded bool) {
-			defer close(waitCh)
-			// check that obtained peer id is BN
-			require.Equal(t, bnHost.ID(), peerID)
+			select {
+			case discovered <- peerID:
+			default:
+			}
 		}
 
 		// set up discovery for full node with hook to peer manager and check discovered peer
@@ -564,7 +569,9 @@ func TestIntegration(t *testing.T) {
 		go bnDisc.Advertise(ctx)
 
 		select {
-		case <-waitCh:
+		case peerID := <-discovered:
+			// check that obtained peer id is BN
+			require.Equal(t, bnHost.ID(), peerID)
 			require.Contains(t, fnPeerManager.nodes.peersList, bnHost.ID())
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())

@@ -29,6 +29,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/libs/testnodeutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	blobapi "github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	blobMock "github.com/celestiaorg/celestia-node/nodebuilder/blob/mocks"
@@ -430,7 +431,7 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...string) testn
 	t.Helper()
 	chainID := "private"
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(50 * time.Millisecond)

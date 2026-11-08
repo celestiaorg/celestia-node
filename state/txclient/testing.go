@@ -9,11 +9,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+
+	"github.com/celestiaorg/celestia-node/libs/testnodeutil"
 )
 
 func BuildClient(t *testing.T, chainID string, accounts []string, opts ...Option) *TxClient {
 	t.Helper()
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond * 50)

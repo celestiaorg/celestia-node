@@ -13,7 +13,10 @@ import (
 // TestSessionsSerialExecution verifies that multiple sessions for the same key are executed
 // sequentially.
 func TestSessionsSerialExecution(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	// The sessions run one after another, so the last one starts only after
+	// numSessions*50ms (about 1s). Keep the deadline well above that so slow CI
+	// runners don't hit it.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
 	sessions := NewSessions()

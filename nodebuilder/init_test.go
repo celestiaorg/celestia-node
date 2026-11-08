@@ -2,6 +2,7 @@ package nodebuilder
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -29,7 +30,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestInitErrForInvalidPath(t *testing.T) {
-	path := "/invalid_path"
+	path := invalidPath(t)
 	nodes := []node.Type{node.Light, node.Bridge}
 
 	for _, node := range nodes {
@@ -52,8 +53,18 @@ func TestIsInitWithBrokenConfig(t *testing.T) {
 }
 
 func TestIsInitForNonExistDir(t *testing.T) {
-	path := "/invalid_path"
+	path := invalidPath(t)
 	assert.False(t, IsInit(path))
+}
+
+// invalidPath returns a path that can't be created, even by root, because its
+// parent is a regular file. A fixed path like "/invalid_path" is created by
+// Init when tests run as root, and then stays around for later runs.
+func invalidPath(t *testing.T) string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(file, nil, 0o600))
+	return filepath.Join(file, "node")
 }
 
 func TestInitErrForLockedDir(t *testing.T) {

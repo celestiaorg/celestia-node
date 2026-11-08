@@ -82,6 +82,18 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # proxy.golang.org occasionally drops a stream mid-download. Fetch the
+      # modules with retries so a transient network error doesn't fail the suite.
+      - name: Download Go modules
+        working-directory: nodebuilder/tests/tastora
+        run: |
+          for attempt in 1 2 3; do
+            go mod download && exit 0
+            echo "go mod download failed (attempt ${attempt}), retrying"
+            sleep $((attempt * 10))
+          done
+          exit 1
+
       - uses: actions/download-artifact@v8
         with:
           name: tastora-node-image

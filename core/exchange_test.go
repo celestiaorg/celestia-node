@@ -238,14 +238,17 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Netw
 		require.NoError(t, network.Stop())
 	})
 	// wait for height 2 in order to be able to start submitting txs (this prevents
-	// flakiness with accessing account state)
-	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
+	// flakiness with accessing account state). The first blocks can take a while
+	// on a loaded CI runner, so the timeout is generous.
+	_, err := network.WaitForHeightWithTimeout(2, 30*time.Second)
 	require.NoError(t, err)
 	fetcher := NewBlockFetcher(network.GRPCClient)
 	return fetcher, network
 }
 
 // fillBlocks fills blocks until the context is canceled.
+// It runs in its own goroutine, so it reports errors with t.Errorf instead of
+// require, which must only be called from the test goroutine.
 func fillBlocks(
 	t *testing.T,
 	ctx context.Context,
@@ -260,7 +263,12 @@ func fillBlocks(
 		}
 
 		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastAsync)
-		require.NoError(t, err)
+		if err != nil {
+			if ctx.Err() == nil {
+				t.Errorf("filling block: %v", err)
+			}
+			return
+		}
 	}
 }
 
@@ -283,7 +291,17 @@ func generateNonEmptyBlocks(
 	sub, err := fetcher.SubscribeNewBlockEvent(generateCtx)
 	require.NoError(t, err)
 
-	go fillBlocks(t, generateCtx, cfg, cctx)
+	fillDone := make(chan struct{})
+	go func() {
+		defer close(fillDone)
+		fillBlocks(t, generateCtx, cfg, cctx)
+	}()
+	// Stop filling blocks and wait for the goroutine to exit before returning,
+	// so it can't use the network or t after the test finishes.
+	defer func() {
+		generateCtxCancel()
+		<-fillDone
+	}()
 
 	filledBlocks := make([]testBlocks, 0, 20)
 
@@ -308,7 +326,6 @@ func generateNonEmptyBlocks(
 			t.Fatal("failed to fill blocks within timeout")
 		}
 	}
-	generateCtxCancel()
 
 	return filledBlocks
 }

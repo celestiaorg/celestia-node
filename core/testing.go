@@ -23,6 +23,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+
+	"github.com/celestiaorg/celestia-node/libs/testnodeutil"
 )
 
 const chainID = "private"
@@ -35,7 +37,7 @@ const chainID = "private"
 //
 // Additionally, it instructs Tendermint + Celestia App tandem to setup 10 funded accounts.
 func DefaultTestConfig() *testnode.Config {
-	return testnode.DefaultConfig().
+	return testnodeutil.DefaultConfig().
 		WithDelayedPrecommitTimeout(200 * time.Millisecond).
 		WithFundedAccounts(generateRandomAccounts(10)...). // 10 usually is enough for testing
 		WithChainID(chainID)

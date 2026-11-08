@@ -24,6 +24,7 @@ import (
 	apptypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 
+	"github.com/celestiaorg/celestia-node/libs/testnodeutil"
 	"github.com/celestiaorg/celestia-node/state/txclient"
 )
 
@@ -277,7 +278,7 @@ func TestParallelPayForBlobSubmission(t *testing.T) {
 
 	t.Helper()
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond)
@@ -360,7 +361,7 @@ func TestTxWorkerSetup(t *testing.T) {
 		"jimmy", "carl", "sheen", "cindy", "parallel-worker-5",
 	}
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(fundedAccounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond)
@@ -392,7 +393,7 @@ func TestSubmitFromDefaultAccountWithoutTxWorkers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond)
@@ -455,7 +456,7 @@ func TestSubmitFromCustomAccount(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond)
@@ -527,7 +528,7 @@ var accounts = []string{
 func buildAccessor(t *testing.T, opts ...txclient.Option) (*CoreAccessor, *txclient.TxClient) {
 	t.Helper()
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond * 50)
@@ -586,7 +587,7 @@ func TestBalanceForAddressAbsent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	t.Cleanup(cancel)
 
-	config := testnode.DefaultConfig().
+	config := testnodeutil.DefaultConfig().
 		WithChainID(chainID).
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(time.Millisecond * 50)
