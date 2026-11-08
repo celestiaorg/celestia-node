@@ -250,7 +250,7 @@ func (n *Network) Stop() error {
 		}
 
 		if n.grpcSrv != nil {
-			gracefulStopGRPC(n.grpcSrv, 5*time.Second)
+			stopGRPCAndWait(n.grpcSrv, 5*time.Second)
 		}
 		if n.stopGRPC != nil {
 			if err := n.stopGRPC(); err != nil {
@@ -270,10 +270,12 @@ func (n *Network) Stop() error {
 	return n.stopErr
 }
 
-// gracefulStopGRPC waits for running RPCs to finish, and stops the server
-// forcefully if they take longer than timeout (e.g. a subscription stream whose
-// client is still connected).
-func gracefulStopGRPC(srv *grpc.Server, timeout time.Duration) {
+// stopGRPCAndWait stops srv and waits up to timeout for the RPC handlers that
+// were still running to return. Stop closes every connection right away, so
+// streams stop delivering blocks, but it doesn't wait for handlers.
+// GracefulStop, called after Stop, only waits for those handlers.
+func stopGRPCAndWait(srv *grpc.Server, timeout time.Duration) {
+	srv.Stop()
 	done := make(chan struct{})
 	go func() {
 		srv.GracefulStop()
@@ -282,7 +284,5 @@ func gracefulStopGRPC(srv *grpc.Server, timeout time.Duration) {
 	select {
 	case <-done:
 	case <-time.After(timeout):
-		srv.Stop()
-		<-done
 	}
 }
