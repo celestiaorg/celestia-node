@@ -25,23 +25,36 @@ func DefaultConfig() *testnode.Config {
 
 // AssignFreePorts sets every listen address in cfg to a free port picked by
 // the kernel. It covers every port set by testnode.DefaultTendermintConfig and
-// testnode.DefaultAppConfig.
+// testnode.DefaultAppConfig. The ports are distinct from each other.
 func AssignFreePorts(cfg *testnode.Config) {
-	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", FreePort())
-	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", FreePort())
-	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", FreePort())
-	cfg.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", FreePort())
-	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", FreePort())
-	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", FreePort())
+	ports := FreePorts(6)
+	cfg.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", ports[0])
+	cfg.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", ports[1])
+	cfg.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", ports[2])
+	cfg.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", ports[3])
+	cfg.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", ports[4])
+	cfg.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", ports[5])
 }
 
-// FreePort returns a TCP port on 127.0.0.1 that the kernel picked and that was
-// free when FreePort returned. It panics if no port can be bound.
-func FreePort() int {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		panic(fmt.Sprintf("testnodeutil: binding a free port: %v", err))
+// FreePorts returns n distinct TCP ports on 127.0.0.1 that the kernel picked
+// and that were free when FreePorts returned. It holds every listener open
+// until all n ports are picked, so the kernel can't hand out the same port
+// twice. It panics if a port can't be bound.
+func FreePorts(n int) []int {
+	ports := make([]int, 0, n)
+	listeners := make([]net.Listener, 0, n)
+	defer func() {
+		for _, l := range listeners {
+			_ = l.Close()
+		}
+	}()
+	for range n {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			panic(fmt.Sprintf("testnodeutil: binding a free port: %v", err))
+		}
+		listeners = append(listeners, l)
+		ports = append(ports, l.Addr().(*net.TCPAddr).Port)
 	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
+	return ports
 }
