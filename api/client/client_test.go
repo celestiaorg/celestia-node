@@ -28,6 +28,7 @@ import (
 	"github.com/celestiaorg/celestia-node/api/rpc"
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/blob"
+	"github.com/celestiaorg/celestia-node/core"
 	"github.com/celestiaorg/celestia-node/header"
 	"github.com/celestiaorg/celestia-node/libs/testnodeutil"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
@@ -436,11 +437,10 @@ func setupConsensus(t *testing.T, ctx context.Context, accounts ...string) testn
 		WithFundedAccounts(accounts...).
 		WithDelayedPrecommitTimeout(50 * time.Millisecond)
 
-	cctx, _, _ := testnode.NewNetwork(t, config)
-
-	// BlockByHeight only serves stored blocks; it does not wait for future heights.
-	_, err := cctx.WaitForHeight(2)
-	require.NoError(t, err)
+	// core.StartTestNodeWithConfig stops the servers before the node on
+	// cleanup, so the bridge's last block requests can't hit closed stores.
+	// It also waits for height 2: BlockByHeight only serves stored blocks.
+	cctx := core.StartTestNodeWithConfig(t, config)
 
 	bAPI := coregrpc.NewBlockAPIClient(cctx.GRPCClient)
 	cl, err := bAPI.BlockByHeight(ctx, &coregrpc.BlockByHeightRequest{Height: 2})

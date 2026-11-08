@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -50,33 +51,66 @@ func StartTestNode(t *testing.T) testnode.Context {
 }
 
 // StartTestNodeWithConfig starts Tendermint and Celestia App tandem with custom configuration.
+// The network is stopped when the test finishes.
 func StartTestNodeWithConfig(t *testing.T, cfg *testnode.Config) testnode.Context {
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	t.Helper()
+	network := startNetwork(t, cfg)
+	t.Cleanup(func() {
+		require.NoError(t, network.Stop())
+	})
 	// Wait until the chain has produced a block before returning; without this,
 	// callers that immediately query the chain (e.g. CoreAccessor.Start →
 	// GetNodeInfo) race the first block and fail with "celestia-app is not
 	// ready". Mirrors the pattern in state/txclient/testing.go.
-	_, err := cctx.WaitForHeight(int64(2))
+	_, err := network.WaitForHeight(int64(2))
 	require.NoError(t, err)
 	// we want to test over remote http client,
 	// so we are as close to the real environment as possible,
 	// however, it might be useful to use a local tendermint client
 	// if you need to debug something inside it
-	return cctx
+	return network.Context
 }
 
 // StartTestNodeWithConfigAndClient initializes a test node with default configuration and a WebSocket HTTP client.
 func StartTestNodeWithConfigAndClient(t *testing.T) (testnode.Context, *cmthttp.HTTP) {
-	cctx, rpcAddr, _ := testnode.NewNetwork(t, DefaultTestConfig())
-	// Mirror StartTestNodeWithConfig: wait until the chain has produced a
-	// block so callers do not race the first block.
-	_, err := cctx.WaitForHeight(int64(2))
-	require.NoError(t, err)
-	wsClient, err := cmthttp.New(rpcAddr, "/websocket")
+	cfg := DefaultTestConfig()
+	cctx := StartTestNodeWithConfig(t, cfg)
+	wsClient, err := cmthttp.New(cfg.TmConfig.RPC.ListenAddress, "/websocket")
 	if err != nil {
 		panic(err)
 	}
 	return cctx, wsClient
+}
+
+// startNetwork creates and starts a test Network with retry logic to handle
+// transient "address already in use" failures. Ports are picked before the
+// listeners bind them, so another process can take a port in between.
+func startNetwork(t testing.TB, cfg *testnode.Config) *Network {
+	t.Helper()
+
+	const maxRetries = 3
+	var network *Network
+	for attempt := range maxRetries {
+		if attempt > 0 {
+			testnodeutil.AssignFreePorts(cfg)
+		}
+		network = NewNetwork(t, cfg)
+		if err := network.Start(); err != nil {
+			if attempt < maxRetries-1 && isAddressInUseError(err) {
+				t.Logf("port conflict on attempt %d, retrying with new ports", attempt+1)
+				_ = network.Stop()
+				continue
+			}
+			require.NoError(t, err)
+		}
+		break
+	}
+	return network
+}
+
+// isAddressInUseError reports whether the error is a "bind: address already in use" error.
+func isAddressInUseError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "address already in use")
 }
 
 // generateRandomAccounts generates n random account names.
@@ -129,6 +163,7 @@ type Network struct {
 	logger sdklog.Logger
 
 	stopNode func() error
+	grpcSrv  *grpc.Server
 	stopGRPC func() error
 	stopAPI  func() error
 
@@ -188,6 +223,7 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
+	n.grpcSrv = grpcSrv
 	n.stopGRPC = cleanupGRPC
 
 	apiServer, err := testnode.StartAPIServer(n.app, *n.config.AppConfig, cctx, grpcSrv)
@@ -204,20 +240,26 @@ func (n *Network) Stop() error {
 	n.stopOnce.Do(func() {
 		var errs []error
 
-		if n.stopNode != nil {
-			if err := n.stopNode(); err != nil {
+		// Stop the servers before the node. Their handlers read the node's
+		// stores, and a request still running once the node has closed them
+		// panics with "pebble: closed".
+		if n.stopAPI != nil {
+			if err := n.stopAPI(); err != nil {
 				errs = append(errs, err)
 			}
 		}
 
+		if n.grpcSrv != nil {
+			gracefulStopGRPC(n.grpcSrv, 5*time.Second)
+		}
 		if n.stopGRPC != nil {
 			if err := n.stopGRPC(); err != nil {
 				errs = append(errs, err)
 			}
 		}
 
-		if n.stopAPI != nil {
-			if err := n.stopAPI(); err != nil {
+		if n.stopNode != nil {
+			if err := n.stopNode(); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -226,4 +268,21 @@ func (n *Network) Stop() error {
 	})
 
 	return n.stopErr
+}
+
+// gracefulStopGRPC waits for running RPCs to finish, and stops the server
+// forcefully if they take longer than timeout (e.g. a subscription stream whose
+// client is still connected).
+func gracefulStopGRPC(srv *grpc.Server, timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		srv.GracefulStop()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		srv.Stop()
+		<-done
+	}
 }
