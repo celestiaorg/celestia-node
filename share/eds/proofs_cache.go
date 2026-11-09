@@ -278,11 +278,11 @@ func (c *proofsCache) Shares(ctx context.Context) ([]libshare.Share, error) {
 
 		half := ax.Shares
 		if ax.IsParity {
-			shares, err = c.axisShares(ctx, rsmt2d.Row, i)
+			row, err := c.axisShares(ctx, rsmt2d.Row, i)
 			if err != nil {
 				return nil, err
 			}
-			half = shares[:odsSize]
+			half = row[:odsSize]
 		}
 
 		shares = append(shares, half...)
