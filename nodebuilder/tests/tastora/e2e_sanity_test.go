@@ -42,7 +42,9 @@ func (s *E2ESanityTestSuite) withTimeout() (context.Context, context.CancelFunc)
 
 func (s *E2ESanityTestSuite) SetupSuite() {
 	s.framework = NewFramework(s.T(), WithValidators(1), WithBridgeNodes(1), WithLightNodes(0))
-	ctx, cancel := s.withTimeout()
+	// Starting the chain and bridge can take longer than a single test on a
+	// busy runner, so setup gets the same budget as the other suites.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	s.Require().NoError(s.framework.SetupNetwork(ctx))
 }
