@@ -107,6 +107,7 @@ func TestODSSecondHalfReconstructionIsBounded(t *testing.T) {
 		expected, err := libshare.FromBytes(square.Row(uint(size - 1))[:size/2])
 		require.NoError(t, err)
 		require.Equal(t, expected, half.Shares)
+		require.Nil(t, ods.ods, "the ODS read for reconstruction must not be cached")
 	})
 
 	t.Run("bounded workers", func(t *testing.T) {
@@ -119,12 +120,26 @@ func TestODSSecondHalfReconstructionIsBounded(t *testing.T) {
 		require.Positive(t, counting.peak.Load())
 		require.LessOrEqual(t, counting.peak.Load(), int64(reconstructWorkers))
 	})
+
+	t.Run("cancellation stops reconstruction", func(t *testing.T) {
+		cancelCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		counting := &countingCodec{Codec: codec, onCall: cancel}
+		codec = counting
+		t.Cleanup(func() { codec = counting.Codec })
+
+		_, err := ods.AxisHalf(cancelCtx, rsmt2d.Row, size-1)
+		require.ErrorIs(t, err, context.Canceled)
+		require.Less(t, counting.calls.Load(), int64(size/2), "queued work must not run")
+		require.Zero(t, len(reconstructSlots), "the slot must be released")
+	})
 }
 
-// countingCodec tracks the peak number of concurrent reconstructions.
+// countingCodec tracks reconstruction calls and their peak concurrency.
 type countingCodec struct {
 	Codec
-	cur, peak atomic.Int64
+	cur, peak, calls atomic.Int64
+	onCall           func()
 }
 
 func (c *countingCodec) Encoder(ln int) (reedsolomon.Encoder, error) {
@@ -138,6 +153,10 @@ type countingEncoder struct {
 }
 
 func (e countingEncoder) ReconstructSome(shards [][]byte, required []bool) error {
+	e.c.calls.Add(1)
+	if e.c.onCall != nil {
+		e.c.onCall()
+	}
 	n := e.c.cur.Add(1)
 	defer e.c.cur.Add(-1)
 	for p := e.c.peak.Load(); n > p && !e.c.peak.CompareAndSwap(p, n); p = e.c.peak.Load() {
