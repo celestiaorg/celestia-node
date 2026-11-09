@@ -649,6 +649,83 @@ func TestManager_withoutShrexSubKeepsNoPools(t *testing.T) {
 	require.Empty(t, manager.pools)
 }
 
+// TestManager_poolHeight ensures pools carry the height of the validating header,
+// so a notification with a bogus height cannot keep its pool from being collected.
+func TestManager_poolHeight(t *testing.T) {
+	const bogusHeight = uint64(1) << 62
+	peerID := peer.ID("peer")
+
+	newManager := func(t *testing.T) (context.Context, *Manager) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+		manager, err := testManager(ctx, newSubLock())
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+		return ctx, manager
+	}
+
+	t.Run("notification before header", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+		h := testHeader()
+		headerSub := newSubLock(h, nil)
+		manager, err := testManager(ctx, headerSub)
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+
+		msg := newShrexSubMsg(h)
+		msg.Height = bogusHeight
+		res := manager.Validate(ctx, peerID, msg)
+		require.Equal(t, pubsub.ValidationIgnore, res)
+		require.NoError(t, headerSub.wait(ctx, 1))
+		p := manager.getPool(h.DataHash.String())
+		require.True(t, p.isValidatedDataHash.Load())
+		require.Equal(t, h.Height(), p.height)
+
+		manager.storeFrom.Store(h.Height() + 1)
+		manager.cleanUp()
+		require.Nil(t, manager.getPool(h.DataHash.String()))
+	})
+
+	t.Run("historical request", func(t *testing.T) {
+		ctx, manager := newManager(t)
+		manager.initialHeight.Store(100)
+		manager.storeFrom.Store(1000)
+		hash := share.DataHash(rand.Bytes(32))
+
+		// announced as recent, while the hash belongs to an old header
+		res := manager.Validate(ctx, peerID, shrexsub.Notification{DataHash: hash, Height: 1005})
+		require.Equal(t, pubsub.ValidationIgnore, res)
+		_, done, err := manager.Peer(ctx, hash, 500)
+		require.NoError(t, err)
+		done(ResultNoop)
+
+		manager.storeFrom.Store(1001)
+		manager.cleanUp()
+		require.Nil(t, manager.getPool(hash.String()))
+	})
+
+	t.Run("far future notification", func(t *testing.T) {
+		ctx, manager := newManager(t)
+		manager.initialHeight.Store(100)
+		manager.storeFrom.Store(1000)
+
+		for _, tc := range []struct {
+			height uint64
+			pooled bool
+		}{
+			{height: 1000 + 2*storedPoolsAmount, pooled: true},
+			{height: 1000 + 2*storedPoolsAmount + 1, pooled: false},
+			{height: bogusHeight, pooled: false},
+		} {
+			hash := share.DataHash(rand.Bytes(32))
+			res := manager.Validate(ctx, peerID, shrexsub.Notification{DataHash: hash, Height: tc.height})
+			require.Equal(t, pubsub.ValidationIgnore, res)
+			require.Equal(t, tc.pooled, manager.getPool(hash.String()) != nil, "height %d", tc.height)
+		}
+	})
+}
+
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
 	host, err := mocknet.New().GenPeer()
 	if err != nil {

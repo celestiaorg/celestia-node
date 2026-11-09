@@ -352,14 +352,14 @@ func (m *Manager) subscribeHeader(ctx context.Context, headerSub libhead.Subscri
 		}
 		m.validatedPool(h.DataHash.String(), h.Height())
 
+		// update storeFrom before initialHeight, which enables the upper bound check in Validate
+		m.storeFrom.Store(uint64(max(0, int(h.Height())-storedPoolsAmount)))
+		log.Debugw("updated lowest stored height", "height", h.Height())
+
 		// store first header for validation purposes
 		if m.initialHeight.CompareAndSwap(0, h.Height()) {
 			log.Debugw("stored initial height", "height", h.Height())
 		}
-
-		// update storeFrom if header height
-		m.storeFrom.Store(uint64(max(0, int(h.Height())-storedPoolsAmount)))
-		log.Debugw("updated lowest stored height", "height", h.Height())
 	}
 }
 
@@ -412,8 +412,18 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationReject
 	}
 
-	if msg.Height < m.storeFrom.Load() {
+	// load initialHeight first, as subscribeHeader stores storeFrom before it
+	initialized := m.initialHeight.Load() != 0
+	storeFrom := m.storeFrom.Load()
+	if msg.Height < storeFrom {
 		logger.Debug("received message for past header")
+		return pubsub.ValidationIgnore
+	}
+
+	// storeFrom trails the latest header by storedPoolsAmount, so this allows notifications
+	// up to storedPoolsAmount blocks ahead of it
+	if initialized && msg.Height > storeFrom+2*storedPoolsAmount {
+		logger.Debug("received message for far future header")
 		return pubsub.ValidationIgnore
 	}
 
@@ -437,7 +447,10 @@ func (m *Manager) getPool(datahash string) *syncPool {
 func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	return m.getOrCreatePoolUnsafe(datahash, height)
+}
 
+func (m *Manager) getOrCreatePoolUnsafe(datahash string, height uint64) *syncPool {
 	p, ok := m.pools[datahash]
 	if !ok {
 		p = &syncPool{
@@ -486,8 +499,14 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 }
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
-	p := m.getOrCreatePool(hashStr, height)
-	if p.isValidatedDataHash.CompareAndSwap(false, true) {
+	m.lock.Lock()
+	p := m.getOrCreatePoolUnsafe(hashStr, height)
+	// the pool may have been created by a notification with an unverified height
+	p.height = height
+	validated := p.isValidatedDataHash.CompareAndSwap(false, true)
+	m.lock.Unlock()
+
+	if validated {
 		log.Debugw("pool marked validated", "datahash", hashStr)
 		// if pool is proven to be valid, add all collected peers to discovered nodes
 		m.nodes.add(p.peers()...)
