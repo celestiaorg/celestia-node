@@ -693,8 +693,8 @@ func TestManager_poolHeight(t *testing.T) {
 		manager.storeFrom.Store(1000)
 		hash := share.DataHash(rand.Bytes(32))
 
-		// announced as recent, while the hash belongs to an old header
-		res := manager.Validate(ctx, peerID, shrexsub.Notification{DataHash: hash, Height: 1005})
+		// announced with a bogus height, while the hash belongs to an old header
+		res := manager.Validate(ctx, peerID, shrexsub.Notification{DataHash: hash, Height: bogusHeight})
 		require.Equal(t, pubsub.ValidationIgnore, res)
 		_, done, err := manager.Peer(ctx, hash, 500)
 		require.NoError(t, err)
@@ -703,26 +703,6 @@ func TestManager_poolHeight(t *testing.T) {
 		manager.storeFrom.Store(1001)
 		manager.cleanUp()
 		require.Nil(t, manager.getPool(hash.String()))
-	})
-
-	t.Run("far future notification", func(t *testing.T) {
-		ctx, manager := newManager(t)
-		manager.initialHeight.Store(100)
-		manager.storeFrom.Store(1000)
-
-		for _, tc := range []struct {
-			height uint64
-			pooled bool
-		}{
-			{height: 1000 + 2*storedPoolsAmount, pooled: true},
-			{height: 1000 + 2*storedPoolsAmount + 1, pooled: false},
-			{height: bogusHeight, pooled: false},
-		} {
-			hash := share.DataHash(rand.Bytes(32))
-			res := manager.Validate(ctx, peerID, shrexsub.Notification{DataHash: hash, Height: tc.height})
-			require.Equal(t, pubsub.ValidationIgnore, res)
-			require.Equal(t, tc.pooled, manager.getPool(hash.String()) != nil, "height %d", tc.height)
-		}
 	})
 }
 
