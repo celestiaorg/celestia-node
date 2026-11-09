@@ -175,10 +175,10 @@ github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/boxo v0.29.0-fork-4 h1:A202u8w3Iqjw4ZlqSukfiMbefQEN+740GUj1Z3VI960=
 github.com/celestiaorg/boxo v0.29.0-fork-4/go.mod h1:rXql6ncaLZZfLqDG3Cuw9ZYQKd3rMU5bk1TGXF0+ZL0=
-github.com/celestiaorg/celestia-app/v10 v10.5.0 h1:CEKeiFSFRclu85ozJo5Gdk71H9am3wyEJJ8pMWqBNkc=
-github.com/celestiaorg/celestia-app/v10 v10.5.0/go.mod h1:+lsm9pK+vzPKWnqUyCXwDvCvfIL/CZsqMMg8vM6o4KY=
-github.com/celestiaorg/celestia-core v0.42.7 h1:s1R25IrJDFrXLaXIBeXjseERuYM0RcrkztT5bak5RZ4=
-github.com/celestiaorg/celestia-core v0.42.7/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
+github.com/celestiaorg/celestia-app/v10 v10.6.0 h1:oZRzDkdoVM/dHk0K23Wc1NxfMzZavk3ZFSsu6UNA1ic=
+github.com/celestiaorg/celestia-app/v10 v10.6.0/go.mod h1:AAXUwpAENQ0INggHJQXsc/s1108H3bAvEtFwba1MvrA=
+github.com/celestiaorg/celestia-core v0.42.8 h1:e05SbgQRRGkdVCZKb3zG+A0URI1XLS76iKMYdH+CcgE=
+github.com/celestiaorg/celestia-core v0.42.8/go.mod h1:fF4DXT/LtQUud+/dGSsdly9V4EGgf9cNlZbHBZgWDFs=
 github.com/celestiaorg/cosmos-sdk v0.52.12 h1:muIDlBLLXeuKiIrGA/t+k9ZLpjjRVs460XRzwh1dgqU=
 github.com/celestiaorg/cosmos-sdk v0.52.12/go.mod h1:skeian5w7HTw2jmUxjGudtu6wzKLcgBh8t+LYvVvzfI=
 github.com/celestiaorg/cosmos-sdk/api v0.7.7 h1:Ns40Iu1jUWEzROcRcgjE1VoZPJsyUEdXuaCXEVOId6Q=
@@ -205,8 +205,8 @@ github.com/celestiaorg/go-square/v3 v3.0.2 h1:eSQOgNII8inK9IhiBZ+6GADQeWbRq4HYY7
 github.com/celestiaorg/go-square/v3 v3.0.2/go.mod h1:oFReMLsSDMRs82ICFEeFQFCqNvwdsbIM1BzCcb0f7dM=
 github.com/celestiaorg/go-square/v4 v4.3.1 h1:4Oazjqn7kuLrUNh/h5nVvdnXBmQnAm/oEe0pFzHYqZQ=
 github.com/celestiaorg/go-square/v4 v4.3.1/go.mod h1:g/ygGP7g5DCNMEMPykXSAVMQEdZ9lL0R417o8Whh3e0=
-github.com/celestiaorg/hyperlane-cosmos v1.3.0 h1:KeB5zPQGDrI8Lz1K8M+unhY/rYlIMhZpXXkoYXu+7XM=
-github.com/celestiaorg/hyperlane-cosmos v1.3.0/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
+github.com/celestiaorg/hyperlane-cosmos v1.3.3 h1:een4j9mMYv8qkQIt3yvSpbaqPm5jJ4HV+CdicDcxRZ4=
+github.com/celestiaorg/hyperlane-cosmos v1.3.3/go.mod h1:NP59yKAk2qFaT7+FSCh7kkoKKLlTxXNdIlxMstAJ5no=
 github.com/celestiaorg/ibc-go/v8 v8.7.2 h1:AWae851fdX7pJWlGnUBKlKJzpr4c2t5m4TLs6vDfmAY=
 github.com/celestiaorg/ibc-go/v8 v8.7.2/go.mod h1:E3WTax+cfyDIehNRpwEI96/0E8GBtU1g9XWr18qUGZ8=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
