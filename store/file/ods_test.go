@@ -126,7 +126,12 @@ func TestODSSecondHalfReconstructionIsBounded(t *testing.T) {
 		defer cancel()
 		counting := &countingCodec{Codec: codec, onCall: cancel}
 		codec = counting
-		t.Cleanup(func() { codec = counting.Codec })
+		workers := reconstructWorkers
+		reconstructWorkers = 1 // keep jobs queued regardless of GOMAXPROCS
+		t.Cleanup(func() {
+			codec = counting.Codec
+			reconstructWorkers = workers
+		})
 
 		_, err := ods.AxisHalf(cancelCtx, rsmt2d.Row, size-1)
 		require.ErrorIs(t, err, context.Canceled)
