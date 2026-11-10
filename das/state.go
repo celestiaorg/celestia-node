@@ -2,7 +2,7 @@ package das
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -31,8 +31,10 @@ type coordinatorState struct {
 	// networkHead is the height of the latest known network head
 	networkHead uint64
 
+	// catchUpStateMu guards catchUpDone and catchUpDoneCh.
+	catchUpStateMu sync.Mutex
 	// catchUpDone indicates if all headers are sampled
-	catchUpDone atomic.Bool
+	catchUpDone bool
 	// catchUpDoneCh blocks until all headers are sampled
 	catchUpDoneCh chan struct{}
 }
@@ -267,6 +269,10 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 		failed[h] += retry.count
 	}
 
+	s.catchUpStateMu.Lock()
+	catchUpDone := s.catchUpDone
+	s.catchUpStateMu.Unlock()
+
 	return SamplingStats{
 		SampledChainHead: lowestFailedOrInProgress - 1,
 		CatchupHead:      s.next - 1,
@@ -274,33 +280,39 @@ func (s *coordinatorState) unsafeStats() SamplingStats {
 		Failed:           failed,
 		Workers:          workers,
 		Concurrency:      len(workers),
-		CatchUpDone:      s.catchUpDone.Load(),
-		IsRunning:        len(workers) > 0 || s.catchUpDone.Load(),
+		CatchUpDone:      catchUpDone,
+		IsRunning:        len(workers) > 0 || catchUpDone,
 	}
 }
 
 func (s *coordinatorState) checkDone() {
-	if len(s.inProgress) == 0 && len(s.failed) == 0 && s.next > s.networkHead {
-		if s.catchUpDone.CompareAndSwap(false, true) {
-			close(s.catchUpDoneCh)
-		}
+	s.catchUpStateMu.Lock()
+	defer s.catchUpStateMu.Unlock()
+
+	done := len(s.inProgress) == 0 && len(s.failed) == 0 && s.next > s.networkHead
+	if done == s.catchUpDone {
 		return
 	}
 
-	if s.catchUpDone.Load() {
-		// overwrite channel before storing done flag
+	s.catchUpDone = done
+	if done {
+		close(s.catchUpDoneCh)
+	} else {
 		s.catchUpDoneCh = make(chan struct{})
-		s.catchUpDone.Store(false)
 	}
 }
 
 // waitCatchUp waits for sampling process to indicate catchup is done
 func (s *coordinatorState) waitCatchUp(ctx context.Context) error {
-	if s.catchUpDone.Load() {
+	s.catchUpStateMu.Lock()
+	done := s.catchUpDone
+	doneCh := s.catchUpDoneCh
+	s.catchUpStateMu.Unlock()
+	if done {
 		return nil
 	}
 	select {
-	case <-s.catchUpDoneCh:
+	case <-doneCh:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
