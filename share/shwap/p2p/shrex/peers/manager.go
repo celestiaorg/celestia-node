@@ -49,6 +49,12 @@ const (
 	// The blacklist is a best-effort spam filter, so evicting the least-recently-used entries
 	// is acceptable and prevents unbounded growth from a stream of invalid datahashes.
 	blacklistedHashesCacheSize = 1024
+
+	// maxUnvalidatedPoolsPerPeer bounds how many pools for not yet validated datahashes a single
+	// peer can create via shrex-sub. An honest peer announces one datahash per height, so only a
+	// few of its datahashes wait for the matching header at any time. Without the bound, a peer
+	// can allocate a pool per random datahash and exhaust memory.
+	maxUnvalidatedPoolsPerPeer = 2 * storedPoolsAmount
 )
 
 type result string
@@ -72,6 +78,8 @@ type Manager struct {
 
 	// pools collecting peers from shrexSub and stores them by datahash
 	pools map[string]*syncPool
+	// unvalidatedPools counts the unvalidated pools each peer created. Guarded by lock.
+	unvalidatedPools map[peer.ID]int
 
 	// initialHeight is the height of the first header received from headersub
 	initialHeight atomic.Uint64
@@ -110,6 +118,9 @@ type syncPool struct {
 	height uint64
 	// createdAt is the syncPool creation time
 	createdAt time.Time
+	// creator is the peer whose shrex-sub notification created the pool. It is cleared once the
+	// pool is validated or removed. Guarded by Manager.lock.
+	creator peer.ID
 }
 
 func NewManager(
@@ -138,6 +149,7 @@ func NewManager(
 		connGater:             connGater,
 		host:                  host,
 		pools:                 make(map[string]*syncPool),
+		unvalidatedPools:      make(map[peer.ID]int),
 		blacklistedHashes:     blacklistedHashes,
 		stats:                 peerStats,
 		headerSubDone:         make(chan struct{}),
@@ -417,7 +429,11 @@ func (m *Manager) Validate(_ context.Context, peerID peer.ID, msg shrexsub.Notif
 		return pubsub.ValidationIgnore
 	}
 
-	p := m.getOrCreatePool(msg.DataHash.String(), msg.Height)
+	p, ok := m.getOrCreatePoolFrom(peerID, msg.DataHash.String(), msg.Height)
+	if !ok {
+		logger.Debug("peer exceeded unvalidated pools limit, ignore validation")
+		return pubsub.ValidationIgnore
+	}
 	logger.Debugw("got hash from shrex-sub")
 
 	p.add(peerID)
@@ -440,15 +456,59 @@ func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
 
 	p, ok := m.pools[datahash]
 	if !ok {
-		p = &syncPool{
-			height:    height,
-			pool:      newPool(m.params.PeerCooldown, m.stats),
-			createdAt: time.Now(),
-		}
+		p = m.newSyncPool(height)
 		m.pools[datahash] = p
 	}
 
 	return p
+}
+
+// getOrCreatePoolFrom returns the pool for datahash. If no pool exists, it creates one on behalf
+// of peerID, unless peerID already created maxUnvalidatedPoolsPerPeer unvalidated pools. The bool
+// is false if the pool was not created because of that limit.
+func (m *Manager) getOrCreatePoolFrom(peerID peer.ID, datahash string, height uint64) (*syncPool, bool) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if p, ok := m.pools[datahash]; ok {
+		return p, true
+	}
+	if m.unvalidatedPools[peerID] >= maxUnvalidatedPoolsPerPeer {
+		return nil, false
+	}
+
+	p := m.newSyncPool(height)
+	p.creator = peerID
+	m.unvalidatedPools[peerID]++
+	m.pools[datahash] = p
+	return p, true
+}
+
+func (m *Manager) newSyncPool(height uint64) *syncPool {
+	return &syncPool{
+		height:    height,
+		pool:      newPool(m.params.PeerCooldown, m.stats),
+		createdAt: time.Now(),
+	}
+}
+
+// releaseCreator frees the unvalidated pool slot of the peer that created p. It is idempotent.
+// Must be called with m.lock held.
+func (m *Manager) releaseCreator(p *syncPool) {
+	if p.creator == "" {
+		return
+	}
+	m.unvalidatedPools[p.creator]--
+	if m.unvalidatedPools[p.creator] <= 0 {
+		delete(m.unvalidatedPools, p.creator)
+	}
+	p.creator = ""
+}
+
+// deletePool removes the pool for datahash. Must be called with m.lock held.
+func (m *Manager) deletePool(datahash string, p *syncPool) {
+	m.releaseCreator(p)
+	delete(m.pools, datahash)
 }
 
 func (m *Manager) blacklistPeers(reason blacklistPeerReason, peerIDs ...peer.ID) {
@@ -487,8 +547,16 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
 	p := m.getOrCreatePool(hashStr, height)
+	// the pool may have been created with a height announced by a peer, so replace it with the
+	// trusted header height to make sure cleanUp removes the pool once it is outdated
+	m.lock.Lock()
+	p.height = height
+	m.lock.Unlock()
 	if p.isValidatedDataHash.CompareAndSwap(false, true) {
 		log.Debugw("pool marked validated", "datahash", hashStr)
+		m.lock.Lock()
+		m.releaseCreator(p)
+		m.lock.Unlock()
 		// if pool is proven to be valid, add all collected peers to discovered nodes
 		m.nodes.add(p.peers()...)
 	}
@@ -538,20 +606,20 @@ func (m *Manager) cleanUp() []peer.ID {
 		if p.isValidatedDataHash.Load() {
 			// remove pools that are outdated
 			if p.height < m.storeFrom.Load() {
-				delete(m.pools, h)
+				m.deletePool(h, p)
 			}
 			continue
 		}
 
 		// can't validate datahashes below initial height
 		if p.height < m.initialHeight.Load() {
-			delete(m.pools, h)
+			m.deletePool(h, p)
 			continue
 		}
 
 		// find pools that are not validated in time
 		if time.Since(p.createdAt) > m.params.PoolValidationTimeout {
-			delete(m.pools, h)
+			m.deletePool(h, p)
 			peers := p.peersSnapshot()
 
 			log.Debug("blacklisting datahash with all corresponding peers",
