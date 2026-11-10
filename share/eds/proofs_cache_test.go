@@ -85,3 +85,45 @@ func cachedAxes(c *proofsCache, axisType rsmt2d.Axis) int {
 	}
 	return c.axisCache[axisType].Len()
 }
+
+func TestProofsCacheShares(t *testing.T) {
+	ctx := context.Background()
+	square := edstest.RandEDS(t, 8)
+	expected, err := (&Rsmt2D{ExtendedDataSquare: square}).Shares(ctx)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name  string
+		inner AccessorStreamer
+	}{
+		{"data halves", &Rsmt2D{ExtendedDataSquare: square}},
+		{"parity halves", parityRowsAccessor{&Rsmt2D{ExtendedDataSquare: square}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			acc := WithProofsCache(tt.inner)
+			// second call is served from the cache
+			for range 2 {
+				shares, err := acc.Shares(ctx)
+				require.NoError(t, err)
+				require.Equal(t, expected, shares)
+			}
+		})
+	}
+}
+
+// parityRowsAccessor serves the parity half of every row.
+type parityRowsAccessor struct {
+	*Rsmt2D
+}
+
+func (p parityRowsAccessor) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
+	if axisType != rsmt2d.Row {
+		return p.Rsmt2D.AxisHalf(ctx, axisType, axisIdx)
+	}
+	row, err := getAxis(p.ExtendedDataSquare, axisType, axisIdx)
+	if err != nil {
+		return shwap.AxisHalf{}, err
+	}
+	return shwap.AxisHalf{Shares: row[len(row)/2:], IsParity: true}, nil
+}
