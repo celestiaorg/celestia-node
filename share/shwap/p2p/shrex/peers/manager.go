@@ -450,10 +450,8 @@ func (m *Manager) getPool(datahash string) *syncPool {
 	return m.pools[datahash]
 }
 
+// getOrCreatePool returns the pool for datahash, creating it if needed. Must be called with m.lock held.
 func (m *Manager) getOrCreatePool(datahash string, height uint64) *syncPool {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
 	p, ok := m.pools[datahash]
 	if !ok {
 		p = m.newSyncPool(height)
@@ -546,17 +544,19 @@ func (m *Manager) isBlacklistedHash(hash share.DataHash) bool {
 }
 
 func (m *Manager) validatedPool(hashStr string, height uint64) *syncPool {
+	m.lock.Lock()
 	p := m.getOrCreatePool(hashStr, height)
 	// the pool may have been created with a height announced by a peer, so replace it with the
 	// trusted header height to make sure cleanUp removes the pool once it is outdated
-	m.lock.Lock()
 	p.height = height
-	m.lock.Unlock()
-	if p.isValidatedDataHash.CompareAndSwap(false, true) {
-		log.Debugw("pool marked validated", "datahash", hashStr)
-		m.lock.Lock()
+	validated := p.isValidatedDataHash.CompareAndSwap(false, true)
+	if validated {
 		m.releaseCreator(p)
-		m.lock.Unlock()
+	}
+	m.lock.Unlock()
+
+	if validated {
+		log.Debugw("pool marked validated", "datahash", hashStr)
 		// if pool is proven to be valid, add all collected peers to discovered nodes
 		m.nodes.add(p.peers()...)
 	}
