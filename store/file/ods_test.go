@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/cometbft/cometbft/libs/rand"
+	"github.com/klauspost/reedsolomon"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -63,6 +65,109 @@ func TestODSFile(t *testing.T) {
 	eds.TestSuiteAccessor(ctx, t, createODSAccessor, ODSSize)
 	eds.TestStreamer(ctx, t, createCachedStreamer, ODSSize)
 	eds.TestStreamer(ctx, t, createODSAccessorStreamer, ODSSize)
+}
+
+// TestODSSecondHalfReconstructionIsBounded ensures second-half axes, reconstructed from the whole
+// ODS, wait for a free reconstruction slot and run with a bounded number of workers.
+func TestODSSecondHalfReconstructionIsBounded(t *testing.T) {
+	square := edstest.RandEDS(t, 16)
+	size := int(square.Width())
+	ods := createODSFile(t, square)
+	t.Cleanup(func() { require.NoError(t, ods.Close()) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	t.Run("waits for a slot", func(t *testing.T) {
+		for range cap(reconstructSlots) {
+			reconstructSlots <- struct{}{}
+		}
+		drained := false
+		drain := func() {
+			if !drained {
+				for range cap(reconstructSlots) {
+					<-reconstructSlots
+				}
+				drained = true
+			}
+		}
+		t.Cleanup(drain)
+
+		_, err := ods.AxisHalf(ctx, rsmt2d.Row, 0)
+		require.NoError(t, err, "first-half axes are read without reconstruction")
+
+		waitCtx, waitCancel := context.WithTimeout(ctx, 50*time.Millisecond)
+		defer waitCancel()
+		_, err = ods.AxisHalf(waitCtx, rsmt2d.Row, size-1)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+
+		drain()
+		half, err := ods.AxisHalf(ctx, rsmt2d.Row, size-1)
+		require.NoError(t, err)
+		expected, err := libshare.FromBytes(square.Row(uint(size - 1))[:size/2])
+		require.NoError(t, err)
+		require.Equal(t, expected, half.Shares)
+		require.Nil(t, ods.ods, "the ODS read for reconstruction must not be cached")
+	})
+
+	t.Run("bounded workers", func(t *testing.T) {
+		counting := &countingCodec{Codec: codec}
+		codec = counting
+		t.Cleanup(func() { codec = counting.Codec })
+
+		_, err := ods.AxisHalf(ctx, rsmt2d.Col, size-1)
+		require.NoError(t, err)
+		require.Positive(t, counting.peak.Load())
+		require.LessOrEqual(t, counting.peak.Load(), int64(reconstructWorkers))
+	})
+
+	t.Run("cancellation stops reconstruction", func(t *testing.T) {
+		cancelCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		counting := &countingCodec{Codec: codec, onCall: cancel}
+		codec = counting
+		workers := reconstructWorkers
+		reconstructWorkers = 1 // keep jobs queued regardless of GOMAXPROCS
+		t.Cleanup(func() {
+			codec = counting.Codec
+			reconstructWorkers = workers
+		})
+
+		_, err := ods.AxisHalf(cancelCtx, rsmt2d.Row, size-1)
+		require.ErrorIs(t, err, context.Canceled)
+		require.Less(t, counting.calls.Load(), int64(size/2), "queued work must not run")
+		require.Zero(t, len(reconstructSlots), "the slot must be released")
+	})
+}
+
+// countingCodec tracks reconstruction calls and their peak concurrency.
+type countingCodec struct {
+	Codec
+	cur, peak, calls atomic.Int64
+	onCall           func()
+}
+
+func (c *countingCodec) Encoder(ln int) (reedsolomon.Encoder, error) {
+	enc, err := c.Codec.Encoder(ln)
+	return countingEncoder{Encoder: enc, c: c}, err
+}
+
+type countingEncoder struct {
+	reedsolomon.Encoder
+	c *countingCodec
+}
+
+func (e countingEncoder) ReconstructSome(shards [][]byte, required []bool) error {
+	e.c.calls.Add(1)
+	if e.c.onCall != nil {
+		e.c.onCall()
+	}
+	n := e.c.cur.Add(1)
+	defer e.c.cur.Add(-1)
+	for p := e.c.peak.Load(); n > p && !e.c.peak.CompareAndSwap(p, n); p = e.c.peak.Load() {
+	}
+	time.Sleep(time.Millisecond)
+	return e.Encoder.ReconstructSome(shards, required)
 }
 
 func TestValidateODSSize(t *testing.T) {

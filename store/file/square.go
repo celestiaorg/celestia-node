@@ -1,8 +1,10 @@
 package file
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"runtime"
 
 	"golang.org/x/sync/errgroup"
 
@@ -84,17 +86,30 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, err
 	}, nil
 }
 
+// Reconstructing a second-half axis reads the whole ODS and runs a Reed-Solomon
+// reconstruction per opposite axis, far more than the response it serves.
+// These bound the concurrent reconstructions and the workers of each.
+var (
+	reconstructSlots   = make(chan struct{}, 2)
+	reconstructWorkers = max(1, runtime.GOMAXPROCS(0)/4)
+)
+
 func (s square) computeAxisHalf(
+	ctx context.Context,
 	axisType rsmt2d.Axis,
 	axisIdx int,
 ) (shwap.AxisHalf, error) {
 	shares := make([]libshare.Share, s.size())
 
 	// extend opposite half of the square while collecting Shares for the first half of required axis
-	g := errgroup.Group{}
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(reconstructWorkers)
 	opposite := oppositeAxis(axisType)
 	for i := range s.size() {
 		g.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			half, err := s.axisHalf(opposite, i)
 			if err != nil {
 				return err

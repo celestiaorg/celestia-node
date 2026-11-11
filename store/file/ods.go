@@ -260,7 +260,7 @@ func (o *ODS) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample,
 
 // AxisHalf returns half of shares axis of the given type and index. Side is determined by
 // implementation. Implementations should indicate the side in the returned AxisHalf.
-func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
+func (o *ODS) AxisHalf(ctx context.Context, axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, error) {
 	// Read the axis from the file if the axis is a row and from the top half of the square, or if the
 	// axis is a column and from the left half of the square.
 	if axisIdx < o.size()/2 {
@@ -272,12 +272,29 @@ func (o *ODS) AxisHalf(_ context.Context, axisType rsmt2d.Axis, axisIdx int) (sh
 	}
 
 	// if axis is from the second half of the square, read full ODS and compute the axis half
-	ods, err := o.readODS()
-	if err != nil {
+	select {
+	case reconstructSlots <- struct{}{}:
+	case <-ctx.Done():
+		return shwap.AxisHalf{}, ctx.Err()
+	}
+	defer func() { <-reconstructSlots }()
+	if err := ctx.Err(); err != nil {
 		return shwap.AxisHalf{}, err
 	}
 
-	half, err := ods.computeAxisHalf(axisType, axisIdx)
+	// don't cache the ODS read for reconstruction, so it is not retained beyond the slot
+	o.lock.RLock()
+	ods := o.ods
+	o.lock.RUnlock()
+	if ods == nil {
+		var err error
+		ods, err = o.loadODS()
+		if err != nil {
+			return shwap.AxisHalf{}, err
+		}
+	}
+
+	half, err := ods.computeAxisHalf(ctx, axisType, axisIdx)
 	if err != nil {
 		return shwap.AxisHalf{}, fmt.Errorf("computing axis half: %w", err)
 	}
@@ -405,6 +422,17 @@ func (o *ODS) readODS() (square, error) {
 		defer o.lock.Unlock()
 	}
 
+	ods, err := o.loadODS()
+	if err != nil {
+		return nil, err
+	}
+	if !o.disableCache {
+		o.ods = ods
+	}
+	return ods, nil
+}
+
+func (o *ODS) loadODS() (square, error) {
 	offset := o.hdr.OffsetWithRoots()
 	shareSize := o.hdr.ShareSize()
 	odsBytes := o.hdr.SquareSize() / 2
@@ -413,10 +441,6 @@ func (o *ODS) readODS() (square, error) {
 	ods, err := readSquare(reader, shareSize, o.size())
 	if err != nil {
 		return nil, fmt.Errorf("reading ODS: %w", err)
-	}
-
-	if !o.disableCache {
-		o.ods = ods
 	}
 	return ods, nil
 }
