@@ -2,13 +2,19 @@
 
 # The review policy (.github/review-policy.md) auto-approves [low] and [medium]
 # PRs from trusted authors. Because the tag is chosen by the author, the files
-# that define the policy, CI, and agent behavior always need a protocol team
+# that define the policy and agent behavior always need a protocol team
 # approval. "Require review from Code Owners" must stay enabled on main for
 # this to be enforced.
 
-# CI, its build and lint config, repo automation, and the review policy
-# itself, including this file.
-/.github/ @celestiaorg/protocol
+# The review policy, the workflow that applies it, and Dependabot's tier
+# prefixes, including this file. Other CI and repo automation under .github/
+# has no code owner, so an auto-approval covers it.
+/.github/CODEOWNERS @celestiaorg/protocol
+/.github/review-policy.md @celestiaorg/protocol
+/.github/workflows/auto-approve.yml @celestiaorg/protocol
+/.github/dependabot.yml @celestiaorg/protocol
+
+# Build and lint config.
 /.golangci.yml @celestiaorg/protocol
 /Makefile @celestiaorg/protocol
 /celestia-node.mk @celestiaorg/protocol
