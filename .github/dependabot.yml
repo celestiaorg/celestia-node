@@ -69,7 +69,9 @@ updates:
   - package-ecosystem: docker
     commit-message:
       prefix: "chore(deps): [medium] "
-    directory: "/"
+    directories:
+      - "/"
+      - "/docker/devnet"
     schedule:
       interval: weekly
       day: monday
