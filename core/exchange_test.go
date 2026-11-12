@@ -13,9 +13,34 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/store"
 )
+
+// TestCoreExchange_GetRangeByHeight_UnderflowGuard ensures GetRangeByHeight rejects
+// ranges where from.Height() is not below `to` instead of underflowing `amount` and
+// panicking in makeslice. The guard runs before any fetching, so a zero-value Exchange
+// is sufficient.
+func TestCoreExchange_GetRangeByHeight_UnderflowGuard(t *testing.T) {
+	suite := headertest.NewTestSuite(t)
+	headers := suite.GenExtendedHeaders(5)
+	from := headers[len(headers)-1] // height 5
+
+	ce := &Exchange{}
+
+	// from.Height() == to and from.Height() > to both underflow without the guard.
+	for _, to := range []uint64{from.Height(), from.Height() - 2} {
+		got, err := ce.GetRangeByHeight(context.Background(), from, to)
+		require.Error(t, err)
+		assert.Nil(t, got)
+	}
+
+	// An empty but valid range (to == from.Height()+1) must not error.
+	got, err := ce.GetRangeByHeight(context.Background(), from, from.Height()+1)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
