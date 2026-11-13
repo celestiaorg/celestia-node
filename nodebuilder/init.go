@@ -10,8 +10,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofrs/flock"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"

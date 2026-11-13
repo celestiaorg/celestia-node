@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 )
 
 // DefaultConfig returns testnode.DefaultConfig with every listener moved to a

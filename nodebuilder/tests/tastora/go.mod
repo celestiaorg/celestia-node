@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	cosmossdk.io/math v1.5.3
-	github.com/celestiaorg/celestia-app/v10 v10.6.0
+	github.com/celestiaorg/celestia-app/v11 v11.0.0-20261113170354-2c4bf3ea5a04
 	github.com/celestiaorg/celestia-node v0.23.3
 	github.com/celestiaorg/go-square/v4 v4.3.1
 	github.com/celestiaorg/tastora v0.21.3

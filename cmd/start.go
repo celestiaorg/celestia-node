@@ -10,8 +10,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 )

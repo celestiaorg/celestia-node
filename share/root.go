@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	"github.com/celestiaorg/celestia-app/v11/pkg/da"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
 )
