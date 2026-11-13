@@ -2,6 +2,7 @@ package shwap
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -41,6 +42,40 @@ func TestNewRangeNamespaceDataID(t *testing.T) {
 			} else {
 				require.Error(t, err)
 			}
+		})
+	}
+}
+
+func TestRangeNamespaceDataIDVerifyOutOfBounds(t *testing.T) {
+	const odsSize = 4
+	shares := odsSize * odsSize // total shares inside the ODS
+
+	tests := []struct {
+		name string
+		from int
+		to   int
+	}{
+		{"from at the share count", shares, shares + 1},
+		{"from past the share count", shares + 3, shares + 4},
+		{"to past the share count", shares - 1, shares + 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rngid := RangeNamespaceDataID{
+				EdsID: EdsID{height: 1},
+				From:  tc.from,
+				To:    tc.to,
+			}
+
+			err := rngid.Verify(odsSize)
+			require.Error(t, err)
+			// out-of-bounds range indexes must be classifiable the same way as the
+			// other shwap IDs, so callers can match on the shared sentinels.
+			require.ErrorIs(t, err, ErrOutOfBounds)
+			require.ErrorIs(t, err, ErrInvalidID)
+			// the bound reported in the error is the ODS share count, not the ODS width.
+			require.Contains(t, err.Error(), strconv.Itoa(shares))
 		})
 	}
 }
