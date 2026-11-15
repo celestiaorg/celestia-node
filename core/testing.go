@@ -22,8 +22,8 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/libs/testnodeutil"
 )
