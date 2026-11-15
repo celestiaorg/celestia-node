@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -16,6 +17,9 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 )
+
+// subtreeRootSize is the size of an NMT node: min namespace, max namespace and digest.
+const subtreeRootSize = 2*libshare.NamespaceSize + sha256.Size
 
 // Commitment is a Merkle Root of the subtree built from shares of the Blob.
 // It is computed by splitting the blob into shares and building the Merkle subtree to be included
@@ -67,10 +71,18 @@ func (commitmentProof *CommitmentProof) Validate() error {
 			len(commitmentProof.RowProof.Proofs),
 		)
 	}
-	if int(commitmentProof.RowProof.EndRow-commitmentProof.RowProof.StartRow+1) != len(commitmentProof.RowProof.RowRoots) {
+	if commitmentProof.RowProof.EndRow < commitmentProof.RowProof.StartRow {
+		return fmt.Errorf(
+			"end row %d must be greater than or equal to start row %d",
+			commitmentProof.RowProof.EndRow,
+			commitmentProof.RowProof.StartRow,
+		)
+	}
+	numRows := int64(commitmentProof.RowProof.EndRow) - int64(commitmentProof.RowProof.StartRow) + 1
+	if numRows != int64(len(commitmentProof.RowProof.RowRoots)) {
 		return fmt.Errorf(
 			"the number of rows %d must equal the number of row roots %d",
-			int(commitmentProof.RowProof.EndRow-commitmentProof.RowProof.StartRow+1),
+			numRows,
 			len(commitmentProof.RowProof.RowRoots),
 		)
 	}
@@ -94,6 +106,75 @@ func (commitmentProof *CommitmentProof) Validate() error {
 	return nil
 }
 
+// validateNamespace checks that the proof's namespace is a valid blob namespace and
+// that every subtree root commits exclusively to shares of that namespace.
+func (commitmentProof *CommitmentProof) validateNamespace() error {
+	ns, err := libshare.NewNamespace(commitmentProof.NamespaceVersion, commitmentProof.NamespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace: %w", err)
+	}
+	if err := ns.ValidateForBlob(); err != nil {
+		return fmt.Errorf("invalid blob namespace: %w", err)
+	}
+	nsBytes := ns.Bytes()
+	for i, root := range commitmentProof.SubtreeRoots {
+		if len(root) != subtreeRootSize {
+			return fmt.Errorf("subtree root %d has size %d, expected %d", i, len(root), subtreeRootSize)
+		}
+		minNs := root[:libshare.NamespaceSize]
+		maxNs := root[libshare.NamespaceSize : 2*libshare.NamespaceSize]
+		if !bytes.Equal(minNs, nsBytes) || !bytes.Equal(maxNs, nsBytes) {
+			return fmt.Errorf("subtree root %d does not belong to namespace %s", i, ns.String())
+		}
+	}
+	return nil
+}
+
+// validateLayout checks that the row proofs prove consecutive original data square
+// rows starting at StartRow and that the subtree root proofs cover a contiguous share
+// range across those rows, as a blob occupies a contiguous range of shares.
+func (commitmentProof *CommitmentProof) validateLayout() error {
+	rp := commitmentProof.RowProof
+	// the data root commits to the row and column roots of the extended data square,
+	// i.e. 2 * (2 * odsSize) leaves.
+	total := rp.Proofs[0].Total
+	if total < 4 || total%4 != 0 {
+		return fmt.Errorf("invalid row proof total %d", total)
+	}
+	odsSize := total / 4
+	if odsSize&(odsSize-1) != 0 {
+		return fmt.Errorf("original data square width %d is not a power of two", odsSize)
+	}
+	for i, prf := range rp.Proofs {
+		if prf.Total != total {
+			return fmt.Errorf("row proof %d has total %d, expected %d", i, prf.Total, total)
+		}
+		expectedIndex := int64(rp.StartRow) + int64(i)
+		if prf.Index != expectedIndex {
+			return fmt.Errorf("row proof %d has index %d, expected %d", i, prf.Index, expectedIndex)
+		}
+		if prf.Index >= odsSize {
+			return fmt.Errorf("row proof %d index %d is outside the original data square", i, prf.Index)
+		}
+	}
+
+	ods := int(odsSize)
+	last := len(commitmentProof.SubtreeRootProofs) - 1
+	for i, prf := range commitmentProof.SubtreeRootProofs {
+		start, end := prf.Start(), prf.End()
+		if start < 0 || end > ods || start >= end {
+			return fmt.Errorf("subtree root proof %d has invalid range [%d, %d)", i, start, end)
+		}
+		if i > 0 && start != 0 {
+			return fmt.Errorf("subtree root proof %d must start at 0, got %d", i, start)
+		}
+		if i < last && end != ods {
+			return fmt.Errorf("subtree root proof %d must end at %d, got %d", i, ods, end)
+		}
+	}
+	return nil
+}
+
 // Verify verifies that a commitment proof is valid, i.e., the subtree roots commit
 // to specific data that was posted to a square.
 func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) error {
@@ -107,6 +188,15 @@ func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) erro
 
 	err := commitmentProof.Validate()
 	if err != nil {
+		return err
+	}
+	if len(commitmentProof.SubtreeRootProofs) == 0 {
+		return errors.New("commitment proof must contain at least one subtree root proof")
+	}
+	if err := commitmentProof.validateNamespace(); err != nil {
+		return err
+	}
+	if err := commitmentProof.validateLayout(); err != nil {
 		return err
 	}
 

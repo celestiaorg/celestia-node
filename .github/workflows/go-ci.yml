@@ -33,6 +33,30 @@ jobs:
           args: --timeout 10m
           version: v2.10.1
 
+  # Cognitive complexity on new and changed code only, as a separate run so the
+  # main lint job and .golangci.yml are unaffected. See .golangci-complexity.yml.
+  lint-complexity:
+    name: Lint Complexity (new code)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # --new-from-merge-base needs the base branch history.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: golangci-lint (gocognit, new code)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          # Pull requests compare against their base branch; pushes and merge
+          # groups compare against main.
+          args: --config .golangci-complexity.yml --new-from-merge-base=origin/${{ github.base_ref || 'main' }}
+          version: v2.10.1
+
   lint-imports:
     name: Lint Imports
     runs-on: ubuntu-latest

@@ -45,11 +45,13 @@ branch's copy of the workflow, so it covers stacked PRs whatever their base. A
 changes. It never checks out or runs PR code; it reads only the event payload
 and the GitHub API.
 
-`CODEOWNERS` assigns `@celestiaorg/protocol` to `.github/`, the agent
+`CODEOWNERS` assigns `@celestiaorg/protocol` to this policy,
+`auto-approve.yml`, `dependabot.yml`, `CODEOWNERS` itself, the agent
 instruction files, and the root `CONTRIBUTING.md`. Because the author picks the
-tier, code-owner review ensures a `[low]` PR cannot change this policy, CI, or
-agent behavior without a protocol team approval; the App's approval never
-satisfies code-owner review.
+tier, code-owner review ensures a `[low]` PR cannot change this policy or agent
+behavior without a protocol team approval; the App's approval never satisfies
+code-owner review. Other files under `.github/`, including CI workflows, have
+no code owner, so the App's approval covers them like any other change.
 
 ## Administrator setup
 
