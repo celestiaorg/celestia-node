@@ -22,7 +22,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
+	appfibre "github.com/celestiaorg/celestia-app/v11/fibre"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
