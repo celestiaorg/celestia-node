@@ -94,6 +94,16 @@ func (ce *Exchange) GetRangeByHeight(
 	from *header.ExtendedHeader,
 	to uint64,
 ) ([]*header.ExtendedHeader, error) {
+	// Guard against unsigned underflow of amount below. The getter contract is to
+	// serve [from.Height()+1:to), so from.Height() must be below to. A misbehaving
+	// upstream (e.g. a p2p peer in RoutingExchange returning a tail at or beyond
+	// `to`) can otherwise push from.Height() to >= to, wrapping amount into a huge
+	// value and panicking in makeslice. Defense in depth.
+	if from.Height() >= to {
+		return nil, fmt.Errorf("header/core: invalid range: from height %d is not below to %d",
+			from.Height(), to)
+	}
+
 	amount := to - (from.Height() + 1)
 	headers, err := ce.getRangeByHeight(ctx, from.Height()+1, amount)
 	if err != nil {
