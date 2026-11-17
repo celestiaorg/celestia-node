@@ -143,6 +143,9 @@ func (s Sample) Verify(roots *share.AxisRoots, rowIdx, colIdx int) error {
 	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
 	}
+	if len(s.ToBytes()) != libshare.ShareSize {
+		return fmt.Errorf("invalid share size: %d", len(s.ToBytes()))
+	}
 	switch s.ProofType {
 	case rsmt2d.Row:
 		if s.Proof.Start() != colIdx || s.Proof.End() != colIdx+1 {
