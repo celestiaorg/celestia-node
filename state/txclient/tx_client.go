@@ -345,6 +345,9 @@ func (c *TxClient) estimateGasPriceAndUsage(
 	cfg *TxConfig,
 	msg types.Msg,
 ) (float64, uint64, error) {
+	if cfg.GasLimit() > cfg.MaxGas() {
+		return 0, 0, ErrGasExceedsLimit
+	}
 	if cfg.GasPrice() != DefaultGasPrice && cfg.GasLimit() != 0 {
 		return cfg.GasPrice(), cfg.GasLimit(), nil
 	}

@@ -19,13 +19,13 @@ const (
 
 	DefaultMaxGasPrice = appconsts.DefaultMinGasPrice * 100
 
-	// DefaultMaxGas is the max estimated gas limit accepted when the user doesn't set one.
+	// DefaultMaxGas is the max gas limit accepted when the user doesn't set one.
 	DefaultMaxGas uint64 = 2_000_000
 )
 
 var (
 	ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
-	ErrGasExceedsLimit      = errors.New("state: estimated gas exceeds max gas in tx config")
+	ErrGasExceedsLimit      = errors.New("state: gas exceeds max gas in tx config")
 )
 
 // NewTxConfig constructs a new TxConfig with the provided options.
@@ -93,7 +93,7 @@ type TxConfig struct {
 	maxGasPrice float64
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
-	// specifies the max estimated gas limit that user accepts for the transaction.
+	// specifies the max gas limit that user accepts for the transaction.
 	maxGas uint64
 	// priority is the priority level of the requested gas price.
 	// - Low: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
@@ -127,7 +127,7 @@ func (cfg *TxConfig) MaxGasPrice() float64 {
 	return cfg.maxGasPrice
 }
 
-// MaxGas will return the max estimated gas limit that the user set
+// MaxGas will return the max gas limit that the user set
 // in the TxConfig. If no value was set, it will return the default value.
 func (cfg *TxConfig) MaxGas() uint64 {
 	if cfg.maxGas == 0 {
@@ -253,8 +253,7 @@ func WithMaxGasPrice(gasPrice float64) ConfigOption {
 	}
 }
 
-// WithMaxGas is an option that allows you to specify the max estimated gas limit.
-// It doesn't apply to a gas limit set with WithGas.
+// WithMaxGas is an option that allows you to specify the max gas limit.
 func WithMaxGas(gas uint64) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.maxGas = gas

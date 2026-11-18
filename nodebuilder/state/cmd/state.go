@@ -552,7 +552,7 @@ func ApplyFlags(cmds ...*cobra.Command) {
 				&maxGas,
 				"max.gas",
 				state.DefaultMaxGas,
-				"Specifies max estimated gas limit for the tx submission.",
+				"Specifies max gas limit for the tx submission.",
 			)
 			cmd.PersistentFlags().IntVar(
 				&txPriority,
