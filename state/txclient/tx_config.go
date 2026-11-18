@@ -20,6 +20,7 @@ const (
 	DefaultMaxGasPrice = appconsts.DefaultMinGasPrice * 100
 
 	// DefaultMaxGas is the max gas limit accepted when the user doesn't set one.
+	// It doesn't apply to blob submission, where gas grows with the blob size.
 	DefaultMaxGas uint64 = 2_000_000
 )
 
@@ -32,7 +33,7 @@ var (
 // It starts with a DefaultGasPrice and then applies any additional
 // options provided through the variadic parameter.
 func NewTxConfig(opts ...ConfigOption) *TxConfig {
-	options := &TxConfig{gasPrice: DefaultGasPrice, maxGasPrice: DefaultMaxGasPrice, maxGas: DefaultMaxGas}
+	options := &TxConfig{gasPrice: DefaultGasPrice, maxGasPrice: DefaultMaxGasPrice}
 	for _, opt := range opts {
 		opt(options)
 	}

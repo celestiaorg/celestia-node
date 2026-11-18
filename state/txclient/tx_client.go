@@ -232,6 +232,11 @@ func (c *TxClient) SubmitPayForBlob(
 		}
 	}
 
+	// blobs have no default max gas, so only check a max gas the user set
+	if cfg.maxGas != 0 && gas > cfg.maxGas {
+		return nil, ErrGasExceedsLimit
+	}
+
 	// Gas price estimation
 	gasPriceEstimationStart := time.Now()
 	gasPrice, err := c.estimateGasPrice(ctx, cfg)
