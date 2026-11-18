@@ -551,8 +551,9 @@ func ApplyFlags(cmds ...*cobra.Command) {
 			cmd.PersistentFlags().Uint64Var(
 				&maxGas,
 				"max.gas",
-				state.DefaultMaxGas,
-				"Specifies max gas limit for the tx submission.",
+				0,
+				"Specifies max gas limit for the tx submission. "+
+					"If not set, blob submissions have no max and other txs use the default max.",
 			)
 			cmd.PersistentFlags().IntVar(
 				&txPriority,
