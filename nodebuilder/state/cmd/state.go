@@ -21,6 +21,7 @@ var (
 	amount            uint64
 	txPriority        int
 	maxGasPrice       float64
+	maxGas            uint64
 )
 
 func init() {
@@ -547,6 +548,12 @@ func ApplyFlags(cmds ...*cobra.Command) {
 				state.DefaultMaxGasPrice,
 				"Specifies max gas price for the tx submission.",
 			)
+			cmd.PersistentFlags().Uint64Var(
+				&maxGas,
+				"max.gas",
+				state.DefaultMaxGas,
+				"Specifies max estimated gas limit for the tx submission.",
+			)
 			cmd.PersistentFlags().IntVar(
 				&txPriority,
 				"tx.priority",
@@ -568,6 +575,7 @@ func GetTxConfig() *state.TxConfig {
 		state.WithSignerAddress(signer),
 		state.WithFeeGranterAddress(feeGranterAddress),
 		state.WithMaxGasPrice(maxGasPrice),
+		state.WithMaxGas(maxGas),
 		state.WithTxPriority(txPriority),
 	)
 }

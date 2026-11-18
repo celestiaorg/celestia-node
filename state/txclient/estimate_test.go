@@ -119,6 +119,20 @@ func TestEstimatorService(t *testing.T) {
 				expectedErr: ErrGasPriceExceedsLimit,
 			},
 			{
+				// should return error as estimated gas exceeds limit
+				name:        "estimated gas exceeds max gas",
+				txconf:      NewTxConfig(WithMaxGas(9999)),
+				errExpected: true,
+				expectedErr: ErrGasExceedsLimit,
+			},
+			{
+				// should return the configured gas even though it exceeds max gas
+				name:        "configured gas ignores max gas",
+				txconf:      NewTxConfig(WithGas(20000), WithMaxGas(9999)),
+				expGasPrice: 0.02,
+				expGasUsage: 20000,
+			},
+			{
 				// should return error as gas price exceeds limit
 				name:        "estimate gas price, use configured gas",
 				txconf:      NewTxConfig(WithGas(100)),

@@ -364,7 +364,10 @@ func (c *TxClient) estimateGasPriceAndUsage(
 
 	// sanity check estimated gas usage against user's set gas limit
 	if cfg.GasLimit() != 0 {
-		gasLimit = cfg.GasLimit()
+		return gasPrice, cfg.GasLimit(), nil
+	}
+	if gasLimit > cfg.MaxGas() {
+		return 0, 0, ErrGasExceedsLimit
 	}
 
 	return gasPrice, gasLimit, nil
