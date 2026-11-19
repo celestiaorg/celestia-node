@@ -501,7 +501,12 @@ func BenchGetHalfAxisFromAccessor(
 	b *testing.B,
 	createAccessor createAccessor,
 	minOdsSize, maxOdsSize int,
+	opts ...SuiteOption,
 ) {
+	var so suiteOptions
+	for _, opt := range opts {
+		opt(&so)
+	}
 	for size := minOdsSize; size <= maxOdsSize; size *= 2 {
 		eds := edstest.RandEDS(b, size)
 		acc := createAccessor(b, eds)
@@ -509,6 +514,9 @@ func BenchGetHalfAxisFromAccessor(
 		// loop over all possible axis types and quadrants
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Row, rsmt2d.Col} {
 			for _, squareHalf := range []int{0, 1} {
+				if so.noSecondHalf && squareHalf == 1 {
+					continue
+				}
 				name := fmt.Sprintf("Size:%v/ProofType:%s/squareHalf:%s", size, axisType, strconv.Itoa(squareHalf))
 				b.Run(name, func(b *testing.B) {
 					// warm up cache
@@ -535,13 +543,21 @@ func BenchGetSampleFromAccessor(
 	b *testing.B,
 	createAccessor createAccessor,
 	minOdsSize, maxOdsSize int,
+	opts ...SuiteOption,
 ) {
+	var so suiteOptions
+	for _, opt := range opts {
+		opt(&so)
+	}
 	for size := minOdsSize; size <= maxOdsSize; size *= 2 {
 		eds := edstest.RandEDS(b, size)
 		acc := createAccessor(b, eds)
 
 		// loop over all possible axis types and quadrants
 		for _, q := range quadrants {
+			if so.noSecondHalf && q == fourthQuadrant {
+				continue
+			}
 			name := fmt.Sprintf("Size:%v/quadrant:%s", size, q)
 			b.Run(name, func(b *testing.B) {
 				edsSize, err := acc.Size(ctx)
@@ -565,7 +581,9 @@ func BenchGetSampleFromAccessor(
 
 type quadrantIdx int
 
-var quadrants = []quadrantIdx{1, 2, 3, 4}
+const fourthQuadrant quadrantIdx = 4
+
+var quadrants = []quadrantIdx{1, 2, 3, fourthQuadrant}
 
 func (q quadrantIdx) String() string {
 	return strconv.Itoa(int(q))
