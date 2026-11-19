@@ -2,6 +2,8 @@ module github.com/celestiaorg/celestia-node
 
 go 1.26.10
 
+godebug multipathtcp=0
+
 require (
 	cosmossdk.io/log v1.6.1
 	cosmossdk.io/math v1.5.3
