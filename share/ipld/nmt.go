@@ -55,7 +55,7 @@ const (
 )
 
 func init() {
-	// required for Bitswap to hash and verify inbound data correctly
+	// required to hash and verify NMT IPLD blocks by their CIDs
 	mhcore.Register(sha256NamespaceFlagged, func() hash.Hash {
 		nh := nmt.NewNmtHasher(share.NewSHA256Hasher(), libshare.NamespaceSize, true)
 		nh.Reset()

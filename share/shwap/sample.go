@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
@@ -142,6 +142,9 @@ func (s Sample) Verify(roots *share.AxisRoots, rowIdx, colIdx int) error {
 	}
 	if s.ProofType != rsmt2d.Row && s.ProofType != rsmt2d.Col {
 		return fmt.Errorf("invalid SampleProofType: %d", s.ProofType)
+	}
+	if len(s.ToBytes()) != libshare.ShareSize {
+		return fmt.Errorf("invalid share size: %d", len(s.ToBytes()))
 	}
 	switch s.ProofType {
 	case rsmt2d.Row:

@@ -23,6 +23,8 @@ type Module interface {
 
 	// AuthVerify returns the permissions assigned to the given token.
 	AuthVerify(ctx context.Context, token string) ([]auth.Permission, error)
+	// AuthRevoke permanently revokes a token and cancels its active requests.
+	AuthRevoke(ctx context.Context, token string) error
 	// AuthNew signs and returns a new token with the given permissions.
 	AuthNew(ctx context.Context, perms []auth.Permission) (string, error)
 	// AuthNewWithExpiry signs and returns a new token with the given permissions and TTL.
@@ -36,6 +38,7 @@ type API struct {
 		Info              func(context.Context) (Info, error)                                                   `perm:"admin"`
 		Ready             func(context.Context) (bool, error)                                                   `perm:"read"`
 		LogLevelSet       func(ctx context.Context, name, level string) error                                   `perm:"admin"`
+		AuthRevoke        func(ctx context.Context, token string) error                                         `perm:"admin"`
 		AuthVerify        func(ctx context.Context, token string) ([]auth.Permission, error)                    `perm:"admin"`
 		AuthNew           func(ctx context.Context, perms []auth.Permission) (string, error)                    `perm:"admin"`
 		AuthNewWithExpiry func(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error) `perm:"admin"`
@@ -64,4 +67,8 @@ func (api *API) AuthNew(ctx context.Context, perms []auth.Permission) (string, e
 
 func (api *API) AuthNewWithExpiry(ctx context.Context, perms []auth.Permission, ttl time.Duration) (string, error) {
 	return api.Internal.AuthNewWithExpiry(ctx, perms, ttl)
+}
+
+func (api *API) AuthRevoke(ctx context.Context, token string) error {
+	return api.Internal.AuthRevoke(ctx, token)
 }

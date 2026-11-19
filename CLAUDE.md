@@ -1,13 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Celestia-node is the Go implementation of Celestia's data availability (DA) node. It implements two node types:
-
-- **Bridge**: Bridges the Celestia consensus network to the DA network by connecting to a celestia-core node, listening for blocks, and broadcasting ExtendedHeaders
-- **Light**: Lightweight node that verifies data availability by sampling 16 random shares per block
+Celestia-node implements Celestia's data availability nodes. Node wiring uses `go.uber.org/fx`: `nodebuilder/*/module.go` provides dependencies and `nodebuilder/module.go` composes them per node type.
 
 ## Common Commands
 
@@ -28,17 +21,11 @@ make test-unit-race                      # Run unit tests with race detector
 go test ./path/to/package/...            # Run tests for a specific package
 go test -run TestName ./path/to/pkg/...  # Run a single test
 
-# Integration tests (in nodebuilder/tests/, require build tags)
-make test-integration TAGS=blob          # Run blob integration tests
-make test-integration TAGS=p2p           # Run p2p integration tests
-make test-integration SHORT=true TAGS=da # Run with -short flag
-
-# Available integration TAGS: api, blob, da, fraud, nd, p2p, reconstruction, sync, share, pruning
-
 # Tastora E2E tests (Docker-based)
 make test-blob                           # Blob module E2E tests
 make test-e2e-sanity                     # E2E sanity suite
 make test-tastora                        # All Tastora tests
+make test-tastora RUN=TestBlobTestSuite  # A single Tastora suite
 ```
 
 ### Code Quality
@@ -58,69 +45,18 @@ make openrpc-gen        # Generate OpenRPC spec
 go generate ./...       # Regenerate mocks (mockgen)
 ```
 
-## Architecture
+## Testing Infrastructure
 
-### Dependency Injection
-
-The project uses **go.uber.org/fx** for dependency injection. Each module in `nodebuilder/` has a `module.go` that provides its fx dependencies. The `nodebuilder/module.go` composes all modules together, with different configurations per node type.
-
-### nodebuilder/ — Node Construction
-
-Each subdirectory is a module providing a specific capability:
-
-- `blob/` — Blob submission and retrieval
-- `core/` — Connection to celestia-core consensus node
-- `da/` — Data availability interface
-- `das/` — Data availability sampling orchestration
-- `fraud/` — Fraud proof handling
-- `header/` — Header syncing, storage, and exchange
-- `p2p/` — libp2p networking, pubsub, peer management
-- `share/` — Share retrieval and availability verification
-- `state/` — On-chain state, transaction submission, fee estimation
-- `rpc/` — JSON-RPC API server (via go-jsonrpc)
-- `pruner/` — Data pruning
-- `blobstream/` — Blobstream proof generation
-
-Each module typically has: `config.go` (configuration), `module.go` (fx providers), interface definitions, and `mocks/` directory with mockgen-generated mocks.
-
-### Core Domain Packages (top-level)
-
-- `header/` — ExtendedHeader type (block header + DAH + validator set + commit), syncer, store, P2P exchange
-- `share/` — Share types, namespace retrieval, availability interface with light/full implementations
-- `share/shwap/` — Share exchange protocol (Shwap) with sub-protocols: shrex (share exchange over libp2p streams), bitswap
-- `das/` — DAS coordinator and workers that sample shares to verify availability
-- `blob/` — Blob parsing, commitment proofs, service layer
-- `core/` — Listener, fetcher, exchange for interacting with celestia-core
-- `state/` — Core access to chain state, transaction building
-- `store/` — EDS (Extended Data Square) persistent storage
-
-### Key Interfaces
-
-- `share.Availability` — Verifies data availability (light vs full implementations)
-- `share/shwap.Getter` — Retrieves shares/EDS/namespace data from the network
-- Each `nodebuilder/*/` module defines a `Module` interface that is the RPC API surface
-
-### Networking
-
-Built on **libp2p** with:
-
-- PubSub (gossipsub) for header propagation (HeaderSub) and share notifications (ShrexSub)
-- Streams for direct share exchange (Shrex)
-- Bitswap for share retrieval
-- Kademlia DHT for peer discovery
-
-### Testing Infrastructure
-
-- **Swamp** (`nodebuilder/tests/swamp/`): In-process mock network for integration tests. Creates mock networks with bridge/full/light nodes for testing inter-node communication.
-- **Tastora** (`nodebuilder/tests/tastora/`): Docker-based E2E framework using real containers.
-- Integration tests use build tags (see TAGS above) and live in `nodebuilder/tests/`.
+- **Tastora** (`nodebuilder/tests/tastora/`): Docker-based E2E tests; a separate Go module run with the `integration` build tag against a celestia-node image (`CELESTIA_NODE_TAG`).
 
 ## Code Conventions
 
 ### PR & Commit Style
 
-- PR titles: `pkg: Concise title` (e.g., `service/header: Remove race in core_listener`)
-- Commit messages: conventional commits recommended (e.g., `feat(service/header): Title`)
+- PR titles: `type(pkg): [level] subject` (e.g., `fix(service/header): [medium] remove race in core_listener`). CI enforces the format.
+- Levels: `[high]` deep review (DAS/availability verification, shrex/p2p protocol, header verification, fraud proofs, state/tx submission, breaking API/config changes, security); `[medium]` standard review for limited-impact code changes; `[low]` docs, tests, or tooling. Pick the higher level when unsure. See [CONTRIBUTING.md#pr-naming](CONTRIBUTING.md#pr-naming).
+- Don't repeat the tag in the PR description; the title already carries it.
+- Commit messages: conventional commits (e.g., `feat(service/header): Title`)
 
 ### Import Ordering
 

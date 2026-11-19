@@ -11,6 +11,7 @@ on:
       - "CI and Release"
       - "Docker Build & Publish"
       - "Bootstrapper Health Check"
+      - "Fuzz"
     types:
       - completed
     branches:

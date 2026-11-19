@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	Cmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd)
+	Cmd.AddCommand(nodeInfoCmd, logCmd, verifyCmd, authCmd, revokeCmd)
 }
 
 var Cmd = &cobra.Command{
@@ -107,5 +107,21 @@ var authCmd = &cobra.Command{
 
 		result, err := client.Node.AuthNew(cmd.Context(), perms)
 		return cmdnode.PrintOutput(result, err, nil)
+	},
+}
+
+var revokeCmd = &cobra.Command{
+	Use:   "revoke-token <token>",
+	Args:  cobra.ExactArgs(1),
+	Short: "Permanently revokes a JWT token on the running node.",
+	Long: "Permanently revokes a JWT token and disconnects its active WebSocket sessions. " +
+		"Requires admin permission. Other tokens remain valid.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+		return client.Node.AuthRevoke(cmd.Context(), args[0])
 	},
 }

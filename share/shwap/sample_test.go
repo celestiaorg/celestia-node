@@ -2,6 +2,7 @@ package shwap_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -104,6 +105,21 @@ func TestSampleColumnSubstitution(t *testing.T) {
 	err = served.Verify(root, requestedRow, requestedCol)
 	require.ErrorIs(t, err, shwap.ErrFailedVerification,
 		"Sample.Verify accepted a proof for col %d when col %d was requested", servedCol, requestedCol)
+}
+
+func TestSampleVerifyWithoutShare(t *testing.T) {
+	randEDS := edstest.RandEDS(t, 4)
+	roots, err := share.NewAxisRoots(randEDS)
+	require.NoError(t, err)
+
+	var sample shwap.Sample
+	err = json.Unmarshal([]byte(`{"proof":{"start":2,"end":3}}`), &sample)
+	require.NoError(t, err)
+
+	require.NotPanics(t, func() {
+		err = sample.Verify(roots, 1, 2)
+	})
+	require.ErrorContains(t, err, "invalid share size")
 }
 
 func TestSampleProtoEncoding(t *testing.T) {

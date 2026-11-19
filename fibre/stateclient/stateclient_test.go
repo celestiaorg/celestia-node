@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,8 +17,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	appstate "github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	appstate "github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -85,6 +86,28 @@ func TestVerifyPromiseNoop(t *testing.T) {
 	require.Equal(t, appstate.VerifiedPromise{}, got)
 }
 
+// Provider health checks must fail explicitly on DA clients rather than report
+// a healthy app node or trust an unverified remote endpoint.
+func TestProviderHealthChecksUnsupported(t *testing.T) {
+	stub := &stubABCI{err: errors.New("health checks must not query ABCI")}
+	var c appstate.Client = newTestClient(t, stub, p2p.Private)
+	ctx := context.Background()
+
+	t.Run("node status", func(t *testing.T) {
+		status, err := c.NodeStatus(ctx)
+		require.ErrorIs(t, err, errors.ErrUnsupported)
+		require.Equal(t, appstate.NodeStatus{}, status)
+	})
+
+	t.Run("provider registration", func(t *testing.T) {
+		registration, err := c.ProviderRegistration(ctx, make(core.Address, 20))
+		require.ErrorIs(t, err, errors.ErrUnsupported)
+		require.Equal(t, appstate.ProviderRegistration{}, registration)
+	})
+
+	require.Zero(t, stub.calls.Load(), "unsupported health checks must not query ABCI")
+}
+
 func TestStopNoop(t *testing.T) {
 	c := newTestClient(t, &stubABCI{}, p2p.Private)
 	require.NoError(t, c.Stop(context.Background()))
@@ -112,6 +135,14 @@ func TestGetHostABCIErrors(t *testing.T) {
 	t.Run("missing proof ops", func(t *testing.T) {
 		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{}}
 		c := newTestClient(t, stub, p2p.Private)
+		_, err := c.GetHost(ctx, val)
+		require.ErrorContains(t, err, "missing proof ops")
+	})
+
+	t.Run("empty proof ops", func(t *testing.T) {
+		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{ProofOps: &tmservice.ProofOps{}}}
+		c := newTestClient(t, stub, p2p.Private)
+		c.prt = merkle.DefaultProofRuntime()
 		_, err := c.GetHost(ctx, val)
 		require.ErrorContains(t, err, "missing proof ops")
 	})

@@ -1,0 +1,29 @@
+# Cognitive complexity check for new and changed code only. It runs as its own
+# golangci-lint invocation (the "Lint Complexity" job in go-ci.yml and `make
+# lint-complexity`) with --new-from-merge-base, so existing functions are
+# grandfathered and the main .golangci.yml is unaffected. golangci-lint reports
+# a function at its declaration line, so a function is flagged when that line
+# is new or changed in the diff.
+version: "2"
+run:
+  timeout: 10m
+linters:
+  default: none
+  enable:
+    - gocognit
+  settings:
+    gocognit:
+      min-complexity: 30
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - gocognit
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

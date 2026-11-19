@@ -10,12 +10,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v11/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-node/header"
+	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/store"
 )
+
+// TestCoreExchange_GetRangeByHeight_UnderflowGuard ensures GetRangeByHeight rejects
+// ranges where from.Height() is not below `to` instead of underflowing `amount` and
+// panicking in makeslice. The guard runs before any fetching, so a zero-value Exchange
+// is sufficient.
+func TestCoreExchange_GetRangeByHeight_UnderflowGuard(t *testing.T) {
+	suite := headertest.NewTestSuite(t)
+	headers := suite.GenExtendedHeaders(5)
+	from := headers[len(headers)-1] // height 5
+
+	ce := &Exchange{}
+
+	// from.Height() == to and from.Height() > to both underflow without the guard.
+	for _, to := range []uint64{from.Height(), from.Height() - 2} {
+		got, err := ce.GetRangeByHeight(context.Background(), from, to)
+		require.Error(t, err)
+		assert.Nil(t, got)
+	}
+
+	// An empty but valid range (to == from.Height()+1) must not error.
+	got, err := ce.GetRangeByHeight(context.Background(), from, from.Height()+1)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
 
 func TestCoreExchange_RequestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -238,14 +263,17 @@ func createCoreFetcher(t *testing.T, cfg *testnode.Config) (*BlockFetcher, *Netw
 		require.NoError(t, network.Stop())
 	})
 	// wait for height 2 in order to be able to start submitting txs (this prevents
-	// flakiness with accessing account state)
-	_, err := network.WaitForHeightWithTimeout(2, time.Second*2) // TODO @renaynay: configure?
+	// flakiness with accessing account state). The first blocks can take a while
+	// on a loaded CI runner, so the timeout is generous.
+	_, err := network.WaitForHeightWithTimeout(2, 30*time.Second)
 	require.NoError(t, err)
 	fetcher := NewBlockFetcher(network.GRPCClient)
 	return fetcher, network
 }
 
 // fillBlocks fills blocks until the context is canceled.
+// It runs in its own goroutine, so it reports errors with t.Errorf instead of
+// require, which must only be called from the test goroutine.
 func fillBlocks(
 	t *testing.T,
 	ctx context.Context,
@@ -260,7 +288,12 @@ func fillBlocks(
 		}
 
 		_, err := cctx.FillBlock(16, cfg.Genesis.Accounts()[0].Name, flags.BroadcastAsync)
-		require.NoError(t, err)
+		if err != nil {
+			if ctx.Err() == nil {
+				t.Errorf("filling block: %v", err)
+			}
+			return
+		}
 	}
 }
 
@@ -283,7 +316,17 @@ func generateNonEmptyBlocks(
 	sub, err := fetcher.SubscribeNewBlockEvent(generateCtx)
 	require.NoError(t, err)
 
-	go fillBlocks(t, generateCtx, cfg, cctx)
+	fillDone := make(chan struct{})
+	go func() {
+		defer close(fillDone)
+		fillBlocks(t, generateCtx, cfg, cctx)
+	}()
+	// Stop filling blocks and wait for the goroutine to exit before returning,
+	// so it can't use the network or t after the test finishes.
+	defer func() {
+		generateCtxCancel()
+		<-fillDone
+	}()
 
 	filledBlocks := make([]testBlocks, 0, 20)
 
@@ -308,7 +351,6 @@ func generateNonEmptyBlocks(
 			t.Fatal("failed to fill blocks within timeout")
 		}
 	}
-	generateCtxCancel()
 
 	return filledBlocks
 }

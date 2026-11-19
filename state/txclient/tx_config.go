@@ -8,8 +8,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 )
 
 const (
@@ -31,6 +31,17 @@ func NewTxConfig(opts ...ConfigOption) *TxConfig {
 		opt(options)
 	}
 	return options
+}
+
+// WithDefaults returns cfg, or a default TxConfig when cfg is nil, so a nil
+// config never panics on method calls. Callers that accept a *TxConfig from
+// users (directly or over JSON-RPC, where a `null` options argument reaches
+// them as nil) normalize at the entry point with this helper.
+func WithDefaults(cfg *TxConfig) *TxConfig {
+	if cfg == nil {
+		return NewTxConfig()
+	}
+	return cfg
 }
 
 type TxPriority int
