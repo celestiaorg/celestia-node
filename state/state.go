@@ -74,9 +74,11 @@ var (
 	WithSignerAddress     = txclient.WithSignerAddress
 	WithFeeGranterAddress = txclient.WithFeeGranterAddress
 	WithMaxGasPrice       = txclient.WithMaxGasPrice
+	WithMaxGas            = txclient.WithMaxGas
 	WithTxPriority        = txclient.WithTxPriority
 	DefaultGasPrice       = txclient.DefaultGasPrice
 	DefaultMaxGasPrice    = txclient.DefaultMaxGasPrice
+	DefaultMaxGas         = txclient.DefaultMaxGas
 	TxPriorityLow         = txclient.TxPriorityLow
 	TxPriorityMedium      = txclient.TxPriorityMedium
 	TxPriorityHigh        = txclient.TxPriorityHigh

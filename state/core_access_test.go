@@ -102,6 +102,12 @@ func TestSubmitPayForBlob(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("gas exceeds user provided max gas", func(t *testing.T) {
+		opts := txclient.NewTxConfig(txclient.WithMaxGas(1))
+		_, err := ca.SubmitPayForBlob(ctx, []*libshare.Blob{blobbyTheBlob}, opts)
+		require.ErrorIs(t, err, txclient.ErrGasExceedsLimit)
+	})
 }
 
 func TestTransfer(t *testing.T) {
