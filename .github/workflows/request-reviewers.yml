@@ -28,6 +28,16 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
+            // Read current state from the API; the event payload can be stale
+            // if the PR went back to draft or closed while this run was queued.
+            const { data: current } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pr.number,
+            });
+            if (current.draft || current.state !== 'open') {
+              core.info(`Skipping: PR is ${current.draft ? 'a draft' : current.state}.`);
+              return;
+            }
             const author = pr.user.login.toLowerCase();
             // GitHub rejects a review request to the PR author.
             const reviewers = process.env.REVIEWERS.split(/\s+/)
