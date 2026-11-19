@@ -25,13 +25,31 @@ type (
 	createAccessorStreamer func(testing.TB, *rsmt2d.ExtendedDataSquare) AccessorStreamer
 )
 
+// SuiteOption customizes TestSuiteAccessor.
+type SuiteOption func(*suiteOptions)
+
+type suiteOptions struct {
+	noSecondHalf bool
+}
+
+// WithoutSecondHalf is for accessors that store only the ODS: axes from the second half of the
+// square and samples from its fourth quadrant must fail with shwap.ErrNotFound.
+func WithoutSecondHalf() SuiteOption {
+	return func(o *suiteOptions) { o.noSecondHalf = true }
+}
+
 // TestSuiteAccessor runs a suite of tests for the given Accessor implementation.
 func TestSuiteAccessor(
 	ctx context.Context,
 	t *testing.T,
 	createAccessor createAccessor,
 	maxSize int,
+	opts ...SuiteOption,
 ) {
+	var so suiteOptions
+	for _, opt := range opts {
+		opt(&so)
+	}
 	minSize := 2
 	if !checkPowerOfTwo(maxSize) {
 		t.Errorf("minSize must be power of 2: %v", maxSize)
@@ -50,17 +68,17 @@ func TestSuiteAccessor(
 
 			t.Run(fmt.Sprintf("Sample:%s", name), func(t *testing.T) {
 				t.Parallel()
-				testAccessorSample(ctx, t, createAccessor, eds)
+				testAccessorSample(ctx, t, createAccessor, eds, so)
 			})
 
 			t.Run(fmt.Sprintf("AxisHalf:%s", name), func(t *testing.T) {
 				t.Parallel()
-				testAccessorAxisHalf(ctx, t, createAccessor, eds)
+				testAccessorAxisHalf(ctx, t, createAccessor, eds, so)
 			})
 
 			t.Run(fmt.Sprintf("RowNamespaceData:%s", name), func(t *testing.T) {
 				t.Parallel()
-				testAccessorRowNamespaceData(ctx, t, createAccessor, size)
+				testAccessorRowNamespaceData(ctx, t, createAccessor, size, so)
 			})
 
 			t.Run(fmt.Sprintf("Shares:%s", name), func(t *testing.T) {
@@ -156,8 +174,23 @@ func testAccessorSample(
 	t *testing.T,
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
+	so suiteOptions,
 ) {
 	width := int(eds.Width())
+	testSample := func(
+		ctx context.Context,
+		t *testing.T,
+		acc Accessor,
+		roots *share.AxisRoots,
+		idx shwap.SampleCoords,
+	) {
+		if so.noSecondHalf && idx.Row >= width/2 && idx.Col >= width/2 {
+			_, err := acc.Sample(ctx, idx)
+			require.ErrorIs(t, err, shwap.ErrNotFound)
+			return
+		}
+		testSample(ctx, t, acc, roots, idx)
+	}
 	t.Run("single thread", func(t *testing.T) {
 		acc := createAccessor(t, eds)
 		roots, err := share.NewAxisRoots(eds)
@@ -229,6 +262,7 @@ func testAccessorRowNamespaceData(
 	t *testing.T,
 	createAccessor createAccessor,
 	odsSize int,
+	so suiteOptions,
 ) {
 	t.Run("included", func(t *testing.T) {
 		t.Parallel()
@@ -246,6 +280,12 @@ func testAccessorRowNamespaceData(
 			// amount
 			for i, root := range roots.RowRoots {
 				rowData, err := acc.RowNamespaceData(ctx, namespace, i)
+
+				// rows from the second half hold only parity data and are not stored in ODS-only files
+				if so.noSecondHalf && i >= odsSize {
+					require.ErrorIs(t, err, shwap.ErrNotFound)
+					continue
+				}
 
 				// namespace is not included in the row, so there should be no shares
 				outside, outsideErr := share.IsOutsideRange(namespace, root, root)
@@ -337,9 +377,14 @@ func testAccessorAxisHalf(
 	t *testing.T,
 	createAccessor createAccessor,
 	eds *rsmt2d.ExtendedDataSquare,
+	so suiteOptions,
 ) {
 	odsSize := int(eds.Width() / 2)
 	acc := createAccessor(t, eds)
+	if so.noSecondHalf {
+		testAxisHalfFirstHalfOnly(ctx, t, acc, eds)
+		return
+	}
 
 	t.Run("single thread", func(t *testing.T) {
 		for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
@@ -538,4 +583,22 @@ func checkPowerOfTwo(n int) bool {
 		return true
 	}
 	return n&(n-1) == 0
+}
+
+func testAxisHalfFirstHalfOnly(ctx context.Context, t *testing.T, acc Accessor, eds *rsmt2d.ExtendedDataSquare) {
+	odsSize := int(eds.Width() / 2)
+	for _, axisType := range []rsmt2d.Axis{rsmt2d.Col, rsmt2d.Row} {
+		for axisIdx := range int(eds.Width()) {
+			half, err := acc.AxisHalf(ctx, axisType, axisIdx)
+			if axisIdx >= odsSize {
+				require.ErrorIs(t, err, shwap.ErrNotFound)
+				continue
+			}
+			require.NoError(t, err)
+			expected, err := getAxis(eds, axisType, axisIdx)
+			require.NoError(t, err)
+			require.False(t, half.IsParity)
+			require.Equal(t, expected[:odsSize], half.Shares)
+		}
+	}
 }

@@ -1,12 +1,8 @@
 package file
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"runtime"
-
-	"golang.org/x/sync/errgroup"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -84,76 +80,4 @@ func (s square) axisHalf(axisType rsmt2d.Axis, axisIdx int) (shwap.AxisHalf, err
 		Shares:   col,
 		IsParity: false,
 	}, nil
-}
-
-// Reconstructing a second-half axis reads the whole ODS and runs a Reed-Solomon
-// reconstruction per opposite axis, far more than the response it serves.
-// These bound the concurrent reconstructions and the workers of each.
-var (
-	reconstructSlots   = make(chan struct{}, 2)
-	reconstructWorkers = max(1, runtime.GOMAXPROCS(0)/4)
-)
-
-func (s square) computeAxisHalf(
-	ctx context.Context,
-	axisType rsmt2d.Axis,
-	axisIdx int,
-) (shwap.AxisHalf, error) {
-	shares := make([]libshare.Share, s.size())
-
-	// extend opposite half of the square while collecting Shares for the first half of required axis
-	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(reconstructWorkers)
-	opposite := oppositeAxis(axisType)
-	for i := range s.size() {
-		g.Go(func() error {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			half, err := s.axisHalf(opposite, i)
-			if err != nil {
-				return err
-			}
-
-			enc, err := codec.Encoder(s.size() * 2)
-			if err != nil {
-				return fmt.Errorf("getting encoder: %w", err)
-			}
-
-			shards := make([][]byte, s.size()*2)
-			if half.IsParity {
-				copy(shards[s.size():], libshare.ToBytes(half.Shares))
-			} else {
-				copy(shards, libshare.ToBytes(half.Shares))
-			}
-
-			target := make([]bool, s.size()*2)
-			target[axisIdx] = true
-
-			err = enc.ReconstructSome(shards, target)
-			if err != nil {
-				return fmt.Errorf("reconstruct some: %w", err)
-			}
-
-			shard, err := libshare.NewShare(shards[axisIdx])
-			if err != nil {
-				return fmt.Errorf("creating share: %w", err)
-			}
-			shares[i] = shard
-			return nil
-		})
-	}
-
-	err := g.Wait()
-	return shwap.AxisHalf{
-		Shares:   shares,
-		IsParity: false,
-	}, err
-}
-
-func oppositeAxis(axis rsmt2d.Axis) rsmt2d.Axis {
-	if axis == rsmt2d.Col {
-		return rsmt2d.Row
-	}
-	return rsmt2d.Col
 }

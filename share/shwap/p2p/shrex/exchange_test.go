@@ -72,6 +72,48 @@ func TestExchange_RequestND_NotFound(t *testing.T) {
 	})
 }
 
+// ODS-only files (Q4 trimmed) must not serve rows from the second half of the square: reconstructing
+// them is far costlier than the response. The server answers NOT_FOUND so the client tries another peer.
+func TestExchange_RequestRow_SecondHalf(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	// the recent cache would serve fresh heights from the full in-memory square
+	params := store.DefaultParameters()
+	params.RecentBlocksCacheSize = 0
+	edsStore, client, server := makeExchangeWithParams(t, params)
+
+	// files are addressed by data hash, so each height needs its own square
+	put := func(height uint64, withQ4 bool) (*share.AxisRoots, int) {
+		eds := edstest.RandEDS(t, 4)
+		roots, err := share.NewAxisRoots(eds)
+		require.NoError(t, err)
+		if withQ4 {
+			require.NoError(t, edsStore.PutODSQ4(ctx, roots, height, eds))
+		} else {
+			require.NoError(t, edsStore.PutODS(ctx, roots, height, eds))
+		}
+		return roots, int(eds.Width())
+	}
+	odsRoots, width := put(2, false)
+	fullRoots, _ := put(3, true)
+
+	get := func(height uint64, roots *share.AxisRoots, rowIdx int) error {
+		id, err := shwap.NewRowID(height, rowIdx, width)
+		require.NoError(t, err)
+		var row shwap.Row
+		_, _, err = client.Get(ctx, &id, &row, server.host.ID())
+		if err == nil {
+			require.NoError(t, row.Verify(roots, rowIdx))
+		}
+		return err
+	}
+
+	require.NoError(t, get(2, odsRoots, 0), "first half row is served from ODS-only file")
+	require.ErrorIs(t, get(2, odsRoots, width/2), ErrNotFound)
+	require.ErrorIs(t, get(2, odsRoots, width-1), ErrNotFound)
+	require.NoError(t, get(3, fullRoots, width-1), "second half row is served while Q4 is stored")
+}
+
 // Regression for #3480: canceling ctx mid-request must abort promptly instead
 // of hanging on the stream deadline.
 func TestClient_AbortsOnCtxCancel(t *testing.T) {
@@ -142,7 +184,12 @@ func createMocknet(t *testing.T, amount int) []libhost.Host {
 
 func makeExchange(t *testing.T) (*store.Store, *Client, *Server) {
 	t.Helper()
-	s, err := store.NewStore(store.DefaultParameters(), t.TempDir())
+	return makeExchangeWithParams(t, store.DefaultParameters())
+}
+
+func makeExchangeWithParams(t *testing.T, params *store.Parameters) (*store.Store, *Client, *Server) {
+	t.Helper()
+	s, err := store.NewStore(params, t.TempDir())
 	require.NoError(t, err)
 	hosts := createMocknet(t, 2)
 
