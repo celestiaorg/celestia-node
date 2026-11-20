@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
+	"time"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
@@ -15,7 +17,15 @@ import (
 	libhead "github.com/celestiaorg/go-header"
 )
 
-const newBlockSubscriber = "NewBlock/Events"
+const (
+	newBlockSubscriber = "NewBlock/Events"
+
+	// subscribeRetryInitialDelay is the wait before the first retry of a
+	// failed new-height subscription. The wait doubles on every failure in a
+	// row, up to subscribeRetryMaxDelay.
+	subscribeRetryInitialDelay = 100 * time.Millisecond
+	subscribeRetryMaxDelay     = 5 * time.Second
+)
 
 type SignedBlock struct {
 	Header       *types.Header       `json:"header"`
@@ -176,49 +186,66 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEv
 
 	go func() {
 		defer close(eventCh)
+		retryDelay := subscribeRetryInitialDelay
 		for {
+			receivedHeights, err := f.subscribeAndReceive(ctx, eventCh)
+			if ctx.Err() != nil {
+				return
+			}
+			if receivedHeights > 0 {
+				// The subscription worked for a while, so start over with
+				// the shortest wait.
+				retryDelay = subscribeRetryInitialDelay
+			}
+			log.Warnw("fetcher: new height subscription failed", "err", err, "retry_in", retryDelay)
+
+			// Wait before retrying. An endpoint that is down or refuses the
+			// subscription fails at once, and retrying in a tight loop
+			// floods the log and loads the endpoint.
 			select {
 			case <-ctx.Done():
 				return
-			default:
+			case <-time.After(withJitter(retryDelay)):
 			}
-
-			subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
-			if err != nil {
-				log.Warnw("fetcher: failed to subscribe to new block events", "err", err)
-				continue
-			}
-
-			log.Debug("fetcher: subscription created")
-			err = f.receive(ctx, eventCh, subscription)
-			if err != nil {
-				log.Warnw("fetcher: error receiving new height", "err", err.Error())
-				_ = subscription.CloseSend() // inform client that the subscription won't be used anymore
-				continue
-			}
+			retryDelay = min(retryDelay*2, subscribeRetryMaxDelay)
 		}
 	}()
 	return eventCh, nil
 }
 
-func (f *BlockFetcher) receive(
-	ctx context.Context,
-	eventCh chan BlockEvent,
-	subscription coregrpc.BlockAPI_SubscribeNewHeightsClient,
-) error {
+// subscribeAndReceive subscribes to new heights and forwards them to eventCh
+// until the subscription fails. It returns the number of heights received and
+// the error that ended the subscription.
+func (f *BlockFetcher) subscribeAndReceive(ctx context.Context, eventCh chan BlockEvent) (int, error) {
+	subscription, err := f.client.SubscribeNewHeights(ctx, &coregrpc.SubscribeNewHeightsRequest{})
+	if err != nil {
+		return 0, fmt.Errorf("subscribing to new heights: %w", err)
+	}
+	// inform the server that the subscription won't be used anymore
+	defer subscription.CloseSend() //nolint:errcheck
+
 	log.Debug("fetcher: started listening for new block heights")
+	receivedHeights := 0
 	for {
 		resp, err := subscription.Recv()
 		if err != nil {
-			return err
+			return receivedHeights, fmt.Errorf("receiving new height: %w", err)
 		}
+		receivedHeights++
 
 		select {
 		case eventCh <- BlockEvent{Height: resp.Height, addr: f.addr}:
 		case <-ctx.Done():
-			return ctx.Err()
+			return receivedHeights, ctx.Err()
 		}
 	}
+}
+
+// withJitter returns a random duration between half of delay and delay, so
+// that many nodes retrying against one endpoint do not retry at the same time.
+func withJitter(delay time.Duration) time.Duration {
+	half := delay / 2
+	return half + rand.N(half+1)
 }
 
 // IsSyncing returns the sync status of the Core connection: true for
