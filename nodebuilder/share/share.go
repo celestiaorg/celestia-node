@@ -14,6 +14,9 @@ import (
 
 var _ Module = (*API)(nil)
 
+// MaxSamplesPerRequest bounds the work and response size of GetSamples RPC calls.
+const MaxSamplesPerRequest = 1024
+
 // Module provides access to any data square or block share on the network.
 //
 // All Get methods provided on Module follow the following flow:
@@ -42,7 +45,7 @@ type Module interface {
 
 	// GetSamples retrieves multiple shares from the Extended Data Square (EDS) specified by the header
 	// at the given sample coordinates. Returns an array of samples containing the requested shares
-	// or an error if retrieval fails.
+	// or an error if retrieval fails. Requests may contain at most 1024 coordinates.
 	GetSamples(ctx context.Context, height uint64, indices []shwap.SampleCoords) ([]shwap.Sample, error)
 
 	// GetEDS retrieves the complete Extended Data Square (EDS) for the specified height.
@@ -170,6 +173,10 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 func (m module) GetSamples(ctx context.Context, height uint64,
 	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
+	if len(indices) > MaxSamplesPerRequest {
+		return nil, fmt.Errorf("share: too many sample coordinates: got %d, maximum %d", len(indices), MaxSamplesPerRequest)
+	}
+
 	header, err := m.hs.GetByHeight(ctx, height)
 	if err != nil {
 		return nil, err
