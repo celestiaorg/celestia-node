@@ -186,7 +186,7 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEv
 
 	go func() {
 		defer close(eventCh)
-		retryDelay := subscribeRetryInitialDelay
+		retryDelay := newSubscribeRetryDelay()
 		for {
 			receivedHeights, err := f.subscribeAndReceive(ctx, eventCh)
 			if ctx.Err() != nil {
@@ -195,9 +195,10 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEv
 			if receivedHeights > 0 {
 				// The subscription worked for a while, so start over with
 				// the shortest wait.
-				retryDelay = subscribeRetryInitialDelay
+				retryDelay.reset()
 			}
-			log.Warnw("fetcher: new height subscription failed", "err", err, "retry_in", retryDelay)
+			delay := retryDelay.next()
+			log.Warnw("fetcher: new height subscription failed", "err", err, "retry_in", delay)
 
 			// Wait before retrying. An endpoint that is down or refuses the
 			// subscription fails at once, and retrying in a tight loop
@@ -205,9 +206,8 @@ func (f *BlockFetcher) SubscribeNewBlockEvent(ctx context.Context) (chan BlockEv
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(withJitter(retryDelay)):
+			case <-time.After(withJitter(delay)):
 			}
-			retryDelay = min(retryDelay*2, subscribeRetryMaxDelay)
 		}
 	}()
 	return eventCh, nil
@@ -239,6 +239,30 @@ func (f *BlockFetcher) subscribeAndReceive(ctx context.Context, eventCh chan Blo
 			return receivedHeights, ctx.Err()
 		}
 	}
+}
+
+// subscribeRetryDelay tracks the wait between retries of a failed new-height
+// subscription.
+type subscribeRetryDelay struct {
+	// upcoming is the wait that the next call to next returns.
+	upcoming time.Duration
+}
+
+func newSubscribeRetryDelay() *subscribeRetryDelay {
+	return &subscribeRetryDelay{upcoming: subscribeRetryInitialDelay}
+}
+
+// next returns the wait before the next retry. Each call doubles the wait for
+// the call after it, up to subscribeRetryMaxDelay.
+func (d *subscribeRetryDelay) next() time.Duration {
+	delay := d.upcoming
+	d.upcoming = min(d.upcoming*2, subscribeRetryMaxDelay)
+	return delay
+}
+
+// reset makes the next wait the shortest one again.
+func (d *subscribeRetryDelay) reset() {
+	d.upcoming = subscribeRetryInitialDelay
 }
 
 // withJitter returns a random duration between half of delay and delay, so
