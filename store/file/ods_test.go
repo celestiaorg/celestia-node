@@ -60,7 +60,7 @@ func TestODSFile(t *testing.T) {
 	t.Cleanup(cancel)
 
 	ODSSize := 16
-	eds.TestSuiteAccessor(ctx, t, createODSAccessor, ODSSize)
+	eds.TestSuiteAccessor(ctx, t, createODSAccessor, ODSSize, eds.WithoutSecondHalf())
 	eds.TestStreamer(ctx, t, createCachedStreamer, ODSSize)
 	eds.TestStreamer(ctx, t, createODSAccessorStreamer, ODSSize)
 }
@@ -170,7 +170,7 @@ func BenchmarkAxisFromODSFile(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSAccessor, minSize, maxSize)
+	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSAccessor, minSize, maxSize, eds.WithoutSecondHalf())
 }
 
 // BenchmarkAxisFromODSFileDisabledCache/Size:32/ProofType:row/squareHalf:0-16         	  378975	      3141 ns/op
@@ -190,7 +190,7 @@ func BenchmarkAxisFromODSFileDisabledCache(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSFileDisabledCache, minSize, maxSize)
+	eds.BenchGetHalfAxisFromAccessor(ctx, b, createODSFileDisabledCache, minSize, maxSize, eds.WithoutSecondHalf())
 }
 
 // BenchmarkSampleFromODSFile/Size:32/quadrant:1-16         	   13684	     87558 ns/op
@@ -210,7 +210,7 @@ func BenchmarkSampleFromODSFile(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	eds.BenchGetSampleFromAccessor(ctx, b, createODSAccessor, minSize, maxSize)
+	eds.BenchGetSampleFromAccessor(ctx, b, createODSAccessor, minSize, maxSize, eds.WithoutSecondHalf())
 }
 
 // BenchmarkSampleFromODSFileDisabledCache/Size:32/quadrant:1
@@ -231,7 +231,7 @@ func BenchmarkSampleFromODSFileDisabledCache(b *testing.B) {
 	b.Cleanup(cancel)
 
 	minSize, maxSize := 32, 128
-	eds.BenchGetSampleFromAccessor(ctx, b, createODSFileDisabledCache, minSize, maxSize)
+	eds.BenchGetSampleFromAccessor(ctx, b, createODSFileDisabledCache, minSize, maxSize, eds.WithoutSecondHalf())
 }
 
 func createODSAccessorStreamer(t testing.TB, eds *rsmt2d.ExtendedDataSquare) eds.AccessorStreamer {
