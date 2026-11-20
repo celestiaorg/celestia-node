@@ -72,10 +72,10 @@ func (rngid RangeNamespaceDataID) Verify(odsSize int) error {
 
 	sharesAmount := odsSize * odsSize
 	if rngid.From >= sharesAmount {
-		return fmt.Errorf("invalid start index: from %d >= size: %d", rngid.From, odsSize)
+		return fmt.Errorf("%w: From: %d >= ODS shares amount %d", ErrOutOfBounds, rngid.From, sharesAmount)
 	}
 	if rngid.To > sharesAmount {
-		return fmt.Errorf("invalid end index: to %d > size: %d", rngid.To, odsSize)
+		return fmt.Errorf("%w: To: %d > ODS shares amount %d", ErrOutOfBounds, rngid.To, sharesAmount)
 	}
 	return nil
 }
