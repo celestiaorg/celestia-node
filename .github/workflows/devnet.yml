@@ -1,0 +1,224 @@
+name: devnet
+
+on:
+  pull_request:
+    paths:
+      - docker/devnet/**
+      - .github/workflows/devnet.yml
+      - go.mod
+      - go.sum
+  # Catches Go changes that break the image without running on every PR.
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing celestia-node release tag to build and publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devnet-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        # arm64 only for releases; amd64 covers the scripts otherwise.
+        exclude:
+          - arch: >-
+              ${{ (github.ref_type == 'tag' ||
+              github.event_name == 'workflow_dispatch') && 'none' || 'arm64' }}
+    runs-on: >-
+      ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    env:
+      # Switch to main after the app branch merges.
+      APP_REF: nikolai/devnet-images
+      DEVNET_VERSION: local
+      DEVNET_LOG_DIR: /tmp/devnet-logs
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.inputs.tag || github.sha }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: celestiaorg/celestia-app
+          ref: ${{ env.APP_REF }}
+          path: celestia-app
+      - name: Resolve release tag
+        id: version
+        env:
+          REQUESTED_TAG: ${{ github.event.inputs.tag }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          tag="$REQUESTED_TAG"
+          if [[ -z "$tag" && "$REF_TYPE" == tag ]]; then
+            tag="$REF_NAME"
+          fi
+          if [[ -n "$tag" ]]; then
+            [[ "$tag" == v* && "$tag" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]
+            git fetch origin "refs/tags/$tag:refs/tags/$tag"
+            [[ "$(git rev-parse HEAD)" == "$(git rev-parse "$tag^{commit}")" ]]
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${tag:-dev}" >> "$GITHUB_ENV"
+          echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Check scripts, Dockerfile, and app Compose files
+        run: |
+          shellcheck docker/devnet/*.sh
+          docker run --rm -i hadolint/hadolint:v2.15.0 \
+            < docker/devnet/Dockerfile
+          docker compose \
+            -f celestia-app/docker/devnet/compose.yaml \
+            -f celestia-app/docker/devnet/compose.build.yaml \
+            config --quiet
+      - name: Build bridge image
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker build --platform "linux/$ARCH" \
+            --build-arg VERSION="$VERSION" \
+            --build-arg COMMIT="$COMMIT" \
+            -f docker/devnet/Dockerfile \
+            -t ghcr.io/celestiaorg/celestia-devnet-bridge:local .
+      - name: Build app validator image
+        working-directory: celestia-app
+        env:
+          VERSION: local
+        run: |
+          COMMIT="$(git rev-parse HEAD)"
+          export COMMIT
+          docker compose \
+            -f docker/devnet/compose.yaml \
+            -f docker/devnet/compose.build.yaml \
+            build validator
+      - name: Match disposable devnet credentials
+        run: |
+          set -euo pipefail
+          temp_dir="$(mktemp -d)"
+          bridge_container=
+          validator_container=
+          bridge_image=ghcr.io/celestiaorg/celestia-devnet-bridge:local
+          validator_image=ghcr.io/celestiaorg/celestia-devnet-validator:local
+          cleanup() {
+            if [[ -n "$bridge_container" ]]; then
+              docker rm -f "$bridge_container" >/dev/null 2>&1 || true
+            fi
+            if [[ -n "$validator_container" ]]; then
+              docker rm -f "$validator_container" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$temp_dir"
+          }
+          trap cleanup EXIT
+          mkdir -p "$temp_dir/bridge" "$temp_dir/validator"
+          bridge_container="$(docker create "$bridge_image")"
+          docker cp "$bridge_container:/credentials/." "$temp_dir/bridge/"
+          docker rm "$bridge_container" >/dev/null
+          bridge_container=
+          validator_container="$(docker create "$validator_image")"
+          docker cp "$validator_container:/credentials/." "$temp_dir/validator/"
+          for file in "$temp_dir/bridge"/*.plaintext-key \
+            "$temp_dir/bridge"/*.addr "$temp_dir/bridge"/*.valaddr; do
+            cmp "$file" "$temp_dir/validator/$(basename "$file")"
+          done
+          docker cp "$temp_dir/bridge/." "$validator_container:/credentials/"
+          docker commit "$validator_container" "$validator_image" >/dev/null
+          docker rm "$validator_container" >/dev/null
+          validator_container=
+      - name: Test bridge against app devnet
+        run: bash celestia-app/docker/devnet/smoke.sh
+      - name: Preserve smoke logs
+        if: always()
+        # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # yamllint disable-line rule:line-length
+        with:
+          name: devnet-logs-${{ matrix.arch }}
+          path: ${{ env.DEVNET_LOG_DIR }}
+          if-no-files-found: ignore
+      - name: Save tested image
+        if: >-
+          steps.version.outputs.tag != '' &&
+          github.repository == 'celestiaorg/celestia-node'
+        run: >-
+          docker save ghcr.io/celestiaorg/celestia-devnet-bridge:local |
+          gzip > /tmp/devnet-image.tar.gz
+      # v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # yamllint disable-line rule:line-length
+        if: >-
+          steps.version.outputs.tag != '' &&
+          github.repository == 'celestiaorg/celestia-node'
+        with:
+          name: devnet-image-${{ matrix.arch }}
+          path: /tmp/devnet-image.tar.gz
+          retention-days: 3
+
+  publish:
+    needs: build-test
+    if: >-
+      github.repository == 'celestiaorg/celestia-node' &&
+      needs.build-test.outputs.tag != '' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ needs.build-test.outputs.tag }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      # v8.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # yamllint disable-line rule:line-length
+        with:
+          name: devnet-image-${{ matrix.arch }}
+          path: /tmp
+      - name: Push tested image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" \
+            --password-stdin
+          docker load < /tmp/devnet-image.tar.gz
+          image=ghcr.io/celestiaorg/celestia-devnet-bridge
+          docker tag "$image:local" "$image:$TAG-$ARCH"
+          docker push "$image:$TAG-$ARCH"
+
+  manifest:
+    needs: [build-test, publish]
+    if: >-
+      github.repository == 'celestiaorg/celestia-node' &&
+      needs.build-test.outputs.tag != '' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    env:
+      TAG: ${{ needs.build-test.outputs.tag }}
+    steps:
+      - name: Publish and verify version manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" \
+            --password-stdin
+          image=ghcr.io/celestiaorg/celestia-devnet-bridge
+          docker buildx imagetools create -t "$image:$TAG" \
+            "$image:$TAG-amd64" "$image:$TAG-arm64"
+          docker buildx imagetools inspect "$image:$TAG" --raw |
+          jq -e '
+            [.manifests[].platform | select(.os == "linux") | .architecture]
+            | sort == ["amd64", "arm64"]
+          '
