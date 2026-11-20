@@ -269,7 +269,7 @@ func (d *subscribeRetryDelay) reset() {
 // that many nodes retrying against one endpoint do not retry at the same time.
 func withJitter(delay time.Duration) time.Duration {
 	half := delay / 2
-	return half + rand.N(half+1)
+	return half + rand.N(half+1) //nolint:gosec // retry jitter does not need a secure random source
 }
 
 // IsSyncing returns the sync status of the Core connection: true for
