@@ -18,9 +18,16 @@ const (
 	DefaultGasPrice float64 = -1.0
 
 	DefaultMaxGasPrice = appconsts.DefaultMinGasPrice * 100
+
+	// DefaultMaxGas is the max gas limit accepted when the user doesn't set one.
+	// It doesn't apply to blob submission, where gas grows with the blob size.
+	DefaultMaxGas uint64 = 2_000_000
 )
 
-var ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
+var (
+	ErrGasPriceExceedsLimit = errors.New("state: estimated gas price exceeds max gas price in tx config")
+	ErrGasExceedsLimit      = errors.New("state: gas exceeds max gas in tx config")
+)
 
 // NewTxConfig constructs a new TxConfig with the provided options.
 // It starts with a DefaultGasPrice and then applies any additional
@@ -87,6 +94,8 @@ type TxConfig struct {
 	maxGasPrice float64
 	// 0 gas means users want us to calculate it for them.
 	gas uint64
+	// specifies the max gas limit that user accepts for the transaction.
+	maxGas uint64
 	// priority is the priority level of the requested gas price.
 	// - Low: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
 	// - Medium: The gas price is the mean of all gas prices from the last 5 blocks.
@@ -119,6 +128,16 @@ func (cfg *TxConfig) MaxGasPrice() float64 {
 	return cfg.maxGasPrice
 }
 
+// MaxGas will return the max gas limit that the user set
+// in the TxConfig. If no value was set, it will return the default value.
+func (cfg *TxConfig) MaxGas() uint64 {
+	if cfg.maxGas == 0 {
+		return DefaultMaxGas
+	}
+
+	return cfg.maxGas
+}
+
 func (cfg *TxConfig) GasLimit() uint64          { return cfg.gas }
 func (cfg *TxConfig) KeyName() string           { return cfg.keyName }
 func (cfg *TxConfig) SignerAddress() string     { return cfg.signerAddress }
@@ -130,6 +149,7 @@ type jsonTxConfig struct {
 	IsGasPriceSet     bool    `json:"is_gas_price_set,omitempty"`
 	MaxGasPrice       float64 `json:"max_gas_price"`
 	Gas               uint64  `json:"gas,omitempty"`
+	MaxGas            uint64  `json:"max_gas,omitempty"`
 	TxPriority        int     `json:"tx_priority,omitempty"`
 	KeyName           string  `json:"key_name,omitempty"`
 	SignerAddress     string  `json:"signer_address,omitempty"`
@@ -142,6 +162,7 @@ func (cfg *TxConfig) MarshalJSON() ([]byte, error) {
 		IsGasPriceSet:     cfg.isGasPriceSet,
 		MaxGasPrice:       cfg.maxGasPrice,
 		Gas:               cfg.gas,
+		MaxGas:            cfg.maxGas,
 		TxPriority:        int(cfg.priority),
 		KeyName:           cfg.keyName,
 		SignerAddress:     cfg.signerAddress,
@@ -161,6 +182,7 @@ func (cfg *TxConfig) UnmarshalJSON(data []byte) error {
 	cfg.isGasPriceSet = jsonOpts.IsGasPriceSet
 	cfg.maxGasPrice = jsonOpts.MaxGasPrice
 	cfg.gas = jsonOpts.Gas
+	cfg.maxGas = jsonOpts.MaxGas
 	cfg.priority = TxPriority(jsonOpts.TxPriority)
 	cfg.keyName = jsonOpts.KeyName
 	cfg.signerAddress = jsonOpts.SignerAddress
@@ -229,6 +251,13 @@ func WithFeeGranterAddress(granter string) ConfigOption {
 func WithMaxGasPrice(gasPrice float64) ConfigOption {
 	return func(cfg *TxConfig) {
 		cfg.maxGasPrice = gasPrice
+	}
+}
+
+// WithMaxGas is an option that allows you to specify the max gas limit.
+func WithMaxGas(gas uint64) ConfigOption {
+	return func(cfg *TxConfig) {
+		cfg.maxGas = gas
 	}
 }
 
