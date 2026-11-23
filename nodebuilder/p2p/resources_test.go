@@ -2,12 +2,14 @@ package p2p
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/test"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
@@ -57,4 +59,36 @@ func TestAllowList_BindsPeerID(t *testing.T) {
 	require.True(t, al.AllowedPeerAndMultiaddr(mutual, addr))
 	require.True(t, al.AllowedPeerAndMultiaddr(bootstrapper, addr))
 	require.False(t, al.AllowedPeerAndMultiaddr(test.RandPeerIDFatal(t), addr))
+}
+
+func TestAllowList_ResolvesDNSAddr(t *testing.T) {
+	bootstrapper := test.RandPeerIDFatal(t)
+	other := test.RandPeerIDFatal(t)
+
+	// a /dnsaddr record resolves to /dns addresses, as on mainnet
+	resolver, err := madns.NewResolver(madns.WithDefaultResolver(&madns.MockResolver{
+		TXT: map[string][]string{"_dnsaddr.boot.example": {
+			"dnsaddr=/dns/boot.example/tcp/2121/p2p/" + bootstrapper.String(),
+			"dnsaddr=/dns/boot.example/tcp/2121/p2p/" + other.String(),
+		}},
+		IP: map[string][]net.IPAddr{"boot.example": {{IP: net.ParseIP("203.0.113.9")}}},
+	}))
+	require.NoError(t, err)
+	defaultResolver := madns.DefaultResolver
+	madns.DefaultResolver = resolver
+	t.Cleanup(func() { madns.DefaultResolver = defaultResolver })
+
+	cfg := DefaultConfig(node.Light)
+	bootstrappers := Bootstrappers{{ID: bootstrapper, Addrs: []ma.Multiaddr{ma.StringCast("/dnsaddr/boot.example")}}}
+
+	opt, err := allowList(context.Background(), &cfg, bootstrappers)
+	require.NoError(t, err)
+	rm, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()), opt)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = rm.Close() })
+
+	addr := ma.StringCast("/ip4/203.0.113.9/tcp/2121")
+	al := rcmgr.GetAllowlist(rm)
+	require.True(t, al.AllowedPeerAndMultiaddr(bootstrapper, addr))
+	require.False(t, al.AllowedPeerAndMultiaddr(other, addr))
 }

@@ -2,13 +2,14 @@ package p2p
 
 import (
 	"context"
+	"slices"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
+	manet "github.com/multiformats/go-multiaddr/net"
 	"go.uber.org/fx"
 
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
@@ -45,41 +46,29 @@ func allowList(ctx context.Context, cfg *Config, bootstrappers Bootstrappers) (r
 	//  we resolve it here and libp2p stuck does that as well internally
 	allowlist := make([]ma.Multiaddr, 0, len(bootstrappers)+len(mutual))
 	for _, b := range bootstrappers {
+		p2p := ma.StringCast("/p2p/" + b.ID.String())
 		for _, baddr := range b.Addrs {
-			resolved, err := madns.DefaultResolver.Resolve(ctx, baddr)
+			resolved, err := resolveIPs(ctx, baddr.Encapsulate(p2p))
 			if err != nil {
 				log.Warnw("error resolving bootstrapper DNS", "addr", baddr.String(), "err", err)
 				continue
 			}
-			allowlist = append(allowlist, withPeerID(resolved, b.ID)...)
+			allowlist = append(allowlist, resolved...)
 		}
 	}
 	for _, m := range mutual {
+		p2p := ma.StringCast("/p2p/" + m.ID.String())
 		for _, maddr := range m.Addrs {
-			resolved, err := madns.DefaultResolver.Resolve(ctx, maddr)
+			resolved, err := resolveIPs(ctx, maddr.Encapsulate(p2p))
 			if err != nil {
 				log.Warnw("error resolving mutual peer DNS", "addr", maddr.String(), "err", err)
 				continue
 			}
-			allowlist = append(allowlist, withPeerID(resolved, m.ID)...)
+			allowlist = append(allowlist, resolved...)
 		}
 	}
 
 	return rcmgr.WithAllowlistedMultiaddrs(allowlist), nil
-}
-
-// withPeerID binds addrs to the given peer, so other peers on the same IP are not allowlisted.
-func withPeerID(addrs []ma.Multiaddr, id peer.ID) []ma.Multiaddr {
-	p2pAddr := ma.StringCast("/p2p/" + id.String())
-	out := make([]ma.Multiaddr, 0, len(addrs))
-	for _, addr := range addrs {
-		if _, err := addr.ValueForProtocol(ma.P_P2P); err == nil {
-			out = append(out, addr)
-			continue
-		}
-		out = append(out, addr.Encapsulate(p2pAddr))
-	}
-	return out
 }
 
 func traceReporter() rcmgr.Option {
@@ -103,4 +92,29 @@ func resourceManagerOpt(opt any) fx.Annotated {
 		Group:  "rcmgr-opts",
 		Target: opt,
 	}
+}
+
+// resolveIPs resolves addr until no DNS components remain and drops addresses without an IP.
+// A /dnsaddr record resolves to /dns addresses, which need one more resolution step.
+func resolveIPs(ctx context.Context, addr ma.Multiaddr) ([]ma.Multiaddr, error) {
+	addrs := []ma.Multiaddr{addr}
+	for range 3 {
+		var next []ma.Multiaddr
+		for _, a := range addrs {
+			if !madns.Matches(a) {
+				next = append(next, a)
+				continue
+			}
+			resolved, err := madns.DefaultResolver.Resolve(ctx, a)
+			if err != nil {
+				return nil, err
+			}
+			next = append(next, resolved...)
+		}
+		addrs = next
+	}
+	return slices.DeleteFunc(addrs, func(a ma.Multiaddr) bool {
+		_, err := manet.ToIP(a)
+		return err != nil
+	}), nil
 }
