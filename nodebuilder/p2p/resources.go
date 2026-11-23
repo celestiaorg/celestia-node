@@ -17,10 +17,15 @@ func resourceManager(params resourceManagerParams) (network.ResourceManager, err
 // instead of infinite limits, it uses auto-scaled defaults derived from available
 // system resources, augmented with explicit service-level and per-protocol limits
 // for the shrex protocol to prevent resource exhaustion attacks.
-func bridgeResources(network Network) rcmgr.ConcreteLimitConfig {
+func bridgeResources(cfg *Config, network Network) rcmgr.ConcreteLimitConfig {
 	limits := rcmgr.DefaultLimits
 	libp2p.SetDefaultServiceLimits(&limits)
 	shrex.SetResourceLimits(&limits, network.String())
+	// rcmgr must admit at least ConnManager.High connections. If it rejects
+	// first, connmgr never trims unprotected peers and cm.Protect has no effect.
+	limits.SystemBaseLimit.Conns = cfg.ConnManager.High
+	limits.SystemBaseLimit.ConnsInbound = cfg.ConnManager.High
+	limits.SystemBaseLimit.ConnsOutbound = cfg.ConnManager.High
 	return limits.AutoScale()
 }
 
