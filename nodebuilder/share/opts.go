@@ -3,7 +3,6 @@ package share
 import (
 	"errors"
 
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
@@ -45,8 +44,4 @@ func WithShrexGetterMetrics(sg *shrex_getter.Getter) error {
 
 func WithStoreMetrics(s *store.Store) error {
 	return s.WithMetrics()
-}
-
-func WithBlockStoreMetrics(bs *bitswap.BlockstoreWithMetrics) error {
-	return bs.WithMetrics()
 }

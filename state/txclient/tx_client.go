@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -16,11 +17,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v10/app/errors"
-	"github.com/celestiaorg/celestia-app/v10/pkg/user"
-	apptypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v11/app"
+	"github.com/celestiaorg/celestia-app/v11/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v11/app/errors"
+	"github.com/celestiaorg/celestia-app/v11/pkg/user"
+	apptypes "github.com/celestiaorg/celestia-app/v11/x/blob/types"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
@@ -158,6 +159,9 @@ func (c *TxClient) SubmitMessage(
 		return nil, err
 	}
 
+	if err := validateFee(gasPrice, gas); err != nil {
+		return nil, err
+	}
 	txConfig = append(txConfig, user.SetGasLimitAndGasPrice(gas, gasPrice))
 	return c.client.SubmitTx(ctx, []types.Msg{msg}, txConfig...)
 }
@@ -168,6 +172,7 @@ func (c *TxClient) SubmitPayForBlob(
 	author types.AccAddress,
 	cfg *TxConfig,
 ) (_ *user.TxResponse, err error) {
+	cfg = WithDefaults(cfg)
 	if err = c.setupClient(); err != nil {
 		return nil, err
 	}
@@ -227,6 +232,11 @@ func (c *TxClient) SubmitPayForBlob(
 		}
 	}
 
+	// blobs have no default max gas, so only check a max gas the user set
+	if cfg.maxGas != 0 && gas > cfg.maxGas {
+		return nil, ErrGasExceedsLimit
+	}
+
 	// Gas price estimation
 	gasPriceEstimationStart := time.Now()
 	gasPrice, err := c.estimateGasPrice(ctx, cfg)
@@ -235,6 +245,9 @@ func (c *TxClient) SubmitPayForBlob(
 		return nil, err
 	}
 
+	if err = validateFee(gasPrice, gas); err != nil {
+		return nil, err
+	}
 	opts := []user.TxOption{user.SetGasLimitAndGasPrice(gas, gasPrice)}
 	if feeGrant != nil {
 		opts = append(opts, feeGrant)
@@ -277,6 +290,18 @@ func (c *TxClient) SubmitPayForBlob(
 			"gas price %f: %w", gasPrice, err)
 	}
 	return response, err
+}
+
+// validateFee rejects values that make user.SetGasLimitAndGasPrice panic when it
+// builds the fee coin (negative, NaN, Inf or int64-overflowing amounts).
+func validateFee(gasPrice float64, gas uint64) error {
+	if math.IsNaN(gasPrice) || math.IsInf(gasPrice, 0) || gasPrice < 0 {
+		return fmt.Errorf("state: invalid gas price %v", gasPrice)
+	}
+	if fee := math.Ceil(gasPrice * float64(gas)); fee >= math.MaxInt64 {
+		return fmt.Errorf("state: fee overflows int64 (gas price %v, gas %d)", gasPrice, gas)
+	}
+	return nil
 }
 
 func ParseAccAddressFromString(addrStr string) (types.AccAddress, error) {
@@ -325,6 +350,9 @@ func (c *TxClient) estimateGasPriceAndUsage(
 	cfg *TxConfig,
 	msg types.Msg,
 ) (float64, uint64, error) {
+	if cfg.GasLimit() > cfg.MaxGas() {
+		return 0, 0, ErrGasExceedsLimit
+	}
 	if cfg.GasPrice() != DefaultGasPrice && cfg.GasLimit() != 0 {
 		return cfg.GasPrice(), cfg.GasLimit(), nil
 	}
@@ -344,7 +372,10 @@ func (c *TxClient) estimateGasPriceAndUsage(
 
 	// sanity check estimated gas usage against user's set gas limit
 	if cfg.GasLimit() != 0 {
-		gasLimit = cfg.GasLimit()
+		return gasPrice, cfg.GasLimit(), nil
+	}
+	if gasLimit > cfg.MaxGas() {
+		return 0, 0, ErrGasExceedsLimit
 	}
 
 	return gasPrice, gasLimit, nil

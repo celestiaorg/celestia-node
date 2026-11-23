@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
@@ -198,6 +198,9 @@ func (rngdata *RangeNamespaceData) verifyShares(
 			"last share index mismatch: expected %d vs got %d", to.Col, rngdata.LastIncompleteRowProof.End()-1,
 		)
 	}
+	if err := rngdata.verifyProofBounds(from, to, odsSize); err != nil {
+		return err
+	}
 
 	startIndex, err := SampleCoordsAs1DIndex(from, odsSize)
 	if err != nil {
@@ -258,6 +261,34 @@ func (rngdata *RangeNamespaceData) verifyShares(
 	return nil
 }
 
+// verifyProofBounds checks that the incomplete row proofs cover exactly the requested
+// range. A row without a proof is verified as a full row, so a missing proof or a
+// proof that stops short of the row edge would let a peer shift shares in or out of
+// the range while keeping the total share count intact.
+func (rngdata *RangeNamespaceData) verifyProofBounds(from, to SampleCoords, odsSize int) error {
+	first, last := rngdata.FirstIncompleteRowProof, rngdata.LastIncompleteRowProof
+	if from.Row == to.Row {
+		if first == nil && (from.Col != 0 || to.Col != odsSize-1) {
+			return fmt.Errorf("missing proof for partial row range [%d, %d]", from.Col, to.Col)
+		}
+		return nil
+	}
+
+	if from.Col != 0 && first == nil {
+		return fmt.Errorf("missing first row proof for range starting at col %d", from.Col)
+	}
+	if first != nil && first.End() != odsSize {
+		return fmt.Errorf("first row proof must end at %d, got %d", odsSize, first.End())
+	}
+	if to.Col != odsSize-1 && last == nil {
+		return fmt.Errorf("missing last row proof for range ending at col %d", to.Col)
+	}
+	if last != nil && last.Start() != 0 {
+		return fmt.Errorf("last row proof must start at 0, got %d", last.Start())
+	}
+	return nil
+}
+
 // Flatten returns a single slice containing all shares from all rows within the namespace.
 //
 // If the RangeNamespaceData is empty (i.e., contains no shares), Flatten returns nil.
@@ -310,6 +341,13 @@ func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData,
 			return RangeNamespaceData{}, fmt.Errorf("empty shares at row %d", i)
 		}
 		shares[i] = shrs
+	}
+
+	if err := checkProof(nd.GetFirstIncompleteRowProof()); err != nil {
+		return RangeNamespaceData{}, err
+	}
+	if err := checkProof(nd.GetLastIncompleteRowProof()); err != nil {
+		return RangeNamespaceData{}, err
 	}
 
 	return RangeNamespaceData{
@@ -516,6 +554,8 @@ func (rngdata *RangeNamespaceData) ReadFrom(reader io.Reader) (int64, error) {
 		return n, fmt.Errorf("failed to read data: %w", err)
 	}
 
+	// reset proofs left from a previous read, as the receiver can be reused across requests
+	*rngdata = RangeNamespaceData{}
 	rngdata.Shares = make([][]libshare.Share, len(nd))
 	for i, row := range nd {
 		rngdata.Shares[i] = row.Shares

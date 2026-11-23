@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 )
 
 const (
@@ -117,6 +117,27 @@ func TestEstimatorService(t *testing.T) {
 				txconf:      NewTxConfig(WithMaxGasPrice(0.0001)),
 				errExpected: true,
 				expectedErr: ErrGasPriceExceedsLimit,
+			},
+			{
+				// should return error as estimated gas exceeds limit
+				name:        "estimated gas exceeds max gas",
+				txconf:      NewTxConfig(WithMaxGas(9999)),
+				errExpected: true,
+				expectedErr: ErrGasExceedsLimit,
+			},
+			{
+				// should return error as configured gas exceeds limit
+				name:        "configured gas exceeds max gas",
+				txconf:      NewTxConfig(WithGas(20000), WithMaxGas(9999)),
+				errExpected: true,
+				expectedErr: ErrGasExceedsLimit,
+			},
+			{
+				// should return error as configured gas exceeds limit
+				name:        "configured gas price and gas exceeds max gas",
+				txconf:      NewTxConfig(WithGasPrice(0.005), WithGas(20000), WithMaxGas(9999)),
+				errExpected: true,
+				expectedErr: ErrGasExceedsLimit,
 			},
 			{
 				// should return error as gas price exceeds limit

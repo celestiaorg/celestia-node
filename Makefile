@@ -20,8 +20,6 @@ LDFLAGS = -ldflags="-X $(versioningPath).buildTime=$(shell date -u +%Y-%m-%dT%H:
                     -X $(versioningPath).lastCommit=$(shell git rev-parse HEAD) \
                     -X $(versioningPath).semanticVersion=$(VERSION) \
                     -X $(tastoraPath).defaultNodeTag=$(or $(CELESTIA_NODE_TAG),$(VERSION))"
-TAGS=integration
-SHORT=
 ifeq (${PREFIX},)
 	PREFIX := /usr/local
 endif
@@ -31,11 +29,6 @@ ifeq ($(ENABLE_VERBOSE),true)
 else
 	VERBOSE =
 	LOG_AND_FILTER =
-endif
-ifeq ($(SHORT),true)
-	INTEGRATION_RUN_LENGTH = -short
-else
-	INTEGRATION_RUN_LENGTH =
 endif
 
 include celestia-node.mk
@@ -156,7 +149,8 @@ lint: lint-imports
 ## test-unit: Run unit tests.
 test-unit:
 	@echo "--> Running unit tests"
-	@go test $(VERBOSE) -tags=fibre -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
+# Test-node port allocation is process-local, so coverage packages must run serially.
+	@go test $(VERBOSE) -p 1 -tags=fibre -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit
 
 ## test-unit-fast: Run unit tests without coverage instrumentation.
@@ -171,17 +165,25 @@ test-unit-race:
 	@go test $(VERBOSE) -tags=fibre -race -covermode=atomic -coverprofile=coverage.txt `go list ./... | grep -v nodebuilder/tests` $(LOG_AND_FILTER)
 .PHONY: test-unit-race
 
-## test-integration: Run integration tests located in nodebuilder/tests.
-test-integration:
-	@echo "--> Running integrations tests $(VERBOSE) -tags=$(TAGS) $(INTEGRATION_RUN_LENGTH)"
-	@go test $(VERBOSE) -timeout=20m -tags=$(TAGS),fibre $(INTEGRATION_RUN_LENGTH) ./nodebuilder/tests
-.PHONY: test-integration
+## fuzz: Run every fuzz target in .github/workflows/fuzz.yml for FUZZTIME (default 30s) each.
+fuzz:
+	@echo "--> Running fuzz targets for $(or $(FUZZTIME),30s) each"
+	@scripts/fuzz-targets.sh run $(or $(FUZZTIME),30s)
+.PHONY: fuzz
 
-## test-integration-race: Run integration tests with data race detector located in nodebuilder/tests.
-test-integration-race:
-	@echo "--> Running integration tests with data race detector -tags=$(TAGS)"
-	@go test -race -tags=$(TAGS),fibre ./nodebuilder/tests
-.PHONY: test-integration-race
+## fuzz-check: Check that every fuzz target is in the fuzz workflow or explicitly excluded.
+fuzz-check:
+	@scripts/fuzz-targets.sh check
+.PHONY: fuzz-check
+
+# Keep in sync with GREMLINS_VERSION in .github/workflows/mutation-nightly.yml.
+GREMLINS_VERSION ?= v0.6.0
+
+## mutation-test: Run gremlins mutation testing on one package, e.g. make mutation-test PKG=header.
+mutation-test:
+	@test -n "$(PKG)" || { echo "usage: make mutation-test PKG=<package dir>"; exit 2; }
+	@GREMLINS="go run github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION)" scripts/mutation-test.sh $(PKG)
+.PHONY: mutation-test
 
 ## test-blob: Run blob module tests via Tastora framework.
 test-blob:
@@ -226,6 +228,12 @@ pb-gen:
 openrpc-gen:
 	@go run ${LDFLAGS} ./cmd/celestia docgen
 .PHONY: openrpc-gen
+
+## lint-complexity: Report cognitive complexity above 30 in code changed since BASE (default origin/main).
+lint-complexity:
+	@echo "--> Running cognitive complexity linter on new code"
+	@golangci-lint run --config .golangci-complexity.yml --new-from-merge-base=$(or $(BASE),origin/main)
+.PHONY: lint-complexity
 
 ## lint-imports: Lint only Go imports.
 lint-imports:

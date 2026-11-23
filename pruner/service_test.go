@@ -193,6 +193,53 @@ func TestPrune_LargeNumberOfBlocks(t *testing.T) {
 	assert.Len(t, serv.checkpoint.FailedHeaders, 0)
 }
 
+// TestPrune_FullBatchFails checks that prune returns when every header in a full batch fails
+// instead of fetching the same batch again.
+func TestPrune_FullBatchFails(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	var maxHeadersPerLoopOld int
+	maxHeadersPerLoopOld, maxHeadersPerLoop = maxHeadersPerLoop, 10
+	t.Cleanup(func() { maxHeadersPerLoop = maxHeadersPerLoopOld })
+
+	blockTime := time.Nanosecond
+	availabilityWindow := blockTime * 10
+
+	suite := headertest.NewTestSuite(t, headertest.WithValidators(1), headertest.WithBlockTime(blockTime))
+	store := headertest.NewCustomStore(t, suite, maxHeadersPerLoop*3)
+
+	serv, err := NewService(
+		failingPruner{},
+		availabilityWindow,
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		blockTime,
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+
+	err = serv.loadCheckpoint(ctx)
+	require.NoError(t, err)
+
+	time.Sleep(availabilityWindow + time.Millisecond*100)
+
+	done := make(chan struct{})
+	go func() {
+		serv.prune(ctx)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("prune kept fetching the same failing batch")
+	}
+
+	assert.Len(t, serv.checkpoint.FailedHeaders, maxHeadersPerLoop)
+}
+
 func TestFindPruneableHeaders(t *testing.T) {
 	now := time.Now()
 
@@ -324,6 +371,40 @@ func TestService_ClearCheckpoint(t *testing.T) {
 	assert.Equal(t, newCheckpoint(tail.Height()), serv.checkpoint)
 }
 
+func TestPruneOnHeaderDelete(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	suite := headertest.NewTestSuite(t)
+	store := headertest.NewCustomStore(t, suite, 5)
+	mp := &mockPruner{}
+	serv, err := NewService(
+		mp,
+		time.Second,
+		store,
+		sync.MutexWrap(datastore.NewMapDatastore()),
+		time.Second,
+	)
+	require.NoError(t, err)
+	serv.ctx = ctx
+	require.NoError(t, serv.loadCheckpoint(ctx))
+
+	lastPruned := serv.checkpoint.LastPrunedHeight
+	require.NoError(t, serv.pruneOnHeaderDelete(ctx, 3))
+	require.NoError(t, serv.pruneOnHeaderDelete(ctx, 2))
+	require.Len(t, mp.deletedHeaderHashes, 2)
+	require.Equal(t, uint64(3), mp.deletedHeaderHashes[0].height)
+	require.Equal(t, uint64(2), mp.deletedHeaderHashes[1].height)
+	require.Equal(t, lastPruned, serv.checkpoint.LastPrunedHeight)
+
+	mp.failHeight = map[uint64]int{4: 0}
+	serv.checkpoint.FailedHeaders[4] = struct{}{}
+	require.Error(t, serv.pruneOnHeaderDelete(ctx, 4))
+	require.Contains(t, serv.checkpoint.FailedHeaders, uint64(4))
+	require.NoError(t, serv.pruneOnHeaderDelete(ctx, 4))
+	require.NotContains(t, serv.checkpoint.FailedHeaders, uint64(4))
+}
+
 type mockPruner struct {
 	deletedHeaderHashes []pruned
 
@@ -349,4 +430,10 @@ func (mp *mockPruner) Prune(_ context.Context, h *header.ExtendedHeader) error {
 	}
 	mp.deletedHeaderHashes = append(mp.deletedHeaderHashes, pruned{hash: h.Hash().String(), height: h.Height()})
 	return nil
+}
+
+type failingPruner struct{}
+
+func (failingPruner) Prune(context.Context, *header.ExtendedHeader) error {
+	return fmt.Errorf("failed to prune")
 }

@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # upgrade go version throughout pipeline here
-      GO_VERSION: "1.26.8"
+      GO_VERSION: "1.26.10"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
       branch: ${{ steps.trim_ref.outputs.branch }}
@@ -58,24 +58,25 @@ jobs:
 
   # Dockerfile Linting
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.6.5 # yamllint disable-line rule:line-length
+    # v0.6.5
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@33bbeb98fdf8d910a236e365b5f013cdfb81c082  # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: celestiaorg/.github/.github/actions/yamllint@33bbeb98fdf8d910a236e365b5f013cdfb81c082 # v0.6.5
 
   markdown-lint:
     name: Markdown Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: 22.23.4
       - run: |
           npm install -g markdownlint-cli@0.32.1
           markdownlint --config .markdownlint.yaml '**/*.md'
@@ -99,7 +100,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
       - run: git fetch --force --tags
 
@@ -133,7 +134,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       # Generate the binaries and release
-      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           distribution: goreleaser
           version: latest
@@ -152,7 +153,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

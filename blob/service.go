@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	pkgproof "github.com/celestiaorg/celestia-app/v10/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	pkgproof "github.com/celestiaorg/celestia-app/v11/pkg/proof"
 	"github.com/celestiaorg/go-square/v4/inclusion"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
@@ -171,6 +171,9 @@ func (s *Service) SubscribeFromStartHeight(
 ) (<-chan *SubscriptionResponse, error) {
 	if s.ctx == nil {
 		return nil, fmt.Errorf("service has not been started")
+	}
+	if err := ns.ValidateForData(); err != nil {
+		return nil, err
 	}
 
 	// startHeight must be > 0 and <= current head; fail fast so callers see the bad

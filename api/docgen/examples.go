@@ -22,7 +22,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
+	appfibre "github.com/celestiaorg/celestia-app/v11/fibre"
 	libhead "github.com/celestiaorg/go-header"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -143,7 +143,7 @@ func init() {
 	mathInt, _ := math.NewIntFromString("42")
 	add(mathInt)
 
-	pID := protocol.ID("/celestia/mocha-5/ipfs/bitswap")
+	pID := protocol.ID("/celestia/mocha-5/shrex/v0.1.0/sample_v0")
 	add(pID)
 
 	peerID := peer.ID("12D3KooWPRb5h3g9MH7sx9qfbSQZG5cXv1a2Qs3o4aW5YmmzPq82")

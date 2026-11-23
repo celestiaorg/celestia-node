@@ -29,13 +29,14 @@ Continue reading [here](https://blog.celestia.org/celestia-mvp-release-data-avai
     - [Quick Start with Light Node on mocha](#quick-start-with-light-node-on-mocha)
   - [Environment variables](#environment-variables)
   - [Package-specific documentation](#package-specific-documentation)
+  - [Contributing](#contributing)
   - [Code of Conduct](#code-of-conduct)
 
 ## Minimum requirements
 
 | Requirement | Notes          |
 | ----------- |----------------|
-| Go version  | 1.26.8 or higher |
+| Go version  | 1.26.10 or higher |
 
 ## System requirements
 
@@ -66,6 +67,14 @@ For more information on setting up a node and the hardware requirements needed, 
 ## API docs
 
 The celestia-node public API is documented [here](https://node-rpc-docs.celestia.org/).
+
+### Revoke an RPC token
+
+Use an admin token to revoke a previously issued token on a running node:
+
+```sh
+celestia node revoke-token "$TOKEN_TO_REVOKE" --url http://localhost:26658 --token "$ADMIN_TOKEN"
+```
 
 ## Node types
 
@@ -133,6 +142,10 @@ make light-mocha-up CORE_IP=<ip>     # Use custom core IP
 - [Header](./header/doc.go)
 - [Share](./share/doc.go)
 - [DAS](./das/doc.go)
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). PR titles must follow conventional commits and start the subject with a review level tag, `[high]`, `[medium]`, or `[low]` (e.g. `fix(das): [high] ...`); see [PR Naming](./CONTRIBUTING.md#pr-naming) for definitions. Choose the higher level when unsure.
 
 ## Code of Conduct
 

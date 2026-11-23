@@ -3,9 +3,11 @@ package eds
 import (
 	"context"
 	"io"
+	"sync"
 	"testing"
 	"testing/iotest"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -41,6 +43,39 @@ func TestWithClosedOnce(t *testing.T) {
 	require.ErrorIs(t, err, errAccessorClosed)
 	_, err = closedOnce.Shares(ctx)
 	require.ErrorIs(t, err, errAccessorClosed)
+}
+
+// TestWithClosedOnceConcurrentClose covers the cache force-closing an accessor
+// (after defaultCloseTimeout) while readers still hold it. closeOnce must not
+// panic or race: a call either reaches the accessor or returns errAccessorClosed.
+// The stub accessor never fails, so this does not cover errors a real file can
+// return for a call already in flight when it is closed. Run with -race.
+func TestWithClosedOnceConcurrentClose(t *testing.T) {
+	ctx := context.Background()
+	for range 200 {
+		closedOnce := WithClosedOnce(&stubEdsAccessorCloser{})
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for range 100 {
+				_, err := closedOnce.Sample(ctx, shwap.SampleCoords{})
+				if err != nil {
+					assert.ErrorIs(t, err, errAccessorClosed)
+				}
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			assert.NoError(t, closedOnce.Close())
+		}()
+		wg.Wait()
+
+		require.NoError(t, closedOnce.Close())
+		_, err := closedOnce.Sample(ctx, shwap.SampleCoords{})
+		require.ErrorIs(t, err, errAccessorClosed)
+	}
 }
 
 type stubEdsAccessorCloser struct {

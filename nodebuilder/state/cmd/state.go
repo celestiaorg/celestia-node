@@ -21,6 +21,7 @@ var (
 	amount            uint64
 	txPriority        int
 	maxGasPrice       float64
+	maxGas            uint64
 )
 
 func init() {
@@ -135,7 +136,7 @@ var transferCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseAccAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
@@ -147,7 +148,7 @@ var transferCmd = &cobra.Command{
 
 		txResponse, err := client.State.Transfer(
 			cmd.Context(),
-			addr.Address.(state.AccAddress),
+			addr,
 			math.NewInt(amount),
 			GetTxConfig(),
 		)
@@ -166,7 +167,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
@@ -183,7 +184,7 @@ var cancelUnbondingDelegationCmd = &cobra.Command{
 
 		txResponse, err := client.State.CancelUnbondingDelegation(
 			cmd.Context(),
-			addr.Address.(state.ValAddress),
+			addr,
 			math.NewInt(amount),
 			math.NewInt(height),
 			GetTxConfig(),
@@ -203,12 +204,12 @@ var beginRedelegateCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		srcAddr, err := parseAddressFromString(args[0])
+		srcAddr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		dstAddr, err := parseAddressFromString(args[1])
+		dstAddr, err := parseValAddress(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
@@ -220,8 +221,8 @@ var beginRedelegateCmd = &cobra.Command{
 
 		txResponse, err := client.State.BeginRedelegate(
 			cmd.Context(),
-			srcAddr.Address.(state.ValAddress),
-			dstAddr.Address.(state.ValAddress),
+			srcAddr,
+			dstAddr,
 			math.NewInt(amount),
 			GetTxConfig(),
 		)
@@ -232,7 +233,7 @@ var beginRedelegateCmd = &cobra.Command{
 var undelegateCmd = &cobra.Command{
 	Use:   "undelegate [valAddress] [amount]",
 	Short: "Undelegates a user's delegated tokens, unbonding them from the current validator.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -240,7 +241,7 @@ var undelegateCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
@@ -252,7 +253,7 @@ var undelegateCmd = &cobra.Command{
 
 		txResponse, err := client.State.Undelegate(
 			cmd.Context(),
-			addr.Address.(state.ValAddress),
+			addr,
 			math.NewInt(amount),
 			GetTxConfig(),
 		)
@@ -263,7 +264,7 @@ var undelegateCmd = &cobra.Command{
 var delegateCmd = &cobra.Command{
 	Use:   "delegate [valAddress] [amount]",
 	Short: "Sends a user's liquid tokens to a validator for delegation.",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := cmdnode.ParseClientFromCtx(cmd.Context())
 		if err != nil {
@@ -271,7 +272,7 @@ var delegateCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
@@ -283,7 +284,7 @@ var delegateCmd = &cobra.Command{
 
 		txResponse, err := client.State.Delegate(
 			cmd.Context(),
-			addr.Address.(state.ValAddress),
+			addr,
 			math.NewInt(amount),
 			GetTxConfig(),
 		)
@@ -302,14 +303,14 @@ var withdrawDelegatorRewardCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		txResponse, err := client.State.WithdrawDelegatorReward(
 			cmd.Context(),
-			addr.Address.(state.ValAddress),
+			addr,
 			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
@@ -327,12 +328,12 @@ var queryDelegationRewardsCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		response, err := client.State.QueryDelegationRewards(cmd.Context(), addr.Address.(state.ValAddress))
+		response, err := client.State.QueryDelegationRewards(cmd.Context(), addr)
 		return cmdnode.PrintOutput(response, err, nil)
 	},
 }
@@ -348,12 +349,12 @@ var queryDelegationCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		balance, err := client.State.QueryDelegation(cmd.Context(), addr.Address.(state.ValAddress))
+		balance, err := client.State.QueryDelegation(cmd.Context(), addr)
 		return cmdnode.PrintOutput(balance, err, nil)
 	},
 }
@@ -369,12 +370,12 @@ var queryUnbondingCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		addr, err := parseAddressFromString(args[0])
+		addr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
-		response, err := client.State.QueryUnbonding(cmd.Context(), addr.Address.(state.ValAddress))
+		response, err := client.State.QueryUnbonding(cmd.Context(), addr)
 		return cmdnode.PrintOutput(response, err, nil)
 	},
 }
@@ -390,20 +391,20 @@ var queryRedelegationCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		srcAddr, err := parseAddressFromString(args[0])
+		srcAddr, err := parseValAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing a src address: %w", err)
 		}
 
-		dstAddr, err := parseAddressFromString(args[1])
+		dstAddr, err := parseValAddress(args[1])
 		if err != nil {
 			return fmt.Errorf("error parsing a dst address: %w", err)
 		}
 
 		response, err := client.State.QueryRedelegations(
 			cmd.Context(),
-			srcAddr.Address.(state.ValAddress),
-			dstAddr.Address.(state.ValAddress),
+			srcAddr,
+			dstAddr,
 		)
 		return cmdnode.PrintOutput(response, err, nil)
 	},
@@ -421,14 +422,14 @@ var grantFeeCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		granteeAddr, err := parseAddressFromString(args[0])
+		granteeAddr, err := parseAccAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		txResponse, err := client.State.GrantFee(
 			cmd.Context(),
-			granteeAddr.Address.(state.AccAddress),
+			granteeAddr,
 			math.NewInt(int64(amount)), GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
@@ -446,14 +447,14 @@ var revokeGrantFeeCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		granteeAddr, err := parseAddressFromString(args[0])
+		granteeAddr, err := parseAccAddress(args[0])
 		if err != nil {
 			return fmt.Errorf("error parsing an address: %w", err)
 		}
 
 		txResponse, err := client.State.RevokeGrantFee(
 			cmd.Context(),
-			granteeAddr.Address.(state.AccAddress),
+			granteeAddr,
 			GetTxConfig(),
 		)
 		return cmdnode.PrintOutput(txResponse, err, nil)
@@ -467,6 +468,32 @@ func parseAddressFromString(addrStr string) (state.Address, error) {
 		return address, err
 	}
 	return address, nil
+}
+
+// parseAccAddress parses an account address and rejects a validator address.
+func parseAccAddress(addrStr string) (state.AccAddress, error) {
+	addr, err := parseAddressFromString(addrStr)
+	if err != nil {
+		return nil, err
+	}
+	accAddr, ok := addr.Address.(state.AccAddress)
+	if !ok {
+		return nil, fmt.Errorf("expected an account address, got %s", addrStr)
+	}
+	return accAddr, nil
+}
+
+// parseValAddress parses a validator address and rejects an account address.
+func parseValAddress(addrStr string) (state.ValAddress, error) {
+	addr, err := parseAddressFromString(addrStr)
+	if err != nil {
+		return nil, err
+	}
+	valAddr, ok := addr.Address.(state.ValAddress)
+	if !ok {
+		return nil, fmt.Errorf("expected a validator address, got %s", addrStr)
+	}
+	return valAddr, nil
 }
 
 func ApplyFlags(cmds ...*cobra.Command) {
@@ -521,6 +548,13 @@ func ApplyFlags(cmds ...*cobra.Command) {
 				state.DefaultMaxGasPrice,
 				"Specifies max gas price for the tx submission.",
 			)
+			cmd.PersistentFlags().Uint64Var(
+				&maxGas,
+				"max.gas",
+				0,
+				"Specifies max gas limit for the tx submission. "+
+					"If not set, blob submissions have no max and other txs use the default max.",
+			)
 			cmd.PersistentFlags().IntVar(
 				&txPriority,
 				"tx.priority",
@@ -542,6 +576,7 @@ func GetTxConfig() *state.TxConfig {
 		state.WithSignerAddress(signer),
 		state.WithFeeGranterAddress(feeGranterAddress),
 		state.WithMaxGasPrice(maxGasPrice),
+		state.WithMaxGas(maxGas),
 		state.WithTxPriority(txPriority),
 	)
 }

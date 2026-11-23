@@ -34,7 +34,7 @@
     }
   },
   "Protocols": {
-    "/celestia/mocha-5/ipfs/bitswap/1.2.0": {
+    "/celestia/mocha-5/shrex/v0.1.0/sample_v0": {
       "NumStreamsInbound": 0,
       "NumStreamsOutbound": 4,
       "NumConnsInbound": 0,

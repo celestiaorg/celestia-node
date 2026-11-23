@@ -2,12 +2,14 @@ package peers
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/cometbft/cometbft/libs/rand"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	libp2p "github.com/libp2p/go-libp2p"
@@ -27,6 +29,42 @@ import (
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/discovery"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrexsub"
 )
+
+func TestManagerCleanUpConcurrentPoolAdd(t *testing.T) {
+	blacklistedHashes, err := lru.New[string, struct{}](blacklistedHashesCacheSize)
+	require.NoError(t, err)
+	stats, err := newPeerStats()
+	require.NoError(t, err)
+	m := &Manager{
+		pools:             make(map[string]*syncPool),
+		blacklistedHashes: blacklistedHashes,
+	}
+	m.initialHeight.Store(1)
+
+	for i := range 100 {
+		p := &syncPool{
+			pool:      newPool(time.Hour, stats),
+			height:    1,
+			createdAt: time.Now().Add(-time.Minute),
+		}
+		p.add("existing")
+		m.pools[strconv.Itoa(i)] = p
+
+		start := make(chan struct{})
+		done := make(chan struct{})
+		go func() {
+			<-start
+			for j := range 100 {
+				p.add(peer.ID(strconv.Itoa(j)))
+			}
+			close(done)
+		}()
+		close(start)
+		blacklisted := m.cleanUp()
+		<-done
+		require.Contains(t, blacklisted, peer.ID("existing"))
+	}
+}
 
 func TestManager(t *testing.T) {
 	t.Run("blacklist result does not change stats", func(t *testing.T) {
@@ -440,7 +478,9 @@ func TestIntegration(t *testing.T) {
 		version := "v1"
 		nw, err := mocknet.FullMeshConnected(3)
 		require.NoError(t, err)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		// DHT bootstrap and discovery usually take a few seconds, but can take
+		// much longer on slow CI runners.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		t.Cleanup(cancel)
 
 		// set up bootstrapper
@@ -494,11 +534,14 @@ func TestIntegration(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		waitCh := make(chan struct{})
+		// The callback can run more than once and runs outside the test goroutine,
+		// so it only records the first discovered peer and the test checks it.
+		discovered := make(chan peer.ID, 1)
 		checkDiscoveredPeer := func(peerID peer.ID, isAdded bool) {
-			defer close(waitCh)
-			// check that obtained peer id is BN
-			require.Equal(t, bnHost.ID(), peerID)
+			select {
+			case discovered <- peerID:
+			default:
+			}
 		}
 
 		// set up discovery for full node with hook to peer manager and check discovered peer
@@ -527,7 +570,9 @@ func TestIntegration(t *testing.T) {
 		go bnDisc.Advertise(ctx)
 
 		select {
-		case <-waitCh:
+		case peerID := <-discovered:
+			// check that obtained peer id is BN
+			require.Equal(t, bnHost.ID(), peerID)
 			require.Contains(t, fnPeerManager.nodes.peersList, bnHost.ID())
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
@@ -554,6 +599,112 @@ func TestManager_blacklistedHashesBounded(t *testing.T) {
 
 	require.Equal(t, blacklistedHashesCacheSize, manager.blacklistedHashes.Len(),
 		"blacklisted hashes cache must stay bounded")
+}
+
+// TestManager_withoutShrexSubKeepsNoPools ensures a manager without shrexsub pools
+// (e.g. the archival one) serves discovered nodes and does not keep a pool per
+// requested datahash, as those pools are never garbage collected.
+func TestManager_withoutShrexSubKeepsNoPools(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	host, err := mocknet.New().GenPeer()
+	require.NoError(t, err)
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
+	require.NoError(t, err)
+
+	manager, err := NewManager(*DefaultParameters(), host, connGater, "test")
+	require.NoError(t, err)
+	require.NoError(t, manager.Start(ctx))
+	stopManager(t, manager)
+
+	peerID := peer.ID("peer1")
+	manager.UpdateNodePool(peerID, true)
+
+	for i := range 100 {
+		pID, done, err := manager.Peer(ctx, rand.Bytes(32), uint64(i+1))
+		require.NoError(t, err)
+		require.Equal(t, peerID, pID)
+		done(ResultNoop)
+	}
+
+	// waits for a node to be discovered
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		manager.UpdateNodePool("peer2", true)
+	}()
+	manager.nodes.putOnCooldown(peerID)
+	pID, _, err := manager.Peer(ctx, rand.Bytes(32), 101)
+	require.NoError(t, err)
+	require.Equal(t, peer.ID("peer2"), pID)
+
+	// returns ctx error when no node is available
+	manager.nodes.putOnCooldown("peer2")
+	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer timeoutCancel()
+	_, _, err = manager.Peer(timeoutCtx, rand.Bytes(32), 102)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	manager.lock.Lock()
+	defer manager.lock.Unlock()
+	require.Empty(t, manager.pools)
+}
+
+// TestManager_poolHeight ensures pools carry the height of the validating header,
+// so a notification with a bogus height cannot keep its pool from being collected.
+func TestManager_poolHeight(t *testing.T) {
+	const bogusHeight = uint64(1) << 62
+	peerID := peer.ID("peer")
+
+	newManager := func(t *testing.T) (context.Context, *Manager) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+		manager, err := testManager(ctx, newSubLock())
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+		return ctx, manager
+	}
+
+	t.Run("notification before header", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		t.Cleanup(cancel)
+		h := testHeader()
+		headerSub := newSubLock(h, nil)
+		manager, err := testManager(ctx, headerSub)
+		require.NoError(t, err)
+		t.Cleanup(func() { stopManager(t, manager) })
+
+		msg := newShrexSubMsg(h)
+		msg.Height = bogusHeight
+		res := manager.Validate(ctx, peerID, msg)
+		require.Equal(t, pubsub.ValidationIgnore, res)
+		require.NoError(t, headerSub.wait(ctx, 1))
+		p := manager.getPool(h.DataHash.String())
+		require.True(t, p.isValidatedDataHash.Load())
+		require.Equal(t, h.Height(), p.height)
+
+		manager.storeFrom.Store(h.Height() + 1)
+		manager.cleanUp()
+		require.Nil(t, manager.getPool(h.DataHash.String()))
+	})
+
+	t.Run("historical request", func(t *testing.T) {
+		ctx, manager := newManager(t)
+		manager.initialHeight.Store(100)
+		manager.storeFrom.Store(1000)
+		hash := share.DataHash(rand.Bytes(32))
+
+		// announced with a bogus height, while the hash belongs to an old header
+		res := manager.Validate(ctx, peerID, shrexsub.Notification{DataHash: hash, Height: bogusHeight})
+		require.Equal(t, pubsub.ValidationIgnore, res)
+		_, done, err := manager.Peer(ctx, hash, 500)
+		require.NoError(t, err)
+		done(ResultNoop)
+
+		manager.storeFrom.Store(1001)
+		manager.cleanUp()
+		require.Nil(t, manager.getPool(hash.String()))
+	})
 }
 
 func testManager(ctx context.Context, headerSub libhead.Subscriber[*header.ExtendedHeader]) (*Manager, error) {
@@ -666,4 +817,82 @@ func newShrexSubMsg(h *header.ExtendedHeader) shrexsub.Notification {
 		DataHash: h.DataHash.Bytes(),
 		Height:   h.Height(),
 	}
+}
+
+// TestManager_ValidateBoundsUnvalidatedPools ensures a single peer that streams shrex-sub
+// notifications with distinct datahashes cannot grow the pools without bound, and that its
+// pool slots are freed once its pools are validated or removed.
+func TestManager_ValidateBoundsUnvalidatedPools(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	h := testHeader()
+	manager, err := testManager(ctx, newSubLock(h, nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { stopManager(t, manager) })
+
+	const attacker = peer.ID("attacker")
+	hashes := make([]share.DataHash, 0, 10_000)
+	for i := range 10_000 {
+		hash := share.DataHash(rand.Bytes(32))
+		hashes = append(hashes, hash)
+		res := manager.Validate(ctx, attacker, shrexsub.Notification{
+			DataHash: hash,
+			Height:   h.Height() + uint64(i) + 1,
+		})
+		require.Equal(t, pubsub.ValidationIgnore, res)
+	}
+
+	numPools := func() int {
+		manager.lock.Lock()
+		defer manager.lock.Unlock()
+		return len(manager.pools)
+	}
+	require.Equal(t, maxUnvalidatedPoolsPerPeer, numPools())
+
+	// another peer is not affected by the attacker's limit
+	honestHash := share.DataHash(rand.Bytes(32))
+	manager.Validate(ctx, "honest", shrexsub.Notification{DataHash: honestHash, Height: h.Height() + 1})
+	require.NotNil(t, manager.getPool(honestHash.String()))
+
+	// validating one of the attacker's pools frees one slot
+	manager.validatedPool(hashes[0].String(), h.Height()+1)
+	manager.Validate(ctx, attacker, shrexsub.Notification{
+		DataHash: share.DataHash(rand.Bytes(32)),
+		Height:   h.Height() + 1,
+	})
+	require.Equal(t, maxUnvalidatedPoolsPerPeer+2, numPools())
+
+	// timed out pools are removed and free all of the attacker's slots
+	manager.lock.Lock()
+	for _, p := range manager.pools {
+		p.createdAt = time.Now().Add(-2 * manager.params.PoolValidationTimeout)
+	}
+	manager.lock.Unlock()
+	manager.initialHeight.Store(h.Height())
+	manager.cleanUp()
+	manager.lock.Lock()
+	require.Empty(t, manager.unvalidatedPools)
+	manager.lock.Unlock()
+}
+
+// TestManager_validatedPoolUsesHeaderHeight ensures a validated pool keeps the trusted header
+// height, not the height a peer announced, so cleanUp removes it once it is outdated.
+func TestManager_validatedPoolUsesHeaderHeight(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	h := testHeader()
+	manager, err := testManager(ctx, newSubLock(h, nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { stopManager(t, manager) })
+
+	hash := share.DataHash(rand.Bytes(32))
+	manager.Validate(ctx, "peer", shrexsub.Notification{DataHash: hash, Height: math.MaxUint64})
+	manager.validatedPool(hash.String(), h.Height())
+
+	manager.initialHeight.Store(h.Height())
+	manager.storeFrom.Store(h.Height() + 1)
+	manager.cleanUp()
+	require.Nil(t, manager.getPool(hash.String()))
 }

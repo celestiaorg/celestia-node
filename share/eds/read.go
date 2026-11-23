@@ -21,7 +21,7 @@ func ReadAccessor(ctx context.Context, reader io.Reader, root *share.AxisRoots) 
 	}
 
 	// verify that the EDS hash matches the expected hash
-	rsmt2d, err := Rsmt2DFromShares(shares, odsSize)
+	rsmt2d, err := Rsmt2DFromShares(shares)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rsmt2d from shares: %w", err)
 	}

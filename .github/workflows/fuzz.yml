@@ -1,0 +1,175 @@
+# Runs the native Go fuzz targets listed in the matrix below: briefly on pull
+# requests that touch Go code, and for ten minutes nightly or on demand. The
+# seed corpus of every target already runs in the unit tests; this workflow
+# lets the coverage-guided fuzzer explore new inputs. Run `make fuzz
+# FUZZTIME=10m` locally for a longer campaign.
+#
+# Every `func Fuzz*` in the module must be in the matrix or excluded with a
+# reason in scripts/fuzz-targets.sh; the `targets` job checks this.
+#
+# A crashing input can describe an exploitable bug, and this repository's logs
+# are public. Outside pull requests the jobs therefore print only PASS or FAIL,
+# upload no artifact, and on main file a Linear issue holding the output and
+# the crashing input when the LINEAR_API_KEY secret is configured. Failures on
+# main are also reported to #protocol-ci by notify-protocol-ci.yml, which
+# watches this workflow by name.
+name: Fuzz
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * *"
+  pull_request:
+    paths:
+      - "**.go"
+      - "**/testdata/fuzz/**"
+      - "go.mod"
+      - "go.sum"
+      - "scripts/fuzz-*.sh"
+      - ".github/scripts/report-fuzz-failures.py"
+      - ".github/workflows/fuzz.yml"
+
+permissions:
+  contents: read
+
+# Cancel superseded runs when a pull request gets a new push. Other events get
+# a unique group so GitHub never queues or drops their pending runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  targets:
+    name: Check fuzz targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Every fuzz target is in the matrix or excluded
+        run: scripts/fuzz-targets.sh check
+
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Secrets cannot appear in step conditions; expose only whether it is set.
+      HAS_LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # priority is the entry point's risk and sets the Linear priority of
+        # the issue filed on failure: 1 = Urgent, 2 = High, 3 = Normal.
+        # Keep the one-line form; scripts/fuzz-targets.sh parses it.
+        include:
+          # shrex: request and response decoding from untrusted peers.
+          - {package: share/shwap/p2p/shrex, target: FuzzServerRequest, priority: 1}
+          - {package: share/shwap, target: FuzzIDReadFrom, priority: 1}
+          - {package: share/shwap, target: FuzzSampleReadFrom, priority: 1}
+          - {package: share/shwap, target: FuzzRowReadFrom, priority: 1}
+          - {package: share/shwap, target: FuzzRowNamespaceDataReadFrom, priority: 1}
+          - {package: share/shwap, target: FuzzNamespaceDataReadFrom, priority: 1}
+          - {package: share/shwap, target: FuzzRangeNamespaceDataReadFrom, priority: 1}
+          - {package: share/eds, target: FuzzReadAccessor, priority: 1}
+          # Gossip and header sync.
+          - {package: share/shwap/p2p/shrex/shrexsub, target: FuzzNotificationValidate, priority: 1}
+          - {package: header/headertest, target: FuzzExtendedHeader, priority: 1}
+          # Blob parsing and proofs.
+          - {package: blob, target: FuzzBlobParse, priority: 2}
+          - {package: blob, target: FuzzCommitmentProofVerify, priority: 2}
+          - {package: blob, target: FuzzBlobUnmarshal, priority: 2}
+          # JSON-RPC responses a client decodes.
+          - {package: share/shwap, target: FuzzRowUnmarshalJSON, priority: 2}
+          # Properties of honest data and helpers.
+          - {package: share/shwap, target: FuzzRangeNamespaceDataFromShares, priority: 3}
+          - {package: share/shwap, target: FuzzRangeCoordsFromIdx, priority: 3}
+          - {package: share, target: FuzzRowsWithNamespace, priority: 3}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Locate fuzz cache
+        id: fuzz-cache
+        run: echo "path=$(go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
+
+      # The generated corpus lives under $GOCACHE/fuzz. Restoring the newest
+      # entry for this target lets it grow across nights instead of restarting
+      # from the seeds. Bump the key prefix when a target's signature changes.
+      - name: Restore fuzz corpus
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.fuzz-cache.outputs.path }}
+          key: fuzz-v1-${{ runner.os }}-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: fuzz-v1-${{ runner.os }}-${{ matrix.target }}-
+
+      - name: Fuzz
+        env:
+          FUZZ_PACKAGE: ./${{ matrix.package }}
+          FUZZ_TARGET: ${{ matrix.target }}
+          FUZZ_PRIORITY: ${{ matrix.priority }}
+          FUZZTIME: ${{ github.event_name == 'pull_request' && '45s' || '10m' }}
+          # Pull requests keep the output in the log so authors can debug.
+          FUZZ_LOG_DIR: ${{ github.event_name != 'pull_request' && format('{0}/fuzz', runner.temp) || '' }}
+        run: |
+          # Several targets take inputs of kilobytes (whole squares, streams of
+          # rows); the default 60s minimization of each new input would eat
+          # most of a short budget.
+          args=(-run '^$' -fuzz "^${FUZZ_TARGET}\$" -fuzztime "$FUZZTIME" -fuzzminimizetime 10s "$FUZZ_PACKAGE")
+          if [[ -z $FUZZ_LOG_DIR ]]; then
+            log=$(mktemp)
+            status=0
+            go test "${args[@]}" 2>&1 | tee "$log" || status=$?
+            if grep -q 'no fuzz tests to fuzz' "$log"; then
+              echo "::error::$FUZZ_TARGET not found in $FUZZ_PACKAGE"
+              exit 1
+            fi
+            if [[ $status != 0 ]] && scripts/fuzz-only-deadline.sh "$log" "$FUZZ_TARGET"; then
+              echo "go test reported its own -fuzztime deadline; no failing input"
+              exit 0
+            fi
+            exit "$status"
+          fi
+          mkdir -p "$FUZZ_LOG_DIR"
+          : >"$FUZZ_LOG_DIR/failed.txt"
+          log="$FUZZ_LOG_DIR/$FUZZ_TARGET.log"
+          # go test exits 0 with "no fuzz tests to fuzz" when the target is missing.
+          if go test "${args[@]}" >"$log" 2>&1 && ! grep -q 'no fuzz tests to fuzz' "$log"; then
+            echo "PASS $FUZZ_TARGET"
+          elif scripts/fuzz-only-deadline.sh "$log" "$FUZZ_TARGET"; then
+            echo "PASS $FUZZ_TARGET (go test reported its own -fuzztime deadline; no failing input)"
+          else
+            echo "FAIL $FUZZ_TARGET (output withheld from this public log)"
+            echo "$FUZZ_PRIORITY $FUZZ_PACKAGE $FUZZ_TARGET" >>"$FUZZ_LOG_DIR/failed.txt"
+            exit 1
+          fi
+
+      # Saved only after a clean run: caches on main are readable by other
+      # workflows, and inputs near a crash should not leak through them.
+      - name: Save fuzz corpus
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.fuzz-cache.outputs.path }}
+          key: fuzz-v1-${{ runner.os }}-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # The output stays in a file under runner.temp and is sent only to
+      # Linear. Without the LINEAR_API_KEY secret this step is skipped, not
+      # failed: the job still fails, notify-protocol-ci.yml reports it, and a
+      # maintainer reproduces it privately with `make fuzz`.
+      - name: File Linear issue for failing target
+        if: ${{ failure() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.HAS_LINEAR_API_KEY == 'true' }}
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          LINEAR_TEAM_KEY: PROTOCO
+          LINEAR_ASSIGNEE_ID: ${{ vars.FUZZ_LINEAR_ASSIGNEE_ID || 'e9929f5b-e156-4046-95df-aeea6faa9a58' }}
+          FUZZ_LOG_DIR: ${{ runner.temp }}/fuzz
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          TITLE_PREFIX: celestia-node fuzz failure
+        run: python3 .github/scripts/report-fuzz-failures.py
+
+      - name: Note missing Linear secret
+        if: ${{ failure() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.HAS_LINEAR_API_KEY != 'true' }}
+        run: echo "::warning::LINEAR_API_KEY is not configured, so no Linear issue was filed; reproduce the failure locally."

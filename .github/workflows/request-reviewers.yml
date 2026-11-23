@@ -1,0 +1,57 @@
+name: request-reviewers
+
+# Request a review from this repo's designated reviewers on each new PR.
+# Drafts wait until they are marked ready for review.
+#
+# This workflow never checks out or runs PR code: it reads only the event
+# payload. pull_request_target gives fork PRs a token that can request
+# reviewers.
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  request-reviewers:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Request reviewers
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Space-separated GitHub usernames.
+          REVIEWERS: vgonkivs walldiss renaynay
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            // Read current state from the API; the event payload can be stale
+            // if the PR went back to draft or closed while this run was queued.
+            const { data: current } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pr.number,
+            });
+            if (current.draft || current.state !== 'open') {
+              core.info(`Skipping: PR is ${current.draft ? 'a draft' : current.state}.`);
+              return;
+            }
+            const author = pr.user.login.toLowerCase();
+            // GitHub rejects a review request to the PR author.
+            const reviewers = process.env.REVIEWERS.split(/\s+/)
+              .filter((r) => r && r.toLowerCase() !== author);
+            // One request per reviewer, so one reviewer without repo access
+            // does not block the others.
+            for (const reviewer of reviewers) {
+              try {
+                await github.rest.pulls.requestReviewers({
+                  ...context.repo,
+                  pull_number: pr.number,
+                  reviewers: [reviewer],
+                });
+              } catch (err) {
+                core.warning(`Could not request a review from ${reviewer}: ${err.message}`);
+              }
+            }

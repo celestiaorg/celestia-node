@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,8 +17,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	appstate "github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	appstate "github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
 
 	"github.com/celestiaorg/celestia-node/header/headertest"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
@@ -48,6 +49,7 @@ func newTestClient(t *testing.T, abci abciQuerier, network p2p.Network) *Client 
 		lastHost:        make(map[string]validator.Host),
 		lastRefresh:     make(map[string]time.Time),
 		refreshInterval: time.Minute,
+		queryTimeout:    time.Second,
 	}
 	return c
 }
@@ -84,6 +86,28 @@ func TestVerifyPromiseNoop(t *testing.T) {
 	require.Equal(t, appstate.VerifiedPromise{}, got)
 }
 
+// Provider health checks must fail explicitly on DA clients rather than report
+// a healthy app node or trust an unverified remote endpoint.
+func TestProviderHealthChecksUnsupported(t *testing.T) {
+	stub := &stubABCI{err: errors.New("health checks must not query ABCI")}
+	var c appstate.Client = newTestClient(t, stub, p2p.Private)
+	ctx := context.Background()
+
+	t.Run("node status", func(t *testing.T) {
+		status, err := c.NodeStatus(ctx)
+		require.ErrorIs(t, err, errors.ErrUnsupported)
+		require.Equal(t, appstate.NodeStatus{}, status)
+	})
+
+	t.Run("provider registration", func(t *testing.T) {
+		registration, err := c.ProviderRegistration(ctx, make(core.Address, 20))
+		require.ErrorIs(t, err, errors.ErrUnsupported)
+		require.Equal(t, appstate.ProviderRegistration{}, registration)
+	})
+
+	require.Zero(t, stub.calls.Load(), "unsupported health checks must not query ABCI")
+}
+
 func TestStopNoop(t *testing.T) {
 	c := newTestClient(t, &stubABCI{}, p2p.Private)
 	require.NoError(t, c.Stop(context.Background()))
@@ -111,6 +135,14 @@ func TestGetHostABCIErrors(t *testing.T) {
 	t.Run("missing proof ops", func(t *testing.T) {
 		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{}}
 		c := newTestClient(t, stub, p2p.Private)
+		_, err := c.GetHost(ctx, val)
+		require.ErrorContains(t, err, "missing proof ops")
+	})
+
+	t.Run("empty proof ops", func(t *testing.T) {
+		stub := &stubABCI{resp: &tmservice.ABCIQueryResponse{ProofOps: &tmservice.ProofOps{}}}
+		c := newTestClient(t, stub, p2p.Private)
+		c.prt = merkle.DefaultProofRuntime()
 		_, err := c.GetHost(ctx, val)
 		require.ErrorContains(t, err, "missing proof ops")
 	})
@@ -162,6 +194,50 @@ func TestGetHostFallsBackOnQueryFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, validator.Host("cached.example:9090"), got, "must serve last known host on failure")
 	require.Equal(t, int64(1), stub.calls.Load(), "must attempt exactly one re-query")
+}
+
+// blockingABCI never answers until the query context is done.
+type blockingABCI struct{}
+
+func (blockingABCI) ABCIQuery(
+	ctx context.Context, _ *tmservice.ABCIQueryRequest, _ ...grpc.CallOption,
+) (*tmservice.ABCIQueryResponse, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// TestGetHostFallsBackOnQueryTimeout checks that a query to an endpoint that never
+// answers is bounded and the last known host is served.
+func TestGetHostFallsBackOnQueryTimeout(t *testing.T) {
+	c := newTestClient(t, blockingABCI{}, p2p.Private)
+	c.queryTimeout = 50 * time.Millisecond
+
+	addr := make([]byte, 20)
+	for i := range addr {
+		addr[i] = 0xCC
+	}
+	val := &core.Validator{Address: addr}
+	cacheKey := sdk.ConsAddress(addr).String()
+	c.lastHost[cacheKey] = validator.Host("cached.example:9090")
+	c.lastRefresh[cacheKey] = time.Now().Add(-time.Hour)
+
+	type result struct {
+		host validator.Host
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		// no deadline on the caller ctx, as for an RPC request
+		got, err := c.GetHost(context.Background(), val)
+		done <- result{got, err}
+	}()
+	select {
+	case res := <-done:
+		require.NoError(t, res.err)
+		require.Equal(t, validator.Host("cached.example:9090"), res.host)
+	case <-time.After(2 * time.Second):
+		t.Fatal("GetHost did not return; the host query is not bounded")
+	}
 }
 
 // TestGetHostRateLimitsQueries checks that a failed query still opens the
