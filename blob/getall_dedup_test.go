@@ -44,7 +44,7 @@ func (g *countingGetter) GetNamespaceData(
 	return g.Getter.GetNamespaceData(ctx, h, ns)
 }
 
-func TestService_GetAll_DeduplicatesNamespaces(t *testing.T) {
+func TestService_getAll_DeduplicatesNamespaces(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
@@ -67,7 +67,9 @@ func TestService_GetAll_DeduplicatesNamespaces(t *testing.T) {
 		namespaces[i] = ns
 	}
 
-	got, err := service.GetAll(ctx, 1, namespaces)
+	hdr, err := service.headerServ.GetByHeight(ctx, 1)
+	require.NoError(t, err)
+	got, err := service.getAll(ctx, hdr, namespaces)
 	require.NoError(t, err)
 	// Each blob must be returned once, not once per repeated namespace.
 	require.Len(t, got, len(blobs))
@@ -78,7 +80,7 @@ func TestService_GetAll_DeduplicatesNamespaces(t *testing.T) {
 	require.EqualValues(t, 1, getter.calls.Load())
 }
 
-func TestService_GetAll_PreservesNamespaceOrder(t *testing.T) {
+func TestService_getAll_PreservesNamespaceOrder(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
@@ -91,7 +93,9 @@ func TestService_GetAll_PreservesNamespaceOrder(t *testing.T) {
 	service := createService(ctx, t, shares)
 
 	ns0, ns1, ns2 := blobs[0].Namespace(), blobs[1].Namespace(), blobs[2].Namespace()
-	got, err := service.GetAll(ctx, 1, []libshare.Namespace{ns2, ns0, ns2, ns1, ns0})
+	hdr, err := service.headerServ.GetByHeight(ctx, 1)
+	require.NoError(t, err)
+	got, err := service.getAll(ctx, hdr, []libshare.Namespace{ns2, ns0, ns2, ns1, ns0})
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	require.True(t, got[0].Namespace().Equals(ns2))
@@ -115,7 +119,7 @@ func TestService_GetAll_BoundsConcurrency(t *testing.T) {
 	service.shareGetter = getter
 
 	// Distinct namespaces that hold no data.
-	const count = 4 * getAllConcurrencyLimit
+	const count = 4 * maxConcurrentNamespaceRequests
 	namespaces := make([]libshare.Namespace, count)
 	for i := range namespaces {
 		namespaces[i] = libshare.RandomBlobNamespace()
@@ -125,5 +129,5 @@ func TestService_GetAll_BoundsConcurrency(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualValues(t, count, getter.calls.Load())
-	require.LessOrEqual(t, getter.maxSeen.Load(), int64(getAllConcurrencyLimit))
+	require.LessOrEqual(t, getter.maxSeen.Load(), int64(maxConcurrentNamespaceRequests))
 }

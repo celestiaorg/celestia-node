@@ -42,9 +42,11 @@ var (
 // subscriptionBufferSize defines the size of the buffer for blob subscription channels.
 const subscriptionBufferSize = 16
 
-// getAllConcurrencyLimit is the maximum number of namespaces that one GetAll
-// call retrieves at the same time.
-const getAllConcurrencyLimit = 32
+// maxNamespacesPerRequest bounds the work and response size of GetAll calls.
+const maxNamespacesPerRequest = 64
+
+// maxConcurrentNamespaceRequests bounds simultaneous namespace retrievals.
+const maxConcurrentNamespaceRequests = 16
 
 // SubmitOptions aliases TxOptions from state package allowing users
 // to specify options for SubmitPFB transaction.
@@ -387,8 +389,22 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
-// Repeated namespaces are ignored: each namespace is retrieved once.
+// Requests may contain at most 64 namespaces and must not contain duplicates.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) (_ []*Blob, err error) {
+	if len(namespaces) > maxNamespacesPerRequest {
+		return nil, fmt.Errorf("blob: too many namespaces: got %d, maximum %d", len(namespaces), maxNamespacesPerRequest)
+	}
+
+	// Reject duplicates before fetching so neither data nor the response is multiplied.
+	seen := make(map[string]struct{}, len(namespaces))
+	for i, namespace := range namespaces {
+		key := string(namespace.Bytes())
+		if _, exists := seen[key]; exists {
+			return nil, fmt.Errorf("blob: duplicate namespace at index %d", i)
+		}
+		seen[key] = struct{}{}
+	}
+
 	ctx, span := tracer.Start(ctx, "blob/get-all")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -429,8 +445,7 @@ func (s *Service) getAll(
 		resultErr        = make([]error, len(namespaces))
 		wg               errgroup.Group
 	)
-	wg.SetLimit(getAllConcurrencyLimit)
-
+	wg.SetLimit(maxConcurrentNamespaceRequests)
 	for i, namespace := range namespaces {
 		namespaceStrings[i] = namespace.String()
 	}
@@ -438,10 +453,15 @@ func (s *Service) getAll(
 
 	for i, namespace := range namespaces {
 		wg.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				resultErr[i] = err
+				return err
+			}
 			resultBlobs[i], resultErr[i] = s.getBlobs(ctx, namespace, header)
-			return nil
+			return resultErr[i]
 		})
 	}
+	// Preserve partial results and all namespace errors rather than only the first error.
 	_ = wg.Wait()
 
 	blobs := slices.Concat(resultBlobs...)
