@@ -14,8 +14,8 @@ import (
 
 var _ Module = (*API)(nil)
 
-// MaxSamplesPerRequest bounds the work and response size of GetSamples RPC calls.
-const MaxSamplesPerRequest = 1024
+// maxSamplesPerRequest bounds the work and response size of GetSamples RPC calls.
+const maxSamplesPerRequest = 1024
 
 // Module provides access to any data square or block share on the network.
 //
@@ -173,8 +173,8 @@ func (m module) GetShare(ctx context.Context, height uint64, row, col int) (libs
 func (m module) GetSamples(ctx context.Context, height uint64,
 	indices []shwap.SampleCoords,
 ) ([]shwap.Sample, error) {
-	if len(indices) > MaxSamplesPerRequest {
-		return nil, fmt.Errorf("share: too many sample coordinates: got %d, maximum %d", len(indices), MaxSamplesPerRequest)
+	if len(indices) > maxSamplesPerRequest {
+		return nil, fmt.Errorf("share: too many sample coordinates: got %d, maximum %d", len(indices), maxSamplesPerRequest)
 	}
 
 	header, err := m.hs.GetByHeight(ctx, height)

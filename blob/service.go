@@ -42,8 +42,8 @@ var (
 // subscriptionBufferSize defines the size of the buffer for blob subscription channels.
 const subscriptionBufferSize = 16
 
-// MaxNamespacesPerRequest bounds the work and response size of GetAll calls.
-const MaxNamespacesPerRequest = 64
+// maxNamespacesPerRequest bounds the work and response size of GetAll calls.
+const maxNamespacesPerRequest = 64
 
 const maxConcurrentNamespaceRequests = 16
 
@@ -388,10 +388,10 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
-// Requests may contain at most MaxNamespacesPerRequest namespaces and must not contain duplicates.
+// Requests may contain at most 64 namespaces and must not contain duplicates.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) (_ []*Blob, err error) {
-	if len(namespaces) > MaxNamespacesPerRequest {
-		return nil, fmt.Errorf("blob: too many namespaces: got %d, maximum %d", len(namespaces), MaxNamespacesPerRequest)
+	if len(namespaces) > maxNamespacesPerRequest {
+		return nil, fmt.Errorf("blob: too many namespaces: got %d, maximum %d", len(namespaces), maxNamespacesPerRequest)
 	}
 
 	// Reject duplicates before fetching so neither data nor the response is multiplied.

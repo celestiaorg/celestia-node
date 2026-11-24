@@ -37,7 +37,7 @@ func TestModuleGetRange_RejectsInvalidRange(t *testing.T) {
 }
 
 func TestModuleGetSamples_RequestLimit(t *testing.T) {
-	for _, count := range []int{0, 1, 1024, 1025} {
+	for _, count := range []int{0, 1, maxSamplesPerRequest, maxSamplesPerRequest + 1} {
 		t.Run(fmt.Sprint(count), func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			hs := headermocks.NewMockModule(ctrl)
@@ -46,13 +46,13 @@ func TestModuleGetSamples_RequestLimit(t *testing.T) {
 			coords := make([]shwap.SampleCoords, count)
 			hdr := &header.ExtendedHeader{}
 			want := make([]shwap.Sample, count)
-			if count <= 1024 {
+			if count <= maxSamplesPerRequest {
 				hs.EXPECT().GetByHeight(gomock.Any(), uint64(1)).Return(hdr, nil)
 				getter.EXPECT().GetSamples(gomock.Any(), hdr, coords).Return(want, nil)
 			}
 			got, err := m.GetSamples(context.Background(), 1, coords)
-			if count > 1024 {
-				require.ErrorContains(t, err, "maximum 1024")
+			if count > maxSamplesPerRequest {
+				require.ErrorContains(t, err, fmt.Sprintf("maximum %d", maxSamplesPerRequest))
 				require.Nil(t, got)
 				return
 			}

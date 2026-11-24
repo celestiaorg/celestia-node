@@ -35,7 +35,7 @@ func TestGetSamples_ConcurrencyAndCancellation(t *testing.T) {
 		getter := NewGetter(client, manager, manager, availability.RequestWindow)
 		_, roots, _ := generateTestEDS(t)
 		hdr := headertest.RandExtendedHeaderWithRoot(t, roots)
-		coords := make([]shwap.SampleCoords, 64)
+		coords := make([]shwap.SampleCoords, 4*maxConcurrentSampleRequests)
 		done := make(chan error, 1)
 		go func() {
 			samples, err := getter.GetSamples(ctx, hdr, coords)
@@ -45,11 +45,11 @@ func TestGetSamples_ConcurrencyAndCancellation(t *testing.T) {
 			done <- err
 		}()
 		synctest.Wait()
-		require.EqualValues(t, 16, h.calls.Load())
+		require.EqualValues(t, maxConcurrentSampleRequests, h.calls.Load())
 		cancel()
 		synctest.Wait()
 		require.ErrorIs(t, <-done, context.Canceled)
-		require.EqualValues(t, 16, h.calls.Load(), "queued fetches must not open streams after cancellation")
+		require.EqualValues(t, maxConcurrentSampleRequests, h.calls.Load(), "queued fetches must not open streams after cancellation")
 	})
 }
 

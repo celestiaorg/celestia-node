@@ -21,7 +21,7 @@ import (
 )
 
 func TestServiceGetAll_RequestLimit(t *testing.T) {
-	for _, count := range []int{0, 1, 64, 65} {
+	for _, count := range []int{0, 1, maxNamespacesPerRequest, maxNamespacesPerRequest + 1} {
 		t.Run(fmt.Sprint(count), func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			hs := mocks.NewMockHeaderService(ctrl)
@@ -31,13 +31,13 @@ func TestServiceGetAll_RequestLimit(t *testing.T) {
 				namespaces[i] = libshare.RandomNamespace()
 			}
 			headerErr := errors.New("header unavailable")
-			if count <= 64 {
+			if count <= maxNamespacesPerRequest {
 				hs.EXPECT().GetByHeight(gomock.Any(), uint64(1)).Return(nil, headerErr)
 			}
 			got, err := service.GetAll(context.Background(), 1, namespaces)
 			require.Nil(t, got)
-			if count > 64 {
-				require.ErrorContains(t, err, "maximum 64")
+			if count > maxNamespacesPerRequest {
+				require.ErrorContains(t, err, fmt.Sprintf("maximum %d", maxNamespacesPerRequest))
 			} else {
 				require.ErrorIs(t, err, headerErr)
 			}
@@ -53,7 +53,7 @@ func TestServiceGetAll_ConcurrencyAndCancellation(t *testing.T) {
 		getter := gettermocks.NewMockGetter(ctrl)
 		service := NewService(nil, getter, nil, nil)
 		hdr := headertest.RandExtendedHeader(t)
-		namespaces := make([]libshare.Namespace, 64)
+		namespaces := make([]libshare.Namespace, 4*maxConcurrentNamespaceRequests)
 		for i := range namespaces {
 			namespaces[i] = libshare.RandomNamespace()
 		}
@@ -70,11 +70,11 @@ func TestServiceGetAll_ConcurrencyAndCancellation(t *testing.T) {
 			done <- err
 		}()
 		synctest.Wait()
-		require.EqualValues(t, 16, calls.Load())
+		require.EqualValues(t, maxConcurrentNamespaceRequests, calls.Load())
 		cancel()
 		synctest.Wait()
 		require.ErrorIs(t, <-done, context.Canceled)
-		require.EqualValues(t, 16, calls.Load(), "queued fetches must not start after cancellation")
+		require.EqualValues(t, maxConcurrentNamespaceRequests, calls.Load(), "queued fetches must not start after cancellation")
 	})
 }
 
@@ -96,7 +96,7 @@ func TestServiceGetAll_RejectDuplicateNamespaces(t *testing.T) {
 }
 
 func TestServiceGetAll_PartialResultsAcrossBatches(t *testing.T) {
-	sizes := make([]int, 64)
+	sizes := make([]int, maxNamespacesPerRequest)
 	for i := range sizes {
 		sizes[i] = 1
 	}
