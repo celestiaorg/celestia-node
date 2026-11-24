@@ -29,6 +29,7 @@ type Module interface {
 	// the user will receive all found blobs along with a combined error message.
 	//
 	// All blobs will preserve the order of the namespaces that were requested.
+	// Repeated namespaces are ignored: each namespace is retrieved once.
 	GetAll(_ context.Context, height uint64, _ []libshare.Namespace) ([]*blob.Blob, error)
 	// GetProof retrieves proofs in the given namespaces at the given height by commitment.
 	GetProof(_ context.Context, height uint64, _ libshare.Namespace, _ blob.Commitment) (*blob.Proof, error)
