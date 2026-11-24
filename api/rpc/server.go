@@ -130,7 +130,7 @@ func NewServer(
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      5 * time.Minute, // 5m covers long unary calls
-		IdleTimeout:       120 * time.Second,
+		IdleTimeout:       10 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1 MiB
 	}
 
