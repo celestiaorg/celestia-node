@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -269,6 +270,58 @@ func TestServer_AuthMiddleware(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 		})
 	}
+}
+
+// countingReader counts the bytes read through it.
+type countingReader struct {
+	reader    io.Reader
+	bytesRead int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.reader.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// TestServer_LimitsMultipartBodyBeforeAuth tests that a multipart body sent
+// without a token is not read past the request size limit. The auth handler
+// parses such a body to look for a token before the RPC handler runs.
+func TestServer_LimitsMultipartBodyBeforeAuth(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+
+	handlerCalled := false
+	handler := server.newHandlerStack(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	const boundary = "boundary"
+	fileSize := 3 * maxRequestSize
+	body := &countingReader{reader: io.MultiReader(
+		strings.NewReader("--"+boundary+"\r\n"+
+			"Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n\r\n"),
+		io.LimitReader(zeroReader{}, fileSize),
+		strings.NewReader("\r\n--"+boundary+"--\r\n"),
+	)}
+
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	require.True(t, handlerCalled)
+	// The server may read slightly past the limit to detect the overflow.
+	const overflowDetectionSlack = 1024
+	assert.LessOrEqual(t, body.bytesRead, maxRequestSize+overflowDetectionSlack)
+}
+
+// zeroReader is an endless stream of zero bytes.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
 }
 
 // TestServer_AuthPermissions tests permissions passed through the auth middleware.

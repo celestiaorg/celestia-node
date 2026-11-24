@@ -26,6 +26,15 @@ func requestLimit(maxRequests int, next http.Handler) http.Handler {
 	})
 }
 
+// limitRequestBody returns middleware that caps the number of bytes read from
+// a request body. Reads past the cap fail, whichever handler does the reading.
+func limitRequestBody(maxBytes int64, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+		next.ServeHTTP(w, r)
+	})
+}
+
 // rateLimit returns middleware that enforces per-IP rate limiting.
 // Requests exceeding the limit receive 429 Too Many Requests.
 func rateLimit(rps, burst, cacheSize int, next http.Handler) http.Handler {
