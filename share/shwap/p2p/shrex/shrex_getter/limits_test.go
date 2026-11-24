@@ -49,7 +49,8 @@ func TestGetSamples_ConcurrencyAndCancellation(t *testing.T) {
 		cancel()
 		synctest.Wait()
 		require.ErrorIs(t, <-done, context.Canceled)
-		require.EqualValues(t, maxConcurrentSampleRequests, h.calls.Load(), "queued fetches must not open streams after cancellation")
+		require.EqualValues(t, maxConcurrentSampleRequests, h.calls.Load(),
+			"queued fetches must not open streams after cancellation")
 	})
 }
 

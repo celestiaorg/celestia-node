@@ -45,6 +45,7 @@ const subscriptionBufferSize = 16
 // maxNamespacesPerRequest bounds the work and response size of GetAll calls.
 const maxNamespacesPerRequest = 64
 
+// maxConcurrentNamespaceRequests bounds simultaneous namespace retrievals.
 const maxConcurrentNamespaceRequests = 16
 
 // SubmitOptions aliases TxOptions from state package allowing users
@@ -436,6 +437,7 @@ func (s *Service) getAll(
 	header *header.ExtendedHeader,
 	namespaces []libshare.Namespace,
 ) ([]*Blob, error) {
+	namespaces = dedupNamespaces(namespaces)
 	var (
 		span             = trace.SpanFromContext(ctx)
 		namespaceStrings = make([]string, len(namespaces))
@@ -443,8 +445,12 @@ func (s *Service) getAll(
 		resultErr        = make([]error, len(namespaces))
 		wg               errgroup.Group
 	)
-
 	wg.SetLimit(maxConcurrentNamespaceRequests)
+	for i, namespace := range namespaces {
+		namespaceStrings[i] = namespace.String()
+	}
+	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
+
 	for i, namespace := range namespaces {
 		wg.Go(func() error {
 			if err := ctx.Err(); err != nil {
@@ -454,16 +460,30 @@ func (s *Service) getAll(
 			resultBlobs[i], resultErr[i] = s.getBlobs(ctx, namespace, header)
 			return resultErr[i]
 		})
-
-		namespaceStrings[i] = namespace.String()
 	}
-	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
 	// Preserve partial results and all namespace errors rather than only the first error.
 	_ = wg.Wait()
 
 	blobs := slices.Concat(resultBlobs...)
 	err := errors.Join(resultErr...)
 	return blobs, err
+}
+
+// dedupNamespaces returns namespaces without repeats, in first-seen order.
+// Distinct namespaces never share blobs, so the result of getAll over the
+// deduplicated list holds each blob in the square at most once.
+func dedupNamespaces(namespaces []libshare.Namespace) []libshare.Namespace {
+	seen := make(map[string]struct{}, len(namespaces))
+	out := make([]libshare.Namespace, 0, len(namespaces))
+	for _, ns := range namespaces {
+		key := string(ns.Bytes())
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, ns)
+	}
+	return out
 }
 
 // Included verifies that the blob was included in a specific height.

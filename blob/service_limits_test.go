@@ -74,7 +74,8 @@ func TestServiceGetAll_ConcurrencyAndCancellation(t *testing.T) {
 		cancel()
 		synctest.Wait()
 		require.ErrorIs(t, <-done, context.Canceled)
-		require.EqualValues(t, maxConcurrentNamespaceRequests, calls.Load(), "queued fetches must not start after cancellation")
+		require.EqualValues(t, maxConcurrentNamespaceRequests, calls.Load(),
+			"queued fetches must not start after cancellation")
 	})
 }
 
