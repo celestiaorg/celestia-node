@@ -66,6 +66,7 @@ func (s *LightRestartTestSuite) TestLightNodeResumesSamplingAfterRestart() {
 
 	client = s.framework.GetNodeRPCClient(ctx, light)
 	s.waitNodeUp(ctx, client)
+	s.framework.WaitForPeers(ctx, client, 1)
 
 	postHdr, err := client.Header.GetByHeight(ctx, h0)
 	s.Require().NoError(err, "should get header at height %d after restart", h0)

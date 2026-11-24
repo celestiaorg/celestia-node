@@ -1,7 +1,7 @@
 package share
 
 import (
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 )
 
 // DefaultRSMT2DCodec sets the default rsmt2d.Codec for shares.

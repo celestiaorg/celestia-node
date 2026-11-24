@@ -9,22 +9,28 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/cristalhq/jwt/v5"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
+	"github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 )
 
 // TestServer_HandlerStackSelection tests that the correct middleware stack is selected
@@ -265,8 +271,60 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	}
 }
 
-// TestServer_VerifyAuth tests the auth verification logic
-func TestServer_VerifyAuth(t *testing.T) {
+// countingReader counts the bytes read through it.
+type countingReader struct {
+	reader    io.Reader
+	bytesRead int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.reader.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// TestServer_LimitsMultipartBodyBeforeAuth tests that a multipart body sent
+// without a token is not read past the request size limit. The auth handler
+// parses such a body to look for a token before the RPC handler runs.
+func TestServer_LimitsMultipartBodyBeforeAuth(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+
+	handlerCalled := false
+	handler := server.newHandlerStack(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	const boundary = "boundary"
+	fileSize := 3 * maxRequestSize
+	body := &countingReader{reader: io.MultiReader(
+		strings.NewReader("--"+boundary+"\r\n"+
+			"Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n\r\n"),
+		io.LimitReader(zeroReader{}, fileSize),
+		strings.NewReader("\r\n--"+boundary+"--\r\n"),
+	)}
+
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	require.True(t, handlerCalled)
+	// The server may read slightly past the limit to detect the overflow.
+	const overflowDetectionSlack = 1024
+	assert.LessOrEqual(t, body.bytesRead, maxRequestSize+overflowDetectionSlack)
+}
+
+// zeroReader is an endless stream of zero bytes.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
+// TestServer_AuthPermissions tests permissions passed through the auth middleware.
+func TestServer_AuthPermissions(t *testing.T) {
 	signer, verifier := createTestJWT(t)
 
 	tests := []struct {
@@ -311,13 +369,27 @@ func TestServer_VerifyAuth(t *testing.T) {
 				verifier,
 			)
 
-			permissions, err := server.verifyAuth(context.Background(), tt.token)
-
+			called := false
+			handler := server.newHandlerStack(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				for _, permission := range perms.AllPerms {
+					assert.Equal(t, slices.Contains(tt.expectedPerms, permission),
+						auth.HasPerm(r.Context(), perms.AllPerms, permission))
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.token != "" {
+				req.Header.Set("Authorization", "Bearer "+tt.token)
+			}
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
 			if tt.expectError {
-				assert.Error(t, err)
+				assert.Equal(t, http.StatusUnauthorized, w.Code)
+				assert.False(t, called)
 			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedPerms, permissions)
+				assert.Equal(t, http.StatusOK, w.Code)
+				assert.True(t, called)
 			}
 		})
 	}
@@ -507,7 +579,7 @@ func generateSelfSignedCert(t *testing.T) (certPath, keyPath string) {
 	return certPath, keyPath
 }
 
-func createTestJWT(t *testing.T) (jwt.Signer, jwt.Verifier) {
+func createTestJWT(t *testing.T) (jwt.Signer, *authtoken.Verifier) {
 	key := []byte("test-secret-key-for-jwt-signing-32")
 	signer, err := jwt.NewSignerHS(jwt.HS256, key)
 	require.NoError(t, err)
@@ -515,7 +587,7 @@ func createTestJWT(t *testing.T) (jwt.Signer, jwt.Verifier) {
 	verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
 	require.NoError(t, err)
 
-	return signer, verifier
+	return signer, authtoken.NewVerifier(verifier, ds_sync.MutexWrap(datastore.NewMapDatastore()))
 }
 
 func createValidToken(t *testing.T, signer jwt.Signer, permissions []auth.Permission) string {

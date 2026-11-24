@@ -1,12 +1,14 @@
 package shwap
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
@@ -100,6 +102,37 @@ func RowNamespaceDataFromShares(
 	}, nil
 }
 
+// maxProofNodes bounds nmt.Proof.Nodes() to what a row tree of 2*MaxSquareSize leaves can
+// produce. A peer can otherwise pad a proof with cheap empty nodes (2 bytes on the wire, a
+// 24-byte slice header once decoded) to inflate the receiver's memory.
+var maxProofNodes = 2 * bits.Len(uint(2*share.MaxSquareSize))
+
+// nmtNodeSize is the size of every node in an nmt.Proof: the minimum and
+// maximum namespace followed by a sha256 digest.
+const nmtNodeSize = 2*libshare.NamespaceSize + sha256.Size
+
+// checkProof rejects a proof that no row tree can produce: one with more
+// nodes than maxProofNodes, or with a node or leaf hash that is not
+// nmtNodeSize bytes long. A peer can otherwise fill a proof with oversized
+// nodes, which are buffered before the proof is verified.
+func checkProof(proof *nmt_pb.Proof) error {
+	nodes := proof.GetNodes()
+	if n := len(nodes); n > maxProofNodes {
+		return fmt.Errorf("proof has too many nodes: %d", n)
+	}
+	for i, node := range nodes {
+		if len(node) != nmtNodeSize {
+			return fmt.Errorf("proof node %d has size %d, want %d", i, len(node), nmtNodeSize)
+		}
+	}
+	// Only absence proofs carry a leaf hash.
+	leafHash := proof.GetLeafHash()
+	if len(leafHash) != 0 && len(leafHash) != nmtNodeSize {
+		return fmt.Errorf("proof leaf hash has size %d, want %d", len(leafHash), nmtNodeSize)
+	}
+	return nil
+}
+
 // RowNamespaceDataFromProto constructs RowNamespaceData out of its protobuf representation.
 func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, error) {
 	if row == nil {
@@ -111,6 +144,9 @@ func RowNamespaceDataFromProto(row *pb.RowNamespaceData) (RowNamespaceData, erro
 	}
 	if row.GetProof() == nil {
 		return RowNamespaceData{Shares: shares}, nil
+	}
+	if err := checkProof(row.GetProof()); err != nil {
+		return RowNamespaceData{}, err
 	}
 
 	var proof nmt.Proof

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/host"
 	"go.uber.org/fx"
@@ -16,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-node/share/availability/full"
 	"github.com/celestiaorg/celestia-node/share/availability/light"
 	"github.com/celestiaorg/celestia-node/share/shwap"
-	"github.com/celestiaorg/celestia-node/share/shwap/p2p/bitswap"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/peers"
 	"github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/shrex_getter"
@@ -37,7 +35,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 		fx.Provide(newShareModule),
 		availabilityComponents(tp, cfg),
 		shrexComponents(tp, cfg),
-		bitswapComponents(tp, cfg),
 		peerManagementComponents(tp, cfg),
 	)
 
@@ -54,41 +51,6 @@ func ConstructModule(tp node.Type, cfg *Config, options ...fx.Option) fx.Option 
 			"share",
 			baseComponents,
 			fx.Provide(lightGetter),
-		)
-	default:
-		panic("invalid node type")
-	}
-}
-
-func bitswapComponents(tp node.Type, cfg *Config) fx.Option {
-	opts := fx.Options(
-		fx.Provide(dataExchange),
-		fx.Provide(bitswapGetter),
-	)
-	switch tp {
-	case node.Light:
-		return fx.Options(
-			opts,
-			fx.Provide(
-				fx.Annotate(
-					blockstoreFromDatastore,
-					fx.As(fx.Self()),
-					fx.As(new(blockstore.Blockstore)),
-				),
-			),
-		)
-	case node.Bridge:
-		return fx.Options(
-			opts,
-			fx.Provide(
-				fx.Annotate(
-					func(store *store.Store) (*bitswap.BlockstoreWithMetrics, error) {
-						return blockstoreFromEDSStore(store, int(cfg.BlockStoreCacheSize))
-					},
-					fx.As(fx.Self()),
-					fx.As(new(blockstore.Blockstore)),
-				),
-			),
 		)
 	default:
 		panic("invalid node type")
@@ -203,11 +165,10 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 	case node.Light:
 		return fx.Options(
 			fx.Provide(fx.Annotate(
-				func(getter shwap.Getter, ds datastore.Batching, bs blockstore.Blockstore) *light.ShareAvailability {
+				func(getter shwap.Getter, ds datastore.Batching) *light.ShareAvailability {
 					return light.NewShareAvailability(
 						getter,
 						ds,
-						bs,
 						light.WithSampleAmount(cfg.LightAvailability.SampleAmount),
 					)
 				},
@@ -217,6 +178,11 @@ func availabilityComponents(tp node.Type, cfg *Config) fx.Option {
 					return la.Close(ctx)
 				}),
 			)),
+			fx.Invoke(func(lc fx.Lifecycle, ds datastore.Batching) {
+				lc.Append(fx.StartHook(func(ctx context.Context) error {
+					return light.RemoveLegacySamples(ctx, ds)
+				}))
+			}),
 		)
 	case node.Bridge:
 		return fx.Options(

@@ -44,9 +44,9 @@ func TestSetResourceLimits_AllowsOutboundStreams(t *testing.T) {
 	}
 }
 
-// TestSetResourceLimits_AdmitsWorstCaseEDS checks that an EDS request for the largest square is
+// TestSetResourceLimits_AdmitsStreamedResponses checks that streamed responses for the largest square are
 // admitted without touching the host-wide stream memory limit.
-func TestSetResourceLimits_AdmitsWorstCaseEDS(t *testing.T) {
+func TestSetResourceLimits_AdmitsStreamedResponses(t *testing.T) {
 	const networkID = "test"
 
 	limits := rcmgr.DefaultLimits
@@ -59,16 +59,16 @@ func TestSetResourceLimits_AdmitsWorstCaseEDS(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, rmgr.Close()) })
 
-	var eds shwap.EdsID
-	proto := ProtocolID(networkID, eds.Name())
-	scope, err := rmgr.OpenStream(peer.ID("test-peer"), network.DirInbound)
-	require.NoError(t, err)
-	defer scope.Done()
-	require.NoError(t, scope.SetProtocol(proto))
-	require.NoError(t, scope.SetService(serviceName))
-
-	reserve := eds.ResponseSize(share.MaxSquareSize * 2)
-	require.NoError(t, scope.ReserveMemory(reserve, network.ReservationPriorityAlways))
+	for _, req := range []request{&shwap.EdsID{}, &shwap.NamespaceDataID{}, &shwap.RangeNamespaceDataID{}} {
+		t.Run(req.Name(), func(t *testing.T) {
+			scope, err := rmgr.OpenStream(peer.ID("test-peer"), network.DirInbound)
+			require.NoError(t, err)
+			defer scope.Done()
+			require.NoError(t, scope.SetProtocol(ProtocolID(networkID, req.Name())))
+			require.NoError(t, scope.SetService(serviceName))
+			require.NoError(t, scope.ReserveMemory(req.ResponseSize(share.MaxSquareSize*2), network.ReservationPriorityAlways))
+		})
+	}
 }
 
 func TestEdsResponseSizeIsStreamBuffer(t *testing.T) {

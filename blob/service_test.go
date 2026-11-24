@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
 	"github.com/celestiaorg/go-header/store"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/rsmt2d"
@@ -893,6 +893,19 @@ func TestService_SubscribeFromStartHeight(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to fetch header at startHeight 999")
 		assert.Contains(t, err.Error(), "from the future")
+	})
+
+	t.Run("invalid namespace returns error", func(t *testing.T) {
+		for _, ns := range []libshare.Namespace{
+			libshare.ParitySharesNamespace,
+			libshare.TailPaddingNamespace,
+		} {
+			t.Run(ns.String(), func(t *testing.T) {
+				subCh, err := service.SubscribeFromStartHeight(ctx, ns, 1)
+				assert.EqualError(t, err, ns.ValidateForData().Error())
+				assert.Nil(t, subCh)
+			})
+		}
 	})
 
 	t.Run("user cancellation closes subscription", func(t *testing.T) {

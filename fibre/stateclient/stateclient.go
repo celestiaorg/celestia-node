@@ -17,10 +17,10 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	valaddr "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v11/fibre/state"
+	"github.com/celestiaorg/celestia-app/v11/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	valaddr "github.com/celestiaorg/celestia-app/v11/x/valaddr/types"
 	libhead "github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/celestia-node/header"
@@ -28,6 +28,8 @@ import (
 )
 
 var log = logging.Logger("fibre/stateclient")
+
+var _ state.Client = (*Client)(nil)
 
 // ErrNoFibreProviderInfo is returned by fetchHostAt when a validator has not
 // registered fibre provider info via x/valaddr. The absence is proven against
@@ -65,7 +67,13 @@ type Client struct {
 	lastHost        map[string]validator.Host
 	lastRefresh     map[string]time.Time
 	refreshInterval time.Duration
+	// queryTimeout bounds a host query, so a stalled core endpoint falls back to
+	// the last known host instead of blocking the dial.
+	queryTimeout time.Duration
 }
+
+// defaultQueryTimeout matches the host query timeout of the app's default state client.
+const defaultQueryTimeout = 15 * time.Second
 
 // NewClient builds a fibre [state.Client] backed by the local header store and
 // a gRPC connection used only for ABCI queries (with merkle proof verification).
@@ -87,6 +95,7 @@ func NewClient(
 		// registry state cannot change faster than one block, so re-querying
 		// more often than the expected block time is pointless.
 		refreshInterval: appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit,
+		queryTimeout:    defaultQueryTimeout,
 	}
 }
 
@@ -136,7 +145,9 @@ func (c *Client) GetHost(ctx context.Context, val *core.Validator) (validator.Ho
 	c.lastRefresh[cacheKey] = time.Now()
 	c.hostMu.Unlock()
 
-	host, err := c.resolveHost(ctx, val)
+	queryCtx, cancel := context.WithTimeout(ctx, c.queryTimeout)
+	defer cancel()
+	host, err := c.resolveHost(queryCtx, val)
 	if err != nil {
 		// Fall back to the last known host on a transient failure
 		if hasFallback && !errors.Is(err, ErrNoFibreProviderInfo) {
@@ -188,7 +199,9 @@ func (c *Client) fetchHostAt(
 	if resp.GetCode() != 0 {
 		return "", fmt.Errorf("abci query non-zero code: %s", resp.GetLog())
 	}
-	if resp.GetProofOps() == nil {
+	// An empty op list proves nothing, and merkle verification indexes the
+	// result of the last op, so it has to be rejected here.
+	if len(resp.GetProofOps().GetOps()) == 0 {
 		return "", fmt.Errorf("missing proof ops for validator %s", consAddr)
 	}
 
@@ -285,3 +298,15 @@ func (c *Client) Stop(context.Context) error { return nil }
 // FullStakeStorageBudget is a no-op on light nodes: they store no shards, so there
 // is no local store to size a budget for.
 func (c *Client) FullStakeStorageBudget(context.Context) (int64, error) { return 0, nil }
+
+// NodeStatus is only used by Fibre server health checks. DA clients cannot
+// report an app node's sync status from their locally verified headers.
+func (c *Client) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, fmt.Errorf("app node status on DA clients: %w", errors.ErrUnsupported)
+}
+
+// ProviderRegistration is only used by Fibre server health checks. DA clients
+// are not providers; validator host lookups use proof-verified GetHost instead.
+func (c *Client) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, fmt.Errorf("provider registration on DA clients: %w", errors.ErrUnsupported)
+}

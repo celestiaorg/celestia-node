@@ -6,6 +6,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 )
 
+// streamInternalError signals a response failure after the server has sent OK.
+const streamInternalError network.StreamErrorCode = 0x2000
+
+func isInternalServerError(err error) bool {
+	return errors.Is(err, &network.StreamError{ErrorCode: streamInternalError, Remote: true})
+}
+
 // isResourceExhausted reports whether err represents a stream reset indicating
 // the remote peer is temporarily overloaded. Two reset codes qualify:
 //   - StreamResourceLimitExceeded: rcmgr rejected the stream (concurrency or memory limit)

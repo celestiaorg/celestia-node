@@ -88,6 +88,7 @@ func (s *CatchupTestSuite) TestBridgeCatchupViaShrex() {
 	s.Require().NoError(bridgeB.Start(ctx), "should restart B")
 	clientB = s.framework.GetNodeRPCClient(ctx, bridgeB)
 	s.waitNodeUp(ctx, clientB)
+	s.framework.WaitForPeers(ctx, clientB, 1)
 	_, err = clientB.Header.WaitForHeight(ctx, gapHeight)
 	s.Require().NoError(err, "B should backfill the header at the gap height")
 

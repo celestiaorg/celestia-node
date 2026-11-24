@@ -134,7 +134,6 @@ func WithMetrics(metricOpts []otlpmetrichttp.Option, nodeType node.Type) fx.Opti
 		fx.Invoke(modrpc.WithMetrics),
 		samplingMetrics,
 		fx.Invoke(share.WithDiscoveryMetrics),
-		fx.Invoke(share.WithBlockStoreMetrics),
 	)
 
 	opts := baseComponents
@@ -216,7 +215,7 @@ func initializeMetrics(
 	network p2p.Network,
 	opts []otlpmetrichttp.Option,
 ) error {
-	// Create a prometheus bridge that exports all prometheus-collected metrics (libp2p, bitswap)
+	// Create a prometheus bridge that exports all prometheus-collected metrics (libp2p)
 	// through the OTel pipeline, eliminating the need for a standalone Prometheus HTTP server.
 	promProducer := otelprom.NewMetricProducer(otelprom.WithGatherer(prometheus.DefaultGatherer))
 

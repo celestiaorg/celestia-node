@@ -289,6 +289,69 @@ func (s *BlobTestSuite) TestBlobGetProof_ValidBlob() {
 	s.Assert().True(included)
 }
 
+// TestBlobSubmit_DuplicateBlobs submits the same blob twice in one PFB and again in a separate
+// PFB, asserting neither is deduplicated away.
+func (s *BlobTestSuite) TestBlobSubmit_DuplicateBlobs() {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	client := s.framework.GetNodeRPCClient(ctx, s.framework.GetBridgeNodes()[0])
+
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x08}, 10))
+	s.Require().NoError(err)
+	libBlob, err := share.NewV0Blob(namespace, []byte("duplicate blob test data"))
+	s.Require().NoError(err)
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
+	s.Require().NoError(err)
+	b := nodeBlobs[0]
+
+	txConfig := state.NewTxConfig(state.WithGasPrice(0.1))
+	for _, blobs := range [][]*nodeblob.Blob{{b, b}, {b}} {
+		height, err := client.Blob.Submit(ctx, blobs, txConfig)
+		s.Require().NoError(err)
+		_, err = client.Header.WaitForHeight(ctx, height)
+		s.Require().NoError(err)
+
+		got, err := client.Blob.GetAll(ctx, height, []share.Namespace{namespace})
+		s.Require().NoError(err)
+		s.Require().Len(got, len(blobs), "every submitted copy should be included")
+
+		proof, err := client.Blob.GetProof(ctx, height, namespace, b.Commitment)
+		s.Require().NoError(err)
+		included, err := client.Blob.Included(ctx, height, namespace, proof, b.Commitment)
+		s.Require().NoError(err)
+		s.Assert().True(included)
+	}
+}
+
+// TestStateSubmitPayForBlob submits a blob through the State module and reads it back via Blob.
+func (s *BlobTestSuite) TestStateSubmitPayForBlob() {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	client := s.framework.GetNodeRPCClient(ctx, s.framework.GetBridgeNodes()[0])
+
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{0x09}, 10))
+	s.Require().NoError(err)
+	data := []byte("State.SubmitPayForBlob test data")
+	libBlob, err := share.NewV0Blob(namespace, data)
+	s.Require().NoError(err)
+	nodeBlobs, err := nodeblob.ToNodeBlobs(libBlob)
+	s.Require().NoError(err)
+
+	txConfig := state.NewTxConfig(state.WithGasPrice(0.1))
+	resp, err := client.State.SubmitPayForBlob(ctx, []*share.Blob{libBlob}, txConfig)
+	s.Require().NoError(err)
+	s.Require().Zero(resp.Code, "PFB should succeed: %s", resp.RawLog)
+
+	height := uint64(resp.Height)
+	_, err = client.Header.WaitForHeight(ctx, height)
+	s.Require().NoError(err)
+	got, err := client.Blob.Get(ctx, height, namespace, nodeBlobs[0].Commitment)
+	s.Require().NoError(err)
+	s.Assert().Equal(data, bytes.TrimRight(got.Data(), "\x00"))
+}
+
 // TestBlobMixedVersions tests mixed V0 and V1 blob scenarios
 func (s *BlobTestSuite) TestBlobMixedVersions() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

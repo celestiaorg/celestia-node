@@ -30,10 +30,7 @@ func (c *closeOnce) Close() error {
 	if c.closed.Swap(true) {
 		return nil
 	}
-	err := c.f.Close()
-	// release reference to the accessor to allow GC to collect all resources associated with it
-	c.f = nil
-	return err
+	return c.f.Close()
 }
 
 func (c *closeOnce) Size(ctx context.Context) (int, error) {

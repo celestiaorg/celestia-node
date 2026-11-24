@@ -4,6 +4,7 @@ import (
 	"github.com/cristalhq/jwt/v5"
 
 	"github.com/celestiaorg/celestia-node/api/rpc"
+	"github.com/celestiaorg/celestia-node/libs/authtoken"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blob"
 	"github.com/celestiaorg/celestia-node/nodebuilder/blobstream"
 	"github.com/celestiaorg/celestia-node/nodebuilder/das"
@@ -39,7 +40,7 @@ func registerEndpoints(
 	serv.RegisterService("fibre", fibreMod, &fibre.API{})
 }
 
-func server(cfg *Config, signer jwt.Signer, verifier jwt.Verifier) *rpc.Server {
+func server(cfg *Config, signer jwt.Signer, verifier *authtoken.Verifier) *rpc.Server {
 	return rpc.NewServer(cfg.Address, cfg.Port, cfg.SkipAuth, rpc.CORSConfig{
 		Enabled:        cfg.CORS.Enabled,
 		AllowedOrigins: cfg.CORS.AllowedOrigins,

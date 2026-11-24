@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
@@ -75,7 +75,7 @@ type Server struct {
 	tlsKeyPath  string
 
 	signer   jwt.Signer
-	verifier jwt.Verifier
+	verifier *authtoken.Verifier
 
 	metrics *rpcMetrics
 }
@@ -93,7 +93,7 @@ func NewServer(
 	tlsConfig TLSConfig,
 	rateLimitCfg RateLimitConfig,
 	signer jwt.Signer,
-	verifier jwt.Verifier,
+	verifier *authtoken.Verifier,
 ) *Server {
 	srv := &Server{
 		signer:       signer,
@@ -131,7 +131,8 @@ func NewServer(
 }
 
 // newHandlerStack returns wrapped rpc related handlers.
-// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → metrics → RPC handler.
+// Middleware order (outermost first):
+// rate-limit (opt-in) → conn-limit → body-limit → CORS/auth → metrics → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 	// otelhttp records HTTP request-level metrics (duration, request/response
 	// sizes, active requests, status) and — unlike a hand-rolled wrapper —
@@ -158,6 +159,9 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 		h = s.authHandler(h)
 	}
 
+	// The body limit sits outside auth: the auth handler parses a form body
+	// to look for a token, before the RPC handler applies its own size limit.
+	h = limitRequestBody(maxRequestSize, h)
 	h = connLimit(maxConcurrentConns, h)
 	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
 	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
@@ -181,22 +185,28 @@ func (s *Server) WithMetrics() error {
 	return nil
 }
 
-// verifyAuth is the RPC server's auth middleware. This middleware is only
-// reached if a token is provided in the header of the request, otherwise only
-// methods with `read` permissions are accessible.
-func (s *Server) verifyAuth(_ context.Context, token string) ([]auth.Permission, error) {
-	if s.authDisabled {
-		return perms.AllPerms, nil
-	}
-	return authtoken.ExtractSignedPermissions(s.verifier, token)
-}
-
 // authHandler wraps the handler with authentication.
 func (s *Server) authHandler(next http.Handler) http.Handler {
-	return &auth.Handler{
-		Verify: s.verifyAuth,
-		Next:   next.ServeHTTP,
-	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+		var release func()
+		defer func() {
+			if release != nil {
+				release()
+			}
+		}()
+		handler := auth.Handler{
+			Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+				permissions, unregister, err := s.verifier.VerifyAndRegister(ctx, token, cancel)
+				release = unregister
+				return permissions, err
+			},
+			Next: next.ServeHTTP,
+		}
+		// go-jsonrpc closes WebSockets and subscriptions when this context is canceled.
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // corsAny applies permissive CORS (allows all origins, methods, headers)

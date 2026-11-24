@@ -3,7 +3,7 @@ package fibre
 import (
 	"time"
 
-	appfibre "github.com/celestiaorg/celestia-app/v10/fibre"
+	appfibre "github.com/celestiaorg/celestia-app/v11/fibre"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 )
 
