@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/go-libp2p-messenger/serde"
 
 	"github.com/celestiaorg/celestia-node/libs/utils"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 	shrexpb "github.com/celestiaorg/celestia-node/share/shwap/p2p/shrex/pb"
 	"github.com/celestiaorg/celestia-node/store"
 )
@@ -252,6 +253,10 @@ func (srv *Server) handleDataRequest(ctx context.Context, requestID request, str
 
 	r, err := requestID.ResponseReader(ctx, file)
 	if err != nil {
+		if errors.Is(err, shwap.ErrNotFound) {
+			logger.Debugw("requested data is not stored", "err", err)
+			return respondStatus(logger, shrexpb.Status_NOT_FOUND, stream)
+		}
 		logger.Errorf("getting data from response reader %w", err)
 		return respondStatus(logger, shrexpb.Status_INTERNAL, stream)
 	}
