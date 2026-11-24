@@ -8,21 +8,30 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// connLimit returns middleware that limits the number of concurrent requests.
+// requestLimit returns middleware that limits the number of concurrent HTTP requests.
 // When the limit is reached, new requests receive 503 Service Unavailable.
-func connLimit(maxConns int, next http.Handler) http.Handler {
-	sem := make(chan struct{}, maxConns)
+func requestLimit(maxRequests int, next http.Handler) http.Handler {
+	sem := make(chan struct{}, maxRequests)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case sem <- struct{}{}:
 			defer func() { <-sem }()
 			next.ServeHTTP(w, r)
 		default:
-			log.Debugw("connection limit reached, rejecting request",
-				"remote", r.RemoteAddr, "max_conns", maxConns,
+			log.Debugw("request limit reached, rejecting request",
+				"remote", r.RemoteAddr, "max_requests", maxRequests,
 			)
 			http.Error(w, "server busy, try again later", http.StatusServiceUnavailable)
 		}
+	})
+}
+
+// limitRequestBody returns middleware that caps the number of bytes read from
+// a request body. Reads past the cap fail, whichever handler does the reading.
+func limitRequestBody(maxBytes int64, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+		next.ServeHTTP(w, r)
 	})
 }
 

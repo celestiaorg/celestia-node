@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bufio"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -9,6 +10,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -269,6 +272,58 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	}
 }
 
+// countingReader counts the bytes read through it.
+type countingReader struct {
+	reader    io.Reader
+	bytesRead int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.reader.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// TestServer_LimitsMultipartBodyBeforeAuth tests that a multipart body sent
+// without a token is not read past the request size limit. The auth handler
+// parses such a body to look for a token before the RPC handler runs.
+func TestServer_LimitsMultipartBodyBeforeAuth(t *testing.T) {
+	signer, verifier := createTestJWT(t)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+
+	handlerCalled := false
+	handler := server.newHandlerStack(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	const boundary = "boundary"
+	fileSize := 3 * maxRequestSize
+	body := &countingReader{reader: io.MultiReader(
+		strings.NewReader("--"+boundary+"\r\n"+
+			"Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n\r\n"),
+		io.LimitReader(zeroReader{}, fileSize),
+		strings.NewReader("\r\n--"+boundary+"--\r\n"),
+	)}
+
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	require.True(t, handlerCalled)
+	// The server may read slightly past the limit to detect the overflow.
+	const overflowDetectionSlack = 1024
+	assert.LessOrEqual(t, body.bytesRead, maxRequestSize+overflowDetectionSlack)
+}
+
+// zeroReader is an endless stream of zero bytes.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
 // TestServer_AuthPermissions tests permissions passed through the auth middleware.
 func TestServer_AuthPermissions(t *testing.T) {
 	signer, verifier := createTestJWT(t)
@@ -363,6 +418,60 @@ func TestServer_StartStop(t *testing.T) {
 
 	err = server.Stop(ctx)
 	assert.NoError(t, err)
+}
+
+// TestServer_LimitsOpenConnections tests that idle keep-alive connections count
+// against the open connection limit, so a client cannot hold more sockets than
+// the limit by keeping them idle between requests.
+func TestServer_LimitsOpenConnections(t *testing.T) {
+	const maxOpenConns = 2
+
+	signer, verifier := createTestJWT(t)
+	server := NewServer("localhost", "0", false, CORSConfig{}, TLSConfig{}, RateLimitConfig{}, signer, verifier)
+	server.maxOpenConns = maxOpenConns
+
+	ctx := context.Background()
+	require.NoError(t, server.Start(ctx))
+	t.Cleanup(func() { _ = server.Stop(ctx) })
+
+	// sendRequest writes one keep-alive request and reports whether a
+	// response arrives before the timeout.
+	sendRequest := func(conn net.Conn, timeout time.Duration) bool {
+		_, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+		require.NoError(t, err)
+		require.NoError(t, conn.SetReadDeadline(time.Now().Add(timeout)))
+		resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			return false
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		return true
+	}
+
+	// Fill the limit with connections that stay open and idle after a request.
+	idleConns := make([]net.Conn, 0, maxOpenConns)
+	for range maxOpenConns {
+		conn, err := net.Dial("tcp", server.ListenAddr())
+		require.NoError(t, err)
+		t.Cleanup(func() { conn.Close() })
+		require.True(t, sendRequest(conn, 5*time.Second))
+		idleConns = append(idleConns, conn)
+	}
+
+	// One more connection is not served while the idle ones stay open.
+	extraConn, err := net.Dial("tcp", server.ListenAddr())
+	require.NoError(t, err)
+	t.Cleanup(func() { extraConn.Close() })
+	require.False(t, sendRequest(extraConn, 300*time.Millisecond))
+
+	// Closing an idle connection frees a slot. The request was already sent,
+	// so only wait for its response.
+	require.NoError(t, idleConns[0].Close())
+	require.NoError(t, extraConn.SetReadDeadline(time.Now().Add(5*time.Second)))
+	resp, err := http.ReadResponse(bufio.NewReader(extraConn), nil)
+	require.NoError(t, err)
+	resp.Body.Close()
 }
 
 // TestServer_TLS tests TLS server startup and HTTPS connectivity

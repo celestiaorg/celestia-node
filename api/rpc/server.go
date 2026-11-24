@@ -16,6 +16,7 @@ import (
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace/noop"
+	"golang.org/x/net/netutil"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 
@@ -30,8 +31,11 @@ const (
 	// to cover base64 + JSON envelope overhead (~1.5×) on a worst-case blob.Submit,
 	// which packs all blobs into a single PFB tx capped at MaxTxSize.
 	maxRequestSize = int64(appconsts.MaxTxSize * 2)
-	// maxConcurrentConns caps simultaneous connections to bound goroutine/FD usage.
-	maxConcurrentConns = 500
+	// maxConcurrentRequests caps the HTTP requests served at the same time.
+	maxConcurrentRequests = 500
+	// defaultMaxOpenConns caps the connections open at the same time, idle
+	// keep-alive connections and WebSockets included, to bound FD usage.
+	defaultMaxOpenConns = 500
 )
 
 // RateLimitConfig configures per-IP rate limiting based on the connection's
@@ -69,6 +73,8 @@ type Server struct {
 	started      atomic.Bool
 	corsConfig   CORSConfig
 	rateLimitCfg RateLimitConfig
+	// maxOpenConns caps the connections the listener keeps open at the same time.
+	maxOpenConns int
 
 	tlsEnabled  bool
 	tlsCertPath string
@@ -101,6 +107,7 @@ func NewServer(
 		authDisabled: authDisabled,
 		corsConfig:   corsConfig,
 		rateLimitCfg: rateLimitCfg,
+		maxOpenConns: defaultMaxOpenConns,
 		tlsEnabled:   tlsConfig.Enabled,
 		tlsCertPath:  tlsConfig.CertPath,
 		tlsKeyPath:   tlsConfig.KeyPath,
@@ -123,7 +130,7 @@ func NewServer(
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      5 * time.Minute, // 5m covers long unary calls
-		IdleTimeout:       120 * time.Second,
+		IdleTimeout:       10 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1 MiB
 	}
 
@@ -131,7 +138,8 @@ func NewServer(
 }
 
 // newHandlerStack returns wrapped rpc related handlers.
-// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → metrics → RPC handler.
+// Middleware order (outermost first):
+// rate-limit (opt-in) → request-limit → body-limit → CORS/auth → metrics → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 	// otelhttp records HTTP request-level metrics (duration, request/response
 	// sizes, active requests, status) and — unlike a hand-rolled wrapper —
@@ -158,7 +166,10 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 		h = s.authHandler(h)
 	}
 
-	h = connLimit(maxConcurrentConns, h)
+	// The body limit sits outside auth: the auth handler parses a form body
+	// to look for a token, before the RPC handler applies its own size limit.
+	h = limitRequestBody(maxRequestSize, h)
+	h = requestLimit(maxConcurrentRequests, h)
 	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
 	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
 	if s.rateLimitCfg.Enabled {
@@ -249,6 +260,11 @@ func (s *Server) Start(context.Context) error {
 		s.started.Store(false)
 		return err
 	}
+	// The request limit in the handler stack frees its slot when a request
+	// ends, while the connection can stay open. Limiting at the listener
+	// counts every connection from accept until close. Connections over the
+	// limit wait in the accept backlog until a slot is free.
+	listener = netutil.LimitListener(listener, s.maxOpenConns)
 	s.listener = listener
 	if s.tlsEnabled {
 		if _, err := tls.LoadX509KeyPair(s.tlsCertPath, s.tlsKeyPath); err != nil {
