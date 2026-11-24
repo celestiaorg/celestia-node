@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-node/share"
 	"github.com/celestiaorg/celestia-node/share/eds"
 	"github.com/celestiaorg/celestia-node/share/eds/edstest"
+	"github.com/celestiaorg/celestia-node/share/shwap"
 )
 
 func TestCreateODSQ4File(t *testing.T) {
@@ -41,6 +42,33 @@ func TestODSQ4File(t *testing.T) {
 	ODSSize := 16
 	eds.TestSuiteAccessor(ctx, t, createODSQ4Accessor, ODSSize)
 	eds.TestStreamer(ctx, t, createODSQ4AccessorStreamer, ODSSize)
+}
+
+// Once Q4 is trimmed, the file behaves as ODS-only: nothing from the second half is reconstructed.
+func TestODSQ4File_Q4Trimmed(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	square := edstest.RandEDS(t, 8)
+	odsq4 := createODSQ4File(t, square)
+	t.Cleanup(func() { require.NoError(t, odsq4.Close()) })
+	require.NoError(t, os.Remove(odsq4.pathQ4))
+
+	size := int(square.Width())
+	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, 0)
+	require.NoError(t, err)
+	require.Len(t, half.Shares, size/2)
+
+	_, err = odsq4.AxisHalf(ctx, rsmt2d.Row, size-1)
+	require.ErrorIs(t, err, ErrSecondHalfNotStored)
+	require.ErrorIs(t, err, shwap.ErrNotFound)
+
+	// the third quadrant is still served through its column
+	_, err = odsq4.Sample(ctx, shwap.SampleCoords{Row: size - 1, Col: 0})
+	require.NoError(t, err)
+	// the fourth quadrant needs a full reconstruction
+	_, err = odsq4.Sample(ctx, shwap.SampleCoords{Row: size - 1, Col: size - 1})
+	require.ErrorIs(t, err, shwap.ErrNotFound)
 }
 
 func TestValidateODSQ4FileSize(t *testing.T) {

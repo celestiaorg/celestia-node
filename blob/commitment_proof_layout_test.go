@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
 	"github.com/celestiaorg/go-square/merkle"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
@@ -190,5 +190,46 @@ func TestCommitmentProofVerifyRejectsWrongNamespace(t *testing.T) {
 
 	cp.NamespaceID = ns.ID()
 	cp.NamespaceVersion = 7
+	require.Error(t, cp.Verify(dataRoot, blob.Commitment))
+}
+
+// TestCommitmentProofVerifyRejectsRescaledRange checks that a genuine subtree
+// root proof cannot be relabelled with a different share range. An NMT
+// subtree proof does not encode the tree size, so doubling the start, end and
+// subtree width of a proof for a blob in the first half of a row walks the same
+// hash path unless the number of proof nodes is checked against the row width.
+func TestCommitmentProofVerifyRejectsRescaledRange(t *testing.T) {
+	const ods = 128
+	other := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, 10))
+	ns := libshare.MustNewV0Namespace(bytes.Repeat([]byte{0x11}, 10))
+
+	prefix, err := NewBlob(libshare.ShareVersionZero, other, bytes.Repeat([]byte{0x01}, 478+9*482), nil)
+	require.NoError(t, err)
+	prefixShares, err := BlobsToShares(prefix)
+	require.NoError(t, err)
+	require.Len(t, prefixShares, 10)
+
+	blob, err := NewBlob(libshare.ShareVersionZero, ns, bytes.Repeat([]byte{0x22}, 478+32*482), nil)
+	require.NoError(t, err)
+	blobShares, err := BlobsToShares(blob)
+	require.NoError(t, err)
+	require.Len(t, blobShares, 33) // subtree width 1; doubling the range gives width 2
+
+	shares := append(append([]libshare.Share{}, prefixShares...), blobShares...)
+	for len(shares) < ods*ods {
+		shares = append(shares, libshare.TailPaddingShare())
+	}
+	eds, dataRoot := buildTestEDS(t, shares)
+
+	cp, err := ProveCommitment(eds, ns, blobShares)
+	require.NoError(t, err)
+	require.NoError(t, cp.Verify(dataRoot, blob.Commitment))
+	require.Len(t, cp.SubtreeRootProofs, 1)
+	honest := cp.SubtreeRootProofs[0]
+	require.Equal(t, 10, honest.Start())
+	require.Equal(t, 43, honest.End())
+
+	forged := nmt.NewInclusionProof(2*honest.Start(), 2*honest.End(), honest.Nodes(), true)
+	cp.SubtreeRootProofs = []*nmt.Proof{&forged}
 	require.Error(t, cp.Verify(dataRoot, blob.Commitment))
 }

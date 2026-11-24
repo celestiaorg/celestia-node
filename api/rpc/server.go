@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 
 	"github.com/celestiaorg/celestia-node/api/rpc/perms"
 	"github.com/celestiaorg/celestia-node/libs/authtoken"
@@ -131,7 +131,8 @@ func NewServer(
 }
 
 // newHandlerStack returns wrapped rpc related handlers.
-// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → metrics → RPC handler.
+// Middleware order (outermost first):
+// rate-limit (opt-in) → conn-limit → body-limit → CORS/auth → metrics → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 	// otelhttp records HTTP request-level metrics (duration, request/response
 	// sizes, active requests, status) and — unlike a hand-rolled wrapper —
@@ -158,6 +159,9 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 		h = s.authHandler(h)
 	}
 
+	// The body limit sits outside auth: the auth handler parses a form body
+	// to look for a token, before the RPC handler applies its own size limit.
+	h = limitRequestBody(maxRequestSize, h)
 	h = connLimit(maxConcurrentConns, h)
 	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
 	// one bucket (RemoteAddr == proxy), so the limit is best applied there.

@@ -40,6 +40,12 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # cosmos-sdk is replaced by the celestiaorg/cosmos-sdk fork, and the
+      # cosmossdk.io/* modules must stay at versions compatible with that fork.
+      # Newer upstream versions (e.g. x/feegrant v0.2.0) import packages the
+      # fork lacks, so the whole go-deps group update fails to resolve.
+      - dependency-name: "github.com/cosmos/cosmos-sdk"
+      - dependency-name: "cosmossdk.io/*"
     groups:
       # Narrow group first: a dep lands in the first group whose pattern matches.
       # libp2p and its multiformats primitives break far more often than the

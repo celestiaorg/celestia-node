@@ -9,8 +9,8 @@ import (
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/proof"
 	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/go-square/v4/inclusion"
 	libshare "github.com/celestiaorg/go-square/v4/share"
@@ -171,12 +171,35 @@ func (commitmentProof *CommitmentProof) validateLayout() error {
 		if i < last && end != ods {
 			return fmt.Errorf("subtree root proof %d must end at %d, got %d", i, ods, end)
 		}
+		// An NMT range proof does not encode the tree size, so a proof for one range
+		// can verify under a scaled range. Pin it to the row width (2 * ods leaves) by
+		// requiring one node per maximal subtree outside [start, end).
+		width := 2 * ods
+		if want := coverNodes(0, width, 0, start) + coverNodes(0, width, end, width); len(prf.Nodes()) != want {
+			return fmt.Errorf("subtree root proof %d for range [%d, %d) has %d nodes, expected %d",
+				i, start, end, len(prf.Nodes()), want)
+		}
 	}
 	return nil
 }
 
-// Verify verifies that a commitment proof is valid, i.e., the subtree roots commit
-// to specific data that was posted to a square.
+// coverNodes returns the number of maximal aligned subtrees of the perfect binary
+// tree spanning leaves [lo, hi) that together cover leaves [a, b).
+func coverNodes(lo, hi, a, b int) int {
+	if b <= lo || hi <= a || a >= b {
+		return 0
+	}
+	if a <= lo && hi <= b {
+		return 1
+	}
+	mid := lo + (hi-lo)/2
+	return coverNodes(lo, mid, a, b) + coverNodes(mid, hi, a, b)
+}
+
+// Verify verifies that the subtree roots, whose merkle root is commitment, are in one
+// blob namespace in consecutive rows of the square with the given data root. It does
+// not prove that commitment is the commitment of a whole blob; to check that,
+// recompute the commitment from the blob data.
 func (commitmentProof *CommitmentProof) Verify(dataRoot, commitment []byte) error {
 	if len(dataRoot) == 0 {
 		return errors.New("root must be non-empty")

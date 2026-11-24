@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v11/pkg/wrapper"
 	libshare "github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	nmt_ns "github.com/celestiaorg/nmt/namespace"
@@ -343,10 +343,10 @@ func RangeNamespaceDataFromProto(nd *pb.RangeNamespaceData) (RangeNamespaceData,
 		shares[i] = shrs
 	}
 
-	if err := checkProofNodes(nd.GetFirstIncompleteRowProof().GetNodes()); err != nil {
+	if err := checkProof(nd.GetFirstIncompleteRowProof()); err != nil {
 		return RangeNamespaceData{}, err
 	}
-	if err := checkProofNodes(nd.GetLastIncompleteRowProof().GetNodes()); err != nil {
+	if err := checkProof(nd.GetLastIncompleteRowProof()); err != nil {
 		return RangeNamespaceData{}, err
 	}
 

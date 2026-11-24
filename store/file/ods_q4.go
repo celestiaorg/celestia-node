@@ -123,6 +123,16 @@ func (odsq4 *ODSQ4) AxisRoots(ctx context.Context) (*share.AxisRoots, error) {
 }
 
 func (odsq4 *ODSQ4) Sample(ctx context.Context, idx shwap.SampleCoords) (shwap.Sample, error) {
+	size, err := odsq4.Size(ctx)
+	if err != nil {
+		return shwap.Sample{}, fmt.Errorf("getting size: %w", err)
+	}
+	// Without Q4 only the ODS selects the cheap axis: the third quadrant is served through its column
+	// and the fourth one is not stored.
+	if idx.Row >= size/2 && odsq4.tryLoadQ4() == nil {
+		return odsq4.ods.Sample(ctx, idx)
+	}
+
 	// use native AxisHalf implementation, to read axis from q4 quadrant when possible
 	half, err := odsq4.AxisHalf(ctx, rsmt2d.Row, idx.Row)
 	if err != nil {
