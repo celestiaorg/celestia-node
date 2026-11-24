@@ -12,6 +12,8 @@ import (
 // ConnManager.High connections, so connmgr trims unprotected peers before rcmgr rejects.
 func TestBridgeResourcesAdmitConnManagerHigh(t *testing.T) {
 	cfg := DefaultConfig(node.Bridge)
+	defaults := autoscaleResources().ToPartialLimitConfig().System
+	cfg.ConnManager.High = int(max(defaults.Conns, defaults.ConnsInbound, defaults.ConnsOutbound)) + 1
 	limits := bridgeResources(&cfg, Mainnet).ToPartialLimitConfig().System
 	high := cfg.ConnManager.High
 
