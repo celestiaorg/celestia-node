@@ -266,7 +266,7 @@ func TestShrexGetter(t *testing.T) {
 		})
 
 		odsSize := len(eh.DAH.RowRoots) / 2
-		coords := make([]shwap.SampleCoords, odsSize*odsSize)
+		coords := make([]shwap.SampleCoords, odsSize*odsSize, 2*odsSize*odsSize)
 		total := 0
 		for i := 0; i < odsSize; i++ {
 			for j := 0; j < odsSize; j++ {
@@ -275,14 +275,16 @@ func TestShrexGetter(t *testing.T) {
 			}
 		}
 
+		// Exercise multiple batches while retaining duplicate coordinates and their positions.
+		coords = append(coords, coords...)
 		got, err := getter.GetSamples(ctx, eh, coords)
 		require.NoError(t, err)
-		assert.Len(t, got, len(coords))
+		require.Len(t, got, len(coords))
 
 		odsShares := randEDS.FlattenedODS()
 		require.NoError(t, err)
 		for i, samples := range got {
-			assert.Equal(t, odsShares[i], samples.ToBytes(), fmt.Sprintf("sample %d", i))
+			assert.Equal(t, odsShares[i%len(odsShares)], samples.ToBytes(), fmt.Sprintf("sample %d", i))
 		}
 	})
 

@@ -40,6 +40,8 @@ const (
 	// serve getEDS request for block size 256
 	defaultMinRequestTimeout = time.Minute // should be >= shrexeds server write timeout
 	defaultMinAttemptsCount  = 3
+	// Keep a default DAS round parallel without letting larger requests grow concurrency.
+	maxConcurrentSampleRequests = 16
 )
 
 // Getter is a share.Getter that uses the shrex protocol to retrieve shares.
@@ -120,7 +122,7 @@ func (sg *Getter) GetSamples(
 
 	samples := make([]shwap.Sample, len(requests))
 	errGroup, ctx := errgroup.WithContext(ctx)
-	errGroup.SetLimit(len(requests))
+	errGroup.SetLimit(maxConcurrentSampleRequests)
 
 	for i, request := range requests {
 		logger := log.With(
