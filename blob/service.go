@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
@@ -16,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
 	pkgproof "github.com/celestiaorg/celestia-app/v11/pkg/proof"
@@ -41,6 +41,12 @@ var (
 
 // subscriptionBufferSize defines the size of the buffer for blob subscription channels.
 const subscriptionBufferSize = 16
+
+// maxNamespacesPerRequest bounds the work and response size of GetAll calls.
+const maxNamespacesPerRequest = 64
+
+// maxConcurrentNamespaceRequests bounds simultaneous namespace retrievals.
+const maxConcurrentNamespaceRequests = 16
 
 // SubmitOptions aliases TxOptions from state package allowing users
 // to specify options for SubmitPFB transaction.
@@ -383,7 +389,22 @@ func (s *Service) GetProof(
 // the user will receive all found blobs along with a combined error message.
 //
 // All blobs will preserve the order of the namespaces that were requested.
+// Requests may contain at most 64 namespaces and must not contain duplicates.
 func (s *Service) GetAll(ctx context.Context, height uint64, namespaces []libshare.Namespace) (_ []*Blob, err error) {
+	if len(namespaces) > maxNamespacesPerRequest {
+		return nil, fmt.Errorf("blob: too many namespaces: got %d, maximum %d", len(namespaces), maxNamespacesPerRequest)
+	}
+
+	// Reject duplicates before fetching so neither data nor the response is multiplied.
+	seen := make(map[string]struct{}, len(namespaces))
+	for i, namespace := range namespaces {
+		key := string(namespace.Bytes())
+		if _, exists := seen[key]; exists {
+			return nil, fmt.Errorf("blob: duplicate namespace at index %d", i)
+		}
+		seen[key] = struct{}{}
+	}
+
 	ctx, span := tracer.Start(ctx, "blob/get-all")
 	defer func() {
 		utils.SetStatusAndEnd(span, err)
@@ -416,29 +437,53 @@ func (s *Service) getAll(
 	header *header.ExtendedHeader,
 	namespaces []libshare.Namespace,
 ) ([]*Blob, error) {
+	namespaces = dedupNamespaces(namespaces)
 	var (
 		span             = trace.SpanFromContext(ctx)
 		namespaceStrings = make([]string, len(namespaces))
 		resultBlobs      = make([][]*Blob, len(namespaces))
 		resultErr        = make([]error, len(namespaces))
-		wg               = sync.WaitGroup{}
+		wg               errgroup.Group
 	)
-
+	wg.SetLimit(maxConcurrentNamespaceRequests)
 	for i, namespace := range namespaces {
-		wg.Add(1)
-		go func(i int, namespace libshare.Namespace) {
-			defer wg.Done()
-			resultBlobs[i], resultErr[i] = s.getBlobs(ctx, namespace, header)
-		}(i, namespace)
-
 		namespaceStrings[i] = namespace.String()
 	}
 	span.SetAttributes(attribute.StringSlice("namespaces", namespaceStrings))
-	wg.Wait()
+
+	for i, namespace := range namespaces {
+		wg.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				resultErr[i] = err
+				return err
+			}
+			resultBlobs[i], resultErr[i] = s.getBlobs(ctx, namespace, header)
+			return resultErr[i]
+		})
+	}
+	// Preserve partial results and all namespace errors rather than only the first error.
+	_ = wg.Wait()
 
 	blobs := slices.Concat(resultBlobs...)
 	err := errors.Join(resultErr...)
 	return blobs, err
+}
+
+// dedupNamespaces returns namespaces without repeats, in first-seen order.
+// Distinct namespaces never share blobs, so the result of getAll over the
+// deduplicated list holds each blob in the square at most once.
+func dedupNamespaces(namespaces []libshare.Namespace) []libshare.Namespace {
+	seen := make(map[string]struct{}, len(namespaces))
+	out := make([]libshare.Namespace, 0, len(namespaces))
+	for _, ns := range namespaces {
+		key := string(ns.Bytes())
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, ns)
+	}
+	return out
 }
 
 // Included verifies that the blob was included in a specific height.
