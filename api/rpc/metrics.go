@@ -42,7 +42,7 @@ type rpcMetrics struct {
 	// live in onConnState like connectionsOpen: net/http emits StateHijacked on
 	// upgrade but never a matching close for hijacked conns, so the gauge is
 	// bracketed around the (blocking) ws ServeHTTP in trackWebsocket instead.
-	// Live slot usage against maxConcurrentConns is connectionsOpen +
+	// Total open connections are connectionsOpen +
 	// websocketConnsOpen (hijacked conns leave connectionsOpen on upgrade).
 	websocketConnsOpen     atomic.Int64
 	websocketConnsOpenInst metric.Int64ObservableGauge
