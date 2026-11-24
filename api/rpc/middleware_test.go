@@ -15,8 +15,8 @@ const (
 	testCacheSize  = 8
 )
 
-func TestConnLimit_AllowsWithinLimit(t *testing.T) {
-	handler := connLimit(2, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestRequestLimit_AllowsWithinLimit(t *testing.T) {
+	handler := requestLimit(2, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -26,10 +26,10 @@ func TestConnLimit_AllowsWithinLimit(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestConnLimit_RejectsOverLimit(t *testing.T) {
+func TestRequestLimit_RejectsOverLimit(t *testing.T) {
 	blocked := make(chan struct{})
 	released := make(chan struct{})
-	handler := connLimit(1, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := requestLimit(1, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Block") == "true" {
 			close(blocked)
 			<-released
@@ -58,8 +58,8 @@ func TestConnLimit_RejectsOverLimit(t *testing.T) {
 	wg.Wait()
 }
 
-func TestConnLimit_ReleasesSlotAfterRequest(t *testing.T) {
-	handler := connLimit(1, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestRequestLimit_ReleasesSlotAfterRequest(t *testing.T) {
+	handler := requestLimit(1, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

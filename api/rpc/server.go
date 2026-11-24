@@ -31,8 +31,8 @@ const (
 	// to cover base64 + JSON envelope overhead (~1.5×) on a worst-case blob.Submit,
 	// which packs all blobs into a single PFB tx capped at MaxTxSize.
 	maxRequestSize = int64(appconsts.MaxTxSize * 2)
-	// maxConcurrentConns caps the requests served at the same time.
-	maxConcurrentConns = 500
+	// maxConcurrentRequests caps the HTTP requests served at the same time.
+	maxConcurrentRequests = 500
 	// defaultMaxOpenConns caps the connections open at the same time, idle
 	// keep-alive connections and WebSockets included, to bound FD usage.
 	defaultMaxOpenConns = 500
@@ -138,7 +138,7 @@ func NewServer(
 }
 
 // newHandlerStack returns wrapped rpc related handlers.
-// Middleware order (outermost first): rate-limit (opt-in) → conn-limit → CORS/auth → metrics → RPC handler.
+// Middleware order (outermost first): rate-limit (opt-in) → request-limit → CORS/auth → metrics → RPC handler.
 func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 	// otelhttp records HTTP request-level metrics (duration, request/response
 	// sizes, active requests, status) and — unlike a hand-rolled wrapper —
@@ -165,7 +165,7 @@ func (s *Server) newHandlerStack(core http.Handler) http.Handler {
 		h = s.authHandler(h)
 	}
 
-	h = connLimit(maxConcurrentConns, h)
+	h = requestLimit(maxConcurrentRequests, h)
 	// Per-IP rate limiting is opt-in: behind a reverse proxy all clients share
 	// one bucket (RemoteAddr == proxy), so the limit is best applied there.
 	if s.rateLimitCfg.Enabled {
